@@ -35,6 +35,9 @@ Ir a: **http://localhost:5173**
 | admin@company.com | AdminPass123! | Administrador |
 | manager@company.com | Manager123! | Responsable |
 | carlos@company.com | User123! | Usuario |
+| ana@company.com | User123! | Usuario |
+| laura@company.com | User123! | Usuario |
+| pedro@company.com | User123! | Usuario |
 
 ---
 
