@@ -1,0 +1,31 @@
+# Docker Compose for schedule-app
+
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: schedule-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/prisma:/app/prisma
+      - ./backend/src:/app/src
+      - ./backend/.env:/app/.env
+    ports:
+      - "3001:3001"
+    depends_on:
+      - frontend
+
+  frontend:
+    build: ./frontend
+    container_name: schedule-frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3001

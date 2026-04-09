@@ -1,0 +1,209 @@
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { User, Lock, Shield, AlertTriangle } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import api from '@/config/api';
+import { ROLE_LABELS } from '@/types';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { getInitials, getAvatarColor, formatDate } from '@/lib/utils';
+import { useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
+const pwSchema = z.object({
+  currentPassword: z.string().min(1, 'Requerido'),
+  newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
+  confirmPassword: z.string(),
+}).refine((d) => d.newPassword === d.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
+});
+
+type PwForm = z.infer<typeof pwSchema>;
+
+export function ProfilePage() {
+  const user = useAuthStore((s) => s.user);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const { accessToken, refreshToken } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const qc = useQueryClient();
+
+  // Auto-open password form when forcePasswordChange or ?change=1
+  const forceChange = user?.forcePasswordChange === true || searchParams.get('change') === '1';
+  const [showPwForm, setShowPwForm] = useState(forceChange);
+
+  // Remove the query param after opening the form
+  useEffect(() => {
+    if (searchParams.get('change') === '1') {
+      setSearchParams({}, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<PwForm>({
+    resolver: zodResolver(pwSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  });
+
+  const changePwMutation = useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      api.patch('/auth/change-password', data),
+    onSuccess: () => {
+      toast.success('Contraseña actualizada correctamente');
+      setShowPwForm(false);
+      reset();
+      // Update stored user to clear forcePasswordChange flag
+      if (user && accessToken && refreshToken) {
+        setAuth({ ...user, forcePasswordChange: false }, accessToken, refreshToken);
+      }
+      qc.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+  });
+
+  if (!user) return null;
+
+  const bgColor = getAvatarColor(user.name);
+
+  return (
+    <div className="space-y-6 animate-fade-in max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold text-navy-800">Mi Perfil</h1>
+        <p className="text-sm text-navy-400 mt-1.5">Gestiona tu información y seguridad</p>
+      </div>
+
+      {/* Force password change banner */}
+      {user?.forcePasswordChange && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Debes cambiar tu contraseña</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Por seguridad, es obligatorio cambiar la contraseña inicial antes de continuar usando la aplicación.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Profile card */}
+      <div className="card p-7">
+        <div className="flex items-center gap-5">
+          <div
+            className="h-16 w-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg flex-shrink-0"
+            style={{ backgroundColor: bgColor }}
+          >
+            {getInitials(user.name)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-navy-800">{user.name}</h2>
+            <p className="text-navy-400 text-sm">{user.email}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`badge-role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
+              {user.department && (
+                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">{user.department}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mt-6 pt-5 border-t border-navy-100">
+          <div>
+            <p className="text-xs text-navy-400 uppercase tracking-wider font-medium">Miembro desde</p>
+            <p className="text-sm font-medium text-navy-700 mt-1">{formatDate(user.createdAt)}</p>
+          </div>
+          {user.lastLoginAt && (
+            <div>
+              <p className="text-xs text-navy-400 uppercase tracking-wider font-medium">Último acceso</p>
+              <p className="text-sm font-medium text-navy-700 mt-1">{formatDate(user.lastLoginAt)}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Role info */}
+      <div className="card p-7">
+        <div className="flex items-center gap-3 mb-4">
+          <Shield className="h-4 w-4 text-gold-500" />
+          <h3 className="text-sm font-semibold text-navy-700">Permisos de acceso</h3>
+        </div>
+        <div className="space-y-3 text-sm text-navy-600">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+            Ver planificación de guardias
+          </div>
+          {(user.role === 'manager' || user.role === 'admin') && (
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+              Crear y modificar guardias
+            </div>
+          )}
+          {user.role === 'admin' && (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                Gestión completa de usuarios
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                Configuración de webhooks y notificaciones
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                Acceso al registro de auditoría
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Change password */}
+      <div className="card p-7">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Lock className="h-4 w-4 text-gold-500" />
+            <h3 className="text-sm font-semibold text-navy-700">Cambiar Contraseña</h3>
+          </div>
+          <button onClick={() => setShowPwForm((v) => !v)} className="btn-ghost text-xs">
+            {showPwForm ? 'Cancelar' : 'Cambiar'}
+          </button>
+        </div>
+
+        {showPwForm && (
+          <form onSubmit={handleSubmit((d) => changePwMutation.mutate(d))} className="space-y-4 animate-slide-down">
+            <div>
+              <label className="block text-xs font-medium text-navy-600 mb-1">Contraseña actual</label>
+              <input {...register('currentPassword')} type="password" className="input-field text-sm" placeholder="••••••••" />
+              {errors.currentPassword && <p className="text-xs text-red-500 mt-1">{errors.currentPassword.message}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-navy-600 mb-1">Nueva contraseña</label>
+              <input {...register('newPassword')} type="password" className="input-field text-sm" placeholder="Mínimo 8 caracteres" />
+              {errors.newPassword && <p className="text-xs text-red-500 mt-1">{errors.newPassword.message}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-navy-600 mb-1">Confirmar contraseña</label>
+              <input {...register('confirmPassword')} type="password" className="input-field text-sm" placeholder="Repite la contraseña" />
+              {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword.message}</p>}
+            </div>
+            <button
+              type="submit"
+              disabled={changePwMutation.isPending}
+              className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {changePwMutation.isPending && <LoadingSpinner size="sm" className="border-white border-t-white/30" />}
+              Actualizar contraseña
+            </button>
+          </form>
+        )}
+        {!showPwForm && (
+          <p className="text-xs text-navy-400">Tu contraseña fue actualizada hace poco. Mantenla segura.</p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 p-4 bg-navy-50 rounded-xl border border-navy-100">
+        <User className="h-4 w-4 text-navy-400 flex-shrink-0" />
+        <p className="text-sm text-navy-500">Para cambiar tu email, nombre o rol, contacta con el administrador del sistema.</p>
+      </div>
+    </div>
+  );
+}

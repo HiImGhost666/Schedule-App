@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  passwordHash        String     @map("password_hash")
+  role                String     @default("viewer")
+  status              String     @default("active")
+  avatarUrl           String?    @map("avatar_url")
+  department          String?
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  lastLoginAt         DateTime?  @map("last_login")
+  failedAttempts      Int        @default(0) @map("failed_attempts")
+  lockedUntil         DateTime?  @map("locked_until")
+  forcePasswordChange Boolean    @default(false) @map("force_password_change")
+  islandCalendar      String     @default("none") @map("island_calendar")
+
+  refreshTokens       RefreshToken[]
+  createdSchedules    Schedule[]           @relation("ScheduleCreator")
+  scheduleAssignments ScheduleAssignment[]
+  auditLogs           AuditLog[]           @relation("AuditActor")
+  notificationsSent   NotificationLog[]    @relation("NotificationSender")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+  ipAddress String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+
+  @@map("refresh_tokens")
+}
+
+model Schedule {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  startDatetime DateTime @map("start_datetime")
+  endDatetime   DateTime @map("end_datetime")
+  type          String   @default("guardia")
+  color         String   @default("#1e3a5f")
+  location      String?
+  notes         String?
+  isLastMinute  Boolean  @default(false) @map("is_last_minute")
+  hoursPerDay   Float?   @default(8) @map("hours_per_day")
+  calendarType  String?  @map("calendar_type")
+  createdById   String   @map("created_by")
+  createdBy     User     @relation("ScheduleCreator", fields: [createdById], references: [id])
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  assignments ScheduleAssignment[]
+
+  @@index([startDatetime, endDatetime])
+  @@map("schedules")
+}
+
+model ScheduleAssignment {
+  scheduleId String   @map("schedule_id")
+  userId     String   @map("user_id")
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@id([scheduleId, userId])
+  @@map("schedule_assignments")
+}
+
+model WebhookConfig {
+  id                    String  @id @default(cuid())
+  name                  String
+  webhookUrl            String  @map("webhook_url")
+  enabled               Boolean @default(true)
+  notifyModifications   Boolean @default(true) @map("notify_modifications")
+  notifyLastMinute      Boolean @default(true) @map("notify_last_minute")
+  fridayReminderEnabled Boolean @default(true) @map("friday_reminder_enabled")
+  fridayReminderTime    String  @default("12:00") @map("friday_reminder_time")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  notificationLogs NotificationLog[]
+
+  @@map("webhook_configs")
+}
+
+model NotificationLog {
+  id              String    @id @default(cuid())
+  type            String
+  message         String
+  payload         String?
+  webhookConfigId String?   @map("webhook_config_id")
+  webhookConfig   WebhookConfig? @relation(fields: [webhookConfigId], references: [id])
+  sentAt          DateTime  @default(now()) @map("sent_at")
+  sentByUserId    String?   @map("sent_by_user_id")
+  sentBy          User?     @relation("NotificationSender", fields: [sentByUserId], references: [id])
+  status          String    @default("pending")
+  errorMessage    String?   @map("error_message")
+  scheduleId      String?   @map("schedule_id")
+
+  @@index([sentAt])
+  @@map("notification_logs")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  user        User?    @relation("AuditActor", fields: [userId], references: [id])
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  detailsJson String?  @map("details_json")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([userId])
+  @@map("audit_logs")
+}
