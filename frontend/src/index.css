@@ -1,30 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-navy-50: #f0f4f8;
-  --color-navy-100: #d9e6f2;
-  --color-navy-200: #b3cde5;
-  --color-navy-300: #7da8cc;
-  --color-navy-400: #4d7ea8;
-  --color-navy-500: #1e3a5f;
-  --color-navy-600: #183050;
-  --color-navy-700: #122640;
-  --color-navy-800: #0c1c30;
-  --color-navy-900: #060e18;
+  --color-navy-50: #f4f8fa;
+  --color-navy-100: #e3ebf0;
+  --color-navy-200: #ccd8e0;
+  --color-navy-300: #a6bbc8;
+  --color-navy-400: #7a99ac;
+  --color-navy-500: #4f758b;
+  --color-navy-600: #355d73;
+  --color-navy-700: #1e4358;
+  --color-navy-800: #123040;
+  --color-navy-900: #091f2c;
 
-  --color-gold-50: #fefbf0;
-  --color-gold-100: #fdf3d0;
-  --color-gold-200: #fbe6a0;
-  --color-gold-300: #f8d050;
-  --color-gold-400: #f5c518;
-  --color-gold-500: #d4a80e;
-  --color-gold-600: #a8850a;
-  --color-gold-700: #7c6208;
-  --color-gold-800: #504005;
-  --color-gold-900: #281f02;
+  --color-gold-50: #fbf0f2;
+  --color-gold-100: #f3d0d4;
+  --color-gold-200: #e89aa2;
+  --color-gold-300: #dc5f6c;
+  --color-gold-400: #d63244;
+  --color-gold-500: #c10016;
+  --color-gold-600: #ab0014;
+  --color-gold-700: #960012;
+  --color-gold-800: #73000d;
+  --color-gold-900: #4d0009;
 
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Wix Madefor Text', system-ui, sans-serif;
 
   --animate-fade-in: fadeIn 0.3s ease-in-out;
   --animate-slide-up: slideUp 0.3s ease-out;
@@ -48,7 +48,7 @@ button {
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Wix Madefor Text', system-ui, sans-serif;
   background-color: var(--color-navy-50);
   color: var(--color-navy-500);
   -webkit-font-smoothing: antialiased;
@@ -77,7 +77,7 @@ body {
 
 .btn-gold {
   background-color: var(--color-gold-400);
-  color: var(--color-navy-900);
+  color: white;
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 8px;
@@ -136,7 +136,7 @@ body {
 .input-field::placeholder { color: var(--color-navy-300); }
 
 .badge-role-admin { background-color: var(--color-navy-500); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-manager { background-color: var(--color-gold-400); color: var(--color-navy-900); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-manager { background-color: var(--color-gold-400); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .badge-role-viewer { background-color: var(--color-navy-100); color: var(--color-navy-600); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 
 .badge-status-active { background-color: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
@@ -156,9 +156,9 @@ body {
   --fc-button-hover-border-color: var(--color-navy-600);
   --fc-button-active-bg-color: var(--color-gold-400);
   --fc-button-active-border-color: var(--color-gold-400);
-  --fc-button-active-color: var(--color-navy-900);
+  --fc-button-active-color: white;
   --fc-event-border-color: transparent;
-  --fc-today-bg-color: rgba(245, 197, 24, 0.07);
+  --fc-today-bg-color: rgba(193, 0, 22, 0.08);
   --fc-neutral-bg-color: var(--color-navy-50);
   --fc-list-event-hover-bg-color: var(--color-navy-50);
 }
@@ -200,7 +200,7 @@ body {
 .fc .fc-day-today { background: var(--fc-today-bg-color) !important; }
 .fc .fc-day-today .fc-daygrid-day-number {
   background: var(--color-gold-400);
-  color: var(--color-navy-900);
+  color: white;
   border-radius: 50%;
   width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;

@@ -57,9 +57,10 @@ export function LoginPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-navy-900">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700" />
-        <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-gold-400/10 blur-3xl" />
-        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-navy-300/10 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-700 to-navy-500" />
+        <div className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-gold-500/18 blur-3xl" />
+        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-navy-300/20 blur-3xl" />
+        <div className="absolute left-1/3 top-1/3 h-64 w-64 rounded-full bg-[#B4B5DF]/20 blur-3xl" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(217,230,242,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(217,230,242,0.04)_1px,transparent_1px)] bg-[size:38px_38px]" />
       </div>
 
@@ -92,7 +93,7 @@ export function LoginPage() {
             <div className="mt-10 grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div className="flex items-start gap-3">
-                  <Users className="mt-0.5 h-4 w-4 text-gold-300" />
+                  <Users className="mt-0.5 h-4 w-4 text-gold-200" />
                   <div>
                     <p className="text-sm font-semibold">Colaboración de Equipos</p>
                     <p className="mt-1 text-xs text-navy-100/90">Roles y permisos claros para operaciones seguras.</p>
@@ -101,7 +102,7 @@ export function LoginPage() {
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div className="flex items-start gap-3">
-                  <Clock3 className="mt-0.5 h-4 w-4 text-gold-300" />
+                  <Clock3 className="mt-0.5 h-4 w-4 text-gold-200" />
                   <div>
                     <p className="text-sm font-semibold">Cobertura 24/7</p>
                     <p className="mt-1 text-xs text-navy-100/90">Asignaciones semanales con respuesta rápida a cambios.</p>
@@ -110,7 +111,7 @@ export function LoginPage() {
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-gold-300" />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#B4B5DF]" />
                   <div>
                     <p className="text-sm font-semibold">Trazabilidad Completa</p>
                     <p className="mt-1 text-xs text-navy-100/90">Registro de actividad y reportes para control interno.</p>
@@ -119,12 +120,12 @@ export function LoginPage() {
               </div>
             </div>
 
-            <p className="mt-10 text-xs text-navy-200/90">© {new Date().getFullYear()} Sistema Corporativo de Guardias</p>
+            <p className="mt-10 text-xs text-navy-200/90">© {new Date().getFullYear()} Lãberit | Sistema de Guardias</p>
           </section>
 
           <section className="bg-white p-7 sm:p-9">
             <div className="mx-auto max-w-md">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-navy-400">Acceso Seguro</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-500">Acceso Seguro</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-navy-800">Iniciar Sesión</h2>
               <p className="mt-2 text-sm text-navy-400">Ingresa tus credenciales corporativas para continuar.</p>
 
@@ -199,7 +200,7 @@ export function LoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="btn-primary mt-2 flex w-full items-center justify-center gap-2 py-3 text-sm transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-300 focus-visible:ring-offset-2"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-[9px] bg-gold-500 px-4 pt-3 pb-4 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold-600 disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2"
                 >
                   {isSubmitting ? (
                     <>
