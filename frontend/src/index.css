@@ -1,68 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  /* ── Azul marino corporativo (Pantone 5395 C) ── */
-  --color-navy-50:  #edf1f4;
-  --color-navy-100: #cdd8e0;
-  --color-navy-200: #9cb3c2;
-  --color-navy-300: #6b8ea3;
-  --color-navy-400: #4f758b;
-  --color-navy-500: #3a5c70;
-  --color-navy-600: #1e3d52;
-  --color-navy-700: #122b3a;
-  --color-navy-800: #091f2c;
-  --color-navy-900: #040f16;
+  --color-navy-50: #f0f4f8;
+  --color-navy-100: #d9e6f2;
+  --color-navy-200: #b3cde5;
+  --color-navy-300: #7da8cc;
+  --color-navy-400: #4d7ea8;
+  --color-navy-500: #1e3a5f;
+  --color-navy-600: #183050;
+  --color-navy-700: #122640;
+  --color-navy-800: #0c1c30;
+  --color-navy-900: #060e18;
 
-  /* ── Rojo corporativo (Pantone 3517 C) ── */
-  --color-red-50:  #fce8eb;
-  --color-red-100: #f5b8bf;
-  --color-red-200: #ee8892;
-  --color-red-300: #e05060;
-  --color-red-400: #d4203a;
-  --color-red-500: #c10016;
-  --color-red-600: #9a0012;
-  --color-red-700: #73000d;
-  --color-red-800: #4d0009;
-  --color-red-900: #260004;
+  --color-gold-50: #fefbf0;
+  --color-gold-100: #fdf3d0;
+  --color-gold-200: #fbe6a0;
+  --color-gold-300: #f8d050;
+  --color-gold-400: #f5c518;
+  --color-gold-500: #d4a80e;
+  --color-gold-600: #a8850a;
+  --color-gold-700: #7c6208;
+  --color-gold-800: #504005;
+  --color-gold-900: #281f02;
 
-  /* ── Lila complementario (Pantone 270 C) ── */
-  --color-lilac-50:  #f4f4fb;
-  --color-lilac-100: #e0e0f4;
-  --color-lilac-200: #c8c9ec;
-  --color-lilac-300: #b4b5df;
-  --color-lilac-400: #9899d0;
-  --color-lilac-500: #7c7ec1;
-  --color-lilac-600: #5e60a8;
-  --color-lilac-700: #46488a;
-  --color-lilac-800: #2e306b;
-  --color-lilac-900: #16184c;
-
-  /* ── Azul grisáceo (Pantone 5425 C) ── */
-  --color-slate-50:  #f2f6f8;
-  --color-slate-100: #dae5ec;
-  --color-slate-200: #bdd0da;
-  --color-slate-300: #9db8c6;
-  --color-slate-400: #7a99ac;
-  --color-slate-500: #5e8096;
-  --color-slate-600: #456677;
-  --color-slate-700: #2e4d59;
-  --color-slate-800: #18333c;
-  --color-slate-900: #081a1f;
-
-  /* ── Gold alias → rojo (para compatibilidad con código existente) ── */
-  --color-gold-50:  #fce8eb;
-  --color-gold-100: #f5b8bf;
-  --color-gold-200: #ee8892;
-  --color-gold-300: #e05060;
-  --color-gold-400: #c10016;
-  --color-gold-500: #9a0012;
-  --color-gold-600: #73000d;
-  --color-gold-700: #4d0009;
-  --color-gold-800: #260004;
-  --color-gold-900: #091f2c;
-
-  --font-sans: 'Wix Madefor Text', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
 
   --animate-fade-in: fadeIn 0.3s ease-in-out;
   --animate-slide-up: slideUp 0.3s ease-out;
@@ -79,14 +41,14 @@
     margin: 0;
     padding: 0;
   }
+}
 
-  button, input, select, textarea {
-    padding: revert;
-  }
+button {
+  padding: revert;
 }
 
 body {
-  font-family: 'Wix Madefor Text', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background-color: var(--color-navy-50);
   color: var(--color-navy-500);
   -webkit-font-smoothing: antialiased;
@@ -98,7 +60,7 @@ body {
 
 /* Component classes */
 .btn-primary {
-  background-color: var(--color-red-500);
+  background-color: var(--color-navy-500);
   color: white;
   font-weight: 600;
   padding: 8px 16px;
@@ -111,11 +73,11 @@ body {
   align-items: center;
 }
 
-.btn-primary:hover { background-color: var(--color-red-600); }
+.btn-primary:hover { background-color: var(--color-navy-600); }
 
 .btn-gold {
-  background-color: var(--color-red-500);
-  color: white;
+  background-color: var(--color-gold-400);
+  color: var(--color-navy-900);
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 8px;
@@ -123,7 +85,7 @@ body {
   cursor: pointer;
   transition: background-color 0.2s;
 }
-.btn-gold:hover { background-color: var(--color-red-600); }
+.btn-gold:hover { background-color: var(--color-gold-500); }
 
 .btn-ghost {
   color: var(--color-navy-500);
@@ -168,20 +130,14 @@ body {
   transition: all 0.2s;
   outline: none;
 }
-
-.input-field.with-icon {
-  padding-left: 2.5rem;
-}
-
-.input-field.pr-10 {
-  padding-right: 2.5rem;
-}
 .input-field:focus { border-color: var(--color-navy-400); box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1); }
+.input-field[aria-invalid='true'] { border-color: #fca5a5; }
+.input-field[aria-invalid='true']:focus { border-color: #b91c1c; box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12); }
 .input-field::placeholder { color: var(--color-navy-300); }
 
-.badge-role-admin { background-color: var(--color-navy-800); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-manager { background-color: var(--color-red-500); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-viewer { background-color: var(--color-lilac-200); color: var(--color-lilac-800); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-admin { background-color: var(--color-navy-500); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-manager { background-color: var(--color-gold-400); color: var(--color-navy-900); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-viewer { background-color: var(--color-navy-100); color: var(--color-navy-600); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 
 .badge-status-active { background-color: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .badge-status-disabled { background-color: #f3f4f6; color: #4b5563; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
@@ -194,15 +150,15 @@ body {
 /* ─── FullCalendar Overrides ─────────────────────────────────── */
 .fc {
   --fc-border-color: var(--color-navy-100);
-  --fc-button-bg-color: var(--color-navy-800);
-  --fc-button-border-color: var(--color-navy-800);
+  --fc-button-bg-color: var(--color-navy-500);
+  --fc-button-border-color: var(--color-navy-500);
   --fc-button-hover-bg-color: var(--color-navy-600);
   --fc-button-hover-border-color: var(--color-navy-600);
-  --fc-button-active-bg-color: var(--color-red-500);
-  --fc-button-active-border-color: var(--color-red-500);
-  --fc-button-active-color: #fff;
+  --fc-button-active-bg-color: var(--color-gold-400);
+  --fc-button-active-border-color: var(--color-gold-400);
+  --fc-button-active-color: var(--color-navy-900);
   --fc-event-border-color: transparent;
-  --fc-today-bg-color: rgba(193, 0, 22, 0.05);
+  --fc-today-bg-color: rgba(245, 197, 24, 0.07);
   --fc-neutral-bg-color: var(--color-navy-50);
   --fc-list-event-hover-bg-color: var(--color-navy-50);
 }
@@ -243,8 +199,8 @@ body {
 /* Today highlight */
 .fc .fc-day-today { background: var(--fc-today-bg-color) !important; }
 .fc .fc-day-today .fc-daygrid-day-number {
-  background: var(--color-red-500);
-  color: #fff;
+  background: var(--color-gold-400);
+  color: var(--color-navy-900);
   border-radius: 50%;
   width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;
