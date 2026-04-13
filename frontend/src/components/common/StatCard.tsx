@@ -11,10 +11,10 @@ interface StatCardProps {
 }
 
 const colorMap = {
-  navy: { bg: 'bg-navy-500', light: 'bg-navy-50', text: 'text-navy-500' },
-  gold: { bg: 'bg-gold-400', light: 'bg-gold-50', text: 'text-gold-600' },
-  green: { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-600' },
-  purple: { bg: 'bg-purple-500', light: 'bg-purple-50', text: 'text-purple-600' },
+  navy:   { bg: 'bg-navy-800',  light: 'bg-navy-50',   text: 'text-navy-700' },
+  gold:   { bg: 'bg-red-500',   light: 'bg-red-50',    text: 'text-red-500'  },
+  green:  { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-600' },
+  purple: { bg: 'bg-lilac-400', light: 'bg-lilac-50',  text: 'text-lilac-600' },
 };
 
 export function StatCard({ title, value, icon: Icon, trend, color = 'navy', className }: StatCardProps) {

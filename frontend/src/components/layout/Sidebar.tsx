@@ -47,8 +47,8 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-6 border-b border-navy-700">
-        <div className="flex-shrink-0 h-8 w-8 bg-gold-400 rounded-lg flex items-center justify-center">
-          <Shield className="h-4 w-4 text-navy-900" />
+        <div className="flex-shrink-0 h-8 w-8 bg-red-500 rounded-lg flex items-center justify-center">
+          <Shield className="h-4 w-4 text-white" />
         </div>
         {!sidebarCollapsed && (
           <div className="min-w-0">
@@ -69,7 +69,7 @@ export function Sidebar() {
               cn(
                 'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-gold-400 text-navy-900'
+                  ? 'bg-red-500 text-white'
                   : 'text-navy-200 hover:bg-navy-700 hover:text-white'
               )
             }
@@ -95,7 +95,7 @@ export function Sidebar() {
                     cn(
                       'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                       isActive
-                        ? 'bg-gold-400 text-navy-900'
+                        ? 'bg-red-500 text-white'
                         : 'text-navy-200 hover:bg-navy-700 hover:text-white'
                     )
                   }
@@ -147,7 +147,7 @@ export function Sidebar() {
       {/* Collapse toggle */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-navy-600 hover:bg-navy-500 text-white rounded-full p-1 shadow-lg transition-colors z-10"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-navy-600 hover:bg-red-500 text-white rounded-full p-1 shadow-lg transition-colors z-10"
       >
         {sidebarCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>

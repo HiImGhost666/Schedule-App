@@ -52,7 +52,7 @@ export function AuditLogPage() {
             placeholder="Filtrar por acción..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="input-field pl-9 text-sm"
+            className="input-field with-icon text-sm"
           />
         </div>
         <select value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1); }} className="input-field text-sm w-44">
