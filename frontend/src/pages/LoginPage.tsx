@@ -46,21 +46,22 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-700 to-navy-500 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-navy-800 flex items-center justify-center p-4">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gold-400/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-navy-300/10 blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-red-500/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-lilac-300/10 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-navy-700/40 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-md animate-slide-up">
         {/* Logo card */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gold-400 rounded-2xl shadow-lg mb-4">
-            <Shield className="h-8 w-8 text-navy-900" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-2xl shadow-lg mb-4">
+            <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Sistema de Guardias</h1>
-          <p className="text-navy-200 text-sm mt-1">Planificación Corporativa</p>
+          <p className="text-navy-300 text-sm mt-1">Planificación Corporativa</p>
         </div>
 
         {/* Login form */}
