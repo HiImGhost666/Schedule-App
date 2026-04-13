@@ -67,7 +67,7 @@ export function UsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="card p-6 flex flex-wrap gap-4">
+      <div className="card px-4 py-3 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300" />
           <input
@@ -75,7 +75,7 @@ export function UsersPage() {
             placeholder="Buscar por nombre o email..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="input-field pl-9 text-sm"
+            className="input-field with-icon text-sm"
           />
         </div>
         <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }} className="input-field text-sm w-40">
@@ -104,18 +104,18 @@ export function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-navy-50 border-b border-navy-100">
-                    <th className="text-left px-6 py-5 text-xs font-semibold text-navy-400 uppercase tracking-wider">Usuario</th>
-                    <th className="text-left px-6 py-5 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
-                    <th className="text-left px-6 py-5 text-xs font-semibold text-navy-400 uppercase tracking-wider">Rol</th>
-                    <th className="text-left px-6 py-5 text-xs font-semibold text-navy-400 uppercase tracking-wider">Estado</th>
-                    <th className="text-left px-6 py-5 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Último acceso</th>
-                    <th className="px-6 py-5" />
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Usuario</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Rol</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Estado</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Último acceso</th>
+                    <th className="px-5 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-navy-50">
+                <tbody className="divide-y divide-navy-100">
                   {data.data.map((u: User) => (
                     <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
-                      <td className="px-6 py-5">
+                      <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                             {u.name[0]}
@@ -126,13 +126,13 @@ export function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-sm text-navy-500 hidden md:table-cell">{u.department || '—'}</td>
-                      <td className="px-6 py-5">{roleBadge(u.role)}</td>
-                      <td className="px-6 py-5">{statusBadge(u.status)}</td>
-                      <td className="px-6 py-5 text-xs text-navy-400 hidden lg:table-cell">
+                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department || '—'}</td>
+                      <td className="px-5 py-3">{roleBadge(u.role)}</td>
+                      <td className="px-5 py-3">{statusBadge(u.status)}</td>
+                      <td className="px-5 py-3 text-xs text-navy-400 hidden lg:table-cell">
                         {u.lastLoginAt ? formatRelative(u.lastLoginAt) : 'Nunca'}
                       </td>
-                      <td className="px-6 py-5 relative">
+                      <td className="px-5 py-3 relative">
                         <button
                           onClick={() => setMenuOpenId(menuOpenId === u.id ? null : u.id)}
                           className="p-1 rounded hover:bg-navy-100 text-navy-400"
@@ -170,7 +170,7 @@ export function UsersPage() {
             </div>
             {/* Pagination */}
             {data?.pagination && data.pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-5 border-t border-navy-100">
+              <div className="flex items-center justify-between px-5 py-3 border-t border-navy-100">
                 <p className="text-xs text-navy-400">
                   {((page - 1) * 15) + 1}–{Math.min(page * 15, data.pagination.total)} de {data.pagination.total}
                 </p>

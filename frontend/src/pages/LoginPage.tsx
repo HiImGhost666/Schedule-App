@@ -78,7 +78,7 @@ export function LoginPage() {
                   {...register('email')}
                   type="email"
                   placeholder="usuario@empresa.com"
-                  className="input-field pl-10"
+                  className="input-field with-icon"
                   autoComplete="email"
                 />
               </div>
@@ -97,7 +97,7 @@ export function LoginPage() {
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
-                  className="input-field pl-10 pr-10"
+                  className="input-field with-icon pr-10"
                   autoComplete="current-password"
                 />
                 <button
