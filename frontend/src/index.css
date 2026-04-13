@@ -41,17 +41,21 @@
     margin: 0;
     padding: 0;
   }
-}
-
-button {
+  button {
   padding: revert;
 }
+}
+
 
 body {
   font-family: 'Wix Madefor Text', system-ui, sans-serif;
   background-color: var(--color-navy-50);
   color: var(--color-navy-500);
   -webkit-font-smoothing: antialiased;
+}
+
+input, select, textarea {
+  padding: revert;
 }
 
 #root {
@@ -134,6 +138,8 @@ body {
 .input-field[aria-invalid='true'] { border-color: #fca5a5; }
 .input-field[aria-invalid='true']:focus { border-color: #b91c1c; box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12); }
 .input-field::placeholder { color: var(--color-navy-300); }
+.input-field.with-icon { padding-left: 2rem; }
+.input-field.pr-10 { padding-right: 2rem; }
 
 .badge-role-admin { background-color: var(--color-navy-500); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .badge-role-manager { background-color: var(--color-gold-400); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
