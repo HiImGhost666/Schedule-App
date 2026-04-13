@@ -1,13 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Webhook, Bell, ClipboardList,
-  LogOut, ChevronLeft, ChevronRight, Shield, User, Palette
+  LogOut, ChevronLeft, ChevronRight, User, Palette
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { cn, getInitials, getAvatarColor } from '@/lib/utils';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
+import LogoClaro from '@/assets/Logo_Claro.png';
+import LogoOscuro from '@/assets/Logo_Oscuro.png';
+import LogotipoIA from '@/assets/Logotipo_IA.png';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -24,8 +27,9 @@ const adminItems = [
 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, themeConfig, themeDraft } = useUIStore();
   const navigate = useNavigate();
+  const activeTheme = themeDraft || themeConfig;
 
   const handleLogout = async () => {
     try {
@@ -38,6 +42,8 @@ export function Sidebar() {
 
   const isAdmin = user?.role === 'admin';
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+  const expandedLogo = activeTheme.overrides.sidebar.logoVariant === 'logo_oscuro' ? LogoOscuro : LogoClaro;
+  const sidebarLogo = sidebarCollapsed ? LogotipoIA : expandedLogo;
 
   return (
     <aside
@@ -51,19 +57,13 @@ export function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-navy-700/50">
-        <div
-          className="flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: 'var(--theme-sidebar-active-bg)' }}
-        >
-          <Shield className="h-4 w-4 text-white" />
-        </div>
-        {!sidebarCollapsed && (
-          <div className="min-w-0">
-            <p className="font-bold text-sm text-white truncate">Guardias</p>
-            <p className="text-xs text-navy-300 truncate">Sistema Corporativo</p>
-          </div>
-        )}
+      <div className={cn('px-3 py-5 border-b border-navy-700/50', sidebarCollapsed ? 'flex justify-center' : 'px-5')}>
+        <img
+          src={sidebarLogo}
+          alt="Logo Laberit"
+          className={cn('object-contain select-none', sidebarCollapsed ? 'h-8 w-8' : 'h-16 w-full max-w-[210px]')}
+          draggable={false}
+        />
       </div>
 
       {/* Navigation */}

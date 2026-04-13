@@ -13,12 +13,15 @@ export interface ThemeTokens {
   danger: string;
 }
 
+export type ThemeLogoVariant = 'logo_claro' | 'logo_oscuro';
+
 export interface ThemeOverrides {
   sidebar: {
     background: string;
     text: string;
     activeBackground: string;
     activeText: string;
+    logoVariant: ThemeLogoVariant;
   };
   topbar: {
     background: string;
@@ -96,6 +99,7 @@ const corporateTheme: ThemePayload = {
       text: '#f8fafc',
       activeBackground: '#d63244',
       activeText: '#ffffff',
+      logoVariant: 'logo_claro',
     },
     topbar: {
       background: '#ffffff',
@@ -161,6 +165,7 @@ const lightTheme: ThemePayload = {
       text: '#f8fafc',
       activeBackground: '#0f766e',
       activeText: '#ffffff',
+      logoVariant: 'logo_claro',
     },
     topbar: {
       background: '#ffffff',
@@ -226,6 +231,7 @@ const darkTheme: ThemePayload = {
       text: '#e2e8f0',
       activeBackground: '#0ea5e9',
       activeText: '#082f49',
+      logoVariant: 'logo_claro',
     },
     topbar: {
       background: '#0f172a',
@@ -291,6 +297,7 @@ const sunriseTheme: ThemePayload = {
       text: '#ffedd5',
       activeBackground: '#c2410c',
       activeText: '#ffffff',
+      logoVariant: 'logo_claro',
     },
     topbar: {
       background: '#ffffff',
@@ -356,6 +363,7 @@ const forestTheme: ThemePayload = {
       text: '#dcfce7',
       activeBackground: '#0f766e',
       activeText: '#ecfeff',
+      logoVariant: 'logo_claro',
     },
     topbar: {
       background: '#ffffff',
@@ -401,16 +409,16 @@ const forestTheme: ThemePayload = {
 
 export const THEME_PRESETS: ThemePreset[] = [
   {
-    id: 'corporate',
-    name: 'Corporativo',
-    description: 'Paleta original de la aplicacion',
-    theme: corporateTheme,
-  },
-  {
     id: 'light',
     name: 'Claro',
     description: 'Contraste suave y fondo claro',
     theme: lightTheme,
+  },
+  {
+    id: 'corporate',
+    name: 'Corporativo',
+    description: 'Paleta original de la aplicacion',
+    theme: corporateTheme,
   },
   {
     id: 'dark',
@@ -432,7 +440,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
 ];
 
-export const DEFAULT_THEME = corporateTheme;
+export const DEFAULT_THEME = lightTheme;
 
 export function getPresetTheme(presetId: string): ThemePayload | null {
   const preset = THEME_PRESETS.find((item) => item.id === presetId);

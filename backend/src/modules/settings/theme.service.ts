@@ -1,6 +1,6 @@
 import { ThemeSettings } from '@prisma/client';
 import { prisma } from '../../config/database';
-import { DEFAULT_THEME, THEME_PRESETS, ThemePayload } from './theme.presets';
+import { DEFAULT_THEME, THEME_PRESETS, ThemeLogoVariant, ThemePayload } from './theme.presets';
 
 const GLOBAL_THEME_KEY = 'global';
 const LEGACY_CORPORATE_TEXT_MUTED = '#4f758b';
@@ -14,26 +14,44 @@ function safeParseJson<T>(value: string, fallback: T): T {
   }
 }
 
-function normalizeLegacyCorporateTheme(theme: ThemePayload): ThemePayload {
+function normalizeTheme(theme: ThemePayload): ThemePayload {
+  let normalizedTheme = theme;
+
   if (
     theme.preset === 'corporate'
     && theme.tokens.textMuted.toLowerCase() === LEGACY_CORPORATE_TEXT_MUTED
     && theme.tokens.surfaceMuted.toLowerCase() === '#e3ebf0'
   ) {
-    return {
-      ...theme,
+    normalizedTheme = {
+      ...normalizedTheme,
       tokens: {
-        ...theme.tokens,
+        ...normalizedTheme.tokens,
         textMuted: SAFE_CORPORATE_TEXT_MUTED,
       },
     };
   }
 
-  return theme;
+  const logoVariant = (normalizedTheme.overrides as { sidebar?: { logoVariant?: string } }).sidebar?.logoVariant;
+  const isLogoVariantValid = (value: unknown): value is ThemeLogoVariant => value === 'logo_claro' || value === 'logo_oscuro';
+
+  if (!isLogoVariantValid(logoVariant)) {
+    normalizedTheme = {
+      ...normalizedTheme,
+      overrides: {
+        ...normalizedTheme.overrides,
+        sidebar: {
+          ...normalizedTheme.overrides.sidebar,
+          logoVariant: DEFAULT_THEME.overrides.sidebar.logoVariant,
+        },
+      },
+    };
+  }
+
+  return normalizedTheme;
 }
 
 function mapThemeRow(row: ThemeSettings): ThemePayload & { updatedAt: string; updatedByUserId?: string } {
-  const parsedTheme = normalizeLegacyCorporateTheme({
+  const parsedTheme = normalizeTheme({
     preset: row.preset,
     tokens: safeParseJson(row.tokensJson, DEFAULT_THEME.tokens),
     overrides: safeParseJson(row.overridesJson, DEFAULT_THEME.overrides),
@@ -63,11 +81,17 @@ export async function ensureGlobalThemeSettings() {
   }
 
   const mappedTheme = mapThemeRow(row);
-  if (mappedTheme.tokens.textMuted !== safeParseJson(row.tokensJson, DEFAULT_THEME.tokens).textMuted) {
+  const rawTokens = safeParseJson(row.tokensJson, DEFAULT_THEME.tokens);
+  const rawOverrides = safeParseJson(row.overridesJson, DEFAULT_THEME.overrides);
+  const hasTokenNormalization = mappedTheme.tokens.textMuted !== rawTokens.textMuted;
+  const hasLogoNormalization = mappedTheme.overrides.sidebar.logoVariant !== rawOverrides.sidebar.logoVariant;
+
+  if (hasTokenNormalization || hasLogoNormalization) {
     row = await prisma.themeSettings.update({
       where: { key: GLOBAL_THEME_KEY },
       data: {
         tokensJson: JSON.stringify(mappedTheme.tokens),
+        overridesJson: JSON.stringify(mappedTheme.overrides),
       },
     });
   }

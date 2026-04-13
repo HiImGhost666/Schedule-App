@@ -101,6 +101,7 @@ export interface ApiResponse<T> {
 }
 
 export type ThemePresetId = 'corporate' | 'light' | 'dark' | 'sunrise' | 'forest';
+export type ThemeLogoVariant = 'logo_claro' | 'logo_oscuro';
 
 export interface ThemeTokens {
   brandPrimary: string;
@@ -123,6 +124,7 @@ export interface ThemeOverrides {
     text: string;
     activeBackground: string;
     activeText: string;
+    logoVariant: ThemeLogoVariant;
   };
   topbar: {
     background: string;

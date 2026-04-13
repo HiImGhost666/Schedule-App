@@ -32,6 +32,7 @@ const themeOverridesSchema = z.object({
     text: hexColor,
     activeBackground: hexColor,
     activeText: hexColor,
+    logoVariant: z.enum(['logo_claro', 'logo_oscuro']),
   }),
   topbar: z.object({
     background: hexColor,

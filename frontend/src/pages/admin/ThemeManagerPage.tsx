@@ -5,7 +5,9 @@ import toast from 'react-hot-toast';
 import api from '@/config/api';
 import { DEFAULT_THEME } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
-import type { ThemeConfig, ThemePreset } from '@/types';
+import type { ThemeConfig, ThemeLogoVariant, ThemePreset } from '@/types';
+import LogoClaro from '@/assets/Logo_Claro.png';
+import LogoOscuro from '@/assets/Logo_Oscuro.png';
 
 interface ThemeContrastViolation {
   component: string;
@@ -41,6 +43,21 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
 function cloneTheme(theme: ThemeConfig) {
   return JSON.parse(JSON.stringify(theme)) as ThemeConfig;
 }
+
+const logoOptions: Array<{ value: ThemeLogoVariant; label: string; description: string; preview: string }> = [
+  {
+    value: 'logo_claro',
+    label: 'Logo Claro',
+    description: 'Ideal para fondos oscuros',
+    preview: LogoClaro,
+  },
+  {
+    value: 'logo_oscuro',
+    label: 'Logo Oscuro',
+    description: 'Ideal para fondos claros',
+    preview: LogoOscuro,
+  },
+];
 
 export function ThemeManagerPage() {
   const queryClient = useQueryClient();
@@ -126,6 +143,12 @@ export function ThemeManagerPage() {
     setThemeDraft(nextTheme);
   };
 
+  const setLogoVariant = (logoVariant: ThemeLogoVariant) => {
+    const draft = cloneTheme(activeTheme);
+    draft.overrides.sidebar.logoVariant = logoVariant;
+    setThemeDraft(draft);
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -169,6 +192,53 @@ export function ThemeManagerPage() {
 
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-navy-700">Sidebar</h2>
+            <div className="max-w-2xl">
+              <label className="block text-xs font-medium text-navy-600 mb-2">Logo del Sidebar</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {logoOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="cursor-pointer rounded-xl border p-3 transition-all"
+                    style={{
+                      borderColor:
+                        activeTheme.overrides.sidebar.logoVariant === option.value
+                          ? activeTheme.overrides.sidebar.activeBackground
+                          : activeTheme.tokens.borderColor,
+                      backgroundColor: activeTheme.tokens.surface,
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="sidebar-logo-variant"
+                      value={option.value}
+                      checked={activeTheme.overrides.sidebar.logoVariant === option.value}
+                      onChange={(e) => setLogoVariant(e.target.value as ThemeLogoVariant)}
+                      className="sr-only"
+                    />
+                    <div className="space-y-2">
+                      <div
+                        className="rounded-lg border p-2"
+                        style={{
+                          backgroundColor: option.value === 'logo_oscuro' ? '#ffffff' : '#0b1220',
+                          borderColor: option.value === 'logo_oscuro' ? '#cbd5e1' : '#334155',
+                        }}
+                      >
+                        <img
+                          src={option.preview}
+                          alt={option.label}
+                          className="h-10 w-full object-contain"
+                          draggable={false}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-navy-700">{option.label}</p>
+                        <p className="text-xs text-navy-500">{option.description}</p>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <ColorField label="Fondo" value={activeTheme.overrides.sidebar.background} onChange={(v) => setColor(['overrides', 'sidebar', 'background'], v)} />
               <ColorField label="Texto" value={activeTheme.overrides.sidebar.text} onChange={(v) => setColor(['overrides', 'sidebar', 'text'], v)} />
@@ -219,6 +289,9 @@ export function ThemeManagerPage() {
 
           <div className="rounded-xl p-4" style={{ backgroundColor: activeTheme.overrides.sidebar.background }}>
             <p className="text-xs font-semibold" style={{ color: activeTheme.overrides.sidebar.text }}>Sidebar</p>
+            <p className="text-[11px] mt-1" style={{ color: activeTheme.overrides.sidebar.text }}>
+              {activeTheme.overrides.sidebar.logoVariant === 'logo_claro' ? 'Logo Claro' : 'Logo Oscuro'}
+            </p>
             <div className="mt-2 rounded-md px-3 py-2 text-xs font-semibold" style={{ backgroundColor: activeTheme.overrides.sidebar.activeBackground, color: activeTheme.overrides.sidebar.activeText }}>
               Item activo
             </div>
