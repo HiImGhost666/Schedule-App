@@ -10,7 +10,7 @@ export const DEFAULT_THEME: ThemeConfig = {
     surface: '#ffffff',
     surfaceMuted: '#e3ebf0',
     textPrimary: '#123040',
-    textMuted: '#4f758b',
+    textMuted: '#466a7f',
     borderColor: '#ccd8e0',
     success: '#15803d',
     warning: '#b45309',

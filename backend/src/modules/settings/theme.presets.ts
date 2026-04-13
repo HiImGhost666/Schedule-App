@@ -84,7 +84,7 @@ const corporateTheme: ThemePayload = {
     surface: '#ffffff',
     surfaceMuted: '#e3ebf0',
     textPrimary: '#123040',
-    textMuted: '#4f758b',
+    textMuted: '#466a7f',
     borderColor: '#ccd8e0',
     success: '#15803d',
     warning: '#b45309',
@@ -236,7 +236,7 @@ const darkTheme: ThemePayload = {
       primaryText: '#082f49',
       secondaryBackground: '#f97316',
       secondaryText: '#111827',
-      dangerBackground: '#ef4444',
+      dangerBackground: '#dc2626',
       dangerText: '#ffffff',
     },
     badges: {
@@ -254,7 +254,7 @@ const darkTheme: ThemePayload = {
       lockedText: '#fecaca',
     },
     calendar: {
-      todayBackground: '#f97316',
+      todayBackground: '#c2410c',
       activeButtonBackground: '#0ea5e9',
       nowIndicator: '#ef4444',
     },
@@ -289,7 +289,7 @@ const sunriseTheme: ThemePayload = {
     sidebar: {
       background: '#7c2d12',
       text: '#ffedd5',
-      activeBackground: '#ea580c',
+      activeBackground: '#c2410c',
       activeText: '#ffffff',
     },
     topbar: {
@@ -299,7 +299,7 @@ const sunriseTheme: ThemePayload = {
     buttons: {
       primaryBackground: '#7c2d12',
       primaryText: '#ffffff',
-      secondaryBackground: '#ea580c',
+      secondaryBackground: '#c2410c',
       secondaryText: '#ffffff',
       dangerBackground: '#b91c1c',
       dangerText: '#ffffff',
@@ -307,7 +307,7 @@ const sunriseTheme: ThemePayload = {
     badges: {
       adminBackground: '#7c2d12',
       adminText: '#ffffff',
-      managerBackground: '#ea580c',
+      managerBackground: '#c2410c',
       managerText: '#ffffff',
       viewerBackground: '#ffedd5',
       viewerText: '#7c2d12',
@@ -319,8 +319,8 @@ const sunriseTheme: ThemePayload = {
       lockedText: '#b91c1c',
     },
     calendar: {
-      todayBackground: '#ea580c',
-      activeButtonBackground: '#ea580c',
+      todayBackground: '#c2410c',
+      activeButtonBackground: '#c2410c',
       nowIndicator: '#dc2626',
     },
     toasts: {
