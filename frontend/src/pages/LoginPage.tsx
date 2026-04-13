@@ -145,13 +145,13 @@ export function LoginPage() {
                     Correo electrónico
                   </label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
+                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
                     <input
                       {...register('email', { onChange: clearAuthError })}
                       id="login-email"
                       type="email"
                       placeholder="usuario@empresa.com"
-                      className="input-field !pl-14"
+                      className="input-field !pl-9"
                       autoComplete="email"
                       autoFocus
                       aria-invalid={Boolean(errors.email)}
@@ -170,13 +170,13 @@ export function LoginPage() {
                     Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
+                    <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
                     <input
                       {...register('password', { onChange: clearAuthError })}
                       id="login-password"
                       type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
-                      className="input-field !pl-14 !pr-11"
+                      className="input-field !pl-9 !pr-11"
                       autoComplete="current-password"
                       aria-invalid={Boolean(errors.password)}
                       aria-describedby={errors.password ? 'login-password-error' : undefined}
