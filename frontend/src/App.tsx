@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { queryClient } from '@/config/queryClient';
+import api from '@/config/api';
 import { ProtectedRoute, RoleGuard } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage } from '@/pages/LoginPage';
@@ -12,10 +14,28 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { WebhooksPage } from '@/pages/admin/WebhooksPage';
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
+import { ThemeManagerPage } from '@/pages/admin/ThemeManagerPage';
 import { useAuthStore } from '@/store/authStore';
+import { useUIStore } from '@/store/uiStore';
+import type { ThemeConfig } from '@/types';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
+  const setThemeConfig = useUIStore((s) => s.setThemeConfig);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    api
+      .get<{ data: ThemeConfig }>('/settings/theme')
+      .then((response) => {
+        setThemeConfig(response.data.data);
+      })
+      .catch(() => {
+        // Keep local fallback theme when server settings are unavailable.
+      });
+  }, [isAuthenticated, setThemeConfig]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -40,6 +60,7 @@ function App() {
                 <Route path="admin/webhooks" element={<WebhooksPage />} />
                 <Route path="admin/notifications" element={<NotificationsPage />} />
                 <Route path="admin/audit" element={<AuditLogPage />} />
+                <Route path="admin/theme" element={<ThemeManagerPage />} />
               </Route>
             </Route>
           </Route>
@@ -53,14 +74,24 @@ function App() {
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#1e3a5f',
-            color: '#fff',
+            background: activeTheme.overrides.toasts.background,
+            color: activeTheme.overrides.toasts.text,
             fontSize: '13px',
             fontWeight: '500',
             borderRadius: '10px',
           },
-          success: { iconTheme: { primary: '#f5c518', secondary: '#1e3a5f' } },
-          error: { style: { background: '#7f1d1d', color: '#fff' } },
+          success: {
+            iconTheme: {
+              primary: activeTheme.overrides.toasts.successPrimary,
+              secondary: activeTheme.overrides.toasts.successSecondary,
+            },
+          },
+          error: {
+            style: {
+              background: activeTheme.overrides.toasts.errorBackground,
+              color: activeTheme.overrides.toasts.errorText,
+            },
+          },
         }}
       />
     </QueryClientProvider>

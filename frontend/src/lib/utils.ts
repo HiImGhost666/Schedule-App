@@ -33,7 +33,19 @@ export function getInitials(name: string) {
 }
 
 export function getAvatarColor(name: string) {
-  const colors = ['#1e3a5f', '#0d7377', '#6b4fbb', '#c0392b', '#27ae60', '#f39c12', '#2980b9', '#8e44ad'];
+  const fallbackColors = ['#1e3a5f', '#0d7377', '#6b4fbb', '#c0392b', '#27ae60', '#f39c12', '#2980b9', '#8e44ad'];
+  const colors = typeof document !== 'undefined'
+    ? [
+      getComputedStyle(document.documentElement).getPropertyValue('--theme-sidebar-active-bg').trim() || fallbackColors[0],
+      getComputedStyle(document.documentElement).getPropertyValue('--color-navy-600').trim() || fallbackColors[1],
+      getComputedStyle(document.documentElement).getPropertyValue('--color-gold-400').trim() || fallbackColors[2],
+      getComputedStyle(document.documentElement).getPropertyValue('--theme-btn-danger-bg').trim() || fallbackColors[3],
+      getComputedStyle(document.documentElement).getPropertyValue('--theme-badge-active-text').trim() || fallbackColors[4],
+      getComputedStyle(document.documentElement).getPropertyValue('--theme-badge-manager-bg').trim() || fallbackColors[5],
+      getComputedStyle(document.documentElement).getPropertyValue('--theme-calendar-active-button').trim() || fallbackColors[6],
+      getComputedStyle(document.documentElement).getPropertyValue('--theme-calendar-now-indicator').trim() || fallbackColors[7],
+    ]
+    : fallbackColors;
   let hash = 0;
   for (const char of name) hash = char.charCodeAt(0) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];

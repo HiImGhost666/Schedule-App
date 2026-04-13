@@ -18,6 +18,8 @@ frontend/.env
 # SQLite database
 backend/prisma/*.db
 backend/prisma/*.db-journal
+backend/prisma/prisma/*.db
+backend/prisma/prisma/*.db-journal
 
 # Logs
 *.log

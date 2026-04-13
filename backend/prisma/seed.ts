@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
+import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -68,6 +69,19 @@ async function main() {
       });
       console.log(`Demo user created: ${u.email}`);
     }
+  }
+
+  const existingTheme = await prisma.themeSettings.findUnique({ where: { key: 'global' } });
+  if (!existingTheme) {
+    await prisma.themeSettings.create({
+      data: {
+        key: 'global',
+        preset: DEFAULT_THEME.preset,
+        tokensJson: JSON.stringify(DEFAULT_THEME.tokens),
+        overridesJson: JSON.stringify(DEFAULT_THEME.overrides),
+      },
+    });
+    console.log('Global theme settings created');
   }
 
   console.log('Seed completed successfully!');

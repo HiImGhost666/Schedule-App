@@ -35,6 +35,52 @@
   @keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 }
 
+:root {
+  --theme-surface: #ffffff;
+  --theme-text-primary: #123040;
+  --theme-text-muted: #4f758b;
+  --theme-border-color: #ccd8e0;
+
+  --theme-sidebar-bg: #123040;
+  --theme-sidebar-text: #f8fafc;
+  --theme-sidebar-active-bg: #d63244;
+  --theme-sidebar-active-text: #ffffff;
+
+  --theme-topbar-bg: #ffffff;
+  --theme-topbar-text: #123040;
+
+  --theme-btn-primary-bg: #1e3a5f;
+  --theme-btn-primary-text: #ffffff;
+  --theme-btn-secondary-bg: #d63244;
+  --theme-btn-secondary-text: #ffffff;
+  --theme-btn-danger-bg: #b91c1c;
+  --theme-btn-danger-text: #ffffff;
+
+  --theme-badge-admin-bg: #1e3a5f;
+  --theme-badge-admin-text: #ffffff;
+  --theme-badge-manager-bg: #d63244;
+  --theme-badge-manager-text: #ffffff;
+  --theme-badge-viewer-bg: #e3ebf0;
+  --theme-badge-viewer-text: #1e4358;
+  --theme-badge-active-bg: #dcfce7;
+  --theme-badge-active-text: #166534;
+  --theme-badge-disabled-bg: #f3f4f6;
+  --theme-badge-disabled-text: #4b5563;
+  --theme-badge-locked-bg: #fee2e2;
+  --theme-badge-locked-text: #b91c1c;
+
+  --theme-calendar-today: #d63244;
+  --theme-calendar-active-button: #d63244;
+  --theme-calendar-now-indicator: #ef4444;
+
+  --theme-toast-bg: #1e3a5f;
+  --theme-toast-text: #ffffff;
+  --theme-toast-success-primary: #d63244;
+  --theme-toast-success-secondary: #1e3a5f;
+  --theme-toast-error-bg: #7f1d1d;
+  --theme-toast-error-text: #ffffff;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -50,7 +96,7 @@
 body {
   font-family: 'Wix Madefor Text', system-ui, sans-serif;
   background-color: var(--color-navy-50);
-  color: var(--color-navy-500);
+  color: var(--theme-text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -64,8 +110,8 @@ input, select, textarea {
 
 /* Component classes */
 .btn-primary {
-  background-color: var(--color-navy-500);
-  color: white;
+  background-color: var(--theme-btn-primary-bg);
+  color: var(--theme-btn-primary-text);
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 8px;
@@ -80,8 +126,8 @@ input, select, textarea {
 .btn-primary:hover { background-color: var(--color-navy-600); }
 
 .btn-gold {
-  background-color: var(--color-gold-400);
-  color: white;
+  background-color: var(--theme-btn-secondary-bg);
+  color: var(--theme-btn-secondary-text);
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 8px;
@@ -104,8 +150,8 @@ input, select, textarea {
 .btn-ghost:hover { background-color: var(--color-navy-50); }
 
 .btn-danger {
-  background-color: #ef4444;
-  color: white;
+  background-color: var(--theme-btn-danger-bg);
+  color: var(--theme-btn-danger-text);
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 8px;
@@ -113,13 +159,13 @@ input, select, textarea {
   cursor: pointer;
   transition: background-color 0.2s;
 }
-.btn-danger:hover { background-color: #dc2626; }
+.btn-danger:hover { filter: brightness(0.95); }
 
 .card {
-  background-color: white;
+  background-color: var(--theme-surface);
   border-radius: 14px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--color-navy-100);
+  border: 1px solid var(--theme-border-color);
 }
 
 .input-field {
@@ -127,8 +173,8 @@ input, select, textarea {
   padding: 10px 14px;
   border: 1px solid var(--color-navy-200);
   border-radius: 9px;
-  color: var(--color-navy-800);
-  background: white;
+  color: var(--theme-text-primary);
+  background: var(--theme-surface);
   font-size: 14px;
   line-height: 1.5;
   transition: all 0.2s;
@@ -141,13 +187,13 @@ input, select, textarea {
 .input-field.with-icon { padding-left: 2rem; }
 .input-field.pr-10 { padding-right: 2rem; }
 
-.badge-role-admin { background-color: var(--color-navy-500); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-manager { background-color: var(--color-gold-400); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-viewer { background-color: var(--color-navy-100); color: var(--color-navy-600); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-admin { background-color: var(--theme-badge-admin-bg); color: var(--theme-badge-admin-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-manager { background-color: var(--theme-badge-manager-bg); color: var(--theme-badge-manager-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-viewer { background-color: var(--theme-badge-viewer-bg); color: var(--theme-badge-viewer-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 
-.badge-status-active { background-color: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-status-disabled { background-color: #f3f4f6; color: #4b5563; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-status-locked { background-color: #fee2e2; color: #b91c1c; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-status-active { background-color: var(--theme-badge-active-bg); color: var(--theme-badge-active-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-status-disabled { background-color: var(--theme-badge-disabled-bg); color: var(--theme-badge-disabled-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-status-locked { background-color: var(--theme-badge-locked-bg); color: var(--theme-badge-locked-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 
 .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
 .animate-slide-up { animation: slideUp 0.3s ease-out; }
@@ -160,11 +206,11 @@ input, select, textarea {
   --fc-button-border-color: var(--color-navy-500);
   --fc-button-hover-bg-color: var(--color-navy-600);
   --fc-button-hover-border-color: var(--color-navy-600);
-  --fc-button-active-bg-color: var(--color-gold-400);
-  --fc-button-active-border-color: var(--color-gold-400);
+  --fc-button-active-bg-color: var(--theme-calendar-active-button);
+  --fc-button-active-border-color: var(--theme-calendar-active-button);
   --fc-button-active-color: white;
   --fc-event-border-color: transparent;
-  --fc-today-bg-color: rgba(193, 0, 22, 0.08);
+  --fc-today-bg-color: color-mix(in srgb, var(--theme-calendar-today) 15%, transparent);
   --fc-neutral-bg-color: var(--color-navy-50);
   --fc-list-event-hover-bg-color: var(--color-navy-50);
 }
@@ -205,7 +251,7 @@ input, select, textarea {
 /* Today highlight */
 .fc .fc-day-today { background: var(--fc-today-bg-color) !important; }
 .fc .fc-day-today .fc-daygrid-day-number {
-  background: var(--color-gold-400);
+  background: var(--theme-calendar-today);
   color: white;
   border-radius: 50%;
   width: 26px; height: 26px;
@@ -236,8 +282,8 @@ input, select, textarea {
 .fc-theme-standard .fc-scrollgrid { border-color: var(--color-navy-100); border-radius: 8px; }
 
 /* Now indicator */
-.fc .fc-timegrid-now-indicator-line { border-color: #ef4444; border-width: 2px; }
-.fc .fc-timegrid-now-indicator-arrow { border-top-color: #ef4444; border-bottom-color: #ef4444; }
+.fc .fc-timegrid-now-indicator-line { border-color: var(--theme-calendar-now-indicator); border-width: 2px; }
+.fc .fc-timegrid-now-indicator-arrow { border-top-color: var(--theme-calendar-now-indicator); border-bottom-color: var(--theme-calendar-now-indicator); }
 
 /* "+more" link */
 .fc .fc-daygrid-more-link { font-size: 10px; font-weight: 700; color: var(--color-navy-400); padding: 1px 4px; border-radius: 4px; }

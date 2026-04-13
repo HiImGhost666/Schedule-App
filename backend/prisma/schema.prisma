@@ -133,3 +133,16 @@ model AuditLog {
   @@index([userId])
   @@map("audit_logs")
 }
+
+model ThemeSettings {
+  id              String   @id @default(cuid())
+  key             String   @unique @default("global")
+  preset          String   @default("corporate")
+  tokensJson      String   @map("tokens_json")
+  overridesJson   String   @map("overrides_json")
+  updatedByUserId String?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("theme_settings")
+}

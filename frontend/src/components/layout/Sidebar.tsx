@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Webhook, Bell, ClipboardList,
-  LogOut, ChevronLeft, ChevronRight, Shield, User
+  LogOut, ChevronLeft, ChevronRight, Shield, User, Palette
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
@@ -19,6 +19,7 @@ const adminItems = [
   { to: '/admin/webhooks', icon: Webhook, label: 'Webhooks' },
   { to: '/admin/notifications', icon: Bell, label: 'Notificaciones' },
   { to: '/admin/audit', icon: ClipboardList, label: 'Auditoría' },
+  { to: '/admin/theme', icon: Palette, label: 'Tema Global' },
 ];
 
 export function Sidebar() {
@@ -41,13 +42,20 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'flex flex-col bg-navy-800 text-white h-screen sticky top-0 transition-all duration-300 z-30',
+        'flex flex-col h-screen sticky top-0 transition-all duration-300 z-30',
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}
+      style={{
+        backgroundColor: 'var(--theme-sidebar-bg)',
+        color: 'var(--theme-sidebar-text)',
+      }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-navy-700">
-        <div className="flex-shrink-0 h-8 w-8 bg-red-500 rounded-lg flex items-center justify-center">
+      <div className="flex items-center gap-3 px-5 py-6 border-b border-navy-700/50">
+        <div
+          className="flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center"
+          style={{ backgroundColor: 'var(--theme-sidebar-active-bg)' }}
+        >
           <Shield className="h-4 w-4 text-white" />
         </div>
         {!sidebarCollapsed && (
@@ -69,10 +77,14 @@ export function Sidebar() {
               cn(
                 'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-red-500 text-white'
-                  : 'text-navy-200 hover:bg-navy-700 hover:text-white'
+                  ? 'text-white'
+                  : 'text-navy-200 hover:text-white'
               )
             }
+            style={({ isActive }) => ({
+              backgroundColor: isActive ? 'var(--theme-sidebar-active-bg)' : 'transparent',
+              color: isActive ? 'var(--theme-sidebar-active-text)' : undefined,
+            })}
           >
             <Icon className="h-4 w-4 flex-shrink-0" />
             {!sidebarCollapsed && <span>{label}</span>}
@@ -95,10 +107,14 @@ export function Sidebar() {
                     cn(
                       'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                       isActive
-                        ? 'bg-red-500 text-white'
-                        : 'text-navy-200 hover:bg-navy-700 hover:text-white'
+                          ? 'text-white'
+                          : 'text-navy-200 hover:text-white'
                     )
                   }
+                    style={({ isActive }) => ({
+                      backgroundColor: isActive ? 'var(--theme-sidebar-active-bg)' : 'transparent',
+                      color: isActive ? 'var(--theme-sidebar-active-text)' : undefined,
+                    })}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   {!sidebarCollapsed && <span>{label}</span>}
@@ -116,7 +132,7 @@ export function Sidebar() {
           className={({ isActive }) =>
             cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all',
-              isActive ? 'bg-navy-600' : 'hover:bg-navy-700'
+              isActive ? 'bg-navy-600' : 'hover:bg-navy-700/60'
             )
           }
         >
@@ -147,7 +163,8 @@ export function Sidebar() {
       {/* Collapse toggle */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-navy-600 hover:bg-red-500 text-white rounded-full p-1 shadow-lg transition-colors z-10"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 bg-navy-600 text-white rounded-full p-1 shadow-lg transition-colors z-10"
+        style={{ backgroundColor: 'var(--theme-sidebar-active-bg)' }}
       >
         {sidebarCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>

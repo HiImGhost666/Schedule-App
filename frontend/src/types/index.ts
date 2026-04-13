@@ -100,6 +100,86 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+export type ThemePresetId = 'corporate' | 'light' | 'dark' | 'sunrise' | 'forest';
+
+export interface ThemeTokens {
+  brandPrimary: string;
+  brandPrimaryHover: string;
+  brandSecondary: string;
+  pageBackground: string;
+  surface: string;
+  surfaceMuted: string;
+  textPrimary: string;
+  textMuted: string;
+  borderColor: string;
+  success: string;
+  warning: string;
+  danger: string;
+}
+
+export interface ThemeOverrides {
+  sidebar: {
+    background: string;
+    text: string;
+    activeBackground: string;
+    activeText: string;
+  };
+  topbar: {
+    background: string;
+    text: string;
+  };
+  buttons: {
+    primaryBackground: string;
+    primaryText: string;
+    secondaryBackground: string;
+    secondaryText: string;
+    dangerBackground: string;
+    dangerText: string;
+  };
+  badges: {
+    adminBackground: string;
+    adminText: string;
+    managerBackground: string;
+    managerText: string;
+    viewerBackground: string;
+    viewerText: string;
+    activeBackground: string;
+    activeText: string;
+    disabledBackground: string;
+    disabledText: string;
+    lockedBackground: string;
+    lockedText: string;
+  };
+  calendar: {
+    todayBackground: string;
+    activeButtonBackground: string;
+    nowIndicator: string;
+  };
+  toasts: {
+    background: string;
+    text: string;
+    successPrimary: string;
+    successSecondary: string;
+    errorBackground: string;
+    errorText: string;
+  };
+}
+
+export interface ThemeConfig {
+  preset: ThemePresetId;
+  tokens: ThemeTokens;
+  overrides: ThemeOverrides;
+  updatedAt?: string;
+  updatedByUserId?: string;
+}
+
+export interface ThemePreset {
+  id: ThemePresetId;
+  name: string;
+  description: string;
+  theme: ThemeConfig;
+}
+
 export const SCHEDULE_TYPES = [
   { value: 'guardia',            label: 'Guardia',                  color: '#2563eb' }, // blue
   { value: 'turno_manana',       label: 'Turno Mañana',             color: '#d97706' }, // amber

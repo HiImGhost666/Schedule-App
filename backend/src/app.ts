@@ -10,6 +10,7 @@ import schedulesRouter from './modules/schedules/schedules.router';
 import webhooksRouter from './modules/webhooks/webhooks.router';
 import notificationsRouter from './modules/notifications/notifications.router';
 import auditRouter from './modules/audit/audit.router';
+import settingsRouter from './modules/settings/settings.router';
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/schedules', schedulesRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/settings', settingsRouter);
 
 app.use(errorHandler);
 

@@ -12,7 +12,13 @@ export function TopBar({ title }: TopBarProps) {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <header className="bg-white border-b border-navy-100 px-5 md:px-8 h-16 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+    <header
+      className="border-b border-navy-100 px-5 md:px-8 h-16 flex items-center justify-between sticky top-0 z-20 shadow-sm"
+      style={{
+        backgroundColor: 'var(--theme-topbar-bg)',
+        color: 'var(--theme-topbar-text)',
+      }}
+    >
       <div className="flex items-center gap-3">
         <button
           onClick={toggleSidebar}
@@ -20,7 +26,7 @@ export function TopBar({ title }: TopBarProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        {title && <h1 className="text-base font-semibold text-navy-700 hidden md:block">{title}</h1>}
+        {title && <h1 className="text-base font-semibold hidden md:block">{title}</h1>}
       </div>
 
       <div className="flex items-center gap-2">
@@ -29,8 +35,8 @@ export function TopBar({ title }: TopBarProps) {
         </button>
         <div className="flex items-center gap-2 px-2">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-navy-700 leading-tight">{user?.name}</p>
-            <p className="text-xs text-navy-400">{ROLE_LABELS[user?.role || '']}</p>
+            <p className="text-sm font-medium leading-tight">{user?.name}</p>
+            <p className="text-xs opacity-75">{ROLE_LABELS[user?.role || '']}</p>
           </div>
         </div>
       </div>
