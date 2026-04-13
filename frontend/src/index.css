@@ -41,6 +41,10 @@
   padding: 0;
 }
 
+button {
+  padding: revert;
+}
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
   background-color: var(--color-navy-50);
@@ -155,13 +159,25 @@ body {
   --fc-list-event-hover-bg-color: var(--color-navy-50);
 }
 
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1rem;
+  padding-top: 0.5rem;
+}
+
 /* Toolbar */
-.fc .fc-toolbar { gap: 8px; }
+.fc .fc-toolbar { gap: 8px; margin-bottom: 1.5rem; }
 .fc .fc-toolbar-title { font-size: 15px; font-weight: 700; color: var(--color-navy-800); text-transform: capitalize; letter-spacing: -0.01em; }
 .fc .fc-button { font-size: 12px; font-weight: 600; border-radius: 7px !important; padding: 5px 12px; transition: all 0.15s; }
 .fc .fc-button-primary { box-shadow: none !important; }
 .fc .fc-button-active, .fc .fc-button-active:focus { color: var(--color-navy-900) !important; font-weight: 700; }
 .fc .fc-button:focus { box-shadow: none !important; outline: none; }
+
+.fc .fc-button-group .fc-button {
+  margin-left: 4px !important;
+}
+.fc .fc-button-group .fc-button:first-child {
+  margin-left: 0 !important;
+}
 
 /* Column headers */
 .fc .fc-col-header-cell {

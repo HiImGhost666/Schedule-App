@@ -175,49 +175,49 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
       </div>
 
       {expanded && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {SCHEDULE_TYPES.map(({ value, label, color }) => {
             const active = !hidden.has(value);
             const count = counts[value] ?? 0;
             return (
               <button
-                key={value}
-                onClick={() => onToggle(value)}
-                title={count > 0 ? `${count} evento${count > 1 ? 's' : ''}` : 'Sin eventos'}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all duration-150"
-                style={
-                  active
-                    ? {
-                        backgroundColor: color,
-                        borderColor: color,
-                        color: '#fff',
-                        boxShadow: `0 1px 4px rgba(${hexToRgb(color)}, 0.4)`,
-                      }
-                    : {
-                        backgroundColor: 'transparent',
-                        borderColor: '#cbd5e1',
-                        color: '#94a3b8',
-                      }
-                }
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ backgroundColor: active ? 'rgba(255,255,255,0.6)' : color }}
-                />
-                {label}
-                {count > 0 && (
-                  <span
-                    className="ml-0.5 rounded-full px-1 text-[10px] font-bold leading-none py-0.5"
-                    style={
-                      active
-                        ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
-                        : { backgroundColor: color, color: '#fff' }
-                    }
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
+  key={value}
+  onClick={() => onToggle(value)}
+  title={count > 0 ? `${count} evento${count > 1 ? 's' : ''}` : 'Sin eventos'}
+  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150 whitespace-nowrap"
+  style={
+    active
+      ? {
+          backgroundColor: color,
+          borderColor: color,
+          color: '#fff',
+          boxShadow: `0 1px 4px rgba(${hexToRgb(color)}, 0.4)`,
+        }
+      : {
+          backgroundColor: 'transparent',
+          borderColor: '#cbd5e1',
+          color: '#94a3b8',
+        }
+  }
+>
+  <span
+    className="w-2 h-2 rounded-full shrink-0 flex-none"
+    style={{ backgroundColor: active ? 'rgba(255,255,255,0.6)' : color }}
+  />
+  <span className="leading-none">{label}</span>
+  {count > 0 && (
+    <span
+      className="rounded-full px-1 text-[10px] font-bold leading-none py-0.5"
+      style={
+        active
+          ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
+          : { backgroundColor: color, color: '#fff' }
+      }
+    >
+      {count}
+    </span>
+  )}
+</button>
             );
           })}
         </div>
