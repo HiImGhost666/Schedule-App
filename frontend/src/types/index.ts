@@ -11,6 +11,8 @@ export interface User {
   failedAttempts?: number;
   forcePasswordChange?: boolean;
   islandCalendar?: string;
+  companyPhone?: string;
+  auxiliaryPhone?: string;
 }
 
 export interface Schedule {
@@ -183,17 +185,17 @@ export interface ThemePreset {
 }
 
 export const SCHEDULE_TYPES = [
-  { value: 'guardia',            label: 'Guardia',                  color: '#2563eb' }, // blue
-  { value: 'turno_manana',       label: 'Turno Mañana',             color: '#d97706' }, // amber
-  { value: 'turno_tarde',        label: 'Turno Tarde',              color: '#7c3aed' }, // violet
-  { value: 'turno_noche',        label: 'Turno Noche',              color: '#1e293b' }, // slate-dark
-  { value: 'guardia_fin_semana', label: 'Guardia Fin de Semana',    color: '#dc2626' }, // red
-  { value: 'guardia_festivo',    label: 'Guardia Festivo',          color: '#ea580c' }, // orange
-  { value: 'guardia_extra',      label: 'Guardia Extra',            color: '#db2777' }, // pink
-  { value: 'disponible',         label: 'Disponible / Localizable', color: '#16a34a' }, // green
-  { value: 'formacion',          label: 'Formación',                color: '#0891b2' }, // cyan
-  { value: 'vacaciones',         label: 'Vacaciones',               color: '#65a30d' }, // lime
-  { value: 'baja',               label: 'Baja / Ausencia',          color: '#64748b' }, // slate
+  { value: 'guardia', label: 'Guardia', color: '#2563eb' }, // blue
+  { value: 'turno_manana', label: 'Turno Mañana', color: '#d97706' }, // amber
+  { value: 'turno_tarde', label: 'Turno Tarde', color: '#7c3aed' }, // violet
+  { value: 'turno_noche', label: 'Turno Noche', color: '#1e293b' }, // slate-dark
+  { value: 'guardia_fin_semana', label: 'Guardia Fin de Semana', color: '#dc2626' }, // red
+  { value: 'guardia_festivo', label: 'Guardia Festivo', color: '#ea580c' }, // orange
+  { value: 'guardia_extra', label: 'Guardia Extra', color: '#db2777' }, // pink
+  { value: 'disponible', label: 'Disponible / Localizable', color: '#16a34a' }, // green
+  { value: 'formacion', label: 'Formación', color: '#0891b2' }, // cyan
+  { value: 'vacaciones', label: 'Vacaciones', color: '#65a30d' }, // lime
+  { value: 'baja', label: 'Baja / Ausencia', color: '#64748b' }, // slate
 ];
 
 export const ROLE_LABELS: Record<string, string> = {

@@ -86,6 +86,8 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       createdAt: true,
       lastLoginAt: true,
       forcePasswordChange: true,
+      companyPhone: true,
+      auxiliaryPhone: true,
     },
   });
   if (!user) return sendError(res, 'Usuario no encontrado', 404);

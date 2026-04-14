@@ -23,6 +23,8 @@ model User {
   lockedUntil         DateTime?  @map("locked_until")
   forcePasswordChange Boolean    @default(false) @map("force_password_change")
   islandCalendar      String     @default("none") @map("island_calendar")
+  companyPhone        String?    @map("company_phone")
+  auxiliaryPhone      String?    @map("auxiliary_phone")
 
   refreshTokens       RefreshToken[]
   createdSchedules    Schedule[]           @relation("ScheduleCreator")

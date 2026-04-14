@@ -117,6 +117,14 @@ export function ProfilePage() {
               <p className="text-sm font-medium text-navy-700 mt-1">{formatDate(user.lastLoginAt)}</p>
             </div>
           )}
+          <div>
+            <p className="text-xs text-navy-400 uppercase tracking-wider font-medium">Teléfono Empresa</p>
+            <p className="text-sm font-medium text-navy-700 mt-1">{user.companyPhone || '-'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-navy-400 uppercase tracking-wider font-medium">Teléfono Auxiliar</p>
+            <p className="text-sm font-medium text-navy-700 mt-1">{user.auxiliaryPhone || '-'}</p>
+          </div>
         </div>
       </div>
 
