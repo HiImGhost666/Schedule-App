@@ -104,12 +104,24 @@ export function listUsers(where: UserWhere, page: number, limit: number) {
   ]);
 }
 
-export function listUserSchedules(userId: string, from?: string, to?: string) {
+export function listUserSchedules(userId: string, from?: Date, to?: Date) {
+  const dateFilters =
+    from && to
+      ? {
+          AND: [
+            { startDatetime: { lte: to } },
+            { endDatetime: { gte: from } },
+          ],
+        }
+      : {
+          ...(from ? { endDatetime: { gte: from } } : {}),
+          ...(to ? { startDatetime: { lte: to } } : {}),
+        };
+
   return prisma.schedule.findMany({
     where: {
       assignments: { some: { userId } },
-      ...(from && { startDatetime: { gte: new Date(from) } }),
-      ...(to && { endDatetime: { lte: new Date(to) } }),
+      ...dateFilters,
     },
     include: { assignments: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } } },
     orderBy: { startDatetime: 'asc' },

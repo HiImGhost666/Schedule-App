@@ -224,6 +224,32 @@ export async function deleteUser(userId: string, actor: ActorContext) {
   });
 }
 
-export function getUserSchedules(userId: string, from?: string, to?: string) {
-  return listUserSchedules(userId, from, to);
+export async function getUserSchedules(userId: string, from?: string, to?: string) {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+  }
+
+  let fromDate: Date | undefined;
+  let toDate: Date | undefined;
+
+  if (from) {
+    fromDate = new Date(from);
+    if (Number.isNaN(fromDate.getTime())) {
+      throw createAppError('BAD_REQUEST', 'Parámetro from inválido');
+    }
+  }
+
+  if (to) {
+    toDate = new Date(to);
+    if (Number.isNaN(toDate.getTime())) {
+      throw createAppError('BAD_REQUEST', 'Parámetro to inválido');
+    }
+  }
+
+  if (fromDate && toDate && fromDate > toDate) {
+    throw createAppError('BAD_REQUEST', 'El rango de fechas es inválido: from debe ser menor o igual a to');
+  }
+
+  return listUserSchedules(userId, fromDate, toDate);
 }

@@ -105,8 +105,13 @@ export async function deleteUserController(req: AuthRequest, res: Response) {
 }
 
 export async function listUserSchedulesController(req: AuthRequest, res: Response) {
-  const from = req.query.from as string | undefined;
-  const to = req.query.to as string | undefined;
-  const schedules = await getUserSchedules(req.params.id, from, to);
-  return sendSuccess(res, schedules);
+  try {
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const schedules = await getUserSchedules(req.params.id, from, to);
+    return sendSuccess(res, schedules);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
 }

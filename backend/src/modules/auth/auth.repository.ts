@@ -17,7 +17,9 @@ export function findUserProfileById(userId: string) {
       department: true,
       createdAt: true,
       lastLoginAt: true,
+      failedAttempts: true,
       forcePasswordChange: true,
+      islandCalendar: true,
     },
   });
 }

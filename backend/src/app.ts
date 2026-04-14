@@ -61,7 +61,7 @@ app.get('/api/health', (_req, res) => {
   return sendSuccess(res, { status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth', loginLimiter);
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/schedules', schedulesRouter);

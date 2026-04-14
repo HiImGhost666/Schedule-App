@@ -91,7 +91,7 @@ export async function meController(req: AuthRequest, res: Response) {
     return sendSuccess(res, user);
   } catch (err: unknown) {
     if (isAppError(err)) {
-      return sendError(res, err.message, err.statusCode, err.details);
+      return sendError(res, err.message, err.statusCode, err.details, err.code);
     }
     throw err;
   }

@@ -50,10 +50,39 @@ export async function listWeekSchedules(year: number, week: number) {
   weekEnd.setHours(23, 59, 59, 999);
 
   const schedules = await findSchedules({
-    startDatetime: { gte: weekStart },
-    endDatetime: { lte: weekEnd },
+    AND: [
+      { startDatetime: { lte: weekEnd } },
+      { endDatetime: { gte: weekStart } },
+    ],
   });
-  return { schedules, weekStart, weekEnd };
+
+  const items = schedules.map((schedule) => ({
+    id: schedule.id,
+    title: schedule.title,
+    startDatetime: schedule.startDatetime,
+    endDatetime: schedule.endDatetime,
+    type: schedule.type,
+    color: schedule.color,
+    location: schedule.location,
+    notes: schedule.notes,
+    isLastMinute: schedule.isLastMinute,
+    hoursPerDay: schedule.hoursPerDay,
+    calendarType: schedule.calendarType,
+    assignees: schedule.assignments.map((assignment) => ({
+      id: assignment.user.id,
+      name: assignment.user.name,
+      avatarUrl: assignment.user.avatarUrl,
+    })),
+  }));
+
+  return {
+    year,
+    week,
+    weekStart,
+    weekEnd,
+    total: items.length,
+    items,
+  };
 }
 
 export async function getScheduleById(scheduleId: string) {

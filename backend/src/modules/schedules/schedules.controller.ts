@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { sendError, sendSuccess } from '../../utils/response';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { isAppError } from '../../common/errors/app-error';
+import { z } from 'zod';
 import {
   createScheduleEntry,
   deleteScheduleEntry,
@@ -10,6 +11,11 @@ import {
   listWeekSchedules,
   updateScheduleEntry,
 } from './schedules.service';
+
+const weekParamsSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  week: z.coerce.number().int().min(1).max(53),
+});
 
 export async function listSchedulesController(req: AuthRequest, res: Response) {
   const schedules = await listSchedules({
@@ -22,9 +28,12 @@ export async function listSchedulesController(req: AuthRequest, res: Response) {
 }
 
 export async function listWeekSchedulesController(req: AuthRequest, res: Response) {
-  const year = parseInt(req.params.year);
-  const week = parseInt(req.params.week);
-  const result = await listWeekSchedules(year, week);
+  const parsed = weekParamsSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return sendError(res, 'Parámetros de semana inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const result = await listWeekSchedules(parsed.data.year, parsed.data.week);
   return sendSuccess(res, result);
 }
 
