@@ -28,7 +28,7 @@ const scheduleSchema = z.object({
 const assigneeInclude = {
   assignments: {
     include: {
-      user: { select: { id: true, name: true, email: true, avatarUrl: true, department: true } },
+      user: { select: { id: true, name: true, email: true, avatarUrl: true, department: true, companyPhone: true, auxiliaryPhone: true } },
     },
   },
   createdBy: { select: { id: true, name: true } },
@@ -124,7 +124,7 @@ router.post('/', authMiddleware, requireRole('admin', 'manager'), async (req: Au
     actor: req.user!,
     reason: reason || 'Nueva guardia programada',
     isLastMinute,
-  }).catch(() => {});
+  }).catch(() => { });
 
   return sendSuccess(res, schedule, 'Guardia creada', 201);
 });
@@ -171,7 +171,7 @@ router.patch('/:id', authMiddleware, requireRole('admin', 'manager'), async (req
     actor: req.user!,
     reason: reason || 'Sin motivo especificado',
     isLastMinute,
-  }).catch(() => {});
+  }).catch(() => { });
 
   return sendSuccess(res, schedule, 'Guardia actualizada');
 });
@@ -191,7 +191,7 @@ router.delete('/:id', authMiddleware, requireRole('admin', 'manager'), async (re
     actor: req.user!,
     reason: reason || 'Sin motivo especificado',
     isLastMinute: false,
-  }).catch(() => {});
+  }).catch(() => { });
 
   return sendSuccess(res, null, 'Guardia eliminada');
 });

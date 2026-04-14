@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, Users, Shield, AlertTriangle, Clock } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import { formatDateTime, formatRelative } from '@/lib/utils';
@@ -20,6 +22,8 @@ function getTypeColor(type: string) {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -65,13 +69,13 @@ export function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
-          title="Guardias esta semana"
+          title="Turnos de esta semana"
           value={loadingSchedules ? '—' : (weekSchedules?.length || 0)}
           icon={Calendar}
           color="navy"
         />
         <StatCard
-          title="Mis guardias"
+          title="Mis turnos"
           value={loadingSchedules ? '—' : mySchedules.length}
           icon={Shield}
           color="gold"
@@ -98,7 +102,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-base font-semibold text-navy-700 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-gold-500" />
-              Guardias de esta semana
+              Turnos de esta semana
             </h2>
             <span className="text-xs text-navy-400">
               {format(weekStart, 'dd/MM')} — {format(weekEnd, 'dd/MM')}
@@ -112,7 +116,7 @@ export function DashboardPage() {
           ) : weekSchedules?.length === 0 ? (
             <div className="text-center py-8">
               <Calendar className="h-10 w-10 text-navy-200 mx-auto mb-2" />
-              <p className="text-sm text-navy-400">No hay guardias programadas esta semana</p>
+              <p className="text-sm text-navy-400">No hay turnos programados esta semana</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -136,7 +140,12 @@ export function DashboardPage() {
                       <div
                         key={a.userId}
                         title={a.user.name}
-                        className="h-6 w-6 rounded-full bg-navy-200 border-2 border-white flex items-center justify-center text-xs font-medium text-navy-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProfileUser(a.user);
+                          setProfileModalOpen(true);
+                        }}
+                        className="h-6 w-6 rounded-full bg-navy-200 border-2 border-white flex items-center justify-center text-xs font-medium text-navy-600 cursor-pointer hover:bg-navy-300 transition-colors"
                       >
                         {a.user.name[0]}
                       </div>
@@ -193,6 +202,12 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      <UserProfileModal
+        open={profileModalOpen}
+        user={selectedProfileUser}
+        onClose={() => setProfileModalOpen(false)}
+      />
     </div>
   );
 }

@@ -18,6 +18,8 @@ const createUserSchema = z.object({
   department: z.string().optional(),
   avatarUrl: z.string().url().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).default('none'),
+  companyPhone: z.string().optional(),
+  auxiliaryPhone: z.string().optional(),
 });
 
 const updateUserSchema = z.object({
@@ -26,6 +28,8 @@ const updateUserSchema = z.object({
   department: z.string().optional(),
   avatarUrl: z.string().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+  companyPhone: z.string().optional(),
+  auxiliaryPhone: z.string().optional(),
 });
 
 // List users
@@ -53,6 +57,7 @@ router.get('/', authMiddleware, requireRole('admin', 'manager'), async (req: Aut
         id: true, name: true, email: true, role: true, status: true,
         avatarUrl: true, department: true, createdAt: true, lastLoginAt: true,
         failedAttempts: true, forcePasswordChange: true, islandCalendar: true,
+        companyPhone: true, auxiliaryPhone: true,
       },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
@@ -72,6 +77,7 @@ router.get('/:id', authMiddleware, requireRole('admin', 'manager'), async (req: 
       id: true, name: true, email: true, role: true, status: true,
       avatarUrl: true, department: true, createdAt: true, lastLoginAt: true,
       failedAttempts: true, forcePasswordChange: true,
+      companyPhone: true, auxiliaryPhone: true,
     },
   });
   if (!user) return sendError(res, 'Usuario no encontrado', 404);
@@ -90,7 +96,11 @@ router.post('/', authMiddleware, requireRole('admin'), async (req: AuthRequest, 
   const { password: _pw, ...userData } = parsed.data;
   const user = await prisma.user.create({
     data: { ...userData, passwordHash },
-    select: { id: true, name: true, email: true, role: true, status: true, department: true, createdAt: true, islandCalendar: true },
+    select: {
+      id: true, name: true, email: true, role: true, status: true,
+      department: true, createdAt: true, islandCalendar: true,
+      companyPhone: true, auxiliaryPhone: true
+    },
   });
 
   await logAudit({ userId: req.user!.id, action: 'CREATE_USER', entityType: 'User', entityId: user.id, detailsJson: { email: user.email, role: user.role }, ipAddress: req.ip });
@@ -113,7 +123,11 @@ router.patch('/:id', authMiddleware, requireRole('admin'), async (req: AuthReque
   const updated = await prisma.user.update({
     where: { id: req.params.id },
     data: parsed.data,
-    select: { id: true, name: true, email: true, role: true, status: true, department: true, islandCalendar: true },
+    select: {
+      id: true, name: true, email: true, role: true, status: true,
+      department: true, islandCalendar: true,
+      companyPhone: true, auxiliaryPhone: true
+    },
   });
 
   await logAudit({ userId: req.user!.id, action: 'UPDATE_USER', entityType: 'User', entityId: req.params.id, detailsJson: parsed.data, ipAddress: req.ip });
