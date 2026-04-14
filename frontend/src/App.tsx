@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -21,8 +21,30 @@ import type { ThemeConfig } from '@/types';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setUser = useAuthStore((s) => s.setUser);
+  const logout = useAuthStore((s) => s.logout);
   const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
   const setThemeConfig = useUIStore((s) => s.setThemeConfig);
+  const authBootstrappedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      authBootstrappedRef.current = false;
+      return;
+    }
+    if (authBootstrappedRef.current) return;
+    authBootstrappedRef.current = true;
+
+    api
+      .get('/auth/me')
+      .then((response) => {
+        setUser(response.data.data);
+      })
+      .catch(() => {
+        // Invalid persisted session -> clear client auth state.
+        logout();
+      });
+  }, [isAuthenticated, logout, setUser]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -50,6 +72,7 @@ function App() {
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
               <Route path="schedule" element={<SchedulePage />} />
+              <Route path="schedule/:scheduleId" element={<SchedulePage />} />
               <Route path="profile" element={<ProfilePage />} />
 
               {/* Admin routes */}

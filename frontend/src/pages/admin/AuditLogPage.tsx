@@ -27,13 +27,19 @@ export function AuditLogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [entityType, setEntityType] = useState('');
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['audit', page, search, entityType],
     queryFn: () =>
       api.get('/audit', { params: { page, limit: 20, action: search || undefined, entityType: entityType || undefined } })
         .then((r) => r.data),
+  });
+
+  const { data: selectedLog, isLoading: loadingDetail } = useQuery({
+    queryKey: ['audit-detail', selectedLogId],
+    queryFn: () => api.get<{ data: AuditLog }>(`/audit/${selectedLogId}`).then((r) => r.data.data),
+    enabled: Boolean(selectedLogId),
   });
 
   return (
@@ -65,7 +71,7 @@ export function AuditLogPage() {
 
       <div className="flex gap-4">
         {/* Log table */}
-        <div className={`card overflow-hidden ${selectedLog ? 'flex-1' : 'w-full'}`}>
+        <div className={`card overflow-hidden ${selectedLogId ? 'flex-1' : 'w-full'}`}>
           {isLoading ? (
             <div className="flex justify-center py-8"><LoadingSpinner /></div>
           ) : !data?.data?.length ? (
@@ -87,8 +93,8 @@ export function AuditLogPage() {
                     {data.data.map((log: AuditLog) => (
                       <tr
                         key={log.id}
-                        className={`hover:bg-navy-50/50 cursor-pointer transition-colors ${selectedLog?.id === log.id ? 'bg-navy-50' : ''}`}
-                        onClick={() => setSelectedLog(selectedLog?.id === log.id ? null : log)}
+                        className={`hover:bg-navy-50/50 cursor-pointer transition-colors ${selectedLogId === log.id ? 'bg-navy-50' : ''}`}
+                        onClick={() => setSelectedLogId(selectedLogId === log.id ? null : log.id)}
                       >
                         <td className="px-6 py-5">
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ACTION_COLORS[log.action] || 'bg-navy-100 text-navy-600'}`}>
@@ -118,44 +124,50 @@ export function AuditLogPage() {
         </div>
 
         {/* Detail panel */}
-        {selectedLog && (
+        {selectedLogId && (
           <div className="w-80 flex-shrink-0 card p-6 space-y-4 animate-slide-up h-fit">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-navy-800">Detalle del registro</h3>
-              <button onClick={() => setSelectedLog(null)} className="p-1 text-navy-300 hover:text-navy-500 hover:bg-navy-50 rounded transition-colors text-xs">✕</button>
+              <button onClick={() => setSelectedLogId(null)} className="p-1 text-navy-300 hover:text-navy-500 hover:bg-navy-50 rounded transition-colors text-xs">✕</button>
             </div>
-            <div className="space-y-3.5">
-              <div>
-                <p className="text-xs font-medium text-navy-400 mb-1">Acción</p>
-                <p className="text-sm font-semibold text-navy-700">{selectedLog.action}</p>
+            {loadingDetail || !selectedLog ? (
+              <div className="py-6 flex justify-center">
+                <LoadingSpinner size="sm" />
               </div>
-              <div>
-                <p className="text-xs font-medium text-navy-400 mb-1">Usuario</p>
-                <p className="text-sm font-medium text-navy-700">{selectedLog.user?.name || 'Sistema'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-navy-400 mb-1">Entidad</p>
-                <p className="text-sm font-medium text-navy-700">{selectedLog.entityType}{selectedLog.entityId ? ` · ${selectedLog.entityId.slice(0, 8)}…` : ''}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-navy-400 mb-1">Fecha</p>
-                <p className="text-sm font-medium text-navy-700">{formatDateTime(selectedLog.createdAt)}</p>
-              </div>
-              {selectedLog.ipAddress && (
+            ) : (
+              <div className="space-y-3.5">
                 <div>
-                  <p className="text-xs font-medium text-navy-400 mb-1">IP</p>
-                  <p className="text-sm font-medium text-navy-700">{selectedLog.ipAddress}</p>
+                  <p className="text-xs font-medium text-navy-400 mb-1">Acción</p>
+                  <p className="text-sm font-semibold text-navy-700">{selectedLog.action}</p>
                 </div>
-              )}
-              {selectedLog.detailsJson && (
                 <div>
-                  <p className="text-xs font-medium text-navy-400 mb-1">Detalles</p>
-                  <pre className="bg-navy-50 rounded-lg p-3 text-[11px] text-navy-600 overflow-auto max-h-48 whitespace-pre-wrap leading-relaxed">
-                    {JSON.stringify(JSON.parse(selectedLog.detailsJson), null, 2)}
-                  </pre>
+                  <p className="text-xs font-medium text-navy-400 mb-1">Usuario</p>
+                  <p className="text-sm font-medium text-navy-700">{selectedLog.user?.name || 'Sistema'}</p>
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-xs font-medium text-navy-400 mb-1">Entidad</p>
+                  <p className="text-sm font-medium text-navy-700">{selectedLog.entityType}{selectedLog.entityId ? ` · ${selectedLog.entityId.slice(0, 8)}…` : ''}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-navy-400 mb-1">Fecha</p>
+                  <p className="text-sm font-medium text-navy-700">{formatDateTime(selectedLog.createdAt)}</p>
+                </div>
+                {selectedLog.ipAddress && (
+                  <div>
+                    <p className="text-xs font-medium text-navy-400 mb-1">IP</p>
+                    <p className="text-sm font-medium text-navy-700">{selectedLog.ipAddress}</p>
+                  </div>
+                )}
+                {Boolean(selectedLog.detailsJson) && (
+                  <div>
+                    <p className="text-xs font-medium text-navy-400 mb-1">Detalles</p>
+                    <pre className="bg-navy-50 rounded-lg p-3 text-[11px] text-navy-600 overflow-auto max-h-48 whitespace-pre-wrap leading-relaxed">
+                      {JSON.stringify(selectedLog.detailsJson, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

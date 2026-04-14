@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Plus, Search, MoreVertical, Edit, Lock, Unlock, Trash2, Key, Shield } from 'lucide-react';
+import { Plus, Search, MoreVertical, Edit, Eye, Lock, Unlock, Trash2, Key, Shield } from 'lucide-react';
 import api from '@/config/api';
 import type { User } from '@/types';
 import { ROLE_LABELS, STATUS_LABELS } from '@/types';
@@ -9,10 +9,14 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
+import { UserDetailsModal } from './UserDetailsModal';
 
 export function UsersPage() {
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === 'admin';
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -21,6 +25,7 @@ export function UsersPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [formUser, setFormUser] = useState<User | null | false>(false);
   const [resetUser, setResetUser] = useState<User | null>(null);
+  const [detailUser, setDetailUser] = useState<User | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: string; user: User } | null>(null);
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
@@ -61,9 +66,11 @@ export function UsersPage() {
           <h1 className="text-2xl font-bold text-navy-800">Gestión de Usuarios</h1>
           <p className="text-sm text-navy-400 mt-0.5">Administra cuentas, roles y permisos</p>
         </div>
-        <button onClick={() => setFormUser(null)} className="btn-primary text-sm flex items-center gap-2">
-          <Plus className="h-4 w-4" />Nuevo Usuario
-        </button>
+        {isAdmin && (
+          <button onClick={() => setFormUser(null)} className="btn-primary text-sm flex items-center gap-2">
+            <Plus className="h-4 w-4" />Nuevo Usuario
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -141,25 +148,32 @@ export function UsersPage() {
                         </button>
                         {menuOpenId === u.id && (
                           <div className="absolute right-4 top-8 bg-white rounded-xl shadow-xl border border-navy-100 z-20 w-48 py-1 animate-slide-down">
-                            <button onClick={() => { setFormUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
-                              <Edit className="h-3.5 w-3.5" />Editar
+                            <button onClick={() => { setDetailUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
+                              <Eye className="h-3.5 w-3.5" />Ver detalle
                             </button>
-                            <button onClick={() => { setResetUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
-                              <Key className="h-3.5 w-3.5" />Resetear contraseña
-                            </button>
-                            {u.status === 'active' ? (
-                              <button onClick={() => { setConfirmAction({ type: 'lock', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-amber-50 text-amber-700">
-                                <Lock className="h-3.5 w-3.5" />Bloquear
-                              </button>
-                            ) : (
-                              <button onClick={() => { statusMutation.mutate({ id: u.id, status: 'active' }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-green-50 text-green-700">
-                                <Unlock className="h-3.5 w-3.5" />Activar
-                              </button>
+                            {isAdmin && (
+                              <>
+                                <button onClick={() => { setFormUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
+                                  <Edit className="h-3.5 w-3.5" />Editar
+                                </button>
+                                <button onClick={() => { setResetUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
+                                  <Key className="h-3.5 w-3.5" />Resetear contraseña
+                                </button>
+                                {u.status === 'active' ? (
+                                  <button onClick={() => { setConfirmAction({ type: 'lock', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-amber-50 text-amber-700">
+                                    <Lock className="h-3.5 w-3.5" />Bloquear
+                                  </button>
+                                ) : (
+                                  <button onClick={() => { statusMutation.mutate({ id: u.id, status: 'active' }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-green-50 text-green-700">
+                                    <Unlock className="h-3.5 w-3.5" />Activar
+                                  </button>
+                                )}
+                                <hr className="border-navy-100 my-1" />
+                                <button onClick={() => { setConfirmAction({ type: 'delete', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-red-50 text-red-600">
+                                  <Trash2 className="h-3.5 w-3.5" />Eliminar
+                                </button>
+                              </>
                             )}
-                            <hr className="border-navy-100 my-1" />
-                            <button onClick={() => { setConfirmAction({ type: 'delete', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-red-50 text-red-600">
-                              <Trash2 className="h-3.5 w-3.5" />Eliminar
-                            </button>
                           </div>
                         )}
                       </td>
@@ -189,7 +203,7 @@ export function UsersPage() {
       </div>
 
       {/* Modals */}
-      {formUser !== false && (
+      {isAdmin && formUser !== false && (
         <UserFormModal
           open
           user={formUser}
@@ -197,11 +211,20 @@ export function UsersPage() {
         />
       )}
 
-      {resetUser && (
+      {isAdmin && resetUser && (
         <ResetPasswordModal
           open
           user={resetUser}
           onClose={() => setResetUser(null)}
+        />
+      )}
+
+      {detailUser && (
+        <UserDetailsModal
+          open
+          userId={detailUser.id}
+          userName={detailUser.name}
+          onClose={() => setDetailUser(null)}
         />
       )}
 
@@ -216,6 +239,7 @@ export function UsersPage() {
         confirmLabel={confirmAction?.type === 'delete' ? 'Eliminar' : 'Bloquear'}
         loading={deleteMutation.isPending || statusMutation.isPending}
         onConfirm={() => {
+          if (!isAdmin) return;
           if (confirmAction?.type === 'delete') deleteMutation.mutate(confirmAction.user.id);
           else if (confirmAction?.type === 'lock') statusMutation.mutate({ id: confirmAction.user.id, status: 'locked' });
         }}
