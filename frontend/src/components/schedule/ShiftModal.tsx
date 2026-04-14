@@ -8,6 +8,7 @@ import api from '@/config/api';
 import { SCHEDULE_TYPES, type Schedule, type User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -58,6 +59,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
     holidays: HolidayEntry[];
   }[]>([]);
   const [pendingPayload, setPendingPayload] = useState<(ShiftForm & { assigneeIds: string[] }) | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
 
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
@@ -463,6 +466,18 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                         <p className="text-sm font-medium text-navy-700 truncate">{u.name}</p>
                         <p className="text-xs text-navy-400 truncate">{u.department || u.email}</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedProfileUser(u);
+                          setProfileModalOpen(true);
+                        }}
+                        className="p-1.5 text-navy-300 hover:text-navy-500 hover:bg-navy-50 rounded-lg transition-colors"
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -564,6 +579,12 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
           </div>
         </div>
       )}
+
+      <UserProfileModal
+        open={profileModalOpen}
+        user={selectedProfileUser}
+        onClose={() => setProfileModalOpen(false)}
+      />
     </>
   );
 }

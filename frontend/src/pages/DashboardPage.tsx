@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, Users, Shield, AlertTriangle, Clock } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import { formatDateTime, formatRelative } from '@/lib/utils';
@@ -20,6 +22,8 @@ function getTypeColor(type: string) {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -136,7 +140,12 @@ export function DashboardPage() {
                       <div
                         key={a.userId}
                         title={a.user.name}
-                        className="h-6 w-6 rounded-full bg-navy-200 border-2 border-white flex items-center justify-center text-xs font-medium text-navy-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProfileUser(a.user);
+                          setProfileModalOpen(true);
+                        }}
+                        className="h-6 w-6 rounded-full bg-navy-200 border-2 border-white flex items-center justify-center text-xs font-medium text-navy-600 cursor-pointer hover:bg-navy-300 transition-colors"
                       >
                         {a.user.name[0]}
                       </div>
@@ -193,6 +202,12 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      <UserProfileModal
+        open={profileModalOpen}
+        user={selectedProfileUser}
+        onClose={() => setProfileModalOpen(false)}
+      />
     </div>
   );
 }

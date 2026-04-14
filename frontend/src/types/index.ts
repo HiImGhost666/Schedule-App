@@ -44,6 +44,8 @@ export interface ScheduleAssignment {
     email: string;
     avatarUrl?: string;
     department?: string;
+    companyPhone?: string;
+    auxiliaryPhone?: string;
   };
   assignedAt: string;
 }

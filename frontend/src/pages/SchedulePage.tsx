@@ -10,6 +10,7 @@ import esLocale from '@fullcalendar/core/locales/es';
 import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
 import type { Schedule } from '@/types';
@@ -56,7 +57,7 @@ function MonthEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── week/day-view event card ──────────────────────────────────── */
 
-function TimeGridEventContent({ info }: { info: EventContentArg }) {
+function TimeGridEventContent({ info, onProfileClick }: { info: EventContentArg; onProfileClick?: (u: any) => void }) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule;
   const assignees = schedule?.assignments?.map((a) => a.user) ?? [];
@@ -96,7 +97,13 @@ function TimeGridEventContent({ info }: { info: EventContentArg }) {
               <div
                 key={a.id}
                 title={a.name}
-                className="w-[18px] h-[18px] rounded-full bg-white/25 border border-white/50 flex items-center justify-center text-[7px] font-bold uppercase text-white shrink-0"
+                onClick={(e) => {
+                  if (onProfileClick) {
+                    e.stopPropagation();
+                    onProfileClick(a);
+                  }
+                }}
+                className="w-[18px] h-[18px] rounded-full bg-white/25 border border-white/50 flex items-center justify-center text-[7px] font-bold uppercase text-white shrink-0 cursor-pointer hover:bg-white/40 active:scale-95 transition-all"
               >
                 {a.name.charAt(0)}
               </div>
@@ -142,9 +149,9 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── unified event content dispatcher ─────────────────────────── */
 
-function EventContent({ info }: { info: EventContentArg }) {
+function EventContent({ info, onProfileClick }: { info: EventContentArg; onProfileClick?: (u: any) => void }) {
   const viewType = info.view.type;
-  if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} />;
+  if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} onProfileClick={onProfileClick} />;
   if (viewType.startsWith('list')) return <ListEventContent info={info} />;
   return <MonthEventContent info={info} />;
 }
@@ -181,43 +188,43 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
             const count = counts[value] ?? 0;
             return (
               <button
-  key={value}
-  onClick={() => onToggle(value)}
-  title={count > 0 ? `${count} evento${count > 1 ? 's' : ''}` : 'Sin eventos'}
-  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150 whitespace-nowrap"
-  style={
-    active
-      ? {
-          backgroundColor: color,
-          borderColor: color,
-          color: '#fff',
-          boxShadow: `0 1px 4px rgba(${hexToRgb(color)}, 0.4)`,
-        }
-      : {
-          backgroundColor: 'transparent',
-          borderColor: '#cbd5e1',
-          color: '#94a3b8',
-        }
-  }
->
-  <span
-    className="w-2 h-2 rounded-full shrink-0 flex-none"
-    style={{ backgroundColor: active ? 'rgba(255,255,255,0.6)' : color }}
-  />
-  <span className="leading-none">{label}</span>
-  {count > 0 && (
-    <span
-      className="rounded-full px-1 text-[10px] font-bold leading-none py-0.5"
-      style={
-        active
-          ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
-          : { backgroundColor: color, color: '#fff' }
-      }
-    >
-      {count}
-    </span>
-  )}
-</button>
+                key={value}
+                onClick={() => onToggle(value)}
+                title={count > 0 ? `${count} evento${count > 1 ? 's' : ''}` : 'Sin eventos'}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150 whitespace-nowrap"
+                style={
+                  active
+                    ? {
+                      backgroundColor: color,
+                      borderColor: color,
+                      color: '#fff',
+                      boxShadow: `0 1px 4px rgba(${hexToRgb(color)}, 0.4)`,
+                    }
+                    : {
+                      backgroundColor: 'transparent',
+                      borderColor: '#cbd5e1',
+                      color: '#94a3b8',
+                    }
+                }
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0 flex-none"
+                  style={{ backgroundColor: active ? 'rgba(255,255,255,0.6)' : color }}
+                />
+                <span className="leading-none">{label}</span>
+                {count > 0 && (
+                  <span
+                    className="rounded-full px-1 text-[10px] font-bold leading-none py-0.5"
+                    style={
+                      active
+                        ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
+                        : { backgroundColor: color, color: '#fff' }
+                    }
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
             );
           })}
         </div>
@@ -246,6 +253,8 @@ export function SchedulePage() {
       to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
     };
   });
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: ['schedules', format(dateRange.from, 'yyyy-MM')],
@@ -449,7 +458,15 @@ export function SchedulePage() {
             weekends
             select={handleDateSelect}
             eventClick={handleEventClick}
-            eventContent={(info) => <EventContent info={info} />}
+            eventContent={(info) => (
+              <EventContent
+                info={info}
+                onProfileClick={(u) => {
+                  setSelectedProfileUser(u);
+                  setProfileModalOpen(true);
+                }}
+              />
+            )}
             height="auto"
             datesSet={(info) => {
               setDateRange({ from: info.start, to: info.end });
@@ -475,6 +492,12 @@ export function SchedulePage() {
         schedule={selectedSchedule}
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
+      />
+
+      <UserProfileModal
+        open={profileModalOpen}
+        user={selectedProfileUser}
+        onClose={() => setProfileModalOpen(false)}
       />
     </div>
   );
