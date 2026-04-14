@@ -4,9 +4,10 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../uti
 import { MAX_FAILED_ATTEMPTS, LOCKOUT_MINUTES, USER_STATUS } from '../../config/constants';
 import { addMinutes, isAfter } from 'date-fns';
 import crypto from 'crypto';
+import { findUserByEmailOrUsername } from '../users/users.service';
 
-export async function login(email: string, password: string, ipAddress?: string, userAgent?: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+export async function login(identifier: string, password: string, ipAddress?: string, userAgent?: string) {
+  const user = await findUserByEmailOrUsername(identifier);
 
   if (!user) {
     throw new Error('Credenciales incorrectas');

@@ -10,19 +10,23 @@ import { hashPassword } from '../../utils/bcrypt';
 const router = Router();
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1).optional(),
+  email: z.string().min(1).optional(),
   password: z.string().min(1),
+}).refine((data) => Boolean(data.identifier || data.email), {
+  message: 'Usuario/email y contraseña requeridos',
 });
 
 router.post('/login', async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return sendError(res, 'Email y contraseña requeridos', 400);
+    return sendError(res, 'Usuario/email y contraseña requeridos', 400);
   }
 
   try {
+    const identifier = parsed.data.identifier ?? parsed.data.email!;
     const result = await login(
-      parsed.data.email,
+      identifier,
       parsed.data.password,
       req.ip,
       req.headers['user-agent']

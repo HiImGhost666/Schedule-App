@@ -7,6 +7,7 @@ import { prisma } from '../../config/database';
 import { hashPassword } from '../../utils/bcrypt';
 import { logAudit } from '../audit/audit.service';
 import { addMinutes } from 'date-fns';
+import { createUser, UserServiceError } from './users.service';
 
 const router = Router();
 
@@ -83,15 +84,15 @@ router.post('/', authMiddleware, requireRole('admin'), async (req: AuthRequest, 
   const parsed = createUserSchema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten());
 
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-  if (existing) return sendError(res, 'El email ya está registrado', 409);
-
-  const passwordHash = await hashPassword(parsed.data.password);
-  const { password: _pw, ...userData } = parsed.data;
-  const user = await prisma.user.create({
-    data: { ...userData, passwordHash },
-    select: { id: true, name: true, email: true, role: true, status: true, department: true, createdAt: true, islandCalendar: true },
-  });
+  let user;
+  try {
+    user = await createUser(parsed.data, req.user ? { id: req.user.id } : undefined);
+  } catch (error) {
+    if (error instanceof UserServiceError) {
+      return sendError(res, error.message, error.statusCode, error.details);
+    }
+    throw error;
+  }
 
   await logAudit({ userId: req.user!.id, action: 'CREATE_USER', entityType: 'User', entityId: user.id, detailsJson: { email: user.email, role: user.role }, ipAddress: req.ip });
   return sendSuccess(res, user, 'Usuario creado', 201);

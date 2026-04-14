@@ -1,12 +1,28 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
+import { createUser, UserServiceError } from '../src/modules/users/users.service';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const prisma = new PrismaClient();
+
+async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
+  try {
+    await createUser(input);
+    console.log(`${label} created: ${input.email}`);
+  } catch (error) {
+    if (
+      error instanceof UserServiceError &&
+      (error.code === 'EMAIL_ALREADY_EXISTS' || error.code === 'USERNAME_ALREADY_EXISTS')
+    ) {
+      console.log(`${label} already exists: ${input.email}`);
+      return;
+    }
+    throw error;
+  }
+}
 
 async function main() {
   console.log('Seeding database...');
@@ -15,42 +31,32 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminPass123!';
   const adminName = process.env.SEED_ADMIN_NAME || 'Administrador Sistema';
 
-  // Create admin user
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existingAdmin) {
-    const passwordHash = await bcrypt.hash(adminPassword, 12);
-    await prisma.user.create({
-      data: {
-        name: adminName,
-        email: adminEmail,
-        passwordHash,
-        role: 'admin',
-        status: 'active',
-        department: 'Administración',
-      },
-    });
-    console.log(`Admin created: ${adminEmail}`);
-  } else {
-    console.log(`Admin already exists: ${adminEmail}`);
-  }
+  await ensureSeedUser(
+    {
+      name: adminName,
+      email: adminEmail,
+      password: adminPassword,
+      role: 'admin',
+      status: 'active',
+      department: 'Administración',
+      islandCalendar: 'none',
+    },
+    'Admin'
+  );
 
   // Create demo manager
-  const managerEmail = 'manager@company.com';
-  const existingManager = await prisma.user.findUnique({ where: { email: managerEmail } });
-  if (!existingManager) {
-    const passwordHash = await bcrypt.hash('Manager123!', 12);
-    await prisma.user.create({
-      data: {
-        name: 'María García',
-        email: managerEmail,
-        passwordHash,
-        role: 'manager',
-        status: 'active',
-        department: 'Operaciones',
-      },
-    });
-    console.log('Demo manager created');
-  }
+  await ensureSeedUser(
+    {
+      name: 'María García',
+      email: 'manager@company.com',
+      password: 'Manager123!',
+      role: 'manager',
+      status: 'active',
+      department: 'Operaciones',
+      islandCalendar: 'none',
+    },
+    'Demo manager'
+  );
 
   // Create demo users
   const demoUsers = [
@@ -61,14 +67,16 @@ async function main() {
   ];
 
   for (const u of demoUsers) {
-    const existing = await prisma.user.findUnique({ where: { email: u.email } });
-    if (!existing) {
-      const passwordHash = await bcrypt.hash('User123!', 12);
-      await prisma.user.create({
-        data: { ...u, passwordHash, role: 'viewer', status: 'active' },
-      });
-      console.log(`Demo user created: ${u.email}`);
-    }
+    await ensureSeedUser(
+      {
+        ...u,
+        password: 'User123!',
+        role: 'viewer',
+        status: 'active',
+        islandCalendar: 'none',
+      },
+      'Demo user'
+    );
   }
 
   const existingTheme = await prisma.themeSettings.findUnique({ where: { key: 'global' } });
