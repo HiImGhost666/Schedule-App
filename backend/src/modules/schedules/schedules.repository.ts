@@ -1,6 +1,6 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { TransactionClient } from '../../common/transactions/transaction.utils';
+import { Prisma } from '@prisma/client';
 
 const assigneeInclude = {
   assignments: {
@@ -11,11 +11,15 @@ const assigneeInclude = {
   createdBy: { select: { id: true, name: true } },
 } as const;
 
+type ScheduleWhere = Prisma.Args<typeof prisma.schedule, 'findMany'>['where'];
+type ScheduleCreateData = Prisma.Args<typeof prisma.schedule, 'create'>['data'];
+type ScheduleUpdateData = Prisma.Args<typeof prisma.schedule, 'update'>['data'];
+
 function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
 }
 
-export function findSchedules(where: Prisma.ScheduleWhereInput) {
+export function findSchedules(where: ScheduleWhere) {
   return prisma.schedule.findMany({
     where,
     include: assigneeInclude,
@@ -30,14 +34,14 @@ export function findScheduleById(id: string, tx?: TransactionClient) {
   });
 }
 
-export function createSchedule(data: Prisma.ScheduleCreateInput, tx?: TransactionClient) {
+export function createSchedule(data: ScheduleCreateData, tx?: TransactionClient) {
   return getDb(tx).schedule.create({
     data,
     include: assigneeInclude,
   });
 }
 
-export function updateSchedule(id: string, data: Prisma.ScheduleUpdateInput, tx?: TransactionClient) {
+export function updateSchedule(id: string, data: ScheduleUpdateData, tx?: TransactionClient) {
   return getDb(tx).schedule.update({
     where: { id },
     data,

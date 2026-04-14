@@ -1,4 +1,4 @@
-import { Prisma, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { TransactionClient } from '../../common/transactions/transaction.utils';
 
@@ -29,7 +29,9 @@ const USER_SAFE_SELECT = {
   islandCalendar: true,
 } as const;
 
-type UserWhere = Prisma.UserWhereInput;
+type UserWhere = NonNullable<Parameters<typeof prisma.user.findMany>[0]>['where'];
+type UserCreateData = NonNullable<Parameters<typeof prisma.user.create>[0]>['data'];
+type UserUpdateData = NonNullable<Parameters<typeof prisma.user.update>[0]>['data'];
 
 function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
@@ -66,14 +68,14 @@ export function findUserByDerivedUsername(username: string, tx?: TransactionClie
   });
 }
 
-export function createUserRecord(data: Prisma.UserCreateInput, tx?: TransactionClient) {
+export function createUserRecord(data: UserCreateData, tx?: TransactionClient) {
   return getDb(tx).user.create({
     data,
     select: USER_SAFE_SELECT,
   });
 }
 
-export function updateUserRecord(id: string, data: Prisma.UserUpdateInput, tx?: TransactionClient) {
+export function updateUserRecord(id: string, data: UserUpdateData, tx?: TransactionClient) {
   return getDb(tx).user.update({
     where: { id },
     data,
