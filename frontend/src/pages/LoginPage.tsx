@@ -11,7 +11,15 @@ import toast from 'react-hot-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  identifier: z
+    .string()
+    .trim()
+    .min(1, 'Correo o usuario requerido')
+    .refine((value) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const usernameRegex = /^[A-Za-z0-9._-]{3,64}$/;
+      return emailRegex.test(value) || usernameRegex.test(value);
+    }, 'Ingresa un correo o usuario válido'),
   password: z.string().min(1, 'Contraseña requerida'),
 });
 
@@ -36,7 +44,20 @@ export function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     try {
       setAuthError(null);
-      const res = await api.post('/auth/login', data);
+      const identifier = data.identifier.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const usernameRegex = /^[A-Za-z0-9._-]{3,64}$/;
+
+      if (!emailRegex.test(identifier) && !usernameRegex.test(identifier)) {
+        const invalidIdentifierMessage = 'Ingresa un correo o usuario válido';
+        setAuthError(invalidIdentifierMessage);
+        toast.error(invalidIdentifierMessage);
+        return;
+      }
+
+      const payload = { identifier, password: data.password };
+
+      const res = await api.post('/auth/login', payload);
       const { user, accessToken, refreshToken } = res.data.data;
       setAuth(user, accessToken, refreshToken);
       toast.success(`Bienvenido, ${user.name}`);
@@ -141,26 +162,26 @@ export function LoginPage() {
 
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
                 <div>
-                  <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-navy-600">
-                    Correo electrónico
+                  <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-navy-600">
+                    Correo o usuario
                   </label>
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
                     <input
-                      {...register('email', { onChange: clearAuthError })}
-                      id="login-email"
-                      type="email"
-                      placeholder="usuario@empresa.com"
+                      {...register('identifier', { onChange: clearAuthError })}
+                      id="login-identifier"
+                      type="text"
+                      placeholder="usuario@empresa.com o usuario"
                       className="input-field !pl-9"
-                      autoComplete="email"
+                      autoComplete="username"
                       autoFocus
-                      aria-invalid={Boolean(errors.email)}
-                      aria-describedby={errors.email ? 'login-email-error' : undefined}
+                      aria-invalid={Boolean(errors.identifier)}
+                      aria-describedby={errors.identifier ? 'login-identifier-error' : undefined}
                     />
                   </div>
-                  {errors.email && (
-                    <p id="login-email-error" className="mt-1.5 text-xs font-medium text-red-700">
-                      {errors.email.message}
+                  {errors.identifier && (
+                    <p id="login-identifier-error" className="mt-1.5 text-xs font-medium text-red-700">
+                      {errors.identifier.message}
                     </p>
                   )}
                 </div>
