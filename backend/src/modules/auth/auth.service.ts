@@ -1,32 +1,39 @@
-import { prisma } from '../../config/database';
 import { comparePassword } from '../../utils/bcrypt';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
 import { MAX_FAILED_ATTEMPTS, LOCKOUT_MINUTES, USER_STATUS } from '../../config/constants';
 import { addMinutes, isAfter } from 'date-fns';
 import crypto from 'crypto';
 import { findUserByEmailOrUsername } from '../users/users.service';
+import {
+  createRefreshToken,
+  findRefreshTokenByToken,
+  findUserById,
+  findUserProfileById,
+  revokeRefreshTokenById,
+  revokeRefreshTokensByToken,
+  updateUserById,
+} from './auth.repository';
+import { createAppError } from '../../common/errors/error-catalog';
+import { hashPassword } from '../../utils/bcrypt';
 
 export async function login(identifier: string, password: string, ipAddress?: string, userAgent?: string) {
   const user = await findUserByEmailOrUsername(identifier);
 
   if (!user) {
-    throw new Error('Credenciales incorrectas');
+    throw createAppError('UNAUTHORIZED', 'Credenciales incorrectas');
   }
 
   if (user.status === USER_STATUS.DISABLED) {
-    throw new Error('Cuenta deshabilitada. Contacta con el administrador');
+    throw createAppError('UNAUTHORIZED', 'Cuenta deshabilitada. Contacta con el administrador');
   }
 
   if (user.status === USER_STATUS.LOCKED && user.lockedUntil) {
     if (isAfter(new Date(), user.lockedUntil)) {
       // Unlock expired lockout
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { status: USER_STATUS.ACTIVE, failedAttempts: 0, lockedUntil: null },
-      });
+      await updateUserById(user.id, { status: USER_STATUS.ACTIVE, failedAttempts: 0, lockedUntil: null });
     } else {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
-      throw new Error(`Cuenta bloqueada. Inténtalo de nuevo en ${minutesLeft} minuto(s)`);
+      throw createAppError('UNAUTHORIZED', `Cuenta bloqueada. Inténtalo de nuevo en ${minutesLeft} minuto(s)`);
     }
   }
 
@@ -41,15 +48,12 @@ export async function login(identifier: string, password: string, ipAddress?: st
       updates.lockedUntil = addMinutes(new Date(), LOCKOUT_MINUTES);
     }
 
-    await prisma.user.update({ where: { id: user.id }, data: updates });
-    throw new Error('Credenciales incorrectas');
+    await updateUserById(user.id, updates);
+    throw createAppError('UNAUTHORIZED', 'Credenciales incorrectas');
   }
 
   // Reset failed attempts on success
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { failedAttempts: 0, lastLoginAt: new Date() },
-  });
+  await updateUserById(user.id, { failedAttempts: 0, lastLoginAt: new Date() });
 
   const tokenId = crypto.randomUUID();
   const accessToken = signAccessToken({
@@ -63,15 +67,13 @@ export async function login(identifier: string, password: string, ipAddress?: st
   const refreshExpiry = new Date();
   refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
-  await prisma.refreshToken.create({
-    data: {
-      id: tokenId,
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: refreshExpiry,
-      ipAddress,
-      userAgent,
-    },
+  await createRefreshToken({
+    id: tokenId,
+    token: refreshToken,
+    userId: user.id,
+    expiresAt: refreshExpiry,
+    ipAddress,
+    userAgent,
   });
 
   const { passwordHash: _, ...safeUser } = user;
@@ -83,24 +85,21 @@ export async function refreshTokens(token: string) {
   try {
     payload = verifyRefreshToken(token);
   } catch {
-    throw new Error('Refresh token inválido o expirado');
+    throw createAppError('UNAUTHORIZED', 'Refresh token inválido o expirado');
   }
 
-  const storedToken = await prisma.refreshToken.findUnique({ where: { token } });
+  const storedToken = await findRefreshTokenByToken(token);
   if (!storedToken || storedToken.revokedAt || isAfter(new Date(), storedToken.expiresAt)) {
-    throw new Error('Refresh token inválido o expirado');
+    throw createAppError('UNAUTHORIZED', 'Refresh token inválido o expirado');
   }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  const user = await findUserById(payload.sub);
   if (!user || user.status !== USER_STATUS.ACTIVE) {
-    throw new Error('Usuario no disponible');
+    throw createAppError('UNAUTHORIZED', 'Usuario no disponible');
   }
 
   // Revoke old token
-  await prisma.refreshToken.update({
-    where: { id: storedToken.id },
-    data: { revokedAt: new Date() },
-  });
+  await revokeRefreshTokenById(storedToken.id);
 
   const newTokenId = crypto.randomUUID();
   const accessToken = signAccessToken({
@@ -114,21 +113,39 @@ export async function refreshTokens(token: string) {
   const refreshExpiry = new Date();
   refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
-  await prisma.refreshToken.create({
-    data: {
-      id: newTokenId,
-      token: newRefreshToken,
-      userId: user.id,
-      expiresAt: refreshExpiry,
-    },
+  await createRefreshToken({
+    id: newTokenId,
+    token: newRefreshToken,
+    userId: user.id,
+    expiresAt: refreshExpiry,
   });
 
   return { accessToken, refreshToken: newRefreshToken };
 }
 
 export async function logout(token: string) {
-  await prisma.refreshToken.updateMany({
-    where: { token },
-    data: { revokedAt: new Date() },
-  });
+  await revokeRefreshTokensByToken(token);
+}
+
+export async function getMe(userId: string) {
+  const user = await findUserProfileById(userId);
+  if (!user) {
+    throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+  }
+  return user;
+}
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+  }
+
+  const valid = await comparePassword(currentPassword, user.passwordHash);
+  if (!valid) {
+    throw createAppError('BAD_REQUEST', 'Contraseña actual incorrecta');
+  }
+
+  const newHash = await hashPassword(newPassword);
+  await updateUserById(user.id, { passwordHash: newHash, forcePasswordChange: false });
 }
