@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getInitials, getAvatarColor, formatDate } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const pwSchema = z.object({
   currentPassword: z.string().min(1, 'Requerido'),
@@ -58,7 +59,7 @@ export function ProfilePage() {
       }
       qc.invalidateQueries({ queryKey: ['me'] });
     },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   if (!user) return null;

@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/uiStore';
 import type { ThemeConfig, ThemeLogoVariant, ThemePreset } from '@/types';
 import LogoClaro from '@/assets/Logo_Claro.png';
 import LogoOscuro from '@/assets/Logo_Oscuro.png';
+import { getApiErrorDetails, getApiErrorMessage } from '@/lib/apiError';
 
 interface ThemeContrastViolation {
   component: string;
@@ -89,18 +90,11 @@ export function ThemeManagerPage() {
       toast.success('Tema global publicado');
     },
     onError: (error: unknown) => {
-      const err = error as {
-        response?: {
-          data?: {
-            error?: string;
-            errors?: {
-              violations?: ThemeContrastViolation[] | string[];
-              violationMessages?: string[];
-            };
-          };
-        };
-      };
-      const violations = err.response?.data?.errors?.violations;
+      const details = getApiErrorDetails<{
+        violations?: ThemeContrastViolation[] | string[];
+        violationMessages?: string[];
+      }>(error);
+      const violations = details?.violations;
       if (Array.isArray(violations) && violations.length > 0) {
         const first = violations[0];
         if (typeof first === 'string') {
@@ -115,7 +109,7 @@ export function ThemeManagerPage() {
         );
         return;
       }
-      toast.error(err.response?.data?.error || 'No se pudo publicar el tema');
+      toast.error(getApiErrorMessage(error, 'No se pudo publicar el tema'));
     },
   });
 

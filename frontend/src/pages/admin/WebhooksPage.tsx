@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -41,7 +42,7 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
       toast.success(webhook ? 'Webhook actualizado' : 'Webhook creado');
       onClose();
     },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   return (
@@ -114,7 +115,7 @@ export function WebhooksPage() {
   const testMutation = useMutation({
     mutationFn: (id: string) => api.post(`/webhooks/${id}/test`),
     onSuccess: () => toast.success('Mensaje de prueba enviado'),
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error al enviar prueba'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error al enviar prueba')),
   });
 
   return (

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const loginSchema = z.object({
   identifier: z
@@ -68,8 +69,7 @@ export function LoginPage() {
         navigate('/');
       }
     } catch (err: unknown) {
-      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        || 'Error al iniciar sesión';
+      const message = getApiErrorMessage(err, 'Error al iniciar sesión');
       setAuthError(message);
       toast.error(message);
     }

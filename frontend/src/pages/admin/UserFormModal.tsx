@@ -8,6 +8,7 @@ import api from '@/config/api';
 import type { User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -54,7 +55,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado');
       onClose();
     },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   if (!open) return null;

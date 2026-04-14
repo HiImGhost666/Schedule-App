@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { getApiErrorMessage } from '@/lib/apiError';
 import {
   countWorkingDays,
   getHolidaysForCalendar,
@@ -143,7 +144,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       toast.success('Guardia creada');
       onClose();
     },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   const updateMutation = useMutation({
@@ -154,7 +155,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       toast.success('Guardia actualizada');
       onClose();
     },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   const deleteMutation = useMutation({

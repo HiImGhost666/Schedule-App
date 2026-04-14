@@ -5,6 +5,7 @@ import api from '@/config/api';
 import type { User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 interface Props { open: boolean; user: User; onClose: () => void; }
 
@@ -15,7 +16,7 @@ export function ResetPasswordModal({ open, user, onClose }: Props) {
   const mutation = useMutation({
     mutationFn: () => api.post(`/users/${user.id}/reset-password`, { newPassword: password }),
     onSuccess: () => { toast.success('Contraseña restablecida'); onClose(); setPassword(''); },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   if (!open) return null;
