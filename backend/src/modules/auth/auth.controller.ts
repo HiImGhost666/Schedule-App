@@ -23,7 +23,7 @@ const changePasswordSchema = z.object({
 export async function loginController(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return sendError(res, 'Usuario/email y contraseña requeridos', 400);
+    return sendError(res, 'Usuario/email y contraseña requeridos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -47,7 +47,7 @@ export async function loginController(req: Request, res: Response) {
     return sendSuccess(res, result, 'Login exitoso');
   } catch (err: unknown) {
     if (isAppError(err)) {
-      return sendError(res, err.message, err.statusCode, err.details);
+      return sendError(res, err.message, err.statusCode, err.details, err.code);
     }
     const message = err instanceof Error ? err.message : 'Error de autenticación';
     return sendError(res, message, 401);
@@ -63,7 +63,7 @@ export async function refreshController(req: Request, res: Response) {
     return sendSuccess(res, tokens);
   } catch (err: unknown) {
     if (isAppError(err)) {
-      return sendError(res, err.message, err.statusCode, err.details);
+      return sendError(res, err.message, err.statusCode, err.details, err.code);
     }
     const message = err instanceof Error ? err.message : 'Error al renovar token';
     return sendError(res, message, 401);
@@ -99,7 +99,7 @@ export async function meController(req: AuthRequest, res: Response) {
 
 export async function changePasswordController(req: AuthRequest, res: Response) {
   const parsed = changePasswordSchema.safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos inválidos', 400);
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {
     await changePassword(req.user!.id, parsed.data.currentPassword, parsed.data.newPassword);
@@ -113,7 +113,7 @@ export async function changePasswordController(req: AuthRequest, res: Response) 
     return sendSuccess(res, null, 'Contraseña actualizada correctamente');
   } catch (err: unknown) {
     if (isAppError(err)) {
-      return sendError(res, err.message, err.statusCode, err.details);
+      return sendError(res, err.message, err.statusCode, err.details, err.code);
     }
     throw err;
   }

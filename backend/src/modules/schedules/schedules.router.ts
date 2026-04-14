@@ -50,7 +50,7 @@ router.post('/', authMiddleware, requireRole('admin', 'manager'), async (req: Au
 router.patch('/:id', authMiddleware, requireRole('admin', 'manager'), async (req: AuthRequest, res: Response) => {
   const updateSchema = scheduleSchema.partial().extend({ reason: z.string().optional() });
   const parsed = updateSchema.safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos inválidos', 400);
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   req.body = parsed.data;
   return updateScheduleController(req, res);
 });

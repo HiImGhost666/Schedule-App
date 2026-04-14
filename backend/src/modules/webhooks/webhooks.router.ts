@@ -36,7 +36,7 @@ router.post('/', authMiddleware, requireRole('admin'), async (req: AuthRequest, 
 
 router.patch('/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const parsed = webhookSchema.partial().safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos inválidos', 400);
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   const existing = await prisma.webhookConfig.findUnique({ where: { id: req.params.id } });
   if (!existing) return sendError(res, 'Webhook no encontrado', 404);

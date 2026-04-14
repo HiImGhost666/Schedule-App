@@ -14,5 +14,9 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
     });
   }
 
-  return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  return res.status(500).json({
+    success: false,
+    error: 'Error interno del servidor',
+    code: 'INTERNAL_ERROR',
+  });
 }

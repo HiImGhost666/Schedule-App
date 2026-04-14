@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
 import { requireRole } from '../../middleware/role.middleware';
 import { getAuditLogs } from './audit.service';
-import { sendPaginated, sendError } from '../../utils/response';
+import { sendPaginated, sendError, sendSuccess } from '../../utils/response';
 
 const router = Router();
 
@@ -31,7 +31,7 @@ router.get('/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest
     include: { user: { select: { id: true, name: true, email: true } } },
   });
   if (!log) return sendError(res, 'Registro no encontrado', 404);
-  return res.json({ success: true, data: log });
+  return sendSuccess(res, log);
 });
 
 export default router;

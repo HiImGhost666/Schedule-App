@@ -30,7 +30,7 @@ export async function getUserController(req: AuthRequest, res: Response) {
     const user = await getUserById(req.params.id);
     return sendSuccess(res, user);
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -40,7 +40,7 @@ export async function createUserController(req: AuthRequest, res: Response) {
     const user = await createUser(req.body, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, user, 'Usuario creado', 201);
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -50,7 +50,7 @@ export async function updateUserController(req: AuthRequest, res: Response) {
     const updated = await updateUser(req.params.id, req.body, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, updated, 'Usuario actualizado');
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -63,7 +63,7 @@ export async function changeUserStatusController(req: AuthRequest, res: Response
     await changeUserStatus(req.params.id, status, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, `Estado actualizado a ${status}`);
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -76,7 +76,7 @@ export async function changeUserRoleController(req: AuthRequest, res: Response) 
     await changeUserRole(req.params.id, role, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Rol actualizado');
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -89,7 +89,7 @@ export async function resetPasswordController(req: AuthRequest, res: Response) {
     await resetUserPassword(req.params.id, newPassword, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Contraseña restablecida. El usuario deberá cambiarla en el próximo inicio de sesión');
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -99,7 +99,7 @@ export async function deleteUserController(req: AuthRequest, res: Response) {
     await deleteUser(req.params.id, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Usuario eliminado');
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }

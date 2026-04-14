@@ -51,7 +51,7 @@ router.post('/', authMiddleware, requireRole('admin'), async (req: AuthRequest, 
 // Update user
 router.patch('/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const parsed = updateUserSchema.safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos inválidos', 400);
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   return updateUserController(req, res);
 });
 

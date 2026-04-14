@@ -33,7 +33,7 @@ export async function getScheduleController(req: AuthRequest, res: Response) {
     const schedule = await getScheduleById(req.params.id);
     return sendSuccess(res, schedule);
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -49,7 +49,7 @@ export async function createScheduleController(req: AuthRequest, res: Response) 
     });
     return sendSuccess(res, schedule, 'Guardia creada', 201);
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -65,7 +65,7 @@ export async function updateScheduleController(req: AuthRequest, res: Response) 
     });
     return sendSuccess(res, schedule, 'Guardia actualizada');
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
@@ -81,7 +81,7 @@ export async function deleteScheduleController(req: AuthRequest, res: Response) 
     });
     return sendSuccess(res, null, 'Guardia eliminada');
   } catch (error) {
-    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details);
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
   }
 }
