@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 const items = [
   { to: '/', icon: LayoutDashboard, label: 'Inicio', exact: true },
-  { to: '/schedule', icon: Calendar, label: 'Guardias' },
+  { to: '/schedule', icon: Calendar, label: 'Turnos' },
   { to: '/admin/users', icon: Users, label: 'Usuarios', adminOnly: true },
   { to: '/profile', icon: Settings, label: 'Perfil' },
 ];

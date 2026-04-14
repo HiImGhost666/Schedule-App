@@ -143,7 +143,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
     mutationFn: (data: ShiftForm & { assigneeIds: string[] }) => api.post('/schedules', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules'] });
-      toast.success('Guardia creada');
+      toast.success('Turno creado');
       onClose();
     },
     onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
@@ -154,7 +154,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       api.patch(`/schedules/${schedule!.id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules'] });
-      toast.success('Guardia actualizada');
+      toast.success('Turno actualizado');
       onClose();
     },
     onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
@@ -164,7 +164,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
     mutationFn: (reason: string) => api.delete(`/schedules/${schedule!.id}`, { data: { reason } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules'] });
-      toast.success('Guardia eliminada');
+      toast.success('Turno eliminado');
       onClose();
     },
   });
@@ -271,7 +271,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-navy-100 sticky top-0 bg-white z-10">
             <h2 className="text-lg font-semibold text-navy-800">
-              {schedule ? 'Editar Guardia' : 'Nueva Guardia'}
+              {schedule ? 'Editar Turno' : 'Nuevo Turno'}
             </h2>
             <div className="flex items-center gap-2">
               {schedule && canEdit && (
@@ -293,7 +293,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-navy-600 mb-1">Título *</label>
-              <input {...register('title')} className="input-field" placeholder="Nombre de la guardia" disabled={!canEdit} />
+              <input {...register('title')} className="input-field" placeholder="Nombre del turno" disabled={!canEdit} />
               {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
             </div>
 
@@ -503,7 +503,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                   className="flex-1 btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {isLoading && <LoadingSpinner size="sm" className="border-white border-t-white/30" />}
-                  {schedule ? 'Guardar cambios' : 'Crear Guardia'}
+                  {schedule ? 'Guardar cambios' : 'Crear Turno'}
                 </button>
               </div>
             )}
@@ -513,7 +513,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Eliminar Guardia"
+        title="Eliminar Turno"
         description={`¿Estás seguro de eliminar "${schedule?.title}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
         loading={deleteMutation.isPending}

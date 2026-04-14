@@ -353,7 +353,7 @@ export function SchedulePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Planificación de Guardias</h1>
+          <h1 className="text-2xl font-bold text-navy-800">Planificación de Turnos</h1>
           <p className="text-sm text-navy-400 mt-0.5">
             Gestiona los turnos y asignaciones del personal
           </p>
@@ -382,7 +382,7 @@ export function SchedulePage() {
               className="btn-primary text-sm flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Nueva Guardia
+              Nuevo Turno
             </button>
           )}
         </div>

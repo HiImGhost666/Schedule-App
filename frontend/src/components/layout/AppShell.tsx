@@ -7,7 +7,7 @@ import { AlertTriangle } from 'lucide-react';
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
-  '/schedule': 'Planificación de Guardias',
+  '/schedule': 'Planificación de Turnos',
   '/admin/users': 'Gestión de Usuarios',
   '/admin/webhooks': 'Webhooks de Microsoft Teams',
   '/admin/notifications': 'Notificaciones',
