@@ -2,7 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
-import { createUser, UserServiceError } from '../src/modules/users/users.service';
+import { createUser } from '../src/modules/users/users.service';
+import { isAppError } from '../src/common/errors/app-error';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -13,10 +14,7 @@ async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: st
     await createUser(input);
     console.log(`${label} created: ${input.email}`);
   } catch (error) {
-    if (
-      error instanceof UserServiceError &&
-      (error.code === 'EMAIL_ALREADY_EXISTS' || error.code === 'USERNAME_ALREADY_EXISTS')
-    ) {
+    if (isAppError(error) && error.code === 'CONFLICT') {
       console.log(`${label} already exists: ${input.email}`);
       return;
     }
