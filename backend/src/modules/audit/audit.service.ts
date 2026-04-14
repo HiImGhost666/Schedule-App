@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
+import { TransactionClient } from '../../common/transactions/transaction.utils';
 
-interface AuditParams {
+export interface AuditParams {
   userId?: string;
   action: string;
   entityType: string;
@@ -10,21 +11,36 @@ interface AuditParams {
   userAgent?: string;
 }
 
-export async function logAudit(params: AuditParams) {
+function buildAuditCreateData(params: AuditParams) {
+  return {
+    userId: params.userId,
+    action: params.action,
+    entityType: params.entityType,
+    entityId: params.entityId,
+    detailsJson: params.detailsJson ? JSON.stringify(params.detailsJson) : undefined,
+    ipAddress: params.ipAddress,
+    userAgent: params.userAgent,
+  };
+}
+
+export async function logAuditOrThrow(params: AuditParams, tx: TransactionClient) {
+  await tx.auditLog.create({
+    data: buildAuditCreateData(params),
+  });
+}
+
+export async function logAudit(params: AuditParams, tx?: TransactionClient) {
+  if (tx) {
+    await logAuditOrThrow(params, tx);
+    return;
+  }
+
   try {
     await prisma.auditLog.create({
-      data: {
-        userId: params.userId,
-        action: params.action,
-        entityType: params.entityType,
-        entityId: params.entityId,
-        detailsJson: params.detailsJson ? JSON.stringify(params.detailsJson) : undefined,
-        ipAddress: params.ipAddress,
-        userAgent: params.userAgent,
-      },
+      data: buildAuditCreateData(params),
     });
   } catch {
-    // Audit failures must not break the main flow
+    // Audit failures must not break the main flow outside atomic transactions
   }
 }
 

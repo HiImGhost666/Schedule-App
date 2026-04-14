@@ -41,3 +41,6 @@ yarn-error.log*
 
 # Ignore local docker volumes
 backend/prisma/.docker/
+
+# Ignore local DOC folder
+schedule-app-doc/
