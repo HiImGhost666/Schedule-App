@@ -8,6 +8,8 @@ export const listAuditQuerySchema = z.object({
   entityType: z.string().optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
+  // 'true' = solo acciones revertibles, 'false' = solo acciones irreversibles (seguridad/sesión)
+  reversible: z.enum(['true', 'false']).optional(),
 });
 
 export const auditIdParamsSchema = z.object({

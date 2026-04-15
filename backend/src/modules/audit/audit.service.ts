@@ -77,6 +77,7 @@ export async function listAuditLogs(params: {
   entityType?: string;
   from?: Date;
   to?: Date;
+  reversible?: 'true' | 'false';
 }) {
   const where: any = {};
   if (params.userId) where.userId = params.userId;
@@ -87,6 +88,12 @@ export async function listAuditLogs(params: {
       ...(params.from && { gte: params.from }),
       ...(params.to && { lte: params.to }),
     };
+  }
+  // Filtros de pestaña: reversible vs irreversible
+  if (params.reversible === 'true') {
+    where.action = { ...where.action, notIn: [...IRREVERSIBLE_ACTIONS] };
+  } else if (params.reversible === 'false') {
+    where.action = { in: [...IRREVERSIBLE_ACTIONS] };
   }
 
   const { logs, total } = await auditRepository.findAuditLogs(where, params.page, params.limit);
