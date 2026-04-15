@@ -28,6 +28,9 @@ function extractToken(socket: Socket): string | null {
 }
 
 export function initializeSocketServer(httpServer: HttpServer) {
+  // Importante intranet/produccion:
+  // CORS_ORIGIN debe listar los orígenes reales del frontend (DNS/IP), separados por coma.
+  // Ejemplo: "http://intranet-app:5173,http://10.0.0.25:5173"
   const allowedOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim());
 
   io = new Server(httpServer, {
