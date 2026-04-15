@@ -93,6 +93,10 @@ function MonthEventContent({ info }: { info: EventContentArg }) {
 function TimeGridEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule | undefined;
+  const timeText =
+    schedule?.startDatetime && schedule?.endDatetime
+      ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
+      : info.timeText;
   const assigneeText =
     schedule?.assignments
       ?.map((assignment) => assignment.user.name.split(' ')[0])
@@ -104,10 +108,7 @@ function TimeGridEventContent({ info }: { info: EventContentArg }) {
       <div className="google-timegrid-event-title">
         {event.extendedProps.isLastMinute ? '!' : ''} {event.title}
       </div>
-      <div className="google-timegrid-event-time">
-        {event.start && format(event.start, 'HH:mm')}
-        {event.end && ` - ${format(event.end, 'HH:mm')}`}
-      </div>
+      <div className="google-timegrid-event-time">{timeText}</div>
       {assigneeText && <div className="google-timegrid-event-meta">{assigneeText}</div>}
     </div>
   );
@@ -118,6 +119,10 @@ function TimeGridEventContent({ info }: { info: EventContentArg }) {
 function ListEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule;
+  const timeText =
+    schedule?.startDatetime && schedule?.endDatetime
+      ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
+      : info.timeText;
   const typeInfo = getTypeInfo(schedule?.type ?? '');
 
   return (
@@ -129,10 +134,7 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 
       <div className="google-list-event-main">
         <span className="google-list-event-title">{event.title}</span>
-        <span className="google-list-event-time">
-          {event.start && format(event.start, 'HH:mm')}
-          {event.end && ` - ${format(event.end, 'HH:mm')}`}
-        </span>
+        <span className="google-list-event-time">{timeText}</span>
       </div>
 
       {event.extendedProps.isLastMinute && (
@@ -308,6 +310,26 @@ export function SchedulePage() {
     return () => window.clearTimeout(openDetailTimer);
   }, [scheduleDetail]);
 
+  const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
+    if (!shouldUseWeekEndpoint) return endIso;
+
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return endIso;
+
+    const isAllDayLike =
+      start.getHours() === 0 &&
+      start.getMinutes() === 0 &&
+      end.getHours() === 0 &&
+      end.getMinutes() === 0;
+
+    if (isAllDayLike) return endIso;
+
+    const adjusted = new Date(end);
+    adjusted.setHours(adjusted.getHours() + 1);
+    return adjusted.toISOString();
+  }, [shouldUseWeekEndpoint]);
+
   /* derive color from type (ignore stale DB color field) */
   const events =
     schedules
@@ -318,7 +340,7 @@ export function SchedulePage() {
           id: s.id,
           title: s.title,
           start: s.startDatetime,
-          end: s.endDatetime,
+          end: normalizeWeekDayEnd(s.startDatetime, s.endDatetime),
           backgroundColor: color,
           borderColor: color,
           textColor: '#ffffff',
