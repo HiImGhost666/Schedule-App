@@ -52,8 +52,8 @@ export function NotificationsPage() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Centro de Notificaciones</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Historial de notificaciones y envíos manuales</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Centro de Notificaciones</h1>
+          <p className="text-sm text-theme-muted mt-0.5">Historial de notificaciones y envíos manuales</p>
         </div>
       </div>
 
@@ -64,8 +64,8 @@ export function NotificationsPage() {
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-green-50 rounded-lg"><Umbrella className="h-4 w-4 text-green-600" /></div>
             <div>
-              <p className="font-semibold text-navy-800 text-sm">Vacaciones de la Semana</p>
-              <p className="text-xs text-navy-400">Automático cada lunes a las 8:30h</p>
+              <p className="font-semibold text-theme-primary text-sm">Vacaciones de la Semana</p>
+              <p className="text-xs text-theme-muted">Automático cada lunes a las 8:30h</p>
             </div>
           </div>
           <button
@@ -83,8 +83,8 @@ export function NotificationsPage() {
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-gold-50 rounded-lg"><Calendar className="h-4 w-4 text-gold-600" /></div>
             <div>
-              <p className="font-semibold text-navy-800 text-sm">Resumen Semanal</p>
-              <p className="text-xs text-navy-400">Enviar planificación de la semana siguiente</p>
+              <p className="font-semibold text-theme-primary text-sm">Resumen Semanal</p>
+              <p className="text-xs text-theme-muted">Enviar planificación de la semana siguiente</p>
             </div>
           </div>
           <button
@@ -102,8 +102,8 @@ export function NotificationsPage() {
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-navy-50 rounded-lg"><Send className="h-4 w-4 text-navy-500" /></div>
             <div>
-              <p className="font-semibold text-navy-800 text-sm">Anuncio Manual</p>
-              <p className="text-xs text-navy-400">Enviar mensaje personalizado a todos los webhooks</p>
+              <p className="font-semibold text-theme-primary text-sm">Anuncio Manual</p>
+              <p className="text-xs text-theme-muted">Enviar mensaje personalizado a todos los webhooks</p>
             </div>
           </div>
           <textarea
@@ -127,11 +127,11 @@ export function NotificationsPage() {
       {/* Log table */}
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-navy-100">
-          <h2 className="text-sm font-semibold text-navy-700 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
             <Bell className="h-4 w-4 text-gold-500" />
             Historial de Notificaciones
           </h2>
-          <button onClick={() => refetch()} className="p-1.5 text-navy-400 hover:text-navy-600 rounded-lg">
+          <button onClick={() => refetch()} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -146,11 +146,11 @@ export function NotificationsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-navy-50 border-b border-navy-100">
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Estado</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Tipo</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">Mensaje</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Webhook</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Fecha</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Estado</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Tipo</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase hidden md:table-cell">Mensaje</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase hidden lg:table-cell">Webhook</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Fecha</th>
                     <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
@@ -163,15 +163,15 @@ export function NotificationsPage() {
                           {NOTIFICATION_TYPE_LABELS[log.type] || log.type}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-xs text-navy-500 hidden md:table-cell max-w-xs truncate">{log.message}</td>
-                      <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">{log.webhookConfig?.name || '—'}</td>
-                      <td className="px-5 py-4 text-xs text-navy-400">{formatDateTime(log.sentAt)}</td>
+                      <td className="px-5 py-4 text-xs text-theme-muted hidden md:table-cell max-w-xs truncate">{log.message}</td>
+                      <td className="px-5 py-4 text-xs text-theme-muted hidden lg:table-cell">{log.webhookConfig?.name || '—'}</td>
+                      <td className="px-5 py-4 text-xs text-theme-muted">{formatDateTime(log.sentAt)}</td>
                       <td className="px-5 py-4">
                         {log.status === 'failed' && (
                           <button
                             onClick={() => resendMutation.mutate(log.id)}
                             disabled={resendMutation.isPending}
-                            className="text-xs text-navy-500 hover:text-navy-700 flex items-center gap-1"
+                            className="text-xs text-theme-muted hover:text-theme-primary flex items-center gap-1"
                           >
                             <RefreshCw className="h-3 w-3" />Reenviar
                           </button>
@@ -184,10 +184,10 @@ export function NotificationsPage() {
             </div>
             {data?.pagination?.totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-4 border-t border-navy-100">
-                <p className="text-xs text-navy-400">Página {page} de {data.pagination.totalPages}</p>
+                <p className="text-xs text-theme-muted">Página {page} de {data.pagination.totalPages}</p>
                 <div className="flex gap-2">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-40">Anterior</button>
-                  <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.pagination.totalPages} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-40">Siguiente</button>
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-theme-primary hover:bg-navy-50 disabled:opacity-40">Anterior</button>
+                  <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.pagination.totalPages} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-theme-primary hover:bg-navy-50 disabled:opacity-40">Siguiente</button>
                 </div>
               </div>
             )}

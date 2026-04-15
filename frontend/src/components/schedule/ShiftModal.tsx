@@ -269,10 +269,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
   return (
     <>
       <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
+        <div className="card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-navy-100 sticky top-0 bg-white z-10">
-            <h2 className="text-lg font-semibold text-navy-800">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-theme-color sticky top-0 bg-theme-surface z-10">
+            <h2 className="text-lg font-semibold text-theme-primary">
               {schedule ? 'Editar Turno' : 'Nuevo Turno'}
             </h2>
             <div className="flex items-center gap-2">
@@ -284,7 +284,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
-              <button onClick={onClose} className="p-1.5 text-navy-300 hover:text-navy-500 hover:bg-navy-50 rounded-lg">
+              <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted rounded-lg">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -294,14 +294,14 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
           <form onSubmit={handleSubmit(onSubmit)} className="p-7 space-y-5">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-1">Título *</label>
+              <label className="block text-sm font-medium text-theme-muted mb-1">Título *</label>
               <input {...register('title')} className="input-field" placeholder="Nombre del turno" disabled={!canEdit} />
               {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
             </div>
 
             {/* Type */}
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-2">Tipo</label>
+              <label className="block text-sm font-medium text-theme-muted mb-2">Tipo</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {SCHEDULE_TYPES.map((t) => {
                   const active = selectedType === t.value;
@@ -315,7 +315,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                       style={
                         active
                           ? { backgroundColor: t.color, borderColor: t.color, color: '#fff', boxShadow: `0 2px 8px ${t.color}55` }
-                          : { backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#475569' }
+                          : { backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border-color)', color: 'var(--theme-text-muted)' }
                       }
                     >
                       <span
@@ -344,7 +344,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                 {errors.startDatetime && <p className="text-xs text-red-500 mt-1">{errors.startDatetime.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-navy-600 mb-1">
+                <label className="block text-sm font-medium text-theme-muted mb-1">
                   <Clock className="inline h-3.5 w-3.5 mr-1" />Fin *
                 </label>
                 <input {...register('endDatetime')} type="datetime-local" className="input-field text-sm" disabled={!canEdit} />
@@ -373,7 +373,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                 <label className="block text-sm font-medium text-navy-600 mb-1">
                   <CalendarDays className="inline h-3.5 w-3.5 mr-1" />Festivos
                 </label>
-                <div className="flex rounded-lg border border-navy-200 overflow-hidden">
+                <div className="flex rounded-lg border border-theme-color overflow-hidden">
                   {calOptions.map((opt) => (
                     <button
                       key={opt}
@@ -384,7 +384,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                       style={
                         calendarType === opt
                           ? { backgroundColor: '#1e3a5f', color: '#fff' }
-                          : { backgroundColor: '#fff', color: '#64748b' }
+                          : { backgroundColor: 'var(--theme-surface)', color: 'var(--theme-text-muted)' }
                       }
                     >
                       {opt === 'none' ? 'Ninguno' : opt === 'tenerife' ? 'Tenerife' : 'LP'}
@@ -402,26 +402,26 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                   type="checkbox"
                   checked={includeWeekends}
                   onChange={(e) => setIncludeWeekends(e.target.checked)}
-                  className="rounded border-navy-300 text-navy-600 focus:ring-navy-400 w-4 h-4"
+                  className="rounded border-theme-color text-theme-primary focus:ring-theme-primary w-4 h-4"
                 />
-                <span className="text-sm text-navy-600 group-hover:text-navy-800 transition-colors">
+                <span className="text-sm text-theme-muted group-hover:text-theme-primary transition-colors">
                   Extender turno al fin de semana
-                  <span className="text-xs text-navy-400 ml-1">(por defecto se excluyen)</span>
+                  <span className="text-xs text-theme-muted ml-1">(por defecto se excluyen)</span>
                 </span>
               </label>
             )}
 
             {/* Live preview */}
             {preview && (
-              <div className="flex items-start gap-3 p-3.5 bg-navy-50 border border-navy-200 rounded-xl">
-                <Info className="h-4 w-4 text-navy-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3.5 bg-theme-surface-muted border border-theme-color rounded-xl">
+                <Info className="h-4 w-4 text-theme-primary flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-semibold text-navy-700">
+                  <p className="font-semibold text-theme-primary">
                     {preview.days} día{preview.days !== 1 ? 's' : ''} laborable{preview.days !== 1 ? 's' : ''}
                     {' '}&times; {hoursPerDay} h/día ={' '}
                     <span className="text-navy-900 font-bold">{preview.totalHours} h totales</span>
                   </p>
-                  <p className="text-xs text-navy-400 mt-0.5">
+                  <p className="text-xs text-theme-muted mt-0.5">
                     {!includeWeekends ? 'Fines de semana excluidos' : 'Fines de semana incluidos'}
                     {calendarType !== 'none' ? ` · Festivos ${CALENDAR_LABELS[calendarType]}` : ''}
                   </p>
@@ -431,7 +431,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
 
             {/* Location */}
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-1">
+              <label className="block text-sm font-medium text-theme-muted mb-1">
                 <MapPin className="inline h-3.5 w-3.5 mr-1" />Ubicación
               </label>
               <input {...register('location')} className="input-field" placeholder="Ej: Puesto Norte" disabled={!canEdit} />
@@ -439,7 +439,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-1">
+              <label className="block text-sm font-medium text-theme-muted mb-1">
                 <FileText className="inline h-3.5 w-3.5 mr-1" />Notas
               </label>
               <textarea {...register('notes')} className="input-field resize-none" rows={2} placeholder="Observaciones adicionales" disabled={!canEdit} />
@@ -448,25 +448,25 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
             {/* Assignees */}
             {canEdit && users && (
               <div>
-                <label className="block text-sm font-medium text-navy-600 mb-2">
+                <label className="block text-sm font-medium text-theme-muted mb-2">
                   <Users className="inline h-3.5 w-3.5 mr-1" />Personal asignado *
-                  <span className="ml-1 text-xs text-navy-400">({selectedUsers.length} seleccionados)</span>
+                  <span className="ml-1 text-xs text-theme-muted">({selectedUsers.length} seleccionados)</span>
                 </label>
-                <div className="border border-navy-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div className="border border-theme-color rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                   {users.map((u) => (
                     <label
                       key={u.id}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-navy-50 cursor-pointer border-b border-navy-100 last:border-0"
+                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-theme-surface-muted cursor-pointer border-b border-theme-color last:border-0"
                     >
                       <input
                         type="checkbox"
                         checked={selectedUsers.includes(u.id)}
                         onChange={() => toggleUser(u.id)}
-                        className="rounded border-navy-300 text-navy-500 focus:ring-navy-400"
+                        className="rounded border-theme-color text-theme-primary focus:ring-theme-primary"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-navy-700 truncate">{u.name}</p>
-                        <p className="text-xs text-navy-400 truncate">{u.department || u.email}</p>
+                        <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
+                        <p className="text-xs text-theme-muted truncate">{u.department || u.email}</p>
                       </div>
                       <button
                         type="button"
@@ -476,7 +476,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                           setSelectedProfileUser(u);
                           setProfileModalOpen(true);
                         }}
-                        className="p-1.5 text-navy-300 hover:text-navy-500 hover:bg-navy-50 rounded-lg transition-colors"
+                        className="p-1.5 text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted rounded-lg transition-colors"
                       >
                         <Info className="h-4 w-4" />
                       </button>
@@ -525,7 +525,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
 
       {holidayConflicts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
+          <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
             <div className="flex items-center gap-3 px-6 py-5 border-b border-amber-100 bg-amber-50 rounded-t-2xl">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
               <div>
@@ -538,15 +538,15 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
             <div className="p-6 space-y-4 max-h-72 overflow-y-auto">
               {holidayConflicts.map((c) => (
                 <div key={c.userName} className="space-y-1.5">
-                  <p className="text-sm font-semibold text-navy-700 flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-theme-primary flex items-center gap-1.5">
                     <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
                     {c.userName}
-                    <span className="text-xs font-normal text-navy-400">({c.island})</span>
+                    <span className="text-xs font-normal text-theme-muted">({c.island})</span>
                   </p>
                   <ul className="space-y-0.5 pl-3.5">
                     {c.holidays.map((h) => (
-                      <li key={h.date} className="flex items-center gap-2 text-xs text-navy-600">
-                        <span className="font-mono text-navy-400">{h.date}</span>
+                      <li key={h.date} className="flex items-center gap-2 text-xs text-theme-muted">
+                        <span className="font-mono text-theme-muted">{h.date}</span>
                         <span className="truncate">{h.name}</span>
                         <span
                           className="shrink-0 px-1.5 py-0.5 rounded-full text-white font-medium"

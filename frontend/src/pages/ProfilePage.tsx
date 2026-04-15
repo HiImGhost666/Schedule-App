@@ -96,8 +96,8 @@ export function ProfilePage() {
             {getInitials(user.name)}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-navy-800">{user.name}</h2>
-            <p className="text-navy-400 text-sm">{user.email}</p>
+            <h2 className="text-xl font-bold text-theme-primary">{user.name}</h2>
+            <p className="text-theme-muted text-sm">{user.email}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className={`badge-role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
               {user.department && (

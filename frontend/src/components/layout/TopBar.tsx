@@ -30,13 +30,13 @@ export function TopBar({ title }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 relative">
+        <button className="p-1.5 rounded-lg hover:bg-navy-50 text-theme-muted relative">
           <Bell className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2 px-2">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium leading-tight">{user?.name}</p>
-            <p className="text-xs opacity-75">{ROLE_LABELS[user?.role || '']}</p>
+            <p className="text-sm font-medium leading-tight text-theme-primary">{user?.name}</p>
+            <p className="text-xs opacity-75 text-theme-muted">{ROLE_LABELS[user?.role || '']}</p>
           </div>
         </div>
       </div>

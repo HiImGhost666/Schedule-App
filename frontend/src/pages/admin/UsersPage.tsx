@@ -128,8 +128,8 @@ export function UsersPage() {
                             {u.name[0]}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-navy-800 truncate">{u.name}</p>
-                            <p className="text-xs text-navy-400 truncate">{u.email}</p>
+                            <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
+                            <p className="text-xs text-theme-muted truncate">{u.email}</p>
                           </div>
                         </div>
                       </td>
@@ -142,21 +142,21 @@ export function UsersPage() {
                       <td className="px-5 py-3 relative">
                         <button
                           onClick={() => setMenuOpenId(menuOpenId === u.id ? null : u.id)}
-                          className="p-1 rounded hover:bg-navy-100 text-navy-400"
+                          className="p-1 rounded hover:bg-theme-surface-muted text-theme-muted"
                         >
                           <MoreVertical className="h-4 w-4" />
                         </button>
                         {menuOpenId === u.id && (
-                          <div className="absolute right-4 top-8 bg-white rounded-xl shadow-xl border border-navy-100 z-20 w-48 py-1 animate-slide-down">
+                          <div className="absolute right-4 top-8 card rounded-xl shadow-xl border border-theme-color z-20 w-48 py-1 animate-slide-down">
                             <button onClick={() => { setDetailUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
                               <Eye className="h-3.5 w-3.5" />Ver detalle
                             </button>
                             {isAdmin && (
                               <>
-                                <button onClick={() => { setFormUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
+                                <button onClick={() => { setFormUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary">
                                   <Edit className="h-3.5 w-3.5" />Editar
                                 </button>
-                                <button onClick={() => { setResetUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
+                                <button onClick={() => { setResetUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary">
                                   <Key className="h-3.5 w-3.5" />Resetear contraseña
                                 </button>
                                 {u.status === 'active' ? (

@@ -448,15 +448,15 @@ export function SchedulePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Planificación de Turnos</h1>
-          <p className="text-sm text-navy-400 mt-0.5">
+          <h1 className="text-2xl font-bold text-theme-primary">Planificación de Turnos</h1>
+          <p className="text-sm text-theme-muted mt-0.5">
             Gestiona los turnos y asignaciones del personal
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => refetch()}
-            className="p-2 text-navy-400 hover:text-navy-600 hover:bg-navy-50 rounded-lg transition-colors"
+            className="p-2 text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted rounded-lg transition-colors"
             title="Actualizar"
           >
             <RefreshCw className="h-4 w-4" />
@@ -492,13 +492,13 @@ export function SchedulePage() {
         )}
 
         {/* Holiday calendar selector */}
-        <div className="border-b border-navy-100 px-6 py-4">
+        <div className="border-b border-theme-color px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-navy-400 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
               <CalendarDays className="h-3.5 w-3.5" />
               Festivos
             </div>
-            <div className="flex rounded-lg border border-navy-200 overflow-hidden text-xs font-medium">
+            <div className="flex rounded-lg border border-theme-color overflow-hidden text-xs font-medium">
               {(['tenerife', 'las_palmas', 'none'] as CalendarType[]).map((cal) => (
                 <button
                   key={cal}
@@ -506,8 +506,8 @@ export function SchedulePage() {
                   className="px-3 py-1.5 transition-colors"
                   style={
                     activeCalendar === cal
-                      ? { backgroundColor: '#1e3a5f', color: '#fff' }
-                      : { backgroundColor: '#fff', color: '#64748b' }
+                      ? { backgroundColor: 'var(--theme-sidebar-active-bg)', color: 'var(--theme-sidebar-active-text)' }
+                      : { backgroundColor: 'var(--theme-surface)', color: 'var(--theme-text-muted)' }
                   }
                 >
                   {CALENDAR_LABELS[cal]}
@@ -517,12 +517,12 @@ export function SchedulePage() {
             {activeCalendar !== 'none' && (
               <div className="flex items-center gap-2 flex-wrap">
                 {(['nacional', 'autonomica', 'local', 'mejora'] as const).map((type) => (
-                  <span key={type} className="flex items-center gap-1 text-[10px] text-navy-500">
+                  <span key={type} className="flex items-center gap-1 text-[10px] text-theme-muted">
                     <span
                       className="inline-block w-2.5 h-2.5 rounded-sm opacity-70"
                       style={{ backgroundColor: HOLIDAY_COLORS[type] }}
                     />
-                    {HOLIDAY_TYPE_LABELS[type]}
+                    <span className="text-theme-muted">{HOLIDAY_TYPE_LABELS[type]}</span>
                   </span>
                 ))}
               </div>
