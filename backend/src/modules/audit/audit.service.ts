@@ -1,15 +1,9 @@
-import { prisma } from '../../config/database';
 import { TransactionClient } from '../../common/transactions/transaction.utils';
+import { AuditParams } from './domain/audit.types';
+import * as auditRepository from './audit.repository';
+import { AppError } from '../../common/errors/app-error';
 
-export interface AuditParams {
-  userId?: string;
-  action: string;
-  entityType: string;
-  entityId?: string;
-  detailsJson?: object;
-  ipAddress?: string;
-  userAgent?: string;
-}
+export * from './domain/audit.types';
 
 function buildAuditCreateData(params: AuditParams) {
   return {
@@ -23,10 +17,17 @@ function buildAuditCreateData(params: AuditParams) {
   };
 }
 
+function parseDetails(detailsJson: string | null) {
+  if (!detailsJson) return null;
+  try {
+    return JSON.parse(detailsJson);
+  } catch {
+    return detailsJson;
+  }
+}
+
 export async function logAuditOrThrow(params: AuditParams, tx: TransactionClient) {
-  await tx.auditLog.create({
-    data: buildAuditCreateData(params),
-  });
+  await auditRepository.createAuditLog(buildAuditCreateData(params), tx);
 }
 
 export async function logAudit(params: AuditParams, tx?: TransactionClient) {
@@ -36,15 +37,13 @@ export async function logAudit(params: AuditParams, tx?: TransactionClient) {
   }
 
   try {
-    await prisma.auditLog.create({
-      data: buildAuditCreateData(params),
-    });
+    await auditRepository.createAuditLog(buildAuditCreateData(params));
   } catch {
     // Audit failures must not break the main flow outside atomic transactions
   }
 }
 
-export async function getAuditLogs(params: {
+export async function listAuditLogs(params: {
   page: number;
   limit: number;
   userId?: string;
@@ -53,7 +52,7 @@ export async function getAuditLogs(params: {
   from?: Date;
   to?: Date;
 }) {
-  const where: Record<string, unknown> = {};
+  const where: any = {};
   if (params.userId) where.userId = params.userId;
   if (params.action) where.action = { contains: params.action };
   if (params.entityType) where.entityType = params.entityType;
@@ -64,16 +63,25 @@ export async function getAuditLogs(params: {
     };
   }
 
-  const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { createdAt: 'desc' },
-      skip: (params.page - 1) * params.limit,
-      take: params.limit,
-    }),
-    prisma.auditLog.count({ where }),
-  ]);
+  const { logs, total } = await auditRepository.findAuditLogs(where, params.page, params.limit);
 
-  return { logs, total };
+  return {
+    logs: logs.map(log => ({
+      ...log,
+      detailsJson: parseDetails(log.detailsJson),
+    })),
+    total,
+  };
+}
+
+export async function getAuditLogById(id: string) {
+  const log = await auditRepository.findAuditLogById(id);
+  if (!log) {
+    throw new AppError('NOT_FOUND', 404, 'Registro de auditoría no encontrado');
+  }
+
+  return {
+    ...log,
+    detailsJson: parseDetails(log.detailsJson),
+  };
 }
