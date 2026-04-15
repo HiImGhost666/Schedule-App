@@ -29,7 +29,7 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up">
+            <div className="card rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up">
                 {/* Header/Cover */}
                 <div className="h-24 bg-navy-800 relative">
                     <button
@@ -50,13 +50,13 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                     </div>
 
                     <div className="space-y-1">
-                        <h2 className="text-xl font-bold text-navy-800">{user.name}</h2>
+                        <h2 className="text-xl font-bold text-theme-primary">{user.name}</h2>
                         <div className="flex items-center gap-2">
                             <span className={`badge-role-${(user as User).role || 'viewer'}`}>
                                 {ROLE_LABELS[(user as User).role || 'viewer']}
                             </span>
                             {user.department && (
-                                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">
+                                <span className="text-xs text-theme-muted bg-theme-surface-muted px-2 py-0.5 rounded-full">
                                     {user.department}
                                 </span>
                             )}
@@ -64,37 +64,37 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                     </div>
 
                     <div className="mt-6 space-y-4">
-                        <div className="flex items-center gap-3 text-navy-600">
-                            <div className="p-2 bg-navy-50 rounded-lg">
-                                <Mail className="h-4 w-4 text-navy-400" />
+                        <div className="flex items-center gap-3 text-theme-muted">
+                            <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                <Mail className="h-4 w-4 text-theme-muted" />
                             </div>
                             <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-navy-300">Email</p>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Email</p>
                                 <p className="text-sm font-medium truncate">{user.email}</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-3 text-navy-600">
-                                <div className="p-2 bg-navy-50 rounded-lg">
-                                    <Phone className="h-4 w-4 text-navy-400" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-navy-300">Empresa</p>
-                                    <p className="text-sm font-medium">{(user as User).companyPhone || '-'}</p>
-                                </div>
+                        <div className="flex items-center gap-3 text-theme-muted">
+                            <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                <Phone className="h-4 w-4 text-theme-muted" />
                             </div>
-
-                            <div className="flex items-center gap-3 text-navy-600">
-                                <div className="p-2 bg-navy-50 rounded-lg">
-                                    <Phone className="h-4 w-4 text-navy-400" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-navy-300">Auxiliar</p>
-                                    <p className="text-sm font-medium">{(user as User).auxiliaryPhone || '-'}</p>
-                                </div>
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Empresa</p>
+                                <p className="text-sm font-medium">{(user as User).companyPhone || '-'}</p>
                             </div>
                         </div>
+
+                        <div className="flex items-center gap-3 text-theme-muted">
+                            <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                <Phone className="h-4 w-4 text-theme-muted" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Auxiliar</p>
+                                <p className="text-sm font-medium">{(user as User).auxiliaryPhone || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
 
                         {(user as User).createdAt && (
                             <div className="flex items-center gap-3 text-navy-600">
@@ -108,6 +108,16 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-theme-surface-muted border-t border-theme-color flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-semibold text-theme-muted hover:text-theme-primary transition-colors"
+                    >
+                        Cerrar
+                    </button>
                 </div>
             </div>
         </div>

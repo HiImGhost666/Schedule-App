@@ -78,7 +78,7 @@ export function Sidebar() {
                 'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                 isActive
                   ? 'text-white'
-                  : 'text-navy-200 hover:text-white'
+                  : 'text-theme-sidebar hover:text-white'
               )
             }
             style={({ isActive }) => ({
@@ -94,7 +94,7 @@ export function Sidebar() {
         {isAdminOrManager && (
           <>
             {!sidebarCollapsed && (
-              <p className="text-xs font-semibold text-navy-400 uppercase tracking-wider px-3 pt-5 pb-2">
+              <p className="text-xs font-semibold text-theme-sidebar uppercase tracking-wider px-3 pt-5 pb-2">
                 Administración
               </p>
             )}
@@ -108,7 +108,7 @@ export function Sidebar() {
                       'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                       isActive
                         ? 'text-white'
-                        : 'text-navy-200 hover:text-white'
+                        : 'text-theme-sidebar hover:text-white'
                     )
                   }
                   style={({ isActive }) => ({
@@ -145,15 +145,15 @@ export function Sidebar() {
           {!sidebarCollapsed && (
             <div className="min-w-0">
               <p className="text-xs font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-navy-400 truncate">{user?.department || user?.role}</p>
+              <p className="text-xs text-theme-sidebar truncate">{user?.department || user?.role}</p>
             </div>
           )}
-          {!sidebarCollapsed && <User className="h-3.5 w-3.5 text-navy-400 ml-auto flex-shrink-0" />}
+          {!sidebarCollapsed && <User className="h-3.5 w-3.5 text-theme-sidebar ml-auto flex-shrink-0" />}
         </NavLink>
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-navy-300 hover:bg-navy-700 hover:text-white transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-sidebar hover:bg-navy-700 hover:text-white transition-all"
         >
           <LogOut className="h-4 w-4 flex-shrink-0" />
           {!sidebarCollapsed && <span>Cerrar Sesión</span>}

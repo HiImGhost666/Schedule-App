@@ -96,10 +96,10 @@ export function DashboardPage() {
     <div className="space-y-7 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-navy-800">
+        <h1 className="text-2xl font-bold text-theme-primary">
           Bienvenido, {user?.name?.split(' ')[0]} 👋
         </h1>
-        <p className="text-navy-400 text-sm mt-1.5 capitalize">
+        <p className="text-theme-muted text-sm mt-1.5 capitalize">
           {format(now, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })}
         </p>
       </div>
@@ -138,11 +138,11 @@ export function DashboardPage() {
         {/* This week schedule */}
         <div className="lg:col-span-2 card p-7">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-semibold text-navy-700 flex items-center gap-2">
+            <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2">
               <Calendar className="h-4 w-4 text-gold-500" />
               Turnos de esta semana
             </h2>
-            <span className="text-xs text-navy-400">
+            <span className="text-xs text-theme-muted">
               {format(weekStart, 'dd/MM')} — {format(weekEnd, 'dd/MM')}
             </span>
           </div>
@@ -153,8 +153,8 @@ export function DashboardPage() {
             </div>
           ) : weekSchedules?.length === 0 ? (
             <div className="text-center py-8">
-              <Calendar className="h-10 w-10 text-navy-200 mx-auto mb-2" />
-              <p className="text-sm text-navy-400">No hay turnos programados esta semana</p>
+              <Calendar className="h-10 w-10 text-theme-muted mx-auto mb-2" />
+              <p className="text-sm text-theme-muted">No hay turnos programados esta semana</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -168,8 +168,8 @@ export function DashboardPage() {
                     style={{ backgroundColor: getTypeColor(s.type) }}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-navy-800 truncate">{s.title}</p>
-                    <p className="text-xs text-navy-400">
+                    <p className="text-sm font-medium text-theme-primary truncate">{s.title}</p>
+                    <p className="text-xs text-theme-muted">
                       {formatDateTime(s.startDatetime)} — {format(new Date(s.endDatetime), 'HH:mm')}
                     </p>
                   </div>
@@ -214,22 +214,22 @@ export function DashboardPage() {
         {/* Activity log */}
         {user?.role === 'admin' && (
           <div className="card p-7">
-            <h2 className="text-base font-semibold text-navy-700 flex items-center gap-2 mb-5">
+            <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-gold-500" />
               Actividad Reciente
             </h2>
             {!auditLogs ? (
               <LoadingSpinner size="sm" />
             ) : auditLogs.length === 0 ? (
-              <p className="text-sm text-navy-400">Sin actividad reciente</p>
+              <p className="text-sm text-theme-muted">Sin actividad reciente</p>
             ) : (
               <div className="space-y-4">
                 {auditLogs.map((log) => (
                   <div key={log.id} className="flex gap-3">
                     <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 flex-shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-navy-700">{log.action.replace(/_/g, ' ')}</p>
-                      <p className="text-xs text-navy-400 mt-0.5">
+                      <p className="text-sm font-medium text-theme-primary">{log.action.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-theme-muted mt-0.5">
                         {log.user?.name || 'Sistema'} · {formatRelative(log.createdAt)}
                       </p>
                     </div>

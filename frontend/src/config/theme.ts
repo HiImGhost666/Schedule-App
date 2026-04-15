@@ -87,6 +87,7 @@ export function applyThemeToDocument(theme: ThemeConfig) {
   root.style.setProperty('--color-gold-500', theme.tokens.brandSecondary);
 
   root.style.setProperty('--theme-surface', theme.tokens.surface);
+  root.style.setProperty('--theme-surface-muted', theme.tokens.surfaceMuted);
   root.style.setProperty('--theme-text-primary', theme.tokens.textPrimary);
   root.style.setProperty('--theme-text-muted', theme.tokens.textMuted);
   root.style.setProperty('--theme-border-color', theme.tokens.borderColor);

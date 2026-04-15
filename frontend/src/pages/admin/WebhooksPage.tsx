@@ -47,26 +47,26 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-navy-100">
-          <h2 className="text-lg font-semibold text-navy-800">{webhook ? 'Editar Webhook' : 'Nuevo Webhook'}</h2>
-          <button onClick={onClose} className="p-1.5 text-navy-300 hover:text-navy-500 rounded-lg">✕</button>
+      <div className="card rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-theme-color">
+          <h2 className="text-lg font-semibold text-theme-primary">{webhook ? 'Editar Webhook' : 'Nuevo Webhook'}</h2>
+          <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">✕</button>
         </div>
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-7 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-navy-600 mb-1">Nombre *</label>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Nombre *</label>
             <input {...register('name')} className="input-field" placeholder="Canal de Teams - Guardias" />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-navy-600 mb-1">URL del Webhook *</label>
+            <label className="block text-sm font-medium text-theme-muted mb-1">URL del Webhook *</label>
             <input {...register('webhookUrl')} className="input-field" placeholder="https://outlook.office.com/webhook/..." />
             {errors.webhookUrl && <p className="text-xs text-red-500 mt-1">{errors.webhookUrl.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2">
-              <input {...register('fridayReminderEnabled')} type="checkbox" id="fri" className="rounded border-navy-300 text-navy-500" />
-              <label htmlFor="fri" className="text-sm text-navy-600">Resumen viernes</label>
+              <input {...register('fridayReminderEnabled')} type="checkbox" id="fri" className="rounded border-theme-color text-theme-primary" />
+              <label htmlFor="fri" className="text-sm text-theme-muted">Resumen viernes</label>
             </div>
             <div>
               <input {...register('fridayReminderTime')} type="time" className="input-field text-sm" />
@@ -79,8 +79,8 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
               { name: 'enabled' as const, label: 'Webhook activo' },
             ].map((item) => (
               <div key={item.name} className="flex items-center gap-2">
-                <input {...register(item.name)} type="checkbox" id={item.name} className="rounded border-navy-300 text-navy-500" />
-                <label htmlFor={item.name} className="text-sm text-navy-600">{item.label}</label>
+                <input {...register(item.name)} type="checkbox" id={item.name} className="rounded border-theme-color text-theme-primary" />
+                <label htmlFor={item.name} className="text-sm text-theme-muted">{item.label}</label>
               </div>
             ))}
           </div>
