@@ -7,7 +7,7 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import { formatDateTime, formatRelative } from '@/lib/utils';
-import type { Schedule, AuditLog, WeekScheduleItem } from '@/types';
+import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment } from '@/types';
 import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SCHEDULE_TYPES } from '@/types';
@@ -45,8 +45,11 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
       user: {
         id: assignee.id,
         name: assignee.name,
-        email: '',
+        email: assignee.email ?? '',
         avatarUrl: assignee.avatarUrl ?? undefined,
+        department: assignee.department ?? undefined,
+        companyPhone: assignee.companyPhone ?? undefined,
+        auxiliaryPhone: assignee.auxiliaryPhone ?? undefined,
       },
     })),
   };
@@ -55,7 +58,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });

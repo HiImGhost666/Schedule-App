@@ -38,6 +38,7 @@ const shiftSchema = z.object({
 });
 
 type ShiftForm = z.infer<typeof shiftSchema>;
+type ShiftFormInput = z.input<typeof shiftSchema>;
 
 interface ShiftModalProps {
   open: boolean;
@@ -71,9 +72,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
 
   const fmt = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ShiftForm>({
-    resolver: zodResolver(shiftSchema) as any,
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ShiftFormInput, unknown, ShiftForm>({
+    resolver: zodResolver(shiftSchema),
     defaultValues: {
       type: 'guardia',
       color: '#2563eb',
@@ -123,7 +123,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
   // Live preview calculation
   const startVal = watch('startDatetime');
   const endVal = watch('endDatetime');
-  const hoursPerDay = watch('hoursPerDay');
+  const hoursPerDayRaw = watch('hoursPerDay');
+  const hoursPerDay = typeof hoursPerDayRaw === 'number' ? hoursPerDayRaw : Number(hoursPerDayRaw ?? 8);
   const calendarType = watch('calendarType') as CalendarType;
 
   const preview = useMemo(() => {
@@ -133,7 +134,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       const end = new Date(endVal);
       if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
       const days = countWorkingDays(start, end, !includeWeekends, calendarType ?? 'tenerife');
-      const totalHours = Math.round(days * (hoursPerDay ?? 8) * 10) / 10;
+      const totalHours = Math.round(days * hoursPerDay * 10) / 10;
       return { days, totalHours };
     } catch {
       return null;
@@ -290,7 +291,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit as any)} className="p-7 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-7 space-y-5">
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-navy-600 mb-1">Título *</label>
@@ -417,7 +418,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                 <div className="text-sm">
                   <p className="font-semibold text-navy-700">
                     {preview.days} día{preview.days !== 1 ? 's' : ''} laborable{preview.days !== 1 ? 's' : ''}
-                    {' '}&times; {hoursPerDay ?? 8} h/día ={' '}
+                    {' '}&times; {hoursPerDay} h/día ={' '}
                     <span className="text-navy-900 font-bold">{preview.totalHours} h totales</span>
                   </p>
                   <p className="text-xs text-navy-400 mt-0.5">

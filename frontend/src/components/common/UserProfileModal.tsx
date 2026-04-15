@@ -5,7 +5,20 @@ import { getInitials, getAvatarColor, formatDate } from '@/lib/utils';
 interface UserProfileModalProps {
     open: boolean;
     onClose: () => void;
-    user: User | { id: string; name: string; email: string; avatarUrl?: string; department?: string; companyPhone?: string; auxiliaryPhone?: string; role?: any; createdAt?: string } | null;
+    user:
+      | User
+      | {
+          id: string;
+          name: string;
+          email: string;
+          avatarUrl?: string;
+          department?: string;
+          companyPhone?: string;
+          auxiliaryPhone?: string;
+          role?: 'admin' | 'manager' | 'viewer';
+          createdAt?: string;
+        }
+      | null;
 }
 
 export function UserProfileModal({ open, onClose, user }: UserProfileModalProps) {

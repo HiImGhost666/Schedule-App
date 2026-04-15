@@ -11,11 +11,17 @@ import {
   findUserByDerivedUsername,
   findUserDetailById,
   findUserById,
+  findUserIdentityConflict,
   findUserByNormalizedEmailOrDerivedUsername,
   listUserSchedules,
   listUsers,
   updateUserRecord,
 } from './users.repository';
+import {
+  extractUsernameFromEmail,
+  normalizeEmail,
+  normalizePhone,
+} from './domain/user.factory';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
@@ -26,19 +32,23 @@ const createUserInputSchema = z.object({
   department: z.string().optional(),
   avatarUrl: z.string().url().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+  companyPhone: z.string().optional(),
+  auxiliaryPhone: z.string().optional(),
+});
+
+const updateUserInputSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  department: z.string().optional(),
+  avatarUrl: z.string().optional(),
+  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+  companyPhone: z.string().optional(),
+  auxiliaryPhone: z.string().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserInputSchema>;
 
 type ActorContext = { id: string; ipAddress?: string };
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function extractUsernameFromEmail(email: string): string {
-  return email.split('@')[0];
-}
 
 function normalizeLoginIdentifier(identifier: string): string {
   return identifier.trim().toLowerCase();
@@ -68,6 +78,8 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
     const user = await createUserRecord({
       ...userData,
       email: normalizedEmail,
+      companyPhone: normalizePhone(parsed.data.companyPhone),
+      auxiliaryPhone: normalizePhone(parsed.data.auxiliaryPhone),
       passwordHash,
       role: parsed.data.role ?? 'viewer',
       status: parsed.data.status ?? 'active',
@@ -117,23 +129,56 @@ export async function getUserById(userId: string) {
   return user;
 }
 
-export async function updateUser(userId: string, data: { name?: string; email?: string; department?: string; avatarUrl?: string; islandCalendar?: 'tenerife' | 'las_palmas' | 'none' }, actor: ActorContext) {
+export async function updateUser(userId: string, data: {
+  name?: string;
+  email?: string;
+  department?: string;
+  avatarUrl?: string;
+  islandCalendar?: 'tenerife' | 'las_palmas' | 'none';
+  companyPhone?: string;
+  auxiliaryPhone?: string;
+}, actor: ActorContext) {
+  const parsed = updateUserInputSchema.safeParse(data);
+  if (!parsed.success) {
+    throw createAppError('BAD_REQUEST', 'Datos inválidos', parsed.error.flatten());
+  }
+
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
 
-  if (data.email && data.email !== user.email) {
-    const existing = await findUserByEmail(normalizeEmail(data.email));
-    if (existing) throw createAppError('CONFLICT', 'El email ya está en uso');
+  if (parsed.data.email && parsed.data.email !== user.email) {
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+    const username = extractUsernameFromEmail(normalizedEmail);
+    const conflict = await findUserIdentityConflict(normalizedEmail, username, userId);
+
+    if (conflict) {
+      if (conflict.email === normalizedEmail) {
+        throw createAppError('CONFLICT', 'El email ya está en uso');
+      }
+      throw createAppError('CONFLICT', 'El username ya está registrado');
+    }
   }
 
   return executeInTransaction(async (tx) => {
-    const updated = await updateUserRecord(userId, { ...data, ...(data.email ? { email: normalizeEmail(data.email) } : {}) }, tx);
+    const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
+    const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
+
+    const updated = await updateUserRecord(
+      userId,
+      {
+        ...parsed.data,
+        companyPhone: normalizedCompanyPhone,
+        auxiliaryPhone: normalizedAuxiliaryPhone,
+        ...(parsed.data.email ? { email: normalizeEmail(parsed.data.email) } : {}),
+      },
+      tx,
+    );
     await logAuditOrThrow({
       userId: actor.id,
       action: 'UPDATE_USER',
       entityType: 'User',
       entityId: userId,
-      detailsJson: data,
+      detailsJson: parsed.data,
       ipAddress: actor.ipAddress,
     }, tx);
     return updated;

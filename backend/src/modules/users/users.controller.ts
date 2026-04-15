@@ -13,21 +13,31 @@ import {
   resetUserPassword,
   updateUser,
 } from './users.service';
+import {
+  changeRoleBodySchema,
+  changeStatusBodySchema,
+  createUserBodySchema,
+  listUsersQuerySchema,
+  resetPasswordBodySchema,
+  updateUserBodySchema,
+  userIdParamsSchema,
+  userSchedulesQuerySchema,
+} from './users.http.schemas';
 
 export async function listUsersController(req: AuthRequest, res: Response) {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-  const search = req.query.search as string | undefined;
-  const role = req.query.role as string | undefined;
-  const status = req.query.status as string | undefined;
+  const parsedQuery = listUsersQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
 
-  const { users, total } = await getUsersList({ page, limit, search, role, status });
-  return sendPaginated(res, users, total, page, limit);
+  const { users, total } = await getUsersList(parsedQuery.data);
+  return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
 }
 
 export async function getUserController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
   try {
-    const user = await getUserById(req.params.id);
+    const user = await getUserById(parsedParams.data.id);
     return sendSuccess(res, user);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -36,8 +46,11 @@ export async function getUserController(req: AuthRequest, res: Response) {
 }
 
 export async function createUserController(req: AuthRequest, res: Response) {
+  const parsedBody = createUserBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
   try {
-    const user = await createUser(req.body, { id: req.user!.id, ipAddress: req.ip });
+    const user = await createUser(parsedBody.data, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, user, 'Usuario creado', 201);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -46,8 +59,14 @@ export async function createUserController(req: AuthRequest, res: Response) {
 }
 
 export async function updateUserController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = updateUserBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
   try {
-    const updated = await updateUser(req.params.id, req.body, { id: req.user!.id, ipAddress: req.ip });
+    const updated = await updateUser(parsedParams.data.id, parsedBody.data, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, updated, 'Usuario actualizado');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -56,12 +75,15 @@ export async function updateUserController(req: AuthRequest, res: Response) {
 }
 
 export async function changeUserStatusController(req: AuthRequest, res: Response) {
-  const { status } = req.body;
-  if (!['active', 'disabled', 'locked'].includes(status)) return sendError(res, 'Estado inválido', 400);
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = changeStatusBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Estado inválido', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
   try {
-    await changeUserStatus(req.params.id, status, { id: req.user!.id, ipAddress: req.ip });
-    return sendSuccess(res, null, `Estado actualizado a ${status}`);
+    await changeUserStatus(parsedParams.data.id, parsedBody.data.status, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, null, `Estado actualizado a ${parsedBody.data.status}`);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
@@ -69,11 +91,14 @@ export async function changeUserStatusController(req: AuthRequest, res: Response
 }
 
 export async function changeUserRoleController(req: AuthRequest, res: Response) {
-  const { role } = req.body;
-  if (!['admin', 'manager', 'viewer'].includes(role)) return sendError(res, 'Rol inválido', 400);
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = changeRoleBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Rol inválido', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
   try {
-    await changeUserRole(req.params.id, role, { id: req.user!.id, ipAddress: req.ip });
+    await changeUserRole(parsedParams.data.id, parsedBody.data.role, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Rol actualizado');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -82,11 +107,14 @@ export async function changeUserRoleController(req: AuthRequest, res: Response) 
 }
 
 export async function resetPasswordController(req: AuthRequest, res: Response) {
-  const { newPassword } = req.body;
-  if (!newPassword || newPassword.length < 8) return sendError(res, 'La contraseña debe tener al menos 8 caracteres', 400);
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = resetPasswordBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'La contraseña debe tener al menos 8 caracteres', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
   try {
-    await resetUserPassword(req.params.id, newPassword, { id: req.user!.id, ipAddress: req.ip });
+    await resetUserPassword(parsedParams.data.id, parsedBody.data.newPassword, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Contraseña restablecida. El usuario deberá cambiarla en el próximo inicio de sesión');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -95,8 +123,11 @@ export async function resetPasswordController(req: AuthRequest, res: Response) {
 }
 
 export async function deleteUserController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
   try {
-    await deleteUser(req.params.id, { id: req.user!.id, ipAddress: req.ip });
+    await deleteUser(parsedParams.data.id, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Usuario eliminado');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -105,10 +136,14 @@ export async function deleteUserController(req: AuthRequest, res: Response) {
 }
 
 export async function listUserSchedulesController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedQuery = userSchedulesQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+
   try {
-    const from = req.query.from as string | undefined;
-    const to = req.query.to as string | undefined;
-    const schedules = await getUserSchedules(req.params.id, from, to);
+    const schedules = await getUserSchedules(parsedParams.data.id, parsedQuery.data.from, parsedQuery.data.to);
     return sendSuccess(res, schedules);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);

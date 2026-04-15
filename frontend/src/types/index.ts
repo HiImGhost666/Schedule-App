@@ -53,7 +53,11 @@ export interface ScheduleAssignment {
 export interface WeekScheduleAssignee {
   id: string;
   name: string;
+  email: string;
   avatarUrl?: string | null;
+  department?: string | null;
+  companyPhone?: string | null;
+  auxiliaryPhone?: string | null;
 }
 
 export interface WeekScheduleItem {

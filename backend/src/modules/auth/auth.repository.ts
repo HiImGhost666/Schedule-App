@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { USER_RESPONSE_SELECT } from '../users/users.selects';
 
 export function findUserById(userId: string) {
   return prisma.user.findUnique({ where: { id: userId } });
@@ -7,20 +8,7 @@ export function findUserById(userId: string) {
 export function findUserProfileById(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      status: true,
-      avatarUrl: true,
-      department: true,
-      createdAt: true,
-      lastLoginAt: true,
-      failedAttempts: true,
-      forcePasswordChange: true,
-      islandCalendar: true,
-    },
+    select: USER_RESPONSE_SELECT,
   });
 }
 

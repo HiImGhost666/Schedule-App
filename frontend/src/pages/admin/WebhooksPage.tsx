@@ -23,12 +23,12 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+type FormDataInput = z.input<typeof schema>;
 
 function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: () => void }) {
   const qc = useQueryClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema) as any,
+  const { register, handleSubmit, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
+    resolver: zodResolver(schema),
     defaultValues: webhook
       ? { ...webhook }
       : { enabled: true, notifyModifications: true, notifyLastMinute: true, fridayReminderEnabled: true, fridayReminderTime: '12:00' },
@@ -52,7 +52,7 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
           <h2 className="text-lg font-semibold text-navy-800">{webhook ? 'Editar Webhook' : 'Nuevo Webhook'}</h2>
           <button onClick={onClose} className="p-1.5 text-navy-300 hover:text-navy-500 rounded-lg">✕</button>
         </div>
-        <form onSubmit={handleSubmit((d) => mutation.mutate(d as FormData))} className="p-7 space-y-5">
+        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-7 space-y-5">
           <div>
             <label className="block text-sm font-medium text-navy-600 mb-1">Nombre *</label>
             <input {...register('name')} className="input-field" placeholder="Canal de Teams - Guardias" />

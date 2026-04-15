@@ -5,7 +5,17 @@ import { Prisma } from '@prisma/client';
 const assigneeInclude = {
   assignments: {
     include: {
-      user: { select: { id: true, name: true, email: true, avatarUrl: true, department: true } },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          department: true,
+          companyPhone: true,
+          auxiliaryPhone: true,
+        },
+      },
     },
   },
   createdBy: { select: { id: true, name: true } },
@@ -14,12 +24,13 @@ const assigneeInclude = {
 type ScheduleWhere = Prisma.Args<typeof prisma.schedule, 'findMany'>['where'];
 type ScheduleCreateData = Prisma.Args<typeof prisma.schedule, 'create'>['data'];
 type ScheduleUpdateData = Prisma.Args<typeof prisma.schedule, 'update'>['data'];
+export type ScheduleWithRelations = Prisma.ScheduleGetPayload<{ include: typeof assigneeInclude }>;
 
 function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
 }
 
-export function findSchedules(where: ScheduleWhere) {
+export function findSchedules(where: ScheduleWhere): Promise<ScheduleWithRelations[]> {
   return prisma.schedule.findMany({
     where,
     include: assigneeInclude,
@@ -27,21 +38,21 @@ export function findSchedules(where: ScheduleWhere) {
   });
 }
 
-export function findScheduleById(id: string, tx?: TransactionClient) {
+export function findScheduleById(id: string, tx?: TransactionClient): Promise<ScheduleWithRelations | null> {
   return getDb(tx).schedule.findUnique({
     where: { id },
     include: assigneeInclude,
   });
 }
 
-export function createSchedule(data: ScheduleCreateData, tx?: TransactionClient) {
+export function createSchedule(data: ScheduleCreateData, tx?: TransactionClient): Promise<ScheduleWithRelations> {
   return getDb(tx).schedule.create({
     data,
     include: assigneeInclude,
   });
 }
 
-export function updateSchedule(id: string, data: ScheduleUpdateData, tx?: TransactionClient) {
+export function updateSchedule(id: string, data: ScheduleUpdateData, tx?: TransactionClient): Promise<ScheduleWithRelations> {
   return getDb(tx).schedule.update({
     where: { id },
     data,

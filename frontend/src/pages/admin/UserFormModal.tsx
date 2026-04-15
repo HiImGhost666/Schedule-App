@@ -22,6 +22,7 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+type FormDataInput = z.input<typeof schema>;
 
 interface Props { open: boolean; user: User | null; onClose: () => void; }
 
@@ -29,9 +30,8 @@ export function UserFormModal({ open, user, onClose }: Props) {
   const qc = useQueryClient();
   const isEdit = !!user;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema) as any,
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
+    resolver: zodResolver(schema),
   });
 
   useEffect(() => {

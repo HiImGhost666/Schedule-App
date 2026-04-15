@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { sendError, sendSuccess } from '../../utils/response';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { isAppError } from '../../common/errors/app-error';
-import { z } from 'zod';
 import {
   createScheduleEntry,
   deleteScheduleEntry,
@@ -11,19 +10,22 @@ import {
   listWeekSchedules,
   updateScheduleEntry,
 } from './schedules.service';
-
-const weekParamsSchema = z.object({
-  year: z.coerce.number().int().min(2000).max(2100),
-  week: z.coerce.number().int().min(1).max(53),
-});
+import {
+  createScheduleBodySchema,
+  deleteScheduleBodySchema,
+  listSchedulesQuerySchema,
+  scheduleIdParamsSchema,
+  updateScheduleBodySchema,
+  weekParamsSchema,
+} from './schedules.http.schemas';
 
 export async function listSchedulesController(req: AuthRequest, res: Response) {
-  const schedules = await listSchedules({
-    from: req.query.from as string | undefined,
-    to: req.query.to as string | undefined,
-    userId: req.query.userId as string | undefined,
-    type: req.query.type as string | undefined,
-  });
+  const parsed = listSchedulesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const schedules = await listSchedules(parsed.data);
   return sendSuccess(res, schedules);
 }
 
@@ -38,8 +40,13 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
 }
 
 export async function getScheduleController(req: AuthRequest, res: Response) {
+  const parsed = scheduleIdParamsSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  }
+
   try {
-    const schedule = await getScheduleById(req.params.id);
+    const schedule = await getScheduleById(parsed.data.id);
     return sendSuccess(res, schedule);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -48,8 +55,13 @@ export async function getScheduleController(req: AuthRequest, res: Response) {
 }
 
 export async function createScheduleController(req: AuthRequest, res: Response) {
+  const parsedBody = createScheduleBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
   try {
-    const schedule = await createScheduleEntry(req.body, {
+    const schedule = await createScheduleEntry(parsedBody.data, {
       id: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,
@@ -64,8 +76,18 @@ export async function createScheduleController(req: AuthRequest, res: Response) 
 }
 
 export async function updateScheduleController(req: AuthRequest, res: Response) {
+  const parsedParams = scheduleIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const parsedBody = updateScheduleBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
   try {
-    const schedule = await updateScheduleEntry(req.params.id, req.body, {
+    const schedule = await updateScheduleEntry(parsedParams.data.id, parsedBody.data, {
       id: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,
@@ -80,8 +102,18 @@ export async function updateScheduleController(req: AuthRequest, res: Response) 
 }
 
 export async function deleteScheduleController(req: AuthRequest, res: Response) {
+  const parsedParams = scheduleIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const parsedBody = deleteScheduleBodySchema.safeParse(req.body ?? {});
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
   try {
-    await deleteScheduleEntry(req.params.id, req.body?.reason, {
+    await deleteScheduleEntry(parsedParams.data.id, parsedBody.data.reason, {
       id: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,

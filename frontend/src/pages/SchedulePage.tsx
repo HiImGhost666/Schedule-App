@@ -14,7 +14,7 @@ import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Schedule, WeekScheduleItem } from '@/types';
+import type { Schedule, WeekScheduleItem, ScheduleAssignment } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import {
@@ -57,8 +57,11 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
       user: {
         id: assignee.id,
         name: assignee.name,
-        email: '',
+        email: assignee.email ?? '',
         avatarUrl: assignee.avatarUrl ?? undefined,
+        department: assignee.department ?? undefined,
+        companyPhone: assignee.companyPhone ?? undefined,
+        auxiliaryPhone: assignee.auxiliaryPhone ?? undefined,
       },
     })),
   };
@@ -90,7 +93,13 @@ function MonthEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── week/day-view event card ──────────────────────────────────── */
 
-function TimeGridEventContent({ info, onProfileClick }: { info: EventContentArg; onProfileClick?: (u: any) => void }) {
+function TimeGridEventContent({
+  info,
+  onProfileClick,
+}: {
+  info: EventContentArg;
+  onProfileClick?: (u: ScheduleAssignment['user']) => void;
+}) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule;
   const assignees = schedule?.assignments?.map((a) => a.user) ?? [];
@@ -182,7 +191,13 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── unified event content dispatcher ─────────────────────────── */
 
-function EventContent({ info, onProfileClick }: { info: EventContentArg; onProfileClick?: (u: any) => void }) {
+function EventContent({
+  info,
+  onProfileClick,
+}: {
+  info: EventContentArg;
+  onProfileClick?: (u: ScheduleAssignment['user']) => void;
+}) {
   const viewType = info.view.type;
   if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} onProfileClick={onProfileClick} />;
   if (viewType.startsWith('list')) return <ListEventContent info={info} />;
@@ -294,7 +309,7 @@ export function SchedulePage() {
   const isoWeekYear = getISOWeekYear(weekRefDate);
   const isoWeek = getISOWeek(weekRefDate);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [

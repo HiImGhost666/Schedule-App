@@ -76,7 +76,22 @@ export async function login(identifier: string, password: string, ipAddress?: st
     userAgent,
   });
 
-  const { passwordHash: _, ...safeUser } = user;
+  const safeUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    avatarUrl: user.avatarUrl,
+    department: user.department,
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt,
+    failedAttempts: user.failedAttempts,
+    forcePasswordChange: user.forcePasswordChange,
+    islandCalendar: user.islandCalendar,
+    companyPhone: user.companyPhone,
+    auxiliaryPhone: user.auxiliaryPhone,
+  };
   return { accessToken, refreshToken, user: safeUser };
 }
 
