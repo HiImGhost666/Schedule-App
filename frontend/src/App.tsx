@@ -21,7 +21,12 @@ import type { ThemeConfig } from '@/types';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
   const setUser = useAuthStore((s) => s.setUser);
+  const setTokens = useAuthStore((s) => s.setTokens);
+  const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
   const logout = useAuthStore((s) => s.logout);
   const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
   const setThemeConfig = useUIStore((s) => s.setThemeConfig);
@@ -35,16 +40,35 @@ function App() {
     if (authBootstrappedRef.current) return;
     authBootstrappedRef.current = true;
 
-    api
-      .get('/auth/me')
-      .then((response) => {
-        setUser(response.data.data);
-      })
-      .catch(() => {
-        // Invalid persisted session -> clear client auth state.
-        logout();
-      });
-  }, [isAuthenticated, logout, setUser]);
+    const bootstrap = async () => {
+      if (!accessToken && refreshToken) {
+        setBootstrapping(true);
+        try {
+          const { data } = await import('axios').then((m) =>
+            m.default.post('/api/auth/refresh', { refreshToken })
+          );
+          setTokens(data.data.accessToken, data.data.refreshToken ?? refreshToken);
+        } catch {
+          logout();
+          return;
+        }
+      }
+
+      api
+        .get('/auth/me')
+        .then((response) => {
+          setUser(response.data.data);
+        })
+        .catch(() => {
+          logout();
+        })
+        .finally(() => {
+          setBootstrapping(false);
+        });
+    };
+
+    bootstrap();
+  }, [isAuthenticated, accessToken, refreshToken, logout, setUser, setTokens, setBootstrapping]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
