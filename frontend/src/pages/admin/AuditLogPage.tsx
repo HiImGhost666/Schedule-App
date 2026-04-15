@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Search, ChevronRight } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ClipboardList, Search, ChevronRight, RotateCcw } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '@/config/api';
 import type { AuditLog } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -21,13 +22,24 @@ const ACTION_COLORS: Record<string, string> = {
   DELETE_SCHEDULE: 'bg-red-100 text-red-700',
   CREATE_WEBHOOK: 'bg-teal-100 text-teal-700',
   CHANGE_PASSWORD: 'bg-cyan-100 text-cyan-700',
+  ROLLBACK_PERFORMED: 'bg-indigo-100 text-indigo-700 font-bold',
 };
+
+const IRREVERSIBLE_ACTIONS = [
+  'LOGIN',
+  'LOGOUT',
+  'CHANGE_PASSWORD',
+  'RESET_PASSWORD',
+  'FAILED_LOGIN_ATTEMPT',
+  'ROLLBACK_PERFORMED',
+];
 
 export function AuditLogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [entityType, setEntityType] = useState('');
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['audit', page, search, entityType],
@@ -41,6 +53,25 @@ export function AuditLogPage() {
     queryFn: () => api.get<{ data: AuditLog }>(`/audit/${selectedLogId}`).then((r) => r.data.data),
     enabled: Boolean(selectedLogId),
   });
+
+  const rollbackMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/audit/${id}/rollback`),
+    onSuccess: () => {
+      toast.success('Cambio revertido correctamente');
+      queryClient.invalidateQueries({ queryKey: ['audit'] });
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setSelectedLogId(null);
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Error al revertir el cambio';
+      toast.error(message);
+    },
+  });
+
+  const canRollback = selectedLog && 
+    !IRREVERSIBLE_ACTIONS.includes(selectedLog.action) &&
+    (selectedLog.detailsJson as any)?.before !== undefined;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -166,6 +197,35 @@ export function AuditLogPage() {
                     </pre>
                   </div>
                 )}
+
+                <div className="pt-4 mt-6 border-t border-navy-100">
+                  <button
+                    onClick={() => {
+                      if (window.confirm('¿Estás seguro de que deseas revertir este cambio? Esta acción no se puede deshacer.')) {
+                        rollbackMutation.mutate(selectedLog.id);
+                      }
+                    }}
+                    disabled={!canRollback || rollbackMutation.isPending}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all
+                      ${canRollback 
+                        ? 'bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 shadow-sm' 
+                        : 'bg-navy-50 text-navy-200 border-2 border-navy-50 cursor-not-allowed'
+                      }`}
+                  >
+                    <RotateCcw className={`h-4 w-4 ${rollbackMutation.isPending ? 'animate-spin' : ''}`} />
+                    {rollbackMutation.isPending ? 'Revirtiendo...' : 'Revertir cambio'}
+                  </button>
+                  {!canRollback && !IRREVERSIBLE_ACTIONS.includes(selectedLog.action) && (
+                    <p className="text-[10px] text-navy-300 mt-2 text-center">
+                      Este registro no permite rollback (acción irreversible o sin datos previos)
+                    </p>
+                  )}
+                  {IRREVERSIBLE_ACTIONS.includes(selectedLog.action) && (
+                    <p className="text-[10px] text-red-400 mt-2 text-center italic">
+                      Las acciones de seguridad y sesión no se pueden revertir
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
