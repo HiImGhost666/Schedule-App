@@ -39,21 +39,38 @@ const parseSnapshot = (data: any): Record<string, any> => {
 
 /**
  * Aplana objetos anidados en una lista plana de rutas (dot notation).
+ * Maneja Date objects, arrays y primitivos correctamente.
  */
 const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
-  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
-    return { [prefix.replace(/\.$/, '')]: obj };
+  if (obj === null || obj === undefined) {
+    return prefix ? { [prefix]: obj } : {};
   }
 
-  return Object.keys(obj).reduce((acc, key) => {
-    const newPrefix = prefix ? `${prefix}.${key}` : key;
-    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-      Object.assign(acc, flattenObject(obj[key], `${newPrefix}.`));
+  // Primitivos y arrays: guardar directamente
+  if (typeof obj !== 'object' || Array.isArray(obj) || obj instanceof Date) {
+    return prefix ? { [prefix]: obj } : {};
+  }
+
+  const result: Record<string, any> = {};
+
+  for (const key of Object.keys(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    const val = obj[key];
+
+    if (
+      val !== null &&
+      typeof val === 'object' &&
+      !Array.isArray(val) &&
+      !(val instanceof Date)
+    ) {
+      // Objeto anidado: recurrir
+      Object.assign(result, flattenObject(val, fullKey));
     } else {
-      acc[newPrefix] = obj[key];
+      result[fullKey] = val;
     }
-    return acc;
-  }, {});
+  }
+
+  return result;
 };
 
 /**
@@ -87,11 +104,13 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   centroNombre
 }) => {
   const before = useMemo(() => parseSnapshot(beforeJson), [beforeJson]);
-  const after = useMemo(() => parseSnapshot(afterJson), [afterJson]);
+  const after  = useMemo(() => parseSnapshot(afterJson),  [afterJson]);
 
-  const isUpdate = action.includes('UPDATE') || (beforeJson && afterJson);
+  // Clasificación basada en la acción (fuente de verdad principal)
   const isCreate = action.includes('CREATE');
   const isDelete = action.includes('DELETE');
+  // UPDATE: explícito en la acción O bien es una acción con before+after que no es CREATE ni DELETE
+  const isUpdate = action.includes('UPDATE') || (!isCreate && !isDelete && Boolean(beforeJson && afterJson));
 
   // Generar motor de diferencias para UPDATE
   const diffs = useMemo(() => {
@@ -116,9 +135,16 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
       }));
   }, [before, after, isUpdate]);
 
-  // Lista plana para CREATE/DELETE
+  // Lista plana para CREATE/DELETE: elegir el snapshot correcto
   const flatData = useMemo(() => {
-    const data = isDelete ? before : after;
+    // Para DELETE mostramos el estado ANTES (before). Para CREATE, el estado DESPUÉS (after).
+    // Fallback: si el snapshot esperado está vacío, intentar con el otro.
+    let data: Record<string, any>;
+    if (isDelete) {
+      data = Object.keys(before).length > 0 ? before : after;
+    } else {
+      data = Object.keys(after).length > 0 ? after : before;
+    }
     const flattened = flattenObject(data);
     return Object.entries(flattened).filter(([key]) => key !== '_error');
   }, [before, after, isCreate, isDelete]);
