@@ -92,6 +92,7 @@ model WebhookConfig {
   notifyModifications   Boolean @default(true) @map("notify_modifications")
   notifyLastMinute      Boolean @default(true) @map("notify_last_minute")
   fridayReminderEnabled Boolean @default(true) @map("friday_reminder_enabled")
+  mondayVacationReminderEnabled Boolean @default(true) @map("monday_vacation_reminder_enabled")
   fridayReminderTime    String  @default("12:00") @map("friday_reminder_time")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
