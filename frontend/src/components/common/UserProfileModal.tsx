@@ -109,16 +109,6 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                         )}
                     </div>
                 </div>
-
-                {/* Footer */}
-                <div className="px-6 py-4 bg-navy-50 border-t border-navy-100 flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-semibold text-navy-600 hover:text-navy-800 transition-colors"
-                    >
-                        Cerrar
-                    </button>
-                </div>
             </div>
         </div>
     );

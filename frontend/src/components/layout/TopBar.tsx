@@ -1,5 +1,4 @@
-import { Menu, Bell } from 'lucide-react';
-import { useUIStore } from '@/store/uiStore';
+import { Bell } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/types';
 
@@ -8,7 +7,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ title }: TopBarProps) {
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+
   const user = useAuthStore((s) => s.user);
 
   return (
@@ -19,15 +18,7 @@ export function TopBar({ title }: TopBarProps) {
         color: 'var(--theme-topbar-text)',
       }}
     >
-      <div className="flex items-center gap-3">
-        <button
-          onClick={toggleSidebar}
-          className="md:hidden p-1.5 rounded-lg hover:bg-navy-50 text-navy-400"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
         {title && <h1 className="text-base font-semibold hidden md:block">{title}</h1>}
-      </div>
 
       <div className="flex items-center gap-2">
         <button className="p-1.5 rounded-lg hover:bg-navy-50 text-navy-400 relative">
