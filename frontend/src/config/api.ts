@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
+import { disconnectRealtime, reconnectRealtimeWithFreshToken } from '@/realtime/socketClient';
 
 const api = axios.create({
   baseURL: '/api',
@@ -50,6 +51,7 @@ api.interceptors.response.use(
 
       const refreshToken = useAuthStore.getState().refreshToken;
       if (!refreshToken) {
+        disconnectRealtime();
         useAuthStore.getState().logout();
         return Promise.reject(error);
       }
@@ -63,11 +65,13 @@ api.interceptors.response.use(
         } else {
           useAuthStore.getState().setAccessToken(newAccessToken);
         }
+        reconnectRealtimeWithFreshToken();
         processQueue(null, newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
+        disconnectRealtime();
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       } finally {

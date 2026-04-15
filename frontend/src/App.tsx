@@ -18,12 +18,12 @@ import { ThemeManagerPage } from '@/pages/admin/ThemeManagerPage';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import type { ThemeConfig } from '@/types';
+import { QueryInvalidationBridge } from '@/realtime/queryInvalidationBridge';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const accessToken = useAuthStore((s) => s.accessToken);
   const refreshToken = useAuthStore((s) => s.refreshToken);
-  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
   const setUser = useAuthStore((s) => s.setUser);
   const setTokens = useAuthStore((s) => s.setTokens);
   const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
@@ -86,6 +86,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <QueryInvalidationBridge />
       <BrowserRouter>
         <Routes>
           <Route

@@ -3,6 +3,8 @@ import { executeInTransaction } from '../../common/transactions/transaction.util
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAuditOrThrow } from '../audit/audit.service';
 import { notifyScheduleChange } from '../notifications/notifications.service';
+import { REALTIME_EVENTS } from '../../realtime/events';
+import { publishRealtimeEvent } from '../../realtime/socket';
 import {
   createSchedule,
   deleteSchedule,
@@ -150,6 +152,18 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     isLastMinute,
   }).catch(() => {});
 
+  publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_CREATED, {
+    entity: 'schedule',
+    action: 'created',
+    id: schedule.id,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
+    meta: {
+      type: schedule.type,
+      isLastMinute,
+    },
+  });
+
   return schedule;
 }
 
@@ -200,6 +214,18 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     isLastMinute,
   }).catch(() => {});
 
+  publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_UPDATED, {
+    entity: 'schedule',
+    action: 'updated',
+    id: schedule.id,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
+    meta: {
+      type: schedule.type,
+      isLastMinute,
+    },
+  });
+
   return schedule;
 }
 
@@ -226,4 +252,15 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
     reason: reason || 'Sin motivo especificado',
     isLastMinute: false,
   }).catch(() => {});
+
+  publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_DELETED, {
+    entity: 'schedule',
+    action: 'deleted',
+    id: scheduleId,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
+    meta: {
+      type: schedule.type,
+    },
+  });
 }

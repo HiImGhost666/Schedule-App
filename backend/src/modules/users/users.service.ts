@@ -22,6 +22,8 @@ import {
   normalizeEmail,
   normalizePhone,
 } from './domain/user.factory';
+import { REALTIME_EVENTS } from '../../realtime/events';
+import { publishRealtimeEvent } from '../../realtime/socket';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
@@ -74,7 +76,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
   const passwordHash = await hashPassword(parsed.data.password);
   const { password: _password, ...userData } = parsed.data;
 
-  return executeInTransaction(async (tx) => {
+  const user = await executeInTransaction(async (tx) => {
     const user = await createUserRecord({
       ...userData,
       email: normalizedEmail,
@@ -99,6 +101,20 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
 
     return user;
   });
+
+  publishRealtimeEvent(REALTIME_EVENTS.USER_CREATED, {
+    entity: 'user',
+    action: 'created',
+    id: user.id,
+    changedAt: new Date().toISOString(),
+    actorId: actor?.id ?? null,
+    meta: {
+      role: user.role,
+      status: user.status,
+    },
+  });
+
+  return user;
 }
 
 export async function findUserByEmailOrUsername(identifier: string) {
@@ -159,7 +175,7 @@ export async function updateUser(userId: string, data: {
     }
   }
 
-  return executeInTransaction(async (tx) => {
+  const updated = await executeInTransaction(async (tx) => {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
@@ -183,6 +199,20 @@ export async function updateUser(userId: string, data: {
     }, tx);
     return updated;
   });
+
+  publishRealtimeEvent(REALTIME_EVENTS.USER_UPDATED, {
+    entity: 'user',
+    action: 'updated',
+    id: userId,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
+    meta: {
+      role: updated.role,
+      status: updated.status,
+    },
+  });
+
+  return updated;
 }
 
 export async function changeUserStatus(userId: string, status: 'active' | 'disabled' | 'locked', actor: ActorContext) {
@@ -210,6 +240,17 @@ export async function changeUserStatus(userId: string, status: 'active' | 'disab
       ipAddress: actor.ipAddress,
     }, tx);
   });
+
+  publishRealtimeEvent(REALTIME_EVENTS.USER_STATUS_CHANGED, {
+    entity: 'user',
+    action: 'statusChanged',
+    id: userId,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
+    meta: {
+      status,
+    },
+  });
 }
 
 export async function changeUserRole(userId: string, role: 'admin' | 'manager' | 'viewer', actor: ActorContext) {
@@ -225,6 +266,17 @@ export async function changeUserRole(userId: string, role: 'admin' | 'manager' |
       detailsJson: { newRole: role },
       ipAddress: actor.ipAddress,
     }, tx);
+  });
+
+  publishRealtimeEvent(REALTIME_EVENTS.USER_ROLE_CHANGED, {
+    entity: 'user',
+    action: 'roleChanged',
+    id: userId,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
+    meta: {
+      role,
+    },
   });
 }
 
@@ -266,6 +318,14 @@ export async function deleteUser(userId: string, actor: ActorContext) {
       detailsJson: { name: user.name, email: user.email },
       ipAddress: actor.ipAddress,
     }, tx);
+  });
+
+  publishRealtimeEvent(REALTIME_EVENTS.USER_DELETED, {
+    entity: 'user',
+    action: 'deleted',
+    id: userId,
+    changedAt: new Date().toISOString(),
+    actorId: actor.id,
   });
 }
 
