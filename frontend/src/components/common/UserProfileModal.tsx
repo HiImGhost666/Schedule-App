@@ -6,19 +6,19 @@ interface UserProfileModalProps {
     open: boolean;
     onClose: () => void;
     user:
-      | User
-      | {
-          id: string;
-          name: string;
-          email: string;
-          avatarUrl?: string;
-          department?: string;
-          companyPhone?: string;
-          auxiliaryPhone?: string;
-          role?: 'admin' | 'manager' | 'viewer';
-          createdAt?: string;
-        }
-      | null;
+    | User
+    | {
+        id: string;
+        name: string;
+        email: string;
+        avatarUrl?: string;
+        department?: string;
+        companyPhone?: string;
+        auxiliaryPhone?: string;
+        role?: 'admin' | 'manager' | 'viewer';
+        createdAt?: string;
+    }
+    | null;
 }
 
 export function UserProfileModal({ open, onClose, user }: UserProfileModalProps) {
@@ -75,49 +75,39 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3 text-theme-muted">
-                            <div className="p-2 bg-theme-surface-muted rounded-lg">
-                                <Phone className="h-4 w-4 text-theme-muted" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Empresa</p>
-                                <p className="text-sm font-medium">{(user as User).companyPhone || '-'}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-theme-muted">
-                            <div className="p-2 bg-theme-surface-muted rounded-lg">
-                                <Phone className="h-4 w-4 text-theme-muted" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Auxiliar</p>
-                                <p className="text-sm font-medium">{(user as User).auxiliaryPhone || '-'}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                        {(user as User).createdAt && (
-                            <div className="flex items-center gap-3 text-navy-600">
-                                <div className="p-2 bg-navy-50 rounded-lg">
-                                    <CalendarDays className="h-4 w-4 text-navy-400" />
+                            <div className="flex items-center gap-3 text-theme-muted">
+                                <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                    <Phone className="h-4 w-4 text-theme-muted" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-navy-300">En el sistema desde</p>
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Empresa</p>
+                                    <p className="text-sm font-medium">{(user as User).companyPhone || '-'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-theme-muted">
+                                <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                    <Phone className="h-4 w-4 text-theme-muted" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">Auxiliar</p>
+                                    <p className="text-sm font-medium">{(user as User).auxiliaryPhone || '-'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {(user as User).createdAt && (
+                            <div className="flex items-center gap-3 text-theme-muted">
+                                <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                    <CalendarDays className="h-4 w-4 text-theme-muted" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">En el sistema desde</p>
                                     <p className="text-sm font-medium">{formatDate((user as User).createdAt)}</p>
                                 </div>
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* Footer */}
-                <div className="px-6 py-4 bg-theme-surface-muted border-t border-theme-color flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-semibold text-theme-muted hover:text-theme-primary transition-colors"
-                    >
-                        Cerrar
-                    </button>
                 </div>
             </div>
         </div>
