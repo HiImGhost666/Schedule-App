@@ -101,6 +101,38 @@ export async function listWeekSchedules(year: number, week: number) {
   };
 }
 
+async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Date, excludeScheduleId?: string) {
+  const overlapping = await findSchedules({
+    ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
+    assignments: {
+      some: {
+        userId: { in: assigneeIds },
+      },
+    },
+    AND: [
+      { startDatetime: { lt: endDt } },
+      { endDatetime: { gt: startDt } },
+    ],
+  });
+
+  if (overlapping.length > 0) {
+    const conflicts = overlapping.flatMap((s) => {
+      const conflictedUsers = s.assignments
+        .filter((a) => assigneeIds.includes(a.userId))
+        .map((a) => a.user.name);
+      
+      return conflictedUsers.map(name => `${name} ya tiene el turno "${s.title}"`);
+    });
+
+    const uniqueConflicts = [...new Set(conflicts)];
+    throw createAppError(
+      'BAD_REQUEST',
+      `Conflicto de horarios: ${uniqueConflicts.join(', ')}`,
+      { conflicts: uniqueConflicts }
+    );
+  }
+}
+
 export async function getScheduleById(scheduleId: string) {
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
@@ -117,8 +149,10 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   const endDt = new Date(parsed.data.endDatetime);
   ensureValidScheduleRange(startDt, endDt);
 
-  const isLastMinute = isLastMinuteSchedule(startDt);
   const { assigneeIds, reason, ...scheduleData } = parsed.data;
+  await ensureNoOverlaps(assigneeIds, startDt, endDt);
+
+  const isLastMinute = isLastMinuteSchedule(startDt);
 
   const schedule = await executeInTransaction(async (tx) => {
     const created = await createSchedule({
@@ -167,6 +201,8 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const endDt = updateData.endDatetime ? new Date(updateData.endDatetime) : existing.endDatetime;
   ensureValidScheduleRange(startDt, endDt);
   const isLastMinute = isLastMinuteSchedule(startDt);
+
+  await ensureNoOverlaps(assigneeIds || existing.assignments.map(a => a.userId), startDt, endDt, scheduleId);
 
   const schedule = await executeInTransaction(async (tx) => {
     if (assigneeIds) {
