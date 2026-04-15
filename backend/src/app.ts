@@ -11,6 +11,7 @@ import webhooksRouter from './modules/webhooks/webhooks.router';
 import notificationsRouter from './modules/notifications/notifications.router';
 import auditRouter from './modules/audit/audit.router';
 import settingsRouter from './modules/settings/settings.router';
+import { sendSuccess } from './utils/response';
 
 const app = express();
 
@@ -34,22 +35,33 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+  statusCode: 400,
   standardHeaders: true,
   legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Demasiadas solicitudes. Inténtalo más tarde.',
+    code: 'BAD_REQUEST',
+  },
 });
 app.use(limiter);
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: { success: false, error: 'Demasiados intentos de login. Inténtalo más tarde.' },
+  statusCode: 401,
+  message: {
+    success: false,
+    error: 'Demasiados intentos de login. Inténtalo más tarde.',
+    code: 'UNAUTHORIZED',
+  },
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  return sendSuccess(res, { status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth', loginLimiter);
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/schedules', schedulesRouter);

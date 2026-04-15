@@ -50,6 +50,40 @@ export interface ScheduleAssignment {
   assignedAt: string;
 }
 
+export interface WeekScheduleAssignee {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  department?: string | null;
+  companyPhone?: string | null;
+  auxiliaryPhone?: string | null;
+}
+
+export interface WeekScheduleItem {
+  id: string;
+  title: string;
+  startDatetime: string;
+  endDatetime: string;
+  type: string;
+  color: string;
+  location?: string | null;
+  notes?: string | null;
+  isLastMinute: boolean;
+  hoursPerDay?: number;
+  calendarType?: string;
+  assignees: WeekScheduleAssignee[];
+}
+
+export interface WeekSchedulesResponse {
+  year: number;
+  week: number;
+  weekStart: string;
+  weekEnd: string;
+  total: number;
+  items: WeekScheduleItem[];
+}
+
 export interface WebhookConfig {
   id: string;
   name: string;
@@ -80,7 +114,7 @@ export interface AuditLog {
   action: string;
   entityType: string;
   entityId?: string;
-  detailsJson?: string;
+  detailsJson?: unknown;
   ipAddress?: string;
   createdAt: string;
   user?: { id: string; name: string; email: string } | null;
@@ -95,13 +129,20 @@ export interface PaginatedResponse<T> {
     limit: number;
     totalPages: number;
   };
+  message?: string;
 }
 
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
+}
+
+export interface ApiErrorResponse {
+  success: false;
   error?: string;
+  code?: string;
+  errors?: unknown;
 }
 
 export type ThemePresetId = 'corporate' | 'light' | 'dark' | 'sunrise' | 'forest';

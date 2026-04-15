@@ -7,8 +7,8 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import { formatDateTime, formatRelative } from '@/lib/utils';
-import type { Schedule, AuditLog } from '@/types';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
+import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment } from '@/types';
+import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SCHEDULE_TYPES } from '@/types';
 
@@ -20,20 +20,58 @@ function getTypeColor(type: string) {
   return SCHEDULE_TYPES.find((t) => t.value === type)?.color || '#1e3a5f';
 }
 
+function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.notes ?? undefined,
+    startDatetime: item.startDatetime,
+    endDatetime: item.endDatetime,
+    type: item.type,
+    color: item.color,
+    location: item.location ?? undefined,
+    notes: item.notes ?? undefined,
+    isLastMinute: item.isLastMinute,
+    hoursPerDay: item.hoursPerDay,
+    calendarType: item.calendarType,
+    createdById: '',
+    createdBy: { id: '', name: 'Sistema' },
+    createdAt: item.startDatetime,
+    updatedAt: item.endDatetime,
+    assignments: item.assignees.map((assignee) => ({
+      scheduleId: item.id,
+      userId: assignee.id,
+      assignedAt: item.startDatetime,
+      user: {
+        id: assignee.id,
+        name: assignee.name,
+        email: assignee.email ?? '',
+        avatarUrl: assignee.avatarUrl ?? undefined,
+        department: assignee.department ?? undefined,
+        companyPhone: assignee.companyPhone ?? undefined,
+        auxiliaryPhone: assignee.auxiliaryPhone ?? undefined,
+      },
+    })),
+  };
+}
+
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const isoWeek = getISOWeek(now);
+  const isoWeekYear = getISOWeekYear(now);
 
   const { data: weekSchedules, isLoading: loadingSchedules } = useQuery({
-    queryKey: ['schedules', 'week', format(weekStart, 'yyyy-MM-dd')],
-    queryFn: () => api.get<{ data: Schedule[] }>('/schedules', {
-      params: { from: weekStart.toISOString(), to: weekEnd.toISOString() },
-    }).then((r) => r.data.data),
+    queryKey: ['schedules', 'week', isoWeekYear, isoWeek],
+    queryFn: () =>
+      api
+        .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`)
+        .then((r) => r.data.data.items.map(mapWeekItemToSchedule)),
   });
 
   const { data: usersData } = useQuery({

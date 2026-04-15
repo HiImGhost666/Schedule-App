@@ -8,6 +8,7 @@ import api from '@/config/api';
 import type { User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -21,6 +22,7 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+type FormDataInput = z.input<typeof schema>;
 
 interface Props { open: boolean; user: User | null; onClose: () => void; }
 
@@ -28,9 +30,8 @@ export function UserFormModal({ open, user, onClose }: Props) {
   const qc = useQueryClient();
   const isEdit = !!user;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema) as any,
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
+    resolver: zodResolver(schema),
   });
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado');
       onClose();
     },
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Error'),
+    onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   if (!open) return null;

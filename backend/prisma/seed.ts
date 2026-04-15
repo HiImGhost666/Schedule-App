@@ -1,12 +1,26 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
+import { createUser } from '../src/modules/users/users.service';
+import { isAppError } from '../src/common/errors/app-error';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const prisma = new PrismaClient();
+
+async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
+  try {
+    await createUser(input);
+    console.log(`${label} created: ${input.email}`);
+  } catch (error) {
+    if (isAppError(error) && error.code === 'CONFLICT') {
+      console.log(`${label} already exists: ${input.email}`);
+      return;
+    }
+    throw error;
+  }
+}
 
 async function main() {
   console.log('Seeding database...');
@@ -15,58 +29,36 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminPass123!';
   const adminName = process.env.SEED_ADMIN_NAME || 'Administrador Sistema';
 
-  // Create/Update admin user
-  const adminData = {
-    name: adminName,
-    email: adminEmail,
-    role: 'admin',
-    status: 'active',
-    department: 'Administración',
-    companyPhone: '900100100',
-    auxiliaryPhone: '600100100',
-  };
+  await ensureSeedUser(
+    {
+      name: adminName,
+      email: adminEmail,
+      password: adminPassword,
+      role: 'admin',
+      status: 'active',
+      department: 'Administración',
+      islandCalendar: 'none',
+      companyPhone: '900200200',
+      auxiliaryPhone: '600200200',
+    },
+    'Admin'
+  );
 
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existingAdmin) {
-    const passwordHash = await bcrypt.hash(adminPassword, 12);
-    await prisma.user.create({
-      data: { ...adminData, passwordHash },
-    });
-    console.log(`Admin created: ${adminEmail}`);
-  } else {
-    await prisma.user.update({
-      where: { email: adminEmail },
-      data: adminData,
-    });
-    console.log(`Admin updated: ${adminEmail}`);
-  }
-
-  // Create/Update demo manager
-  const managerEmail = 'manager@company.com';
-  const managerData = {
-    name: 'María García',
-    email: managerEmail,
-    role: 'manager',
-    status: 'active',
-    department: 'Operaciones',
-    companyPhone: '900200200',
-    auxiliaryPhone: '600200200',
-  };
-
-  const existingManager = await prisma.user.findUnique({ where: { email: managerEmail } });
-  if (!existingManager) {
-    const passwordHash = await bcrypt.hash('Manager123!', 12);
-    await prisma.user.create({
-      data: { ...managerData, passwordHash },
-    });
-    console.log('Demo manager created');
-  } else {
-    await prisma.user.update({
-      where: { email: managerEmail },
-      data: managerData,
-    });
-    console.log('Demo manager updated');
-  }
+  // Create demo manager
+  await ensureSeedUser(
+    {
+      name: 'María García',
+      email: 'manager@company.com',
+      password: 'Manager123!',
+      role: 'manager',
+      status: 'active',
+      department: 'Operaciones',
+      islandCalendar: 'none',
+      companyPhone: '900200200',
+      auxiliaryPhone: '600200200',
+    },
+    'Demo manager'
+  );
 
   // Create demo users
   const demoUsers = [
@@ -77,20 +69,16 @@ async function main() {
   ];
 
   for (const u of demoUsers) {
-    const existing = await prisma.user.findUnique({ where: { email: u.email } });
-    if (!existing) {
-      const passwordHash = await bcrypt.hash('User123!', 12);
-      await prisma.user.create({
-        data: { ...u, passwordHash, role: 'viewer', status: 'active' },
-      });
-      console.log(`Demo user created: ${u.email}`);
-    } else {
-      await prisma.user.update({
-        where: { email: u.email },
-        data: u,
-      });
-      console.log(`Demo user updated: ${u.email}`);
-    }
+    await ensureSeedUser(
+      {
+        ...u,
+        password: 'User123!',
+        role: 'viewer',
+        status: 'active',
+        islandCalendar: 'none',
+      },
+      'Demo user'
+    );
   }
 
   const existingTheme = await prisma.themeSettings.findUnique({ where: { key: 'global' } });

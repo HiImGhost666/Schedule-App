@@ -1,0 +1,152 @@
+import { Response } from 'express';
+import { sendError, sendPaginated, sendSuccess } from '../../utils/response';
+import { AuthRequest } from '../../middleware/auth.middleware';
+import { isAppError } from '../../common/errors/app-error';
+import {
+  changeUserRole,
+  changeUserStatus,
+  createUser,
+  deleteUser,
+  getUserById,
+  getUserSchedules,
+  getUsersList,
+  resetUserPassword,
+  updateUser,
+} from './users.service';
+import {
+  changeRoleBodySchema,
+  changeStatusBodySchema,
+  createUserBodySchema,
+  listUsersQuerySchema,
+  resetPasswordBodySchema,
+  updateUserBodySchema,
+  userIdParamsSchema,
+  userSchedulesQuerySchema,
+} from './users.http.schemas';
+
+export async function listUsersController(req: AuthRequest, res: Response) {
+  const parsedQuery = listUsersQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+
+  const { users, total } = await getUsersList(parsedQuery.data);
+  return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
+}
+
+export async function getUserController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const user = await getUserById(parsedParams.data.id);
+    return sendSuccess(res, user);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function createUserController(req: AuthRequest, res: Response) {
+  const parsedBody = createUserBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const user = await createUser(parsedBody.data, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, user, 'Usuario creado', 201);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function updateUserController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = updateUserBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const updated = await updateUser(parsedParams.data.id, parsedBody.data, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, updated, 'Usuario actualizado');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function changeUserStatusController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = changeStatusBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Estado inválido', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    await changeUserStatus(parsedParams.data.id, parsedBody.data.status, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, null, `Estado actualizado a ${parsedBody.data.status}`);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function changeUserRoleController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = changeRoleBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'Rol inválido', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    await changeUserRole(parsedParams.data.id, parsedBody.data.role, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, null, 'Rol actualizado');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function resetPasswordController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedBody = resetPasswordBodySchema.safeParse(req.body);
+  if (!parsedBody.success) return sendError(res, 'La contraseña debe tener al menos 8 caracteres', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    await resetUserPassword(parsedParams.data.id, parsedBody.data.newPassword, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, null, 'Contraseña restablecida. El usuario deberá cambiarla en el próximo inicio de sesión');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function deleteUserController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    await deleteUser(parsedParams.data.id, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, null, 'Usuario eliminado');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function listUserSchedulesController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  const parsedQuery = userSchedulesQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const schedules = await getUserSchedules(parsedParams.data.id, parsedQuery.data.from, parsedQuery.data.to);
+    return sendSuccess(res, schedules);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}

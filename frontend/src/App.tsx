@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -17,12 +17,58 @@ import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { ThemeManagerPage } from '@/pages/admin/ThemeManagerPage';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import type { ThemeConfig, User } from '@/types';
+import type { ThemeConfig } from '@/types';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+  const setUser = useAuthStore((s) => s.setUser);
+  const setTokens = useAuthStore((s) => s.setTokens);
+  const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
+  const logout = useAuthStore((s) => s.logout);
   const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
   const setThemeConfig = useUIStore((s) => s.setThemeConfig);
+  const authBootstrappedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      authBootstrappedRef.current = false;
+      return;
+    }
+    if (authBootstrappedRef.current) return;
+    authBootstrappedRef.current = true;
+
+    const bootstrap = async () => {
+      if (!accessToken && refreshToken) {
+        setBootstrapping(true);
+        try {
+          const { data } = await import('axios').then((m) =>
+            m.default.post('/api/auth/refresh', { refreshToken })
+          );
+          setTokens(data.data.accessToken, data.data.refreshToken ?? refreshToken);
+        } catch {
+          logout();
+          return;
+        }
+      }
+
+      api
+        .get('/auth/me')
+        .then((response) => {
+          setUser(response.data.data);
+        })
+        .catch(() => {
+          logout();
+        })
+        .finally(() => {
+          setBootstrapping(false);
+        });
+    };
+
+    bootstrap();
+  }, [isAuthenticated, accessToken, refreshToken, logout, setUser, setTokens, setBootstrapping]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -35,19 +81,6 @@ function App() {
       })
       .catch(() => {
         // Keep local fallback theme
-      });
-
-    // Refresh user data to get new fields (like phones)
-    api
-      .get<{ data: User }>('/auth/me')
-      .then((response) => {
-        const { accessToken, refreshToken } = useAuthStore.getState();
-        if (accessToken && refreshToken) {
-          useAuthStore.getState().setAuth(response.data.data, accessToken, refreshToken);
-        }
-      })
-      .catch(() => {
-        // Silent fail if /me fails
       });
   }, [isAuthenticated, setThemeConfig]);
 
@@ -64,6 +97,7 @@ function App() {
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
               <Route path="schedule" element={<SchedulePage />} />
+              <Route path="schedule/:scheduleId" element={<SchedulePage />} />
               <Route path="profile" element={<ProfilePage />} />
 
               {/* Admin routes */}

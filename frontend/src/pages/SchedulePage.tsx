@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -8,14 +8,15 @@ import listPlugin from '@fullcalendar/list';
 import type { EventClickArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
 import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Schedule } from '@/types';
+import type { Schedule, WeekScheduleItem, ScheduleAssignment } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
-import { format } from 'date-fns';
+import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import {
   getHolidaysForCalendar,
   getPartialDaysForCalendar,
@@ -29,6 +30,41 @@ import {
 
 function getTypeInfo(type: string) {
   return SCHEDULE_TYPES.find((t) => t.value === type) ?? SCHEDULE_TYPES[0];
+}
+
+function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.notes ?? undefined,
+    startDatetime: item.startDatetime,
+    endDatetime: item.endDatetime,
+    type: item.type,
+    color: item.color,
+    location: item.location ?? undefined,
+    notes: item.notes ?? undefined,
+    isLastMinute: item.isLastMinute,
+    hoursPerDay: item.hoursPerDay,
+    calendarType: item.calendarType,
+    createdById: '',
+    createdBy: { id: '', name: 'Sistema' },
+    createdAt: item.startDatetime,
+    updatedAt: item.endDatetime,
+    assignments: item.assignees.map((assignee) => ({
+      scheduleId: item.id,
+      userId: assignee.id,
+      assignedAt: item.startDatetime,
+      user: {
+        id: assignee.id,
+        name: assignee.name,
+        email: assignee.email ?? '',
+        avatarUrl: assignee.avatarUrl ?? undefined,
+        department: assignee.department ?? undefined,
+        companyPhone: assignee.companyPhone ?? undefined,
+        auxiliaryPhone: assignee.auxiliaryPhone ?? undefined,
+      },
+    })),
+  };
 }
 
 function hexToRgb(hex: string) {
@@ -57,7 +93,13 @@ function MonthEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── week/day-view event card ──────────────────────────────────── */
 
-function TimeGridEventContent({ info, onProfileClick }: { info: EventContentArg; onProfileClick?: (u: any) => void }) {
+function TimeGridEventContent({
+  info,
+  onProfileClick,
+}: {
+  info: EventContentArg;
+  onProfileClick?: (u: ScheduleAssignment['user']) => void;
+}) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule;
   const assignees = schedule?.assignments?.map((a) => a.user) ?? [];
@@ -149,7 +191,13 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── unified event content dispatcher ─────────────────────────── */
 
-function EventContent({ info, onProfileClick }: { info: EventContentArg; onProfileClick?: (u: any) => void }) {
+function EventContent({
+  info,
+  onProfileClick,
+}: {
+  info: EventContentArg;
+  onProfileClick?: (u: ScheduleAssignment['user']) => void;
+}) {
   const viewType = info.view.type;
   if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} onProfileClick={onProfileClick} />;
   if (viewType.startsWith('list')) return <ListEventContent info={info} />;
@@ -236,6 +284,8 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
 /* ─── main page ─────────────────────────────────────────────────── */
 
 export function SchedulePage() {
+  const navigate = useNavigate();
+  const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
@@ -246,6 +296,7 @@ export function SchedulePage() {
   const [defaultEnd, setDefaultEnd] = useState<Date | undefined>();
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [activeCalendar, setActiveCalendar] = useState<CalendarType>('tenerife');
+  const [activeView, setActiveView] = useState('dayGridMonth');
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
     return {
@@ -253,13 +304,27 @@ export function SchedulePage() {
       to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
     };
   });
+  const shouldUseWeekEndpoint = activeView !== 'dayGridMonth';
+  const weekRefDate = dateRange.from;
+  const isoWeekYear = getISOWeekYear(weekRefDate);
+  const isoWeek = getISOWeek(weekRefDate);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
   const { data: schedules, isLoading, refetch } = useQuery({
-    queryKey: ['schedules', format(dateRange.from, 'yyyy-MM')],
-    queryFn: () =>
-      api
+    queryKey: [
+      'schedules',
+      shouldUseWeekEndpoint ? 'week-view' : 'month-view',
+      shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
+    ],
+    queryFn: () => {
+      if (shouldUseWeekEndpoint) {
+        return api
+          .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`)
+          .then((r) => r.data.data.items.map(mapWeekItemToSchedule));
+      }
+
+      return api
         .get<{ data: Schedule[] }>('/schedules', {
           params: {
             from: new Date(
@@ -274,8 +339,25 @@ export function SchedulePage() {
             ).toISOString(),
           },
         })
-        .then((r) => r.data.data),
+        .then((r) => r.data.data);
+    },
   });
+
+  const { data: scheduleDetail } = useQuery({
+    queryKey: ['schedule-detail', scheduleId],
+    queryFn: () => api.get<{ data: Schedule }>(`/schedules/${scheduleId}`).then((r) => r.data.data),
+    enabled: Boolean(scheduleId),
+  });
+
+  useEffect(() => {
+    if (!scheduleDetail) return;
+    const openDetailTimer = window.setTimeout(() => {
+      setSelectedSchedule(scheduleDetail);
+      setModalOpen(true);
+    }, 0);
+
+    return () => window.clearTimeout(openDetailTimer);
+  }, [scheduleDetail]);
 
   /* derive color from type (ignore stale DB color field) */
   const events =
@@ -333,9 +415,11 @@ export function SchedulePage() {
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     if (info.event.extendedProps.isHoliday) return; // background holiday events are not clickable
-    setSelectedSchedule(info.event.extendedProps.schedule as Schedule);
+    const clickedSchedule = info.event.extendedProps.schedule as Schedule;
+    setSelectedSchedule(clickedSchedule);
     setModalOpen(true);
-  }, []);
+    navigate(`/schedule/${clickedSchedule.id}`);
+  }, [navigate]);
 
   const handleDateSelect = useCallback(
     (info: DateSelectArg) => {
@@ -344,9 +428,20 @@ export function SchedulePage() {
       setDefaultStart(info.start);
       setDefaultEnd(info.end);
       setModalOpen(true);
+      if (scheduleId) navigate('/schedule', { replace: true });
     },
-    [canEdit],
+    [canEdit, navigate, scheduleId],
   );
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    setSelectedSchedule(null);
+    setDefaultStart(undefined);
+    setDefaultEnd(undefined);
+    if (scheduleId) {
+      navigate('/schedule', { replace: true });
+    }
+  }, [navigate, scheduleId]);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -469,6 +564,7 @@ export function SchedulePage() {
             )}
             height="auto"
             datesSet={(info) => {
+              setActiveView(info.view.type);
               setDateRange({ from: info.start, to: info.end });
             }}
             eventDisplay="block"
@@ -488,7 +584,7 @@ export function SchedulePage() {
 
       <ShiftModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         schedule={selectedSchedule}
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
