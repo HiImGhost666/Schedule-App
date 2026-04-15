@@ -50,7 +50,7 @@ export async function sendFridaySummary(sentByUserId?: string) {
   const card = buildFridaySummaryCard({ weekLabel, days });
 
   const webhooks = await prisma.webhookConfig.findMany({
-    where: { enabled: true, fridayReminderEnabled: true },
+    where: { enabled: true, mondayVacationReminderEnabled: true },
   });
 
   const results = [];

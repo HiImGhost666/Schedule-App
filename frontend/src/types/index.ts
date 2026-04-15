@@ -92,6 +92,7 @@ export interface WebhookConfig {
   notifyModifications: boolean;
   notifyLastMinute: boolean;
   fridayReminderEnabled: boolean;
+  mondayVacationReminderEnabled: boolean;
   fridayReminderTime: string;
   createdAt: string;
   updatedAt: string;

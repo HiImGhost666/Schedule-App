@@ -19,6 +19,7 @@ const schema = z.object({
   notifyModifications: z.boolean(),
   notifyLastMinute: z.boolean(),
   fridayReminderEnabled: z.boolean(),
+  mondayVacationReminderEnabled: z.boolean(),
   fridayReminderTime: z.string().default('12:00'),
 });
 
@@ -31,7 +32,14 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
     resolver: zodResolver(schema),
     defaultValues: webhook
       ? { ...webhook }
-      : { enabled: true, notifyModifications: true, notifyLastMinute: true, fridayReminderEnabled: true, fridayReminderTime: '12:00' },
+      : {
+          enabled: true,
+          notifyModifications: true,
+          notifyLastMinute: true,
+          fridayReminderEnabled: true,
+          mondayVacationReminderEnabled: true,
+          fridayReminderTime: '12:00',
+        },
   });
 
   const mutation = useMutation({
@@ -76,6 +84,7 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
             {[
               { name: 'notifyModifications' as const, label: 'Notificar modificaciones de guardias' },
               { name: 'notifyLastMinute' as const, label: 'Notificar cambios de último momento (<24h)' },
+              { name: 'mondayVacationReminderEnabled' as const, label: 'Resumen vacaciones lunes' },
               { name: 'enabled' as const, label: 'Webhook activo' },
             ].map((item) => (
               <div key={item.name} className="flex items-center gap-2">
@@ -165,6 +174,7 @@ export function WebhooksPage() {
                   { label: 'Modificaciones', value: wh.notifyModifications },
                   { label: 'Último momento', value: wh.notifyLastMinute },
                   { label: 'Resumen viernes', value: wh.fridayReminderEnabled },
+                  { label: 'Resumen lunes', value: wh.mondayVacationReminderEnabled },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5">
                     {item.value ? (
