@@ -71,6 +71,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
   });
 
   const fmt = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm");
+  const toIsoFromLocalInput = (value: string) => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+  };
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ShiftFormInput, unknown, ShiftForm>({
     resolver: zodResolver(shiftSchema),
@@ -223,7 +227,12 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       toast.error('Asigna al menos una persona');
       return;
     }
-    const payload = { ...data, assigneeIds: selectedUsers };
+    const payload = {
+      ...data,
+      startDatetime: toIsoFromLocalInput(data.startDatetime),
+      endDatetime: toIsoFromLocalInput(data.endDatetime),
+      assigneeIds: selectedUsers,
+    };
 
     // Check for holiday conflicts among assigned users
     if (users && data.startDatetime && data.endDatetime) {

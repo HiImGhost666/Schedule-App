@@ -11,10 +11,9 @@ import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-re
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
-import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Schedule, WeekScheduleItem, ScheduleAssignment } from '@/types';
+import type { Schedule, WeekScheduleItem } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import {
@@ -79,13 +78,11 @@ function hexToRgb(hex: string) {
 function MonthEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
   return (
-    <div className="flex items-center gap-1 px-1.5 py-0.5 overflow-hidden w-full min-w-0">
-      <span className="text-[10px] font-semibold opacity-80 shrink-0 tabular-nums leading-none">
-        {event.start && format(event.start, 'HH:mm')}
-      </span>
-      <span className="text-[11px] font-semibold truncate leading-none">{event.title}</span>
+    <div className="google-month-event">
+      {event.start && <span className="google-month-event-time">{format(event.start, 'HH:mm')}</span>}
+      <span className="google-month-event-title">{event.title}</span>
       {event.extendedProps.isLastMinute && (
-        <span className="shrink-0 text-[8px] bg-white/30 px-1 rounded font-bold leading-none">!</span>
+        <span className="google-month-event-flag">!</span>
       )}
     </div>
   );
@@ -93,71 +90,25 @@ function MonthEventContent({ info }: { info: EventContentArg }) {
 
 /* ─── week/day-view event card ──────────────────────────────────── */
 
-function TimeGridEventContent({
-  info,
-  onProfileClick,
-}: {
-  info: EventContentArg;
-  onProfileClick?: (u: ScheduleAssignment['user']) => void;
-}) {
+function TimeGridEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
-  const schedule = event.extendedProps.schedule as Schedule;
-  const assignees = schedule?.assignments?.map((a) => a.user) ?? [];
-  const color = event.backgroundColor ?? '#2563eb';
+  const schedule = event.extendedProps.schedule as Schedule | undefined;
+  const assigneeText =
+    schedule?.assignments
+      ?.map((assignment) => assignment.user.name.split(' ')[0])
+      .slice(0, 2)
+      .join(', ') ?? '';
 
   return (
-    <div
-      className="h-full flex flex-col overflow-hidden rounded-[5px]"
-      style={{
-        borderLeft: `3px solid rgba(${hexToRgb(color)}, 0.5)`,
-        background: `rgba(${hexToRgb(color)}, 0.92)`,
-      }}
-    >
-      <div className="flex-1 flex flex-col px-2 py-1.5 gap-0.5 overflow-hidden min-h-0">
-        {/* title + urgente badge */}
-        <div className="flex items-start justify-between gap-1">
-          <span className="text-[11px] font-bold leading-tight line-clamp-2 flex-1 text-white">
-            {event.title}
-          </span>
-          {event.extendedProps.isLastMinute && (
-            <span className="shrink-0 text-[7px] bg-white/20 border border-white/40 px-1 py-0.5 rounded-full font-bold text-white uppercase leading-none mt-0.5">
-              URG
-            </span>
-          )}
-        </div>
-
-        {/* time range */}
-        <div className="text-[10px] text-white/70 font-medium tabular-nums leading-none">
-          {event.start && format(event.start, 'HH:mm')}
-          {event.end && ` – ${format(event.end, 'HH:mm')}`}
-        </div>
-
-        {/* assignee avatars */}
-        {assignees.length > 0 && (
-          <div className="flex items-center gap-0.5 mt-auto pt-1 flex-wrap">
-            {assignees.slice(0, 5).map((a) => (
-              <div
-                key={a.id}
-                title={a.name}
-                onClick={(e) => {
-                  if (onProfileClick) {
-                    e.stopPropagation();
-                    onProfileClick(a);
-                  }
-                }}
-                className="w-[18px] h-[18px] rounded-full bg-white/25 border border-white/50 flex items-center justify-center text-[7px] font-bold uppercase text-white shrink-0 cursor-pointer hover:bg-white/40 active:scale-95 transition-all"
-              >
-                {a.name.charAt(0)}
-              </div>
-            ))}
-            {assignees.length > 5 && (
-              <span className="text-[8px] text-white/60 font-medium">
-                +{assignees.length - 5}
-              </span>
-            )}
-          </div>
-        )}
+    <div className="google-timegrid-event">
+      <div className="google-timegrid-event-title">
+        {event.extendedProps.isLastMinute ? '!' : ''} {event.title}
       </div>
+      <div className="google-timegrid-event-time">
+        {event.start && format(event.start, 'HH:mm')}
+        {event.end && ` - ${format(event.end, 'HH:mm')}`}
+      </div>
+      {assigneeText && <div className="google-timegrid-event-meta">{assigneeText}</div>}
     </div>
   );
 }
@@ -170,20 +121,22 @@ function ListEventContent({ info }: { info: EventContentArg }) {
   const typeInfo = getTypeInfo(schedule?.type ?? '');
 
   return (
-    <div className="flex items-center gap-3 py-1 px-2 w-full">
+    <div className="google-list-event">
       <span
-        className="w-2 h-2 rounded-full shrink-0"
+        className="google-list-event-dot"
         style={{ backgroundColor: typeInfo.color }}
       />
-      <span className="font-semibold text-navy-800 text-sm truncate">{event.title}</span>
-      <span className="text-xs text-navy-400 ml-auto shrink-0">
-        {event.start && format(event.start, 'HH:mm')}
-        {event.end && ` – ${format(event.end, 'HH:mm')}`}
-      </span>
-      {event.extendedProps.isLastMinute && (
-        <span className="shrink-0 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-semibold">
-          Urgente
+
+      <div className="google-list-event-main">
+        <span className="google-list-event-title">{event.title}</span>
+        <span className="google-list-event-time">
+          {event.start && format(event.start, 'HH:mm')}
+          {event.end && ` - ${format(event.end, 'HH:mm')}`}
         </span>
+      </div>
+
+      {event.extendedProps.isLastMinute && (
+        <span className="google-list-event-urgent">Urgente</span>
       )}
     </div>
   );
@@ -193,13 +146,11 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 
 function EventContent({
   info,
-  onProfileClick,
 }: {
   info: EventContentArg;
-  onProfileClick?: (u: ScheduleAssignment['user']) => void;
 }) {
   const viewType = info.view.type;
-  if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} onProfileClick={onProfileClick} />;
+  if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} />;
   if (viewType.startsWith('list')) return <ListEventContent info={info} />;
   return <MonthEventContent info={info} />;
 }
@@ -216,14 +167,14 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="border-b border-navy-100 px-6 pt-5 pb-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold text-navy-400 uppercase tracking-wider">
+    <div className="px-5 py-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
           Tipos de turno
         </span>
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="text-navy-300 hover:text-navy-500 transition-colors"
+          className="text-theme-muted hover:text-theme-primary transition-colors"
         >
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
@@ -250,8 +201,8 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
                     }
                     : {
                       backgroundColor: 'transparent',
-                      borderColor: '#cbd5e1',
-                      color: '#94a3b8',
+                      borderColor: '#d0d7de',
+                      color: '#5f6368',
                     }
                 }
               >
@@ -308,8 +259,6 @@ export function SchedulePage() {
   const weekRefDate = dateRange.from;
   const isoWeekYear = getISOWeekYear(weekRefDate);
   const isoWeek = getISOWeek(weekRefDate);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
@@ -491,94 +440,117 @@ export function SchedulePage() {
           </div>
         )}
 
-        {/* Holiday calendar selector */}
-        <div className="border-b border-theme-color px-6 py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
-              <CalendarDays className="h-3.5 w-3.5" />
-              Festivos
-            </div>
-            <div className="flex rounded-lg border border-theme-color overflow-hidden text-xs font-medium">
-              {(['tenerife', 'las_palmas', 'none'] as CalendarType[]).map((cal) => (
-                <button
-                  key={cal}
-                  onClick={() => setActiveCalendar(cal)}
-                  className="px-3 py-1.5 transition-colors"
-                  style={
-                    activeCalendar === cal
-                      ? { backgroundColor: 'var(--theme-sidebar-active-bg)', color: 'var(--theme-sidebar-active-text)' }
-                      : { backgroundColor: 'var(--theme-surface)', color: 'var(--theme-text-muted)' }
-                  }
-                >
-                  {CALENDAR_LABELS[cal]}
-                </button>
-              ))}
-            </div>
-            {activeCalendar !== 'none' && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {(['nacional', 'autonomica', 'local', 'mejora'] as const).map((type) => (
-                  <span key={type} className="flex items-center gap-1 text-[10px] text-theme-muted">
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-sm opacity-70"
-                      style={{ backgroundColor: HOLIDAY_COLORS[type] }}
-                    />
-                    <span className="text-theme-muted">{HOLIDAY_TYPE_LABELS[type]}</span>
-                  </span>
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="border-b border-theme-color lg:border-b-0 lg:border-r">
+            <div className="px-5 py-4 border-b border-theme-color">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Festivos
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
+                {(['tenerife', 'las_palmas', 'none'] as CalendarType[]).map((cal) => (
+                  <button
+                    key={cal}
+                    onClick={() => setActiveCalendar(cal)}
+                    className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
+                    style={
+                      activeCalendar === cal
+                        ? {
+                          backgroundColor: 'var(--theme-sidebar-active-bg)',
+                          color: 'var(--theme-sidebar-active-text)',
+                          borderColor: 'var(--theme-sidebar-active-bg)',
+                        }
+                        : {
+                          backgroundColor: 'var(--theme-surface)',
+                          color: 'var(--theme-text-muted)',
+                          borderColor: 'var(--theme-border-color)',
+                        }
+                    }
+                  >
+                    {CALENDAR_LABELS[cal]}
+                  </button>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Legend */}
-        <TypeLegend hidden={hiddenTypes} onToggle={toggleType} counts={typeCounts} />
+              {activeCalendar !== 'none' && (
+                <div className="mt-3 pt-3 border-t border-theme-color flex flex-col gap-1.5">
+                  {(['nacional', 'autonomica', 'local', 'mejora'] as const).map((type) => (
+                    <span key={type} className="flex items-center gap-1.5 text-[10px] text-theme-muted">
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-sm opacity-70"
+                        style={{ backgroundColor: HOLIDAY_COLORS[type] }}
+                      />
+                      <span className="text-theme-muted">{HOLIDAY_TYPE_LABELS[type]}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
 
-        {/* Calendar */}
-        <div className="p-6">
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-            initialView="dayGridMonth"
-            locale={esLocale}
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
-            }}
-            buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
-            events={[...events, ...holidayEvents]}
-            selectable={canEdit}
-            selectMirror
-            dayMaxEvents={4}
-            weekends
-            select={handleDateSelect}
-            eventClick={handleEventClick}
-            eventContent={(info) => (
-              <EventContent
-                info={info}
-                onProfileClick={(u) => {
-                  setSelectedProfileUser(u);
-                  setProfileModalOpen(true);
+            <TypeLegend hidden={hiddenTypes} onToggle={toggleType} counts={typeCounts} />
+          </aside>
+
+          {/* Calendar */}
+          <div className="p-6">
+            <div className="fc-google-like">
+              <FullCalendar
+                ref={calendarRef}
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                initialView="dayGridMonth"
+                locale={esLocale}
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
                 }}
+                buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
+                events={[...events, ...holidayEvents]}
+                selectable={canEdit}
+                selectMirror
+                dayMaxEvents
+                dayMaxEventRows
+                moreLinkClick="popover"
+                navLinks
+                stickyHeaderDates
+                weekends
+                select={handleDateSelect}
+                eventClick={handleEventClick}
+                eventContent={(info) => <EventContent info={info} />}
+                eventOrder="start,-duration,allDay,title"
+                eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+                displayEventTime
+                displayEventEnd
+                height="auto"
+                expandRows
+                views={{
+                  timeGridWeek: {
+                    slotMinTime: '01:00:00',
+                    slotMaxTime: '24:00:00',
+                  },
+                  timeGridDay: {
+                    slotMinTime: '01:00:00',
+                    slotMaxTime: '24:00:00',
+                  },
+                }}
+                datesSet={(info) => {
+                  setActiveView(info.view.type);
+                  setDateRange({ from: info.start, to: info.end });
+                }}
+                eventDisplay="block"
+                nowIndicator
+                eventOverlap
+                slotEventOverlap
+                eventMaxStack={4}
+                /* Time grid settings */
+                slotDuration="01:00:00"
+                slotLabelInterval="01:00"
+                slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+                eventMinHeight={28}
+                /* Week starts Monday */
+                firstDay={1}
               />
-            )}
-            height="auto"
-            datesSet={(info) => {
-              setActiveView(info.view.type);
-              setDateRange({ from: info.start, to: info.end });
-            }}
-            eventDisplay="block"
-            nowIndicator
-            /* Time grid settings */
-            slotMinTime="06:00:00"
-            slotMaxTime="26:00:00"
-            slotDuration="01:00:00"
-            slotLabelInterval="01:00"
-            slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-            eventMinHeight={28}
-            /* Week starts Monday */
-            firstDay={1}
-          />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -588,12 +560,6 @@ export function SchedulePage() {
         schedule={selectedSchedule}
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
-      />
-
-      <UserProfileModal
-        open={profileModalOpen}
-        user={selectedProfileUser}
-        onClose={() => setProfileModalOpen(false)}
       />
     </div>
   );
