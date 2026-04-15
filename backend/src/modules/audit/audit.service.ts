@@ -1,7 +1,9 @@
-import { TransactionClient } from '../../common/transactions/transaction.utils';
-import { AuditParams } from './domain/audit.types';
+import { AuditParams, IRREVERSIBLE_ACTIONS } from './domain/audit.types';
 import * as auditRepository from './audit.repository';
+import * as scheduleRepository from '../schedules/schedules.repository';
+import * as userRepository from '../users/users.repository';
 import { AppError } from '../../common/errors/app-error';
+import { executeInTransaction, TransactionClient } from '../../common/transactions/transaction.utils';
 
 export * from './domain/audit.types';
 
@@ -24,6 +26,30 @@ function parseDetails(detailsJson: string | null) {
   } catch {
     return detailsJson;
   }
+}
+
+/**
+ * Limpia objetos para ser almacenados en el Audit Log (quita passwords, etc.)
+ */
+export function sanitizeSnapshot(data: any): any {
+  if (!data) return data;
+  const sanitized = JSON.parse(JSON.stringify(data)); // Clonación profunda simple
+  
+  const sensitiveFields = ['passwordHash', 'password', 'token', 'refreshToken'];
+  
+  const removeSensitive = (obj: any) => {
+    if (typeof obj !== 'object' || obj === null) return;
+    for (const key in obj) {
+      if (sensitiveFields.includes(key)) {
+        delete obj[key];
+      } else if (typeof obj[key] === 'object') {
+        removeSensitive(obj[key]);
+      }
+    }
+  };
+
+  removeSensitive(sanitized);
+  return sanitized;
 }
 
 export async function logAuditOrThrow(params: AuditParams, tx: TransactionClient) {
@@ -84,4 +110,80 @@ export async function getAuditLogById(id: string) {
     ...log,
     detailsJson: parseDetails(log.detailsJson),
   };
+}
+
+/**
+ * Ejecuta la reversión de un cambio basado en su log original.
+ */
+export async function rollbackAudit(logId: string, actorId: string, ipAddress?: string) {
+  const log = await auditRepository.findAuditLogById(logId);
+  if (!log) throw new AppError('NOT_FOUND', 404, 'Log no encontrado');
+
+  const details = parseDetails(log.detailsJson);
+  if (!details || !details.before) {
+    if (log.action.startsWith('CREATE')) {
+      // Create is a special case where "before" is null, but we can rollback by deleting.
+    } else {
+      throw new AppError('BAD_REQUEST', 400, 'Este log no contiene información suficiente para un rollback (falta snapshot "before")');
+    }
+  }
+
+  // Verificar si la acción es irreversible
+  if (IRREVERSIBLE_ACTIONS.includes(log.action as any)) {
+    throw new AppError('BAD_REQUEST', 400, `La acción "${log.action}" no puede ser revertida`);
+  }
+
+  return executeInTransaction(async (tx) => {
+    const { entityId, entityType, action } = log;
+    if (!entityId) throw new AppError('INTERNAL_ERROR', 500, 'El log no tiene un entityId asociado');
+
+    let rollbackResult;
+
+    // Lógica por tipo de entidad y acción
+    if (entityType === 'Schedule') {
+      if (action === 'CREATE_SCHEDULE') {
+        await scheduleRepository.deleteSchedule(entityId, tx);
+      } else if (action === 'UPDATE_SCHEDULE' || action === 'DELETE_SCHEDULE') {
+        const { assigneeIds, ...data } = details.before;
+        // Restaurar base
+        rollbackResult = await tx.schedule.upsert({
+          where: { id: entityId },
+          create: { ...data, id: entityId },
+          update: data,
+        });
+        // Restaurar asignaciones
+        if (assigneeIds) {
+          await scheduleRepository.replaceAssignments(entityId, assigneeIds, tx);
+        }
+      }
+    } else if (entityType === 'User') {
+      if (action === 'CREATE_USER') {
+        // En este sistema los usuarios se deshabilitan, pero un rollback de creación podría ser un borrado real o deshabilitado.
+        // Optamos por deshabilitarlo para evitar romper integridad referencial si ya se usó.
+        await userRepository.updateUserRecord(entityId, { status: 'disabled', email: `revoked_${Date.now()}_${details.after.email}` }, tx);
+      } else {
+        // UPDATE_USER, USER_STATUS_CHANGE, USER_ROLE_CHANGE, DELETE_USER
+        const data = details.before;
+        rollbackResult = await userRepository.updateUserRecord(entityId, data, tx);
+      }
+    } else {
+      throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);
+    }
+
+    // Registrar el hecho de que se realizó un rollback
+    await logAuditOrThrow({
+      userId: actorId,
+      action: 'ROLLBACK_PERFORMED',
+      entityType: 'AuditLog',
+      entityId: logId,
+      detailsJson: {
+        originalAction: log.action,
+        entityType,
+        entityId,
+      },
+      ipAddress,
+    }, tx);
+
+    return rollbackResult;
+  });
 }

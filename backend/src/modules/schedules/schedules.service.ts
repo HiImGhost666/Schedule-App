@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { createAppError } from '../../common/errors/error-catalog';
-import { logAuditOrThrow } from '../audit/audit.service';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyScheduleChange } from '../notifications/notifications.service';
 import {
   createSchedule,
@@ -169,7 +169,11 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
       action: 'CREATE_SCHEDULE',
       entityType: 'Schedule',
       entityId: created.id,
-      detailsJson: { title: created.title, assigneeIds, reason },
+      detailsJson: {
+        before: null,
+        after: sanitizeSnapshot({ ...created, assigneeIds }),
+        reason
+      },
       ipAddress: actor.ipAddress,
     }, tx);
 
@@ -221,7 +225,17 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
       action: 'UPDATE_SCHEDULE',
       entityType: 'Schedule',
       entityId: updated.id,
-      detailsJson: { changes: updateData, reason },
+      detailsJson: {
+        before: sanitizeSnapshot({
+          ...existing,
+          assigneeIds: existing.assignments.map(a => a.userId)
+        }),
+        after: sanitizeSnapshot({
+          ...updated,
+          assigneeIds: assigneeIds || existing.assignments.map(a => a.userId)
+        }),
+        reason
+      },
       ipAddress: actor.ipAddress,
     }, tx);
 
@@ -250,7 +264,14 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
       action: 'DELETE_SCHEDULE',
       entityType: 'Schedule',
       entityId: scheduleId,
-      detailsJson: { title: schedule.title, reason },
+      detailsJson: {
+        before: sanitizeSnapshot({
+          ...schedule,
+          assigneeIds: schedule.assignments.map(a => a.userId)
+        }),
+        after: null,
+        reason
+      },
       ipAddress: actor.ipAddress,
     }, tx);
   });
