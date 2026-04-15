@@ -19,5 +19,10 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // React Compiler is not enabled in this project.
+      // react-hook-form's watch() triggers this warning as a false positive.
+      'react-hooks/incompatible-library': 'off',
+    },
   },
 ])

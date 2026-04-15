@@ -23,7 +23,6 @@ function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const accessToken = useAuthStore((s) => s.accessToken);
   const refreshToken = useAuthStore((s) => s.refreshToken);
-  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
   const setUser = useAuthStore((s) => s.setUser);
   const setTokens = useAuthStore((s) => s.setTokens);
   const setBootstrapping = useAuthStore((s) => s.setBootstrapping);

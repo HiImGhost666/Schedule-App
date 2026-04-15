@@ -97,12 +97,12 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                     </div>
 
                         {(user as User).createdAt && (
-                            <div className="flex items-center gap-3 text-navy-600">
-                                <div className="p-2 bg-navy-50 rounded-lg">
-                                    <CalendarDays className="h-4 w-4 text-navy-400" />
+                            <div className="flex items-center gap-3 text-theme-muted">
+                                <div className="p-2 bg-theme-surface-muted rounded-lg">
+                                    <CalendarDays className="h-4 w-4 text-theme-muted" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-navy-300">En el sistema desde</p>
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-theme-muted">En el sistema desde</p>
                                     <p className="text-sm font-medium">{formatDate((user as User).createdAt)}</p>
                                 </div>
                             </div>

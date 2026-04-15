@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Palette, RotateCcw, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/config/api";
@@ -68,15 +68,12 @@ const logoOptions: Array<{
 ];
 
 export function ThemeManagerPage() {
-  const queryClient = useQueryClient();
   const { themeConfig, setThemeConfig } = useUIStore();
   const [selectedPresetId, setSelectedPresetId] = useState<string>(
     themeConfig?.preset || "",
   );
 
   const [editingTheme, setEditingTheme] = useState<ThemeConfig | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-
   const activeTheme = editingTheme || themeConfig || DEFAULT_THEME;
 
   const { data: presets = [] } = useQuery({
@@ -87,21 +84,13 @@ export function ThemeManagerPage() {
         .then((r) => r.data.data),
   });
 
-  // Inicializar una sola vez con el tema actual del store
-  useEffect(() => {
-    if (!isInitialized && themeConfig) {
-      setEditingTheme(null); // null = usar themeConfig
-      setIsInitialized(true);
-    }
-  }, [isInitialized, themeConfig]);
-
   const publishMutation = useMutation({
     mutationFn: (theme: ThemeConfig) =>
       api.put<{ data: ThemeConfig }>("/settings/theme", theme),
     onSuccess: (response) => {
       setThemeConfig(response.data.data);
-      setEditingTheme(null); // Sincronizar editingTheme con el tema publicado
-      queryClient.invalidateQueries({ queryKey: ["theme-settings"] });
+      setEditingTheme(null);
+      setSelectedPresetId(response.data.data.preset);
       toast.success("Tema global publicado");
     },
     onError: (error: unknown) => {
@@ -151,7 +140,6 @@ export function ThemeManagerPage() {
     target[path[path.length - 1]] = value;
     setEditingTheme(draft);
     applyThemeToDocument(draft);
-    setThemeConfig(draft); // Sincronizar inmediatamente en el store
   };
 
   const applyPreset = (presetId: string) => {
@@ -163,7 +151,6 @@ export function ThemeManagerPage() {
     });
     setEditingTheme(nextTheme);
     applyThemeToDocument(nextTheme);
-    setThemeConfig(nextTheme); // Sincronizar inmediatamente en el store
   };
 
   const setLogoVariant = (logoVariant: ThemeLogoVariant) => {
@@ -171,12 +158,13 @@ export function ThemeManagerPage() {
     draft.overrides.sidebar.logoVariant = logoVariant;
     setEditingTheme(draft);
     applyThemeToDocument(draft);
-    setThemeConfig(draft); // Sincronizar inmediatamente en el store
   };
 
   const handleReset = () => {
-    setEditingTheme(null); // null = usar themeConfig
-    applyThemeToDocument(themeConfig || DEFAULT_THEME);
+    const publishedTheme = themeConfig || DEFAULT_THEME;
+    setEditingTheme(null);
+    setSelectedPresetId(publishedTheme.preset);
+    applyThemeToDocument(publishedTheme);
   };
 
   return (
