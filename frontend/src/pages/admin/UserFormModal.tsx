@@ -17,6 +17,8 @@ const schema = z.object({
   role: z.enum(['admin', 'manager', 'viewer']),
   department: z.string().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).default('none'),
+  companyPhone: z.string().optional(),
+  auxiliaryPhone: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -33,8 +35,28 @@ export function UserFormModal({ open, user, onClose }: Props) {
   });
 
   useEffect(() => {
-    if (user) reset({ name: user.name, email: user.email, role: user.role, department: user.department || '', islandCalendar: (user.islandCalendar as 'tenerife' | 'las_palmas' | 'none') || 'none' });
-    else reset({ name: '', email: '', password: '', role: 'viewer', department: '', islandCalendar: 'none' });
+    if (user) {
+      reset({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department || '',
+        islandCalendar: (user.islandCalendar as 'tenerife' | 'las_palmas' | 'none') || 'none',
+        companyPhone: user.companyPhone || '',
+        auxiliaryPhone: user.auxiliaryPhone || ''
+      });
+    } else {
+      reset({
+        name: '',
+        email: '',
+        password: '',
+        role: 'viewer',
+        department: '',
+        islandCalendar: 'none',
+        companyPhone: '',
+        auxiliaryPhone: ''
+      });
+    }
   }, [user, reset]);
 
   const mutation = useMutation({
@@ -97,6 +119,16 @@ export function UserFormModal({ open, user, onClose }: Props) {
             <div>
               <label className="block text-sm font-medium text-navy-600 mb-1">Departamento</label>
               <input {...register('department')} className="input-field" placeholder="Seguridad" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-navy-600 mb-1">Teléfono Empresa</label>
+              <input {...register('companyPhone')} className="input-field" placeholder="Ext. 123" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-navy-600 mb-1">Teléfono Auxiliar</label>
+              <input {...register('auxiliaryPhone')} className="input-field" placeholder="Móvil / Casa" />
             </div>
           </div>
           <div>

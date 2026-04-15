@@ -14,7 +14,7 @@ import LogotipoIA from '@/assets/Logotipo_IA.png';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-  { to: '/schedule', icon: Calendar, label: 'Guardias' },
+  { to: '/schedule', icon: Calendar, label: 'Turnos' },
 ];
 
 const adminItems = [
@@ -107,14 +107,14 @@ export function Sidebar() {
                     cn(
                       'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
                       isActive
-                          ? 'text-white'
-                          : 'text-navy-200 hover:text-white'
+                        ? 'text-white'
+                        : 'text-navy-200 hover:text-white'
                     )
                   }
-                    style={({ isActive }) => ({
-                      backgroundColor: isActive ? 'var(--theme-sidebar-active-bg)' : 'transparent',
-                      color: isActive ? 'var(--theme-sidebar-active-text)' : undefined,
-                    })}
+                  style={({ isActive }) => ({
+                    backgroundColor: isActive ? 'var(--theme-sidebar-active-bg)' : 'transparent',
+                    color: isActive ? 'var(--theme-sidebar-active-text)' : undefined,
+                  })}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   {!sidebarCollapsed && <span>{label}</span>}

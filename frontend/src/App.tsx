@@ -17,7 +17,7 @@ import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { ThemeManagerPage } from '@/pages/admin/ThemeManagerPage';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import type { ThemeConfig } from '@/types';
+import type { ThemeConfig, User } from '@/types';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -49,13 +49,27 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Sync theme settings
     api
       .get<{ data: ThemeConfig }>('/settings/theme')
       .then((response) => {
         setThemeConfig(response.data.data);
       })
       .catch(() => {
-        // Keep local fallback theme when server settings are unavailable.
+        // Keep local fallback theme
+      });
+
+    // Refresh user data to get new fields (like phones)
+    api
+      .get<{ data: User }>('/auth/me')
+      .then((response) => {
+        const { accessToken, refreshToken } = useAuthStore.getState();
+        if (accessToken && refreshToken) {
+          useAuthStore.getState().setAuth(response.data.data, accessToken, refreshToken);
+        }
+      })
+      .catch(() => {
+        // Silent fail if /me fails
       });
   }, [isAuthenticated, setThemeConfig]);
 

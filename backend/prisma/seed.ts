@@ -38,6 +38,8 @@ async function main() {
       status: 'active',
       department: 'Administración',
       islandCalendar: 'none',
+      companyPhone: '900200200',
+      auxiliaryPhone: '600200200',
     },
     'Admin'
   );
@@ -52,16 +54,18 @@ async function main() {
       status: 'active',
       department: 'Operaciones',
       islandCalendar: 'none',
+      companyPhone: '900200200',
+      auxiliaryPhone: '600200200',
     },
     'Demo manager'
   );
 
   // Create demo users
   const demoUsers = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'Seguridad' },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'Seguridad' },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'Mantenimiento' },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'Seguridad' },
+    { name: 'Carlos López', email: 'carlos@company.com', department: 'Seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
+    { name: 'Ana Martínez', email: 'ana@company.com', department: 'Seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'Mantenimiento', companyPhone: '323456789' },
+    { name: 'Laura Fernández', email: 'laura@company.com', department: 'Seguridad', companyPhone: '423456789' },
   ];
 
   for (const u of demoUsers) {
