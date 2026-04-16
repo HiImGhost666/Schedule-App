@@ -117,9 +117,9 @@ router.put('/theme', authMiddleware, requireRole('admin'), async (req: AuthReque
     return sendError(res, 'Configuracion de tema invalida', 400, parsed.error.flatten());
   }
 
-  const violations = validateThemeContrast(parsed.data, 4.5);
+  const violations = validateThemeContrast(parsed.data, 3.5);
   if (violations.length > 0) {
-    return sendError(res, 'El tema no cumple contraste minimo WCAG AA', 400, {
+    return sendError(res, 'El tema no cumple contraste mínimo', 400, {
       violations,
       violationMessages: violations.map((item) => item.message),
     });
@@ -141,7 +141,7 @@ router.put('/theme', authMiddleware, requireRole('admin'), async (req: AuthReque
     userAgent: req.headers['user-agent'],
   });
 
-  return sendSuccess(res, published.after, 'Tema global publicado');
+  return sendSuccess(res, published.after, 'Apariencia publicada');
 });
 
 // ── Presets (built-in + custom) ───────────────────────────────────
@@ -159,9 +159,9 @@ router.post('/theme/presets', authMiddleware, requireRole('admin'), async (req: 
     return sendError(res, 'Datos invalidos', 400, parsed.error.flatten());
   }
 
-  const violations = validateThemeContrast({ preset: 'custom', tokens: parsed.data.tokens, overrides: parsed.data.overrides }, 4.5);
+  const violations = validateThemeContrast({ preset: 'custom', tokens: parsed.data.tokens, overrides: parsed.data.overrides }, 3.5);
   if (violations.length > 0) {
-    return sendError(res, 'El tema no cumple contraste minimo WCAG AA', 400, {
+    return sendError(res, 'El tema no cumple contraste mínimo', 400, {
       violations,
       violationMessages: violations.map((item) => item.message),
     });
@@ -200,9 +200,9 @@ router.patch('/theme/presets/:id', authMiddleware, requireRole('admin'), async (
   }
 
   if (parsed.data.tokens && parsed.data.overrides) {
-    const violations = validateThemeContrast({ preset: id, tokens: parsed.data.tokens, overrides: parsed.data.overrides }, 4.5);
+    const violations = validateThemeContrast({ preset: id, tokens: parsed.data.tokens, overrides: parsed.data.overrides }, 3.5);
     if (violations.length > 0) {
-      return sendError(res, 'El tema no cumple contraste minimo WCAG AA', 400, {
+      return sendError(res, 'El tema no cumple contraste mínimo', 400, {
         violations,
         violationMessages: violations.map((item) => item.message),
       });
