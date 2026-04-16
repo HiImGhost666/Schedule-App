@@ -167,11 +167,23 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
       if (action === 'CREATE_USER') {
         // En este sistema los usuarios se deshabilitan, pero un rollback de creación podría ser un borrado real o deshabilitado.
         // Optamos por deshabilitarlo para evitar romper integridad referencial si ya se usó.
-        await userRepository.updateUserRecord(entityId, { status: 'disabled', email: `revoked_${Date.now()}_${details.after.email}` }, tx);
+        const targetEmail = details.after?.email || details.email || 'unknown';
+        await userRepository.updateUserRecord(entityId, { status: 'disabled', email: `revoked_${Date.now()}_${targetEmail}` }, tx);
       } else {
         // UPDATE_USER, USER_STATUS_CHANGE, USER_ROLE_CHANGE, DELETE_USER
         const data = details.before;
         rollbackResult = await userRepository.updateUserRecord(entityId, data, tx);
+      }
+    } else if (entityType === 'WebhookConfig') {
+      if (action === 'CREATE_WEBHOOK') {
+        rollbackResult = await tx.webhookConfig.delete({ where: { id: entityId } });
+      } else {
+        const { id, createdAt, updatedAt, ...data } = details.before;
+        rollbackResult = await tx.webhookConfig.upsert({
+          where: { id: entityId },
+          create: { ...details.before, id: entityId },
+          update: data,
+        });
       }
     } else {
       throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);

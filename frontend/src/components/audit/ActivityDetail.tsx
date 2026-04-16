@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react';
-import { 
-  User, 
-  Clock, 
-  Tag, 
-  Fingerprint, 
-  MapPin, 
-  ArrowRight, 
-  Hash,
+import {
+  User,
+  Clock,
+  Tag,
+  Fingerprint,
+  MapPin,
+  ArrowRight,
   AlertCircle,
   FileText
 } from 'lucide-react';
@@ -80,7 +79,7 @@ const formatValue = (value: any): string => {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Sí' : 'No';
   if (Array.isArray(value)) return `[${value.length} elementos]`;
-  
+
   // Check if string is ISO date
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
     try {
@@ -104,7 +103,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   centroNombre
 }) => {
   const before = useMemo(() => parseSnapshot(beforeJson), [beforeJson]);
-  const after  = useMemo(() => parseSnapshot(afterJson),  [afterJson]);
+  const after = useMemo(() => parseSnapshot(afterJson), [afterJson]);
 
   // Clasificación basada en la acción (fuente de verdad principal)
   const isCreate = action.includes('CREATE');
@@ -115,17 +114,17 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   // Generar motor de diferencias para UPDATE
   const diffs = useMemo(() => {
     if (!isUpdate) return [];
-    
+
     const flatBefore = flattenObject(before);
     const flatAfter = flattenObject(after);
     const allKeys = Array.from(new Set([...Object.keys(flatBefore), ...Object.keys(flatAfter)]));
-    
+
     return allKeys
       .filter(key => {
         // Ignorar campos técnicos de base de datos si es necesario, o mostrar todo
         const ignoredKeys = ['updatedAt', 'lastLoginAt'];
         if (ignoredKeys.includes(key)) return false;
-        
+
         return JSON.stringify(flatBefore[key]) !== JSON.stringify(flatAfter[key]);
       })
       .map(key => ({
@@ -173,7 +172,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
               <p className="text-sm font-semibold text-navy-800">{entityType}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="p-2 bg-navy-50 rounded-lg">
               <Fingerprint className="w-4 h-4 text-navy-500" />
@@ -227,7 +226,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
             <FileText className="w-4 h-4 text-navy-400" />
             <h4 className="text-xs font-bold text-navy-600 uppercase tracking-tight">Cambios Realizados</h4>
           </div>
-          
+
           {diffs.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-navy-100 shadow-sm">
               <table className="w-full text-left border-collapse">
@@ -278,7 +277,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
               {isCreate ? 'Datos del nuevo registro' : 'Estado previo al borrado'}
             </h4>
           </div>
-          
+
           {flatData.length > 0 ? (
             <div className="grid grid-cols-1 gap-2 bg-white rounded-xl border border-navy-200 p-1 shadow-sm">
               {flatData.map(([key, value], idx) => (

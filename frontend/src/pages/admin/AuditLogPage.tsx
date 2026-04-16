@@ -191,7 +191,7 @@ export function AuditLogPage() {
   const canRollback =
     selectedLog &&
     !IRREVERSIBLE_ACTIONS.includes(selectedLog.action) &&
-    (selectedLog.detailsJson as any)?.before !== undefined;
+    ((selectedLog.detailsJson as any)?.before !== undefined || selectedLog.action.includes('CREATE'));
 
   const handleSelectLog = (id: string) => {
     setSelectedLogId((prev) => (prev === id ? null : id));
@@ -346,8 +346,8 @@ export function AuditLogPage() {
                     action={selectedLog.action}
                     entityType={selectedLog.entityType}
                     entityId={selectedLog.entityId}
-                    beforeJson={(selectedLog.detailsJson as any)?.before ?? null}
-                    afterJson={(selectedLog.detailsJson as any)?.after ?? null}
+                    beforeJson={(selectedLog.detailsJson as any)?.before !== undefined ? (selectedLog.detailsJson as any).before : (selectedLog.action.includes('DELETE') ? selectedLog.detailsJson : null)}
+                    afterJson={(selectedLog.detailsJson as any)?.after !== undefined ? (selectedLog.detailsJson as any).after : (!selectedLog.action.includes('DELETE') && !selectedLog.action.includes('UPDATE') && (selectedLog.detailsJson as any)?.before === undefined ? selectedLog.detailsJson : null)}
                     actorName={selectedLog.user?.name || 'Sistema'}
                     createdAt={selectedLog.createdAt}
                   />
