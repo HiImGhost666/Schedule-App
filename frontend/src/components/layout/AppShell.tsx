@@ -12,7 +12,7 @@ const pageTitles: Record<string, string> = {
   '/admin/webhooks': 'Webhooks de Microsoft Teams',
   '/admin/notifications': 'Notificaciones',
   '/admin/audit': 'Registro de Auditoría',
-  '/admin/theme': 'Tema Global',
+  '/admin/theme': 'Apariencia',
   '/profile': 'Mi Perfil',
 };
 

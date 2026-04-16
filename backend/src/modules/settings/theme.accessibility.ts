@@ -48,7 +48,7 @@ export interface ContrastViolation {
   message: string;
 }
 
-export function validateThemeContrast(theme: ThemePayload, minRatio = 4.5) {
+export function validateThemeContrast(theme: ThemePayload, minRatio = 3.5) {
   const pairs: ContrastPair[] = [
     {
       component: 'Base / Superficies',

@@ -22,7 +22,7 @@ const adminItems = [
   { to: '/admin/webhooks', icon: Webhook, label: 'Webhooks' },
   { to: '/admin/notifications', icon: Bell, label: 'Notificaciones' },
   { to: '/admin/audit', icon: ClipboardList, label: 'Auditoría' },
-  { to: '/admin/theme', icon: Palette, label: 'Tema Global' },
+  { to: '/admin/theme', icon: Palette, label: 'Apariencia' },
 ];
 
 export function Sidebar() {

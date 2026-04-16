@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Lock, Palette, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { Check, Lock, Palette, Plus, RotateCcw, Save, Trash2, X, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/config/api";
 import { DEFAULT_THEME, applyThemeToDocument } from "@/config/theme";
@@ -176,6 +176,80 @@ function CreatePresetModal({ baseTheme, onClose, onCreated }: CreatePresetModalP
   );
 }
 
+interface RenamePresetModalProps {
+  preset: ExtendedThemePreset;
+  onClose: () => void;
+  onRenamed: (preset: ExtendedThemePreset) => void;
+}
+
+function RenamePresetModal({ preset, onClose, onRenamed }: RenamePresetModalProps) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(preset.name);
+  const [description, setDescription] = useState(preset.description || "");
+
+  const mutation = useMutation({
+    mutationFn: (data: { name: string; description: string }) =>
+      api.patch<{ data: ExtendedThemePreset }>(`settings/theme/presets/${preset.id}`, data).then((r) => r.data.data),
+    onSuccess: (updatedPreset) => {
+      queryClient.invalidateQueries({ queryKey: ["theme-presets"] });
+      toast.success(`Preset renombrado a "${updatedPreset.name}"`);
+      onRenamed(updatedPreset);
+      onClose();
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, "Error al renombrar preset"));
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
+      <div className="card rounded-2xl shadow-2xl w-full max-w-sm animate-slide-up">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color">
+          <h2 className="text-base font-semibold text-theme-primary">Renombrar Preset Personalizado</h2>
+          <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Nombre *</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input-field"
+              placeholder="Ej: Mi Preset Corporativo"
+              maxLength={40}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Descripción</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="input-field"
+              placeholder="Descripción breve del preset"
+              maxLength={80}
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 btn-ghost text-sm">
+              Cancelar
+            </button>
+            <button
+              onClick={() => mutation.mutate({ name: name.trim(), description: description.trim() })}
+              disabled={!name.trim() || mutation.isPending}
+              className="flex-1 btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {mutation.isPending && <LoadingSpinner size="sm" className="border-white border-t-white/30" />}
+              Guardar nombre
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function ThemeManagerPage() {
@@ -183,6 +257,8 @@ export function ThemeManagerPage() {
   const { themeConfig, themeDraft, setThemeConfig, setThemeDraft, resetDraft } = useUIStore();
   const [selectedPresetId, setSelectedPresetId] = useState<string>(themeDraft?.preset || themeConfig?.preset || "");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renamePreset, setRenamePreset] = useState<ExtendedThemePreset | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<ExtendedThemePreset | null>(null);
 
   const activeTheme = themeDraft || themeConfig || DEFAULT_THEME;
@@ -232,7 +308,7 @@ export function ThemeManagerPage() {
       setThemeConfig(response.data.data);
       setSelectedPresetId(response.data.data.preset);
       qc.invalidateQueries({ queryKey: ["theme-presets"] });
-      toast.success("Tema global publicado");
+      toast.success("Apariencia publicada");
     },
     onError: (error: unknown) => {
       const details = getApiErrorDetails<{ violations?: ThemeContrastViolation[]; violationMessages?: string[] }>(error);
@@ -327,12 +403,17 @@ export function ThemeManagerPage() {
   };
 
   const handlePublish = () => {
-    publishMutation.mutate(activeTheme);
-  };
+    if (selectedPreset && !isSelectedBase && isSelectedPersistedCustom && themeDraft) {
+      saveCustomMutation.mutate(
+        { id: selectedPreset.id, theme: themeDraft },
+        {
+          onSuccess: () => publishMutation.mutate(activeTheme),
+        }
+      );
+      return;
+    }
 
-  const handleSaveCustomPreset = () => {
-    if (!selectedPreset || isSelectedBase || !themeDraft) return;
-    saveCustomMutation.mutate({ id: selectedPreset.id, theme: themeDraft });
+    publishMutation.mutate(activeTheme);
   };
 
   const handlePresetCreated = (preset: ExtendedThemePreset) => {
@@ -351,12 +432,16 @@ export function ThemeManagerPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-theme-primary">Tema Global</h1>
+          <h1 className="text-2xl font-bold text-theme-primary">Apariencia</h1>
           <p className="text-sm text-theme-muted mt-0.5">
-            Personaliza colores globales y publica cambios para toda la aplicación
+            Personaliza la apariencia y publica cambios para toda la aplicación
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleReset} className="btn-ghost text-sm flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Restablecer
+          </button>
           {/* Delete preset (only for custom) */}
           {selectedPreset && !isSelectedBase && isSelectedPersistedCustom && (
             <button
@@ -367,10 +452,19 @@ export function ThemeManagerPage() {
               Eliminar Preset
             </button>
           )}
-          <button onClick={handleReset} className="btn-ghost text-sm flex items-center gap-2">
-            <RotateCcw className="h-4 w-4" />
-            Restablecer
-          </button>
+          {/* Rename preset (only for custom) */}
+          {selectedPreset && !isSelectedBase && isSelectedPersistedCustom && (
+            <button
+              onClick={() => {
+                setRenamePreset(selectedPreset);
+                setShowRenameModal(true);
+              }}
+              className="flex items-center gap-2 text-sm text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors border border-blue-200"
+            >
+              <Pencil className="h-4 w-4" />
+              Renombrar
+            </button>
+          )}
           <button
             onClick={handlePublish}
             disabled={publishMutation.isPending}
@@ -442,21 +536,7 @@ export function ThemeManagerPage() {
                   <p className="text-xs text-theme-muted flex-1">
                     {presets.find((p) => p.id === selectedPresetId)?.description || "Preset personalizado editable"}
                   </p>
-                  {themeDraft && !isSelectedBase && isSelectedPersistedCustom && (
-                    <button
-                      onClick={handleSaveCustomPreset}
-                      disabled={saveCustomMutation.isPending}
-                      className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-60"
-                    >
-                      {saveCustomMutation.isPending ? (
-                        <LoadingSpinner size="sm" />
-                      ) : (
-                        <Save className="h-3 w-3" />
-                      )}
-                      Guardar cambios en preset
-                    </button>
-                  )}
-                </div>
+                    </div>
               )}
             </div>
           </div>
@@ -646,6 +726,17 @@ export function ThemeManagerPage() {
           baseTheme={activeTheme}
           onClose={() => setShowCreateModal(false)}
           onCreated={handlePresetCreated}
+        />
+      )}
+
+      {showRenameModal && renamePreset && (
+        <RenamePresetModal
+          preset={renamePreset}
+          onClose={() => setShowRenameModal(false)}
+          onRenamed={(updatedPreset) => {
+            setRenamePreset(updatedPreset);
+            setSelectedPresetId(updatedPreset.id);
+          }}
         />
       )}
 
