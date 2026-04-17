@@ -4,6 +4,8 @@ import * as scheduleRepository from '../schedules/schedules.repository';
 import * as userRepository from '../users/users.repository';
 import { AppError } from '../../common/errors/app-error';
 import { executeInTransaction, TransactionClient } from '../../common/transactions/transaction.utils';
+import { REALTIME_EVENTS } from '../../realtime/events';
+import { publishRealtimeEvent } from '../../realtime/socket';
 
 export * from './domain/audit.types';
 
@@ -55,7 +57,20 @@ export function sanitizeSnapshot(data: any): any {
  * @param params @param tx
  */
 export async function logAuditOrThrow(params: AuditParams, tx: TransactionClient) {
-  await auditRepository.createAuditLog(buildAuditCreateData(params), tx);
+  const created = await auditRepository.createAuditLog(buildAuditCreateData(params), tx);
+  
+  publishRealtimeEvent(REALTIME_EVENTS.AUDIT_CREATED, {
+    entity: 'audit',
+    action: 'created',
+    id: created.id,
+    changedAt: created.createdAt.toISOString(),
+    actorId: created.userId,
+    meta: {
+      action: created.action,
+      entityType: created.entityType,
+      entityId: created.entityId,
+    },
+  });
 }
 
 /**
@@ -69,7 +84,19 @@ export async function logAudit(params: AuditParams, tx?: TransactionClient) {
   }
 
   try {
-    await auditRepository.createAuditLog(buildAuditCreateData(params));
+    const created = await auditRepository.createAuditLog(buildAuditCreateData(params));
+    publishRealtimeEvent(REALTIME_EVENTS.AUDIT_CREATED, {
+      entity: 'audit',
+      action: 'created',
+      id: created.id,
+      changedAt: created.createdAt.toISOString(),
+      actorId: created.userId,
+      meta: {
+        action: created.action,
+        entityType: created.entityType,
+        entityId: created.entityId,
+      },
+    });
   } catch {
     // Audit failures must not break the main flow outside atomic transactions
   }
@@ -174,17 +201,42 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
         if (assigneeIds) {
           await scheduleRepository.replaceAssignments(entityId, assigneeIds, tx);
         }
+
+        // Emitir evento de tiempo real para que Calendario se actualice
+        publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_UPDATED, {
+          entity: 'schedule',
+          action: 'updated',
+          id: entityId,
+          changedAt: new Date().toISOString(),
+          actorId,
+        });
       }
     } else if (entityType === 'User') {
       if (action === 'CREATE_USER') {
         // En este sistema los usuarios se deshabilitan, pero un rollback de creación podría ser un borrado real o deshabilitado.
         // Optamos por deshabilitarlo para evitar romper integridad referencial si ya se usó.
         const targetEmail = details.after?.email || details.email || 'unknown';
-        await userRepository.updateUserRecord(entityId, { status: 'disabled', email: `revoked_${Date.now()}_${targetEmail}` }, tx);
+        rollbackResult = await userRepository.updateUserRecord(entityId, { status: 'disabled', email: `revoked_${Date.now()}_${targetEmail}` }, tx);
+
+        publishRealtimeEvent(REALTIME_EVENTS.USER_DELETED, {
+          entity: 'user',
+          action: 'deleted',
+          id: entityId,
+          changedAt: new Date().toISOString(),
+          actorId,
+        });
       } else {
         // UPDATE_USER, USER_STATUS_CHANGE, USER_ROLE_CHANGE, DELETE_USER
         const data = details.before;
         rollbackResult = await userRepository.updateUserRecord(entityId, data, tx);
+
+        publishRealtimeEvent(REALTIME_EVENTS.USER_UPDATED, {
+          entity: 'user',
+          action: 'updated',
+          id: entityId,
+          changedAt: new Date().toISOString(),
+          actorId,
+        });
       }
     } else if (entityType === 'WebhookConfig') {
       if (action === 'CREATE_WEBHOOK') {

@@ -1,80 +1,86 @@
-# Sistema de Guardias Corporativas
+# Sistema de Guardias Corporativas - Guía de Inicio
 
-## Inicio Rápido
+Esta guía te ayudará a levantar el entorno de desarrollo utilizando la infraestructura optimizada y contenedorizada.
 
-### Prerequisitos
-- Node.js 20+ instalado
+## 🚀 Inicio Rápido (Docker)
 
-### 1. Arrancar el Backend
+La forma recomendada de arrancar el proyecto es mediante **Docker Compose**, lo que garantiza que la base de datos MySQL y todas las dependencias estén correctamente configuradas.
 
-```bash
-cd schedule-app/backend
-npm install          # solo la primera vez
-npm run dev          # servidor en http://localhost:3001
-```
+### 1. Prerequisitos
+- **Docker Desktop** instalado y en ejecución.
 
-### 2. Arrancar el Frontend (nueva terminal)
+### 2. Arrancar el Ecosistema
+Ejecuta el siguiente comando en la raíz del proyecto:
 
 ```bash
-cd schedule-app/frontend
-npm install          # solo la primera vez
-npm run dev          # app en http://localhost:5173
+docker compose up --build
 ```
 
-### 3. Abrir el navegador
+Esto levantará:
+- **MySQL**: Base de datos persistente (Puerto 3306).
+- **Backend**: API Node.js con auto-recarga (Puerto 3001).
+- **Frontend**: Aplicación React/Vite (Puerto 5173).
 
-Ir a: **http://localhost:5173**
+### 3. Acceder a la App
+- **Localmente**: [http://localhost:5173](http://localhost:5173)
+
+### 🌍 Acceso desde la Red Local (LAN)
+Este sistema está diseñado para que un PC actúe como **Servidor** y el resto como **Clientes**. Para entrar desde otro equipo de la empresa:
+1. Obtén la IP local del servidor (ej. `192.168.1.50`).
+2. Desde cualquier otro PC o móvil en la misma red, entra en: `http://192.168.1.50:5173`.
+
+> [!NOTE]
+> Gracias a los **WebSockets**, todos los clientes conectados verán las actualizaciones al mismo tiempo. Si alguien cambia un turno en una oficina, el resto lo verá en sus pantallas al instante.
 
 ---
 
-## Credenciales por defecto
+## 🔐 Credenciales por Defecto
 
 | Email | Contraseña | Rol |
-|-------|-----------|-----|
-| admin@company.com | AdminPass123! | Administrador |
-| manager@company.com | Manager123! | Responsable |
-| carlos@company.com | User123! | Usuario |
+| :--- | :--- | :--- |
+| **admin@company.com** | `AdminPass123!` | Administrador |
+| **manager@company.com** | `Manager123!` | Responsable |
+| **carlos@company.com** | `User123!` | Usuario |
 
 ---
 
-## Funcionalidades
+## ✨ Funcionalidades Destacadas
 
-- **Dashboard** — resumen de la semana, guardias propias, actividad reciente
-- **Calendario de Guardias** — vista mensual/semanal/diaria/lista con FullCalendar
-  - Click en fecha vacía → crear nueva guardia
-  - Click en guardia → ver/editar
-  - Una persona puede tener múltiples guardias simultáneas
-- **Panel de Administración** (solo admin/manager)
-  - Gestión de usuarios (crear, editar, bloquear, resetear contraseña, eliminar)
-  - Webhooks de Microsoft Teams (configurar, probar, activar/desactivar)
-  - Notificaciones (historial, reenvío, resumen semanal manual, anuncios)
-  - Auditoría (log completo de todas las acciones)
-- **Perfil** — cambio de contraseña propio
+### 🔄 Sincronización en Tiempo Real
+La aplicación utiliza WebSockets para actualizar instantáneamente:
+- El **Calendario** de guardias.
+- La **Lista de Usuarios** en el panel de control.
+- El **Feed de Auditoría** y actividad reciente.
 
----
+### 🛡️ Auditoría y Rollback
+Cualquier cambio crítico en el sistema queda registrado. Los administradores pueden consultar el historial completo y **revertir cambios** (Rollback) con un solo click en casos de error o borrado accidental.
 
-## Notificaciones Teams
-
-1. Ve a **Admin → Webhooks**
-2. Crea un nuevo webhook con la URL de tu canal de Teams
-3. Configura qué notificaciones recibir:
-   - Modificaciones de guardias
-   - Cambios de último momento (<24h)
-   - Resumen automático cada viernes a las 12:00
-4. Prueba con el botón "Probar"
+### 📢 Notificaciones Inteligentes
+Integración con **Microsoft Teams** vía Webhooks. Configura resúmenes automáticos cada viernes o alertas de "Último Minuto" para cambios con menos de 24h de antelación.
 
 ---
 
-## Base de Datos
+## 📁 Documentación Técnica Avanzada
 
-La base de datos SQLite está en: `C:/Users/aguillen/schedule-app.db`
-
-Para cambiar la ubicación, edita `DATABASE_URL` en `backend/.env`
+Para profundizar en la arquitectura, puedes consultar la base de conocimientos interna:
+- [Manual de Desarrollo](file:///c:/Users/rodri/Desktop/schedule-app/schedule-app-doc/AGENTS.md)
+- [Estudio de Concurrencia y Eventos](file:///c:/Users/rodri/Desktop/schedule-app/schedule-app-doc/schedule-app-development/concurrency-study.md)
 
 ---
 
-## Responsive Design
+## 🛠️ Desarrollo Manual (Sin Docker)
 
-- **Móvil**: navegación inferior, vistas adaptadas
-- **Escritorio**: sidebar colapsable, tablas completas
-- **TV**: fuentes grandes, calendario expandido
+Si prefieres trabajar fuera de contenedores:
+
+1. **MySQL**: Asegúrate de tener un servidor MySQL 8+ activo con una BD llamada `schedule_db`.
+2. **Backend**: 
+   ```bash
+   cd backend && npm install && npm run dev
+   ```
+3. **Frontend**:
+   ```bash
+   cd frontend && npm install && npm run dev
+   ```
+
+> [!WARNING]
+> Recuerda configurar las variables de entorno en los archivos `.env` de cada carpeta basándote en los archivos `.env.example`.
