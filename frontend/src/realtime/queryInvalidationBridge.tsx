@@ -10,7 +10,7 @@ import {
 } from './socketClient';
 
 type RealtimePayload = {
-  entity: 'schedule' | 'user';
+  entity: 'schedule' | 'user' | 'audit';
   action: string;
   id: string;
   changedAt: string;
@@ -18,11 +18,16 @@ type RealtimePayload = {
   meta?: Record<string, unknown>;
 };
 
+function invalidateForAudit() {
+  queryClient.invalidateQueries({ queryKey: ['audit'] });
+  queryClient.invalidateQueries({ queryKey: ['audit-detail'] });
+}
+
 function invalidateForSchedules() {
   queryClient.invalidateQueries({ queryKey: ['schedules'] });
   queryClient.invalidateQueries({ queryKey: ['schedule-detail'] });
   queryClient.invalidateQueries({ queryKey: ['user-schedules'] });
-  queryClient.invalidateQueries({ queryKey: ['audit', 'recent'] });
+  queryClient.invalidateQueries({ queryKey: ['audit'] });
 }
 
 function invalidateForUsers() {
@@ -30,7 +35,7 @@ function invalidateForUsers() {
   queryClient.invalidateQueries({ queryKey: ['users', 'count'] });
   queryClient.invalidateQueries({ queryKey: ['user-detail'] });
   queryClient.invalidateQueries({ queryKey: ['user-schedules'] });
-  queryClient.invalidateQueries({ queryKey: ['audit', 'recent'] });
+  queryClient.invalidateQueries({ queryKey: ['audit'] });
 }
 
 function registerEvent(eventName: RealtimeEventName) {
@@ -44,6 +49,10 @@ function registerEvent(eventName: RealtimeEventName) {
     }
     if (payload.entity === 'user') {
       invalidateForUsers();
+      return;
+    }
+    if (payload.entity === 'audit') {
+      invalidateForAudit();
     }
   };
 
@@ -72,6 +81,7 @@ export function QueryInvalidationBridge() {
       registerEvent(REALTIME_EVENTS.USER_STATUS_CHANGED),
       registerEvent(REALTIME_EVENTS.USER_ROLE_CHANGED),
       registerEvent(REALTIME_EVENTS.USER_DELETED),
+      registerEvent(REALTIME_EVENTS.AUDIT_CREATED),
     ];
 
     return () => {

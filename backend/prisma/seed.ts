@@ -5,6 +5,7 @@ import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { isAppError } from '../src/common/errors/app-error';
+import { env } from '../src/config/env';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -64,6 +65,11 @@ async function ensureSeedSchedule(adminId: string, userId: string, title: string
 
 async function main() {
   console.log('Obteniendo la Tierra lista. Seeding database...');
+  console.log('# -----------------------------------------------------------------------------');
+  console.log('# CONFIGURACIÓN DE BASE DE DATOS');
+  console.log('# -----------------------------------------------------------------------------');
+  console.log('# [CAMBIO PRODUCCIÓN]: Cambia esta URL por la de tu servidor MySQL de producción.');
+  console.log('# Si usas el docker-compose.yml incluido, déjalo como está.');
   console.log('----------------------------------------------------');
 
   // --- BLOQUE 2.1: TEMA GLOBAL ---
@@ -85,9 +91,7 @@ async function main() {
 
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@company.com';
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminPass123!';
-  const adminName = process.env.SEED_ADMIN_NAME || 'Administrador Sistema';
+  const { SEED_ADMIN_EMAIL: adminEmail, SEED_ADMIN_PASSWORD: adminPassword, SEED_ADMIN_NAME: adminName } = env;
 
   const adminUser = await ensureSeedUser(
     {

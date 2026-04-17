@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import { disconnectRealtime, reconnectRealtimeWithFreshToken } from '@/realtime/socketClient';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: (import.meta.env.VITE_API_URL || '') + '/api',
   withCredentials: true,
 });
 

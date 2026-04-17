@@ -10,6 +10,7 @@ export const REALTIME_EVENTS = {
   USER_STATUS_CHANGED: 'user.statusChanged',
   USER_ROLE_CHANGED: 'user.roleChanged',
   USER_DELETED: 'user.deleted',
+  AUDIT_CREATED: 'audit.created',
 } as const;
 
 export type RealtimeEventName = (typeof REALTIME_EVENTS)[keyof typeof REALTIME_EVENTS];
@@ -21,7 +22,7 @@ function getToken() {
 }
 
 function createSocketInstance(token: string) {
-  return io('/', {
+  return io(import.meta.env.VITE_API_URL || '/', {
     path: '/socket.io',
     transports: ['websocket'],
     withCredentials: true,
