@@ -5,6 +5,8 @@ services:
     image: mysql:8.0
     container_name: schedule-db
     restart: unless-stopped
+    networks:
+      - schedule-network
     environment:
       MYSQL_ROOT_PASSWORD: root_pass
       MYSQL_DATABASE: schedule_db
@@ -24,23 +26,22 @@ services:
       dockerfile: Dockerfile
     container_name: schedule-backend
     restart: unless-stopped
+    networks:
+      - schedule-network
     environment:
       - DATABASE_URL=mysql://root:root_pass@db:3306/schedule_db
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
     env_file:
       - ./backend/.env
-    environment:
-      NODE_ENV: development
-      CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
-    command: npm run dev
     ports:
       - "3001:3001"
     depends_on:
       db:
         condition: service_healthy
-    # El comando inicializa la DB, ejecuta el seed directamente y arranca el server
     command: >
       sh -c "npx prisma generate && 
              npx prisma db push && 
@@ -59,18 +60,29 @@ services:
       dockerfile: Dockerfile
     container_name: schedule-frontend
     restart: unless-stopped
+    networks:
+      - schedule-network
     init: true
     environment:
-      VITE_API_URL: http://localhost:3001
+      VITE_API_URL: http://backend:3001
       CHOKIDAR_USEPOLLING: "true"
     depends_on:
       backend:
         condition: service_healthy
-      backend:
-        condition: service_healthy
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
 
 volumes:
   mysql_data:
+    driver: local
+  backend_node_modules:
+    driver: local
+  frontend_node_modules:
+    driver: local
+
+networks:
+  schedule-network:
+    driver: bridge
