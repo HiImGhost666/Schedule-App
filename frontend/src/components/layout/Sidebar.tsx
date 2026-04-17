@@ -131,7 +131,8 @@ export function Sidebar() {
           to="/profile"
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all',
+              'flex items-center py-2.5 rounded-lg text-sm transition-all',
+              sidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3',
               isActive ? 'bg-navy-600' : 'hover:bg-navy-700/60'
             )
           }
