@@ -43,7 +43,6 @@ export function Sidebar() {
   const isAdmin = user?.role === 'admin';
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
   const expandedLogo = activeTheme.overrides.sidebar.logoVariant === 'logo_oscuro' ? LogoOscuro : LogoClaro;
-  const sidebarLogo = sidebarCollapsed ? LogotipoIA : expandedLogo;
 
   return (
     <aside
@@ -57,13 +56,29 @@ export function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div className={cn('px-3 py-5 border-b border-navy-700/50', sidebarCollapsed ? 'flex justify-center' : 'px-5')}>
-        <img
-          src={sidebarLogo}
-          alt="Logo Laberit"
-          className={cn('object-contain select-none', sidebarCollapsed ? 'h-8 w-8' : 'h-16 w-full max-w-[210px]')}
-          draggable={false}
-        />
+      <div
+        className={cn(
+          'border-b border-navy-700/50 flex items-center justify-center',
+          sidebarCollapsed ? 'h-16 px-2' : 'px-5 py-5'
+        )}
+      >
+        {sidebarCollapsed ? (
+          /* Collapsed: show small square logo, fully contained */
+          <img
+            src={LogotipoIA}
+            alt="Logo"
+            className="h-9 w-9 object-contain select-none rounded"
+            draggable={false}
+          />
+        ) : (
+          /* Expanded: show full logo */
+          <img
+            src={expandedLogo}
+            alt="Logo Laberit"
+            className="h-16 w-full max-w-[210px] object-contain select-none"
+            draggable={false}
+          />
+        )}
       </div>
 
       {/* Navigation */}
@@ -76,6 +91,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
+                sidebarCollapsed && 'justify-center',
                 isActive
                   ? 'text-white'
                   : 'text-theme-sidebar hover:text-white'
@@ -85,6 +101,7 @@ export function Sidebar() {
               backgroundColor: isActive ? 'var(--theme-sidebar-active-bg)' : 'transparent',
               color: isActive ? 'var(--theme-sidebar-active-text)' : undefined,
             })}
+            title={sidebarCollapsed ? label : undefined}
           >
             <Icon className="h-4 w-4 flex-shrink-0" />
             {!sidebarCollapsed && <span>{label}</span>}
@@ -98,6 +115,9 @@ export function Sidebar() {
                 Administración
               </p>
             )}
+            {sidebarCollapsed && (
+              <div className="my-2 border-t border-navy-700/50" />
+            )}
             {(isAdmin ? adminItems : adminItems.filter((i) => i.to === '/admin/users')).map(
               ({ to, icon: Icon, label }) => (
                 <NavLink
@@ -106,6 +126,7 @@ export function Sidebar() {
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all',
+                      sidebarCollapsed && 'justify-center',
                       isActive
                         ? 'text-white'
                         : 'text-theme-sidebar hover:text-white'
@@ -115,6 +136,7 @@ export function Sidebar() {
                     backgroundColor: isActive ? 'var(--theme-sidebar-active-bg)' : 'transparent',
                     color: isActive ? 'var(--theme-sidebar-active-text)' : undefined,
                   })}
+                  title={sidebarCollapsed ? label : undefined}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   {!sidebarCollapsed && <span>{label}</span>}
@@ -136,6 +158,7 @@ export function Sidebar() {
               isActive ? 'bg-navy-600' : 'hover:bg-navy-700/60'
             )
           }
+          title={sidebarCollapsed ? 'Mi Perfil' : undefined}
         >
           <div
             className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
@@ -154,7 +177,11 @@ export function Sidebar() {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-sidebar hover:bg-navy-700 hover:text-white transition-all"
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-sidebar hover:bg-navy-700 hover:text-white transition-all',
+            sidebarCollapsed && 'justify-center'
+          )}
+          title={sidebarCollapsed ? 'Cerrar Sesión' : undefined}
         >
           <LogOut className="h-4 w-4 flex-shrink-0" />
           {!sidebarCollapsed && <span>Cerrar Sesión</span>}
