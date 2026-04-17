@@ -186,6 +186,36 @@ async function main() {
       setHours(setMinutes(addDays(monday, 3), 0), 14), // Jueves 14:00
       setHours(setMinutes(addDays(monday, 3), 0), 20) // Jueves 20:00
     );
+
+    // --- BLOQUE 2.4: STRESS TEST (SOLAPAMIENTOS) ---
+    console.log('BLOQUE: STRESS TEST (OVERLAPS)');
+    const wednesday = addDays(monday, 2);
+    const stressStart = setHours(setMinutes(wednesday, 0), 10); // Miércoles 10:00
+    const stressEnd = setHours(setMinutes(wednesday, 0), 12);   // Miércoles 12:00
+
+    const stressTasks = [
+      { user: adminUser, title: 'Reunión de Dirección', type: 'reunion', color: '#4f46e5' },
+      { user: managerUser, title: 'Formación Seguridad', type: 'formacion', color: '#0891b2' },
+      { user: createdViewers[0], title: 'Tarea Administrativa', type: 'administrativo', color: '#4b5563' },
+      { user: createdViewers[1], title: 'Urgencia Técnica', type: 'urgencia', color: '#dc2626' },
+      { user: createdViewers[2], title: 'Mantenimiento Preventivo', type: 'mantenimiento', color: '#16a34a' },
+      { user: createdViewers[3], title: 'Soporte Remoto', type: 'soporte', color: '#ea580c' },
+    ];
+
+    for (const task of stressTasks) {
+      if (task.user) {
+        await ensureSeedSchedule(
+          adminUser.id,
+          task.user.id,
+          task.title,
+          task.type,
+          task.color,
+          false,
+          stressStart,
+          stressEnd
+        );
+      }
+    }
   } else {
     console.log('[SCHEDULE] Se omitió la creación porque no existen suficientes usuarios base.');
   }
