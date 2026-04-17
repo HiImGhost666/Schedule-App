@@ -1,7 +1,6 @@
 import type { Config } from 'jest';
 
 const config: Config = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   clearMocks: true,
   moduleFileExtensions: ['ts', 'js'],
@@ -13,6 +12,11 @@ const config: Config = {
     '!src/modules/**/*.http.schemas.ts',
     '!src/modules/**/*.types.ts'
   ],
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: '<rootDir>/tsconfig.test.json',
+    }],
+  },
 };
 
 export default config;
