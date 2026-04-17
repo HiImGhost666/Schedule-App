@@ -25,6 +25,23 @@ async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: st
 async function main() {
   console.log('Seeding database...');
 
+  await prisma.branch.upsert({
+    where: { code: 'MAIN' },
+    create: {
+      id: 'branch_default_main',
+      name: 'Sucursal Principal',
+      code: 'MAIN',
+      city: 'Sin especificar',
+      region: 'Sin especificar',
+      countryCode: 'ES',
+      timezone: 'Europe/Madrid',
+      isActive: true,
+    },
+    update: {
+      isActive: true,
+    },
+  });
+
   const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@company.com';
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminPass123!';
   const adminName = process.env.SEED_ADMIN_NAME || 'Administrador Sistema';

@@ -14,6 +14,7 @@ import {
   createScheduleBodySchema,
   deleteScheduleBodySchema,
   listSchedulesQuerySchema,
+  listWeekSchedulesQuerySchema,
   scheduleIdParamsSchema,
   updateScheduleBodySchema,
   weekParamsSchema,
@@ -35,7 +36,12 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
     return sendError(res, 'Parámetros de semana inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
-  const result = await listWeekSchedules(parsed.data.year, parsed.data.week);
+  const parsedQuery = listWeekSchedulesQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const result = await listWeekSchedules(parsed.data.year, parsed.data.week, parsedQuery.data.branchId);
   return sendSuccess(res, result);
 }
 

@@ -9,6 +9,7 @@ const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
   '/schedule': 'Planificación de Turnos',
   '/admin/users': 'Gestión de Usuarios',
+  '/admin/branches': 'Sucursales y Festivos',
   '/admin/webhooks': 'Webhooks de Microsoft Teams',
   '/admin/notifications': 'Notificaciones',
   '/admin/audit': 'Registro de Auditoría',

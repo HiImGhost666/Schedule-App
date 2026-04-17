@@ -14,6 +14,11 @@ export const listSchedulesQuerySchema = z.object({
   to: z.string().optional(),
   userId: z.string().optional(),
   type: z.string().optional(),
+  branchId: z.string().optional(),
+});
+
+export const listWeekSchedulesQuerySchema = z.object({
+  branchId: z.string().optional(),
 });
 
 export const createScheduleBodySchema = z.object({
@@ -25,6 +30,7 @@ export const createScheduleBodySchema = z.object({
   color: z.string().default('#1e3a5f'),
   location: z.string().optional(),
   notes: z.string().optional(),
+  branchId: z.string().min(1, 'La sucursal es obligatoria'),
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),

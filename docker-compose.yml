@@ -16,7 +16,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
-    command: npm run dev
+    command: npm run dev:docker
     ports:
       - "3001:3001"
     healthcheck:
