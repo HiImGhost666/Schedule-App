@@ -14,7 +14,9 @@ CREATE TABLE "users" (
     "failed_attempts" INTEGER NOT NULL DEFAULT 0,
     "locked_until" DATETIME,
     "force_password_change" BOOLEAN NOT NULL DEFAULT false,
-    "island_calendar" TEXT NOT NULL DEFAULT 'none'
+    "island_calendar" TEXT NOT NULL DEFAULT 'none',
+    "company_phone" TEXT,
+    "auxiliary_phone" TEXT
 );
 
 -- CreateTable
@@ -70,6 +72,7 @@ CREATE TABLE "webhook_configs" (
     "notify_modifications" BOOLEAN NOT NULL DEFAULT true,
     "notify_last_minute" BOOLEAN NOT NULL DEFAULT true,
     "friday_reminder_enabled" BOOLEAN NOT NULL DEFAULT true,
+    "monday_vacation_reminder_enabled" BOOLEAN NOT NULL DEFAULT true,
     "friday_reminder_time" TEXT NOT NULL DEFAULT '12:00',
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL
