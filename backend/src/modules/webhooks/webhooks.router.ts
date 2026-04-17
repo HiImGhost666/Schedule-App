@@ -31,7 +31,7 @@ router.post('/', authMiddleware, requireRole('admin'), async (req: AuthRequest, 
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten());
 
   const webhook = await prisma.webhookConfig.create({ data: parsed.data });
-  await logAudit({ userId: req.user!.id, action: 'CREATE_WEBHOOK', entityType: 'WebhookConfig', entityId: webhook.id, detailsJson: { name: webhook.name }, ipAddress: req.ip });
+  await logAudit({ userId: req.user!.id, action: 'CREATE_WEBHOOK', entityType: 'WebhookConfig', entityId: webhook.id, detailsJson: { before: null, after: webhook }, ipAddress: req.ip });
   return sendSuccess(res, webhook, 'Webhook creado', 201);
 });
 
@@ -43,7 +43,7 @@ router.patch('/:id', authMiddleware, requireRole('admin'), async (req: AuthReque
   if (!existing) return sendError(res, 'Webhook no encontrado', 404);
 
   const webhook = await prisma.webhookConfig.update({ where: { id: req.params.id }, data: parsed.data });
-  await logAudit({ userId: req.user!.id, action: 'UPDATE_WEBHOOK', entityType: 'WebhookConfig', entityId: req.params.id, detailsJson: parsed.data, ipAddress: req.ip });
+  await logAudit({ userId: req.user!.id, action: 'UPDATE_WEBHOOK', entityType: 'WebhookConfig', entityId: req.params.id, detailsJson: { before: existing, after: webhook }, ipAddress: req.ip });
   return sendSuccess(res, webhook, 'Webhook actualizado');
 });
 
@@ -52,7 +52,7 @@ router.delete('/:id', authMiddleware, requireRole('admin'), async (req: AuthRequ
   if (!existing) return sendError(res, 'Webhook no encontrado', 404);
 
   await prisma.webhookConfig.delete({ where: { id: req.params.id } });
-  await logAudit({ userId: req.user!.id, action: 'DELETE_WEBHOOK', entityType: 'WebhookConfig', entityId: req.params.id, detailsJson: { name: existing.name }, ipAddress: req.ip });
+  await logAudit({ userId: req.user!.id, action: 'DELETE_WEBHOOK', entityType: 'WebhookConfig', entityId: req.params.id, detailsJson: { before: existing, after: null }, ipAddress: req.ip });
   return sendSuccess(res, null, 'Webhook eliminado');
 });
 

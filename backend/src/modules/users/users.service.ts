@@ -4,7 +4,7 @@ import { prisma } from '../../config/database';
 import { hashPassword } from '../../utils/bcrypt';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
-import { logAuditOrThrow } from '../audit/audit.service';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import {
   buildUsersWhere,
   createUserRecord,
@@ -55,6 +55,7 @@ export type CreateUserInput = z.infer<typeof createUserInputSchema>;
 
 type ActorContext = { id: string; ipAddress?: string };
 
+/** Normaliza el identificador logístico a formato case-insensitive limpio. */
 function normalizeLoginIdentifier(identifier: string): string {
   return identifier.trim().toLowerCase();
 }
@@ -66,6 +67,10 @@ async function ensureBranchExists(branchId: string) {
   }
 }
 
+/**
+ * @description Crea un usuario validando duplicados (email/username), hashea password y emite evento en tiempo real.
+ * @param input @param actor
+ */
 export async function createUser(input: CreateUserInput, actor?: ActorContext) {
   const parsed = createUserInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -111,7 +116,10 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
         action: 'CREATE_USER',
         entityType: 'User',
         entityId: user.id,
-        detailsJson: { email: user.email, role: user.role },
+        detailsJson: {
+          before: null,
+          after: sanitizeSnapshot(user),
+        },
         ipAddress: actor.ipAddress,
       }, tx);
     }
@@ -134,6 +142,10 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
   return user;
 }
 
+/**
+ * @description Resuelve un usuario priorizando coincidencia por email exacto y con fallback al username derivado.
+ * @param identifier
+ */
 export async function findUserByEmailOrUsername(identifier: string) {
   const normalizedIdentifier = normalizeLoginIdentifier(identifier);
 
@@ -148,12 +160,20 @@ export async function findUserByEmailOrUsername(identifier: string) {
   return findUserByDerivedUsername(normalizedIdentifier);
 }
 
+/**
+ * @description Obtiene una lista paginada de usuarios filtrada en la base por nombre, rol o estado.
+ * @param params
+ */
 export async function getUsersList(params: { page: number; limit: number; search?: string; role?: string; status?: string }) {
   const where = buildUsersWhere(params.search, params.role, params.status);
   const [users, total] = await listUsers(where, params.page, params.limit);
   return { users, total };
 }
 
+/**
+ * @description Lanza error 404 (NOT_FOUND) si el usuario solicitado vía ID no existe.
+ * @param userId
+ */
 export async function getUserById(userId: string) {
   const user = await findUserDetailById(userId);
   if (!user) {
@@ -162,6 +182,7 @@ export async function getUserById(userId: string) {
   return user;
 }
 
+/** Modifica datos estructurales o de contacto del usuario tras verificar que no invada/colisione identidades. */
 export async function updateUser(userId: string, data: {
   name?: string;
   email?: string;
@@ -223,7 +244,10 @@ export async function updateUser(userId: string, data: {
       action: 'UPDATE_USER',
       entityType: 'User',
       entityId: userId,
-      detailsJson: parsed.data,
+      detailsJson: {
+        before: sanitizeSnapshot(user),
+        after: sanitizeSnapshot(updated),
+      },
       ipAddress: actor.ipAddress,
     }, tx);
     return updated;
@@ -244,6 +268,10 @@ export async function updateUser(userId: string, data: {
   return updated;
 }
 
+/**
+ * @description Altera el estado logístico del usuario (ej. bloqueos), limpiando candados residuales y guardando rastro.
+ * @param userId @param status @param actor
+ */
 export async function changeUserStatus(userId: string, status: 'active' | 'disabled' | 'locked', actor: ActorContext) {
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
@@ -259,13 +287,16 @@ export async function changeUserStatus(userId: string, status: 'active' | 'disab
   }
 
   await executeInTransaction(async (tx) => {
-    await updateUserRecord(userId, updateData, tx);
+    const updated = await updateUserRecord(userId, updateData, tx);
     await logAuditOrThrow({
       userId: actor.id,
       action: 'USER_STATUS_CHANGE',
       entityType: 'User',
       entityId: userId,
-      detailsJson: { newStatus: status },
+      detailsJson: {
+        before: sanitizeSnapshot(user),
+        after: sanitizeSnapshot(updated),
+      },
       ipAddress: actor.ipAddress,
     }, tx);
   });
@@ -282,17 +313,26 @@ export async function changeUserStatus(userId: string, status: 'active' | 'disab
   });
 }
 
+/**
+ * @description Promueve o degrada los privilegios del usuario de forma atómica.
+ * @param userId @param role @param actor
+ */
 export async function changeUserRole(userId: string, role: 'admin' | 'manager' | 'viewer', actor: ActorContext) {
+  const user = await findUserById(userId);
+  if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes cambiar tu propio rol');
 
   await executeInTransaction(async (tx) => {
-    await updateUserRecord(userId, { role }, tx);
+    const updated = await updateUserRecord(userId, { role }, tx);
     await logAuditOrThrow({
       userId: actor.id,
       action: 'USER_ROLE_CHANGE',
       entityType: 'User',
       entityId: userId,
-      detailsJson: { newRole: role },
+      detailsJson: {
+        before: sanitizeSnapshot(user),
+        after: sanitizeSnapshot(updated),
+      },
       ipAddress: actor.ipAddress,
     }, tx);
   });
@@ -309,6 +349,10 @@ export async function changeUserRole(userId: string, role: 'admin' | 'manager' |
   });
 }
 
+/**
+ * @description Fuerza el cambio transaccional del hash de acceso aliviando intentos fallidos de la BD.
+ * @param userId @param newPassword @param actor
+ */
 export async function resetUserPassword(userId: string, newPassword: string, actor: ActorContext) {
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
@@ -332,19 +376,26 @@ export async function resetUserPassword(userId: string, newPassword: string, act
   });
 }
 
+/**
+ * @description Ejecuta soft-delete (modificando prefix del email) impidiendo nuevos logins pero archivando su historial.
+ * @param userId @param actor
+ */
 export async function deleteUser(userId: string, actor: ActorContext) {
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes eliminar tu propia cuenta');
 
   await executeInTransaction(async (tx) => {
-    await updateUserRecord(userId, { status: 'disabled', email: `deleted_${Date.now()}_${user.email}` }, tx);
+    const updated = await updateUserRecord(userId, { status: 'disabled', email: `deleted_${Date.now()}_${user.email}` }, tx);
     await logAuditOrThrow({
       userId: actor.id,
       action: 'DELETE_USER',
       entityType: 'User',
       entityId: userId,
-      detailsJson: { name: user.name, email: user.email },
+      detailsJson: {
+        before: sanitizeSnapshot(user),
+        after: sanitizeSnapshot(updated),
+      },
       ipAddress: actor.ipAddress,
     }, tx);
   });
@@ -358,6 +409,10 @@ export async function deleteUser(userId: string, actor: ActorContext) {
   });
 }
 
+/**
+ * @description Recupera en lista turnos y ausencias (Schedules) de este usuario enclavado a dos parámetros cronológicos opcionales.
+ * @param userId @param from @param to
+ */
 export async function getUserSchedules(userId: string, from?: string, to?: string) {
   const user = await findUserById(userId);
   if (!user) {

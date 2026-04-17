@@ -1,15 +1,18 @@
-# Dockerfile for backend
-FROM node:22.12.0-slim
+# Stage 1: Dependencies
+FROM node:22.12.0-slim AS deps
 WORKDIR /app
-
-# Instala openssl para Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm install
 COPY . .
-# Genera Prisma Client
 RUN npx prisma generate
-# Expone el puerto
+
+# Stage 2: Test
+FROM deps AS test
+RUN npm test
+
+# Stage 3: Runner
+FROM test AS runner
+WORKDIR /app
 EXPOSE 3001
 CMD ["npm", "run", "dev"]

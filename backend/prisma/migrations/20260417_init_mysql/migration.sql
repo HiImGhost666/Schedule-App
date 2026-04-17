@@ -1,0 +1,156 @@
+-- CreateTable
+CREATE TABLE `users` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `email` VARCHAR(191) NOT NULL,
+    `password_hash` VARCHAR(191) NOT NULL,
+    `role` VARCHAR(191) NOT NULL DEFAULT 'viewer',
+    `status` VARCHAR(191) NOT NULL DEFAULT 'active',
+    `avatar_url` VARCHAR(191) NULL,
+    `department` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+    `last_login` DATETIME(3) NULL,
+    `failed_attempts` INTEGER NOT NULL DEFAULT 0,
+    `locked_until` DATETIME(3) NULL,
+    `force_password_change` BOOLEAN NOT NULL DEFAULT false,
+    `island_calendar` VARCHAR(191) NOT NULL DEFAULT 'none',
+    `company_phone` VARCHAR(191) NULL,
+    `auxiliary_phone` VARCHAR(191) NULL,
+
+    UNIQUE INDEX `users_email_key`(`email`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `refresh_tokens` (
+    `id` VARCHAR(191) NOT NULL,
+    `token` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NOT NULL,
+    `expires_at` DATETIME(3) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `revoked_at` DATETIME(3) NULL,
+    `ip_address` VARCHAR(191) NULL,
+    `user_agent` VARCHAR(191) NULL,
+
+    UNIQUE INDEX `refresh_tokens_token_key`(`token`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `schedules` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `start_datetime` DATETIME(3) NOT NULL,
+    `end_datetime` DATETIME(3) NOT NULL,
+    `type` VARCHAR(191) NOT NULL DEFAULT 'guardia',
+    `color` VARCHAR(191) NOT NULL DEFAULT '#1e3a5f',
+    `location` VARCHAR(191) NULL,
+    `notes` TEXT NULL,
+    `is_last_minute` BOOLEAN NOT NULL DEFAULT false,
+    `hours_per_day` DOUBLE NULL DEFAULT 8,
+    `calendar_type` VARCHAR(191) NULL,
+    `created_by` VARCHAR(191) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `schedules_start_datetime_end_datetime_idx`(`start_datetime`, `end_datetime`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `schedule_assignments` (
+    `schedule_id` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NOT NULL,
+    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`schedule_id`, `user_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `webhook_configs` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `webhook_url` VARCHAR(191) NOT NULL,
+    `enabled` BOOLEAN NOT NULL DEFAULT true,
+    `notify_modifications` BOOLEAN NOT NULL DEFAULT true,
+    `notify_last_minute` BOOLEAN NOT NULL DEFAULT true,
+    `friday_reminder_enabled` BOOLEAN NOT NULL DEFAULT true,
+    `monday_vacation_reminder_enabled` BOOLEAN NOT NULL DEFAULT true,
+    `friday_reminder_time` VARCHAR(191) NOT NULL DEFAULT '12:00',
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `notification_logs` (
+    `id` VARCHAR(191) NOT NULL,
+    `type` VARCHAR(191) NOT NULL,
+    `message` VARCHAR(191) NOT NULL,
+    `payload` TEXT NULL,
+    `webhook_config_id` VARCHAR(191) NULL,
+    `sent_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `sent_by_user_id` VARCHAR(191) NULL,
+    `status` VARCHAR(191) NOT NULL DEFAULT 'pending',
+    `error_message` VARCHAR(191) NULL,
+    `schedule_id` VARCHAR(191) NULL,
+
+    INDEX `notification_logs_sent_at_idx`(`sent_at`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `audit_logs` (
+    `id` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NULL,
+    `action` VARCHAR(191) NOT NULL,
+    `entity_type` VARCHAR(191) NOT NULL,
+    `entity_id` VARCHAR(191) NULL,
+    `details_json` TEXT NULL,
+    `ip_address` VARCHAR(191) NULL,
+    `user_agent` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `audit_logs_created_at_idx`(`created_at`),
+    INDEX `audit_logs_user_id_idx`(`user_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `theme_settings` (
+    `id` VARCHAR(191) NOT NULL,
+    `key` VARCHAR(191) NOT NULL DEFAULT 'global',
+    `preset` VARCHAR(191) NOT NULL DEFAULT 'corporate',
+    `tokens_json` TEXT NOT NULL,
+    `overrides_json` TEXT NOT NULL,
+    `updated_by_user_id` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `theme_settings_key_key`(`key`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `refresh_tokens` ADD CONSTRAINT `refresh_tokens_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `schedules` ADD CONSTRAINT `schedules_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `schedule_assignments` ADD CONSTRAINT `schedule_assignments_schedule_id_fkey` FOREIGN KEY (`schedule_id`) REFERENCES `schedules`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `schedule_assignments` ADD CONSTRAINT `schedule_assignments_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `notification_logs` ADD CONSTRAINT `notification_logs_webhook_config_id_fkey` FOREIGN KEY (`webhook_config_id`) REFERENCES `webhook_configs`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `notification_logs` ADD CONSTRAINT `notification_logs_sent_by_user_id_fkey` FOREIGN KEY (`sent_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
