@@ -22,6 +22,13 @@ type BranchHolidayInput = {
   scope?: 'national' | 'regional' | 'local' | 'company';
 };
 
+function deriveHolidayScope(type: BranchHolidayInput['type']): NonNullable<BranchHolidayInput['scope']> {
+  if (type === 'nacional') return 'national';
+  if (type === 'regional') return 'regional';
+  if (type === 'company') return 'company';
+  return 'local';
+}
+
 function normalizeBranchCode(code: string) {
   return code.trim().toUpperCase();
 }
@@ -161,6 +168,35 @@ export async function deleteBranch(branchId: string, actor: Actor) {
   });
 }
 
+export async function hardDeleteBranch(branchId: string, actor: Actor) {
+  const branch = await ensureBranch(branchId);
+
+  const activeBranches = await prisma.branch.count({ where: { isActive: true } });
+  if (branch.isActive && activeBranches <= 1) {
+    throw createAppError('BAD_REQUEST', 'Debe existir al menos una sucursal activa');
+  }
+
+  const linkedSchedules = await prisma.schedule.count({ where: { branchId } });
+  if (linkedSchedules > 0) {
+    throw createAppError(
+      'BAD_REQUEST',
+      'No se puede eliminar definitivamente: la sucursal tiene turnos asociados. Desactívala o reasigna/elimina sus turnos primero.',
+      { linkedSchedules }
+    );
+  }
+
+  await prisma.branch.delete({ where: { id: branchId } });
+
+  await logAudit({
+    userId: actor.id,
+    action: 'HARD_DELETE_BRANCH',
+    entityType: 'Branch',
+    entityId: branchId,
+    detailsJson: { name: branch.name, code: branch.code },
+    ipAddress: actor.ipAddress,
+  });
+}
+
 export async function listBranchHolidays(
   branchId: string,
   params: { year?: number; from?: string; to?: string; includeInactive: boolean },
@@ -205,7 +241,7 @@ export async function createBranchHoliday(branchId: string, data: BranchHolidayI
         date: toDayStart(data.date),
         name: data.name.trim(),
         type: data.type,
-        scope: data.scope ?? (data.type === 'nacional' ? 'national' : data.type === 'regional' ? 'regional' : 'local'),
+        scope: data.scope ?? deriveHolidayScope(data.type),
       },
     });
 
@@ -244,13 +280,15 @@ export async function updateBranchHoliday(
   if (!existing) throw createAppError('NOT_FOUND', 'Festivo no encontrado');
 
   try {
+    const nextScope = data.scope ?? (data.type ? deriveHolidayScope(data.type) : undefined);
+
     const updated = await prisma.branchHoliday.update({
       where: { id: holidayId },
       data: {
         ...(data.date ? { date: toDayStart(data.date) } : {}),
         ...(data.name ? { name: data.name.trim() } : {}),
         ...(data.type ? { type: data.type } : {}),
-        ...(data.scope ? { scope: data.scope } : {}),
+        ...(nextScope ? { scope: nextScope } : {}),
       },
     });
 

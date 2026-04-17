@@ -17,6 +17,7 @@ import {
   createBranchHoliday,
   deleteBranch,
   deleteBranchHoliday,
+  hardDeleteBranch,
   listBranches,
   listBranchHolidays,
   updateBranch,
@@ -91,6 +92,24 @@ export async function deleteBranchController(req: AuthRequest, res: Response) {
       ipAddress: req.ip,
     });
     return sendSuccess(res, null, 'Sucursal desactivada');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function hardDeleteBranchController(req: AuthRequest, res: Response) {
+  const parsedParams = branchIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    await hardDeleteBranch(parsedParams.data.branchId, {
+      id: req.user!.id,
+      ipAddress: req.ip,
+    });
+    return sendSuccess(res, null, 'Sucursal eliminada definitivamente');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

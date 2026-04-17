@@ -6,6 +6,7 @@ import {
   createBranchHolidayController,
   deleteBranchController,
   deleteBranchHolidayController,
+  hardDeleteBranchController,
   listBranchesController,
   listBranchHolidaysController,
   updateBranchController,
@@ -18,6 +19,7 @@ router.get('/', authMiddleware, (req: AuthRequest, res: Response) => listBranche
 router.post('/', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => createBranchController(req, res));
 router.patch('/:branchId', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => updateBranchController(req, res));
 router.delete('/:branchId', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => deleteBranchController(req, res));
+router.delete('/:branchId/permanent', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => hardDeleteBranchController(req, res));
 
 router.get('/:branchId/holidays', authMiddleware, (req: AuthRequest, res: Response) => listBranchHolidaysController(req, res));
 router.post('/:branchId/holidays', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => createBranchHolidayController(req, res));

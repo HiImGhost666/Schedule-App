@@ -101,11 +101,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
 
-  const { data: branches } = useQuery({
+  const { data: branches } = useQuery<{ data: Branch[] }>({
     queryKey: ['branches', 'active-only'],
-    queryFn: () => api.get<{ data: Branch[] }>('/branches').then((r) => r.data.data),
+    queryFn: () => api.get<{ data: Branch[] }>('/branches').then((r) => r.data),
     enabled: open,
   });
+
+  const branchesList = branches?.data ?? [];
 
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
@@ -166,11 +168,11 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     const currentBranchId = watch('branchId');
     if (currentBranchId) return;
 
-    const nextBranchId = defaultBranchId ?? branches?.[0]?.id;
+    const nextBranchId = defaultBranchId ?? branchesList[0]?.id;
     if (nextBranchId) {
       setValue('branchId', nextBranchId, { shouldValidate: true });
     }
-  }, [open, schedule, defaultBranchId, branches, setValue, watch]);
+  }, [open, schedule, defaultBranchId, branchesList, setValue, watch]);
 
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
@@ -206,8 +208,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   );
 
   const selectedBranch = useMemo(
-    () => branches?.find((branch) => branch.id === selectedBranchId),
-    [branches, selectedBranchId],
+    () => branchesList.find((branch) => branch.id === selectedBranchId),
+    [branchesList, selectedBranchId],
   );
 
   const preview = useMemo(() => {
@@ -439,10 +441,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                 <select
                   {...register('branchId')}
                   className="input-field text-sm"
-                  disabled={!canEdit || !branches?.length}
+                  disabled={!canEdit || !branchesList.length}
                 >
                   <option value="">Selecciona sucursal</option>
-                  {(branches ?? []).map((branch) => (
+                  {branchesList.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name} ({branch.code})
                     </option>

@@ -84,6 +84,27 @@ function hexToRgb(hex: string) {
   return `${r}, ${g}, ${b}`;
 }
 
+function toLocalDateOnly(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addOneDay(dateIso: string) {
+  const [year, month, day] = dateIso.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + 1);
+
+  const nextYear = date.getFullYear();
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
 /* ─── month-view event pill ─────────────────────────────────────── */
 
 function MonthEventContent({ info }: { info: EventContentArg }) {
@@ -403,7 +424,9 @@ export function SchedulePage() {
     const holidays = (branchHolidays?.data ?? []).map((h) => ({
       id: `holiday-${h.date}-${h.type}`,
       title: h.name,
-      start: h.date,
+      start: toLocalDateOnly(h.date),
+      end: addOneDay(toLocalDateOnly(h.date)),
+      allDay: true,
       display: 'background' as const,
       backgroundColor: HOLIDAY_COLORS[h.type] + '33', // 20% opacity
       extendedProps: { isHoliday: true, holidayType: h.type },
