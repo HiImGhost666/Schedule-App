@@ -25,6 +25,8 @@ model User {
   islandCalendar      String     @default("none") @map("island_calendar")
   companyPhone        String?    @map("company_phone")
   auxiliaryPhone      String?    @map("auxiliary_phone")
+  branchId            String?    @map("branch_id")
+  branch              Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   refreshTokens       RefreshToken[]
   createdSchedules    Schedule[]           @relation("ScheduleCreator")
@@ -32,6 +34,7 @@ model User {
   auditLogs           AuditLog[]           @relation("AuditActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
 
+  @@index([branchId])
   @@map("users")
 }
 
@@ -48,6 +51,7 @@ model Branch {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  users     User[]
   schedules Schedule[]
   holidays  BranchHoliday[]
 

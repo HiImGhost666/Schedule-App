@@ -272,6 +272,7 @@ export function SchedulePage() {
   const navigate = useNavigate();
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
 
@@ -293,19 +294,45 @@ export function SchedulePage() {
   const weekRefDate = dateRange.from;
   const isoWeekYear = getISOWeekYear(weekRefDate);
   const isoWeek = getISOWeek(weekRefDate);
+  const assignedBranchId = user?.branchId ?? '';
 
   const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'active-only'],
+    queryKey: ['branches', 'active-only', user?.id, user?.role, assignedBranchId],
     queryFn: () => api.get('/branches').then((r) => r.data),
   });
 
+  const availableBranches = branches?.data ?? [];
+  const selectedBranch = useMemo(
+    () => availableBranches.find((branch) => branch.id === activeBranchId) ?? availableBranches[0],
+    [availableBranches, activeBranchId],
+  );
+
   useEffect(() => {
     if (!branches?.data?.length) return;
+
+    if (!isAdmin) {
+      if (!assignedBranchId) {
+        if (activeBranchId) setActiveBranchId('');
+        return;
+      }
+
+      const assignedBranch = branches.data.find((branch) => branch.id === assignedBranchId);
+      if (!assignedBranch) {
+        if (activeBranchId) setActiveBranchId('');
+        return;
+      }
+
+      if (activeBranchId !== assignedBranchId) {
+        setActiveBranchId(assignedBranchId);
+      }
+      return;
+    }
+
     if (!activeBranchId || !branches.data.some((branch) => branch.id === activeBranchId)) {
       const firstActive = branches.data.find((branch) => branch.isActive) ?? branches.data[0];
       setActiveBranchId(firstActive.id);
     }
-  }, [branches?.data, activeBranchId]);
+  }, [branches?.data, activeBranchId, isAdmin, assignedBranchId]);
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
@@ -543,33 +570,55 @@ export function SchedulePage() {
                 Sucursal y festivos
               </div>
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
-                {(branches?.data ?? []).map((branch) => (
-                  <button
-                    key={branch.id}
-                    onClick={() => setActiveBranchId(branch.id)}
-                    className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
-                    style={
-                      activeBranchId === branch.id
-                        ? {
-                          backgroundColor: 'var(--theme-sidebar-active-bg)',
-                          color: 'var(--theme-sidebar-active-text)',
-                          borderColor: 'var(--theme-sidebar-active-bg)',
-                        }
-                        : {
-                          backgroundColor: 'var(--theme-surface)',
-                          color: 'var(--theme-text-muted)',
-                          borderColor: 'var(--theme-border-color)',
-                        }
-                    }
+                {isAdmin ? (
+                  availableBranches.map((branch) => (
+                    <button
+                      key={branch.id}
+                      onClick={() => setActiveBranchId(branch.id)}
+                      className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
+                      style={
+                        activeBranchId === branch.id
+                          ? {
+                            backgroundColor: 'var(--theme-sidebar-active-bg)',
+                            color: 'var(--theme-sidebar-active-text)',
+                            borderColor: 'var(--theme-sidebar-active-bg)',
+                          }
+                          : {
+                            backgroundColor: 'var(--theme-surface)',
+                            color: 'var(--theme-text-muted)',
+                            borderColor: 'var(--theme-border-color)',
+                          }
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{branch.name}</span>
+                        {!branch.isActive && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                ) : selectedBranch ? (
+                  <div
+                    className="w-full text-left px-3 py-2 rounded-lg border"
+                    style={{
+                      backgroundColor: 'var(--theme-sidebar-active-bg)',
+                      color: 'var(--theme-sidebar-active-text)',
+                      borderColor: 'var(--theme-sidebar-active-bg)',
+                    }}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate">{branch.name}</span>
-                      {!branch.isActive && (
+                      <span className="truncate">{selectedBranch.name}</span>
+                      {!selectedBranch.isActive && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
                       )}
                     </div>
-                  </button>
-                ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    No tienes una sucursal asignada. Contacta con un administrador.
+                  </p>
+                )}
               </div>
 
               {activeBranchId && (

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { addMinutes } from 'date-fns';
+import { prisma } from '../../config/database';
 import { hashPassword } from '../../utils/bcrypt';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
@@ -36,6 +37,7 @@ const createUserInputSchema = z.object({
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
+  branchId: z.string().min(1).nullable().optional(),
 });
 
 const updateUserInputSchema = z.object({
@@ -46,6 +48,7 @@ const updateUserInputSchema = z.object({
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
+  branchId: z.string().min(1).nullable().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserInputSchema>;
@@ -54,6 +57,13 @@ type ActorContext = { id: string; ipAddress?: string };
 
 function normalizeLoginIdentifier(identifier: string): string {
   return identifier.trim().toLowerCase();
+}
+
+async function ensureBranchExists(branchId: string) {
+  const branch = await prisma.branch.findUnique({ where: { id: branchId }, select: { id: true } });
+  if (!branch) {
+    throw createAppError('BAD_REQUEST', 'La sucursal seleccionada no existe');
+  }
 }
 
 export async function createUser(input: CreateUserInput, actor?: ActorContext) {
@@ -73,8 +83,12 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
     throw createAppError('CONFLICT', 'El username ya está registrado');
   }
 
+  if (parsed.data.branchId) {
+    await ensureBranchExists(parsed.data.branchId);
+  }
+
   const passwordHash = await hashPassword(parsed.data.password);
-  const { password: _password, ...userData } = parsed.data;
+  const { password: _password, branchId: createBranchId, ...userData } = parsed.data;
 
   const user = await executeInTransaction(async (tx) => {
     const user = await createUserRecord({
@@ -86,6 +100,9 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
       role: parsed.data.role ?? 'viewer',
       status: parsed.data.status ?? 'active',
       islandCalendar: parsed.data.islandCalendar ?? 'none',
+      ...(createBranchId
+        ? { branch: { connect: { id: createBranchId } } }
+        : {}),
     }, tx);
 
     if (actor?.id) {
@@ -153,6 +170,7 @@ export async function updateUser(userId: string, data: {
   islandCalendar?: 'tenerife' | 'las_palmas' | 'none';
   companyPhone?: string;
   auxiliaryPhone?: string;
+  branchId?: string | null;
 }, actor: ActorContext) {
   const parsed = updateUserInputSchema.safeParse(data);
   if (!parsed.success) {
@@ -175,17 +193,28 @@ export async function updateUser(userId: string, data: {
     }
   }
 
+  if (parsed.data.branchId) {
+    await ensureBranchExists(parsed.data.branchId);
+  }
+
   const updated = await executeInTransaction(async (tx) => {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
+    const { branchId: updateBranchId, ...updateData } = parsed.data;
+
     const updated = await updateUserRecord(
       userId,
       {
-        ...parsed.data,
+        ...updateData,
         companyPhone: normalizedCompanyPhone,
         auxiliaryPhone: normalizedAuxiliaryPhone,
         ...(parsed.data.email ? { email: normalizeEmail(parsed.data.email) } : {}),
+        ...(updateBranchId === undefined
+          ? {}
+          : updateBranchId
+            ? { branch: { connect: { id: updateBranchId } } }
+            : { branch: { disconnect: true } }),
       },
       tx,
     );

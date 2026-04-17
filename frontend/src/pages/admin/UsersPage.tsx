@@ -113,6 +113,7 @@ export function UsersPage() {
                   <tr className="bg-navy-50 border-b border-navy-100">
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Usuario</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Sucursal</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Rol</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Estado</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Último acceso</th>
@@ -134,6 +135,9 @@ export function UsersPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department || '—'}</td>
+                      <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
+                        {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
+                      </td>
                       <td className="px-5 py-3">{roleBadge(u.role)}</td>
                       <td className="px-5 py-3">{statusBadge(u.status)}</td>
                       <td className="px-5 py-3 text-xs text-navy-400 hidden lg:table-cell">

@@ -13,6 +13,13 @@ export interface User {
   islandCalendar?: string;
   companyPhone?: string;
   auxiliaryPhone?: string;
+  branchId?: string | null;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+    isActive: boolean;
+  } | null;
 }
 
 export interface Schedule {

@@ -16,6 +16,7 @@ import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { ThemeManagerPage } from '@/pages/admin/ThemeManagerPage';
 import { BranchesPage } from '@/pages/admin/BranchesPage';
+import { HolidaysPage } from '@/pages/admin/HolidaysPage';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import type { ThemeConfig } from '@/types';
@@ -108,6 +109,7 @@ function App() {
               </Route>
               <Route element={<RoleGuard roles={['admin']} />}>
                 <Route path="admin/branches" element={<BranchesPage />} />
+                <Route path="admin/holidays" element={<HolidaysPage />} />
                 <Route path="admin/webhooks" element={<WebhooksPage />} />
                 <Route path="admin/notifications" element={<NotificationsPage />} />
                 <Route path="admin/audit" element={<AuditLogPage />} />
