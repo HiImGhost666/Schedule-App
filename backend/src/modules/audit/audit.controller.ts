@@ -5,6 +5,10 @@ import { getAuditLogById, listAuditLogs, rollbackAudit } from './audit.service';
 import { auditIdParamsSchema, listAuditQuerySchema } from './audit.http.schemas';
 import { isAppError } from '../../common/errors/app-error';
 
+/**
+ * @description Despliega el volcado paginado de los registros de auditoría aplicando filtros relacionales y de viabilidad (reversibilidad).
+ * @param req @param res
+ */
 export async function listAuditLogsController(req: AuthRequest, res: Response) {
   const parsed = listAuditQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -20,6 +24,10 @@ export async function listAuditLogsController(req: AuthRequest, res: Response) {
   return sendPaginated(res, logs, total, parsed.data.page, parsed.data.limit);
 }
 
+/**
+ * @description Responde con la radiografía completa del rastro JSON (antes/después) resuelto a partir de un ID validado.
+ * @param req @param res
+ */
 export async function getAuditLogController(req: AuthRequest, res: Response) {
   const parsed = auditIdParamsSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -37,6 +45,10 @@ export async function getAuditLogController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Ejecuta la orden HTTPS de forzar la regresión del registro (rollback), propagando el autor y contexto de red al core.
+ * @param req @param res
+ */
 export async function rollbackAuditController(req: AuthRequest, res: Response) {
   const parsed = auditIdParamsSchema.safeParse(req.params);
   if (!parsed.success) {

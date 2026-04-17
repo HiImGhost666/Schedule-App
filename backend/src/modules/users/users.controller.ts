@@ -24,6 +24,10 @@ import {
   userSchedulesQuerySchema,
 } from './users.http.schemas';
 
+/**
+ * @description Orquesta la consulta paginada de usuarios validando la sintaxis del query antes de contactar al servicio.
+ * @param req @param res
+ */
 export async function listUsersController(req: AuthRequest, res: Response) {
   const parsedQuery = listUsersQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
@@ -32,6 +36,10 @@ export async function listUsersController(req: AuthRequest, res: Response) {
   return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
 }
 
+/**
+ * @description Responde con detalles específicos del usuario encapsulando y lanzando errores operacionales si ocurren.
+ * @param req @param res
+ */
 export async function getUserController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
@@ -45,6 +53,10 @@ export async function getUserController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Valida el pipeline HTTP de creación de usuario e inyecta la autoría (actor) pasándola al core de negocio.
+ * @param req @param res
+ */
 export async function createUserController(req: AuthRequest, res: Response) {
   const parsedBody = createUserBodySchema.safeParse(req.body);
   if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
@@ -58,6 +70,10 @@ export async function createUserController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Verifica mutaciones parciales de perfil devolviendo formato unificado y gestionando bloqueos de identidad.
+ * @param req @param res
+ */
 export async function updateUserController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
@@ -74,6 +90,10 @@ export async function updateUserController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Enruta solicitudes administrativas para bloquear/desbloquear o habilitar acceso de usuarios en el sistema.
+ * @param req @param res
+ */
 export async function changeUserStatusController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
@@ -90,6 +110,10 @@ export async function changeUserStatusController(req: AuthRequest, res: Response
   }
 }
 
+/**
+ * @description Actualiza la jerarquía de roles validando los parámetros frente a la estructura Zod definida.
+ * @param req @param res
+ */
 export async function changeUserRoleController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
@@ -106,6 +130,10 @@ export async function changeUserRoleController(req: AuthRequest, res: Response) 
   }
 }
 
+/**
+ * @description Controla el restablecimiento forzoso de claves en cuentas administradas interceptando aserciones de falla.
+ * @param req @param res
+ */
 export async function resetPasswordController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
@@ -122,6 +150,10 @@ export async function resetPasswordController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Traduce la petición HTTP DELETE en una eliminación temporal lógica (soft-delete) delegando permisos.
+ * @param req @param res
+ */
 export async function deleteUserController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
@@ -135,6 +167,10 @@ export async function deleteUserController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Despacha por HTTP informes cronológicos de turnos del individuo parseando fechas `from/to` seguras.
+ * @param req @param res
+ */
 export async function listUserSchedulesController(req: AuthRequest, res: Response) {
   const parsedParams = userIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');

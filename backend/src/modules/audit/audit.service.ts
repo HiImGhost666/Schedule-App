@@ -28,9 +28,7 @@ function parseDetails(detailsJson: string | null) {
   }
 }
 
-/**
- * Limpia objetos para ser almacenados en el Audit Log (quita passwords, etc.)
- */
+/** Desinfecta los payloads de auditoría eliminando campos comprometedores (passwords, tokens) mediante recorrido recursivo. */
 export function sanitizeSnapshot(data: any): any {
   if (!data) return data;
   const sanitized = JSON.parse(JSON.stringify(data)); // Clonación profunda simple
@@ -52,10 +50,18 @@ export function sanitizeSnapshot(data: any): any {
   return sanitized;
 }
 
+/**
+ * @description Inserta un log de auditoría forzando su permanencia (fail-fast) dentro de un bloque transaccional Prisma.
+ * @param params @param tx
+ */
 export async function logAuditOrThrow(params: AuditParams, tx: TransactionClient) {
   await auditRepository.createAuditLog(buildAuditCreateData(params), tx);
 }
 
+/**
+ * @description Emite un registro de auditoría flexible: si falla fuera de una transacción, no corrompe la ejecución principal subyacente.
+ * @param params @param tx
+ */
 export async function logAudit(params: AuditParams, tx?: TransactionClient) {
   if (tx) {
     await logAuditOrThrow(params, tx);
@@ -69,6 +75,7 @@ export async function logAudit(params: AuditParams, tx?: TransactionClient) {
   }
 }
 
+/** Paginador del historial que soporta filtros complejos (fechas, entidad, actor y flag reversible/irreversible). */
 export async function listAuditLogs(params: {
   page: number;
   limit: number;
@@ -107,6 +114,10 @@ export async function listAuditLogs(params: {
   };
 }
 
+/**
+ * @description Retorna el log decodificado y sanitizado de la base de datos o revienta (404) si no existe.
+ * @param id
+ */
 export async function getAuditLogById(id: string) {
   const log = await auditRepository.findAuditLogById(id);
   if (!log) {
@@ -120,7 +131,8 @@ export async function getAuditLogById(id: string) {
 }
 
 /**
- * Ejecuta la reversión de un cambio basado en su log original.
+ * @description Restaura un evento manipulado (creación/edición) inyectando el snapshot state-before dentro del contenedor. Emite su propio Audit.
+ * @param logId @param actorId @param ipAddress
  */
 export async function rollbackAudit(logId: string, actorId: string, ipAddress?: string) {
   const log = await auditRepository.findAuditLogById(logId);

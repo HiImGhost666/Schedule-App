@@ -19,6 +19,10 @@ import {
   weekParamsSchema,
 } from './schedules.http.schemas';
 
+/**
+ * @description Despacha un catálogo de guardias sujeto a una fecha de inicio, fin o usuario particular extraídos del query string.
+ * @param req @param res
+ */
 export async function listSchedulesController(req: AuthRequest, res: Response) {
   const parsed = listSchedulesQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -29,6 +33,10 @@ export async function listSchedulesController(req: AuthRequest, res: Response) {
   return sendSuccess(res, schedules);
 }
 
+/**
+ * @description Responde con una matriz estática representativa de la semana ISO (lunes-domingo) ideal de cara al frontend dashboard.
+ * @param req @param res
+ */
 export async function listWeekSchedulesController(req: AuthRequest, res: Response) {
   const parsed = weekParamsSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -39,6 +47,10 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
   return sendSuccess(res, result);
 }
 
+/**
+ * @description Devuelve la información pormenorizada de una guardia o falla devolviendo error si su ID es inválido/desaparecido.
+ * @param req @param res
+ */
 export async function getScheduleController(req: AuthRequest, res: Response) {
   const parsed = scheduleIdParamsSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -54,6 +66,10 @@ export async function getScheduleController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Analiza el payload de guardias protegiendo la inserción de empalmes horarios e inyectando autoría en el servicio auditor.
+ * @param req @param res
+ */
 export async function createScheduleController(req: AuthRequest, res: Response) {
   const parsedBody = createScheduleBodySchema.safeParse(req.body);
   if (!parsedBody.success) {
@@ -75,6 +91,10 @@ export async function createScheduleController(req: AuthRequest, res: Response) 
   }
 }
 
+/**
+ * @description Vuelca las actualizaciones de un turno validando la congruencia paramétrica-body, notificando posteriormente a los miembros.
+ * @param req @param res
+ */
 export async function updateScheduleController(req: AuthRequest, res: Response) {
   const parsedParams = scheduleIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
@@ -101,6 +121,10 @@ export async function updateScheduleController(req: AuthRequest, res: Response) 
   }
 }
 
+/**
+ * @description Elimina lógicamente un asiento de guardia propagando de forma opcional el `reason` en el body hacia logs de auditoría remotos.
+ * @param req @param res
+ */
 export async function deleteScheduleController(req: AuthRequest, res: Response) {
   const parsedParams = scheduleIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
