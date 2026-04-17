@@ -31,7 +31,7 @@ const scheduleCreateInputSchema = z.object({
   color: z.string().default('#1e3a5f'),
   location: z.string().optional(),
   notes: z.string().optional(),
-  branchId: z.string().min(1),
+  branchId: z.string().min(1).optional(),
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
@@ -94,7 +94,7 @@ export function listSchedulesForActor(
  * @description Construye matriz semanal ISO 8601, buscando eventos que intercepten dentro del lunes-domingo de la semana provista.
  * @param year @param week
  */
-export async function listWeekSchedules(year: number, week: number) {
+export async function listWeekSchedules(year: number, week: number, branchId?: string) {
   const jan4 = new Date(year, 0, 4);
   const weekStart = new Date(jan4);
   weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
@@ -143,23 +143,6 @@ export async function listWeekSchedules(year: number, week: number) {
     total: items.length,
     items,
   };
-}
-
-export async function listWeekSchedulesForActor(
-  year: number,
-  week: number,
-  branchId: string | undefined,
-  actor: Pick<Actor, 'role' | 'branchId'>,
-) {
-  if (actor.role === 'admin') {
-    return listWeekSchedules(year, week, branchId);
-  }
-
-  if (!actor.branchId) {
-    throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-  }
-
-  return listWeekSchedules(year, week, actor.branchId);
 }
 
 export async function listWeekSchedulesForActor(
@@ -238,22 +221,6 @@ export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Ac
   return schedule;
 }
 
-export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'role' | 'branchId'>) {
-  const schedule = await getScheduleById(scheduleId);
-
-  if (actor.role !== 'admin') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-
-    if (schedule.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes permisos para acceder a esta guardia');
-    }
-  }
-
-  return schedule;
-}
-
 /**
  * @description Inserta guardias en BD bajo validaciones estrictas (Anti-Overlap); despacha triggers informativos (Realtime/Emails).
  * @param input @param actor
@@ -269,13 +236,17 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   ensureValidScheduleRange(startDt, endDt);
 
   const { assigneeIds, reason, branchId, ...scheduleData } = parsed.data;
-  await ensureActiveBranch(branchId);
+  const targetBranchId = branchId ?? actor.branchId ?? undefined;
+
+  if (targetBranchId) {
+    await ensureActiveBranch(targetBranchId);
+  }
 
   if (actor.role !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    if (actor.branchId !== branchId) {
+    if (targetBranchId !== actor.branchId) {
       throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
     }
   }
@@ -290,7 +261,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
       startDatetime: startDt,
       endDatetime: endDt,
       isLastMinute,
-      branch: { connect: { id: branchId } },
+      ...(targetBranchId ? { branch: { connect: { id: targetBranchId } } } : {}),
       createdBy: { connect: { id: actor.id } },
       assignments: { create: assigneeIds.map((userId) => ({ userId })) },
     }, tx);
