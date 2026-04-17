@@ -21,10 +21,15 @@ app.use(helmet());
 const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
+    // En desarrollo, permitimos cualquier origen para facilitar pruebas en red (móviles, otros PCs)
+    if (env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // En producción, somos estrictos con la lista de orígenes permitidos
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Return null (blocked) instead of Error to avoid Express converting it to a 500
+    
     callback(null, false);
   },
   credentials: true,

@@ -3,7 +3,7 @@ FROM node:22.12.0-slim
 WORKDIR /app
 
 # Instala openssl para Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm install
