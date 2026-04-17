@@ -16,6 +16,10 @@ import {
 import { createAppError } from '../../common/errors/error-catalog';
 import { hashPassword } from '../../utils/bcrypt';
 
+/**
+ * @description Evalúa credenciales de usuario (email/username), maneja bloqueos decrecientes (lockouts) y emite token JWT y Refresh Token.
+ * @param identifier @param password @param ipAddress @param userAgent
+ */
 export async function login(identifier: string, password: string, ipAddress?: string, userAgent?: string) {
   const user = await findUserByEmailOrUsername(identifier);
 
@@ -95,6 +99,10 @@ export async function login(identifier: string, password: string, ipAddress?: st
   return { accessToken, refreshToken, user: safeUser };
 }
 
+/**
+ * @description Revalida el acceso rotando el Refresh Token anterior por uno nuevo si el original sigue vigente e inviolado.
+ * @param token
+ */
 export async function refreshTokens(token: string) {
   let payload;
   try {
@@ -138,10 +146,18 @@ export async function refreshTokens(token: string) {
   return { accessToken, refreshToken: newRefreshToken };
 }
 
+/**
+ * @description Fulmina de la base de datos el Refresh Token emitido, forzando la pérdida de persistencia de sesión del usuario.
+ * @param token
+ */
 export async function logout(token: string) {
   await revokeRefreshTokensByToken(token);
 }
 
+/**
+ * @description Entrega los detalles operacionales y el perfil extendido del usuario propietario del Token HTTP actual.
+ * @param userId
+ */
 export async function getMe(userId: string) {
   const user = await findUserProfileById(userId);
   if (!user) {
@@ -150,6 +166,10 @@ export async function getMe(userId: string) {
   return user;
 }
 
+/**
+ * @description Altera la contraseña de forma proactiva exigiendo confirmación de la actual, limpiando la bandera "forcePasswordChange".
+ * @param userId @param currentPassword @param newPassword
+ */
 export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
   const user = await findUserById(userId);
   if (!user) {

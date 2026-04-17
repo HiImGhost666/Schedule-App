@@ -20,6 +20,10 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 
+/**
+ * @description Desempaqueta y protege las aserciones de login (email o username), tramitándolas al core de auth y auditando todo.
+ * @param req @param res
+ */
 export async function loginController(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -54,6 +58,10 @@ export async function loginController(req: Request, res: Response) {
   }
 }
 
+/**
+ * @description Captura solicitudes de extensión de sesión y lanza la rotación (refresh+access) con el token persistente.
+ * @param req @param res
+ */
 export async function refreshController(req: Request, res: Response) {
   const { refreshToken } = req.body;
   if (!refreshToken) return sendError(res, 'Refresh token requerido', 400);
@@ -70,6 +78,10 @@ export async function refreshController(req: Request, res: Response) {
   }
 }
 
+/**
+ * @description Rompe el anclaje local borrando la huella del token en la BD y registra (audita) explícitamente el cierre de la puerta.
+ * @param req @param res
+ */
 export async function logoutController(req: AuthRequest, res: Response) {
   const { refreshToken } = req.body;
   if (refreshToken) await logout(refreshToken);
@@ -85,6 +97,10 @@ export async function logoutController(req: AuthRequest, res: Response) {
   return sendSuccess(res, null, 'Sesión cerrada');
 }
 
+/**
+ * @description Retorna instantáneamente la fotografía operativa (perfil en caché) de quien sostiene la llamada.
+ * @param req @param res
+ */
 export async function meController(req: AuthRequest, res: Response) {
   try {
     const user = await getMe(req.user!.id);
@@ -97,6 +113,10 @@ export async function meController(req: AuthRequest, res: Response) {
   }
 }
 
+/**
+ * @description Media el cambio manual voluntario de contraseñas re-asentando hashes limpios y levantando flag de auditoría.
+ * @param req @param res
+ */
 export async function changePasswordController(req: AuthRequest, res: Response) {
   const parsed = changePasswordSchema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');

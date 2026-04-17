@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { createAppError } from '../../common/errors/error-catalog';
-import { logAuditOrThrow } from '../audit/audit.service';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyScheduleChange } from '../notifications/notifications.service';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
@@ -43,6 +43,7 @@ const scheduleUpdateInputSchema = scheduleCreateInputSchema.partial().extend({
 type ScheduleCreateInput = z.infer<typeof scheduleCreateInputSchema>;
 type ScheduleUpdateInput = z.infer<typeof scheduleUpdateInputSchema>;
 
+/** Filtra y enumera eventos (guardias/ausencias) validando colisiones dentro del marco cronológico solicitado. */
 export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string }) {
   const where: Record<string, unknown> = {};
   const fromDate = parseOptionalDate(params.from);
@@ -54,6 +55,10 @@ export function listSchedules(params: { from?: string; to?: string; userId?: str
   return findSchedules(where);
 }
 
+/**
+ * @description Construye matriz semanal ISO 8601, buscando eventos que intercepten dentro del lunes-domingo de la semana provista.
+ * @param year @param week
+ */
 export async function listWeekSchedules(year: number, week: number) {
   const jan4 = new Date(year, 0, 4);
   const weekStart = new Date(jan4);
@@ -103,6 +108,7 @@ export async function listWeekSchedules(year: number, week: number) {
   };
 }
 
+/** Evita empalmes validando que la constelación de asignados esté libre en la brecha dt_ini a dt_fin. */
 async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Date, excludeScheduleId?: string) {
   const overlapping = await findSchedules({
     ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
@@ -135,12 +141,20 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
   }
 }
 
+/**
+ * @description Retorna una guardia unitaria identificada con su ID; revienta (404) si es irreconocible.
+ * @param scheduleId
+ */
 export async function getScheduleById(scheduleId: string) {
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
   return schedule;
 }
 
+/**
+ * @description Inserta guardias en BD bajo validaciones estrictas (Anti-Overlap); despacha triggers informativos (Realtime/Emails).
+ * @param input @param actor
+ */
 export async function createScheduleEntry(input: ScheduleCreateInput, actor: Actor) {
   const parsed = scheduleCreateInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -171,7 +185,11 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
       action: 'CREATE_SCHEDULE',
       entityType: 'Schedule',
       entityId: created.id,
-      detailsJson: { title: created.title, assigneeIds, reason },
+      detailsJson: {
+        before: null,
+        after: sanitizeSnapshot({ ...created, assigneeIds }),
+        reason
+      },
       ipAddress: actor.ipAddress,
     }, tx);
 
@@ -201,6 +219,10 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   return schedule;
 }
 
+/**
+ * @description Efectúa mutaciones de un bloque asignado, depura colisiones en su nueva fecha y salva state "before-after" en auditoría.
+ * @param scheduleId @param input @param actor
+ */
 export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpdateInput, actor: Actor) {
   const parsed = scheduleUpdateInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -235,7 +257,17 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
       action: 'UPDATE_SCHEDULE',
       entityType: 'Schedule',
       entityId: updated.id,
-      detailsJson: { changes: updateData, reason },
+      detailsJson: {
+        before: sanitizeSnapshot({
+          ...existing,
+          assigneeIds: existing.assignments.map(a => a.userId)
+        }),
+        after: sanitizeSnapshot({
+          ...updated,
+          assigneeIds: assigneeIds || existing.assignments.map(a => a.userId)
+        }),
+        reason
+      },
       ipAddress: actor.ipAddress,
     }, tx);
 
@@ -265,6 +297,10 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   return schedule;
 }
 
+/**
+ * @description Aplica destrucción transaccional del turno preservando un snapshot en los registros de auditoría por razones operacionales.
+ * @param scheduleId @param reason @param actor
+ */
 export async function deleteScheduleEntry(scheduleId: string, reason: string | undefined, actor: Actor) {
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
@@ -276,7 +312,14 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
       action: 'DELETE_SCHEDULE',
       entityType: 'Schedule',
       entityId: scheduleId,
-      detailsJson: { title: schedule.title, reason },
+      detailsJson: {
+        before: sanitizeSnapshot({
+          ...schedule,
+          assigneeIds: schedule.assignments.map(a => a.userId)
+        }),
+        after: null,
+        reason
+      },
       ipAddress: actor.ipAddress,
     }, tx);
   });

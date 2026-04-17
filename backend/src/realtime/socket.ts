@@ -36,11 +36,16 @@ export function initializeSocketServer(httpServer: HttpServer) {
   io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
+        // Mantenemos la misma lógica dinámica que en app.ts para consistencia en red local
+        if (env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
-          return;
+        } else {
+          callback(new Error('CORS origin is not allowed'));
         }
-        callback(new Error('CORS origin is not allowed'));
       },
       credentials: true,
     },
