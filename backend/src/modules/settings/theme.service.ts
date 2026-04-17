@@ -1,6 +1,13 @@
 import { ThemeSettings } from '@prisma/client';
 import { prisma } from '../../config/database';
-import { DEFAULT_THEME, THEME_PRESETS, ThemeLogoVariant, ThemePayload } from './theme.presets';
+import {
+  DEFAULT_THEME,
+  BUILT_IN_THEME_PRESETS,
+  ThemeLogoVariant,
+  ThemePayload,
+  ThemePreset,
+  isBasePreset,
+} from './theme.presets';
 
 const GLOBAL_THEME_KEY = 'global';
 const LEGACY_CORPORATE_TEXT_MUTED = '#4f758b';
@@ -129,6 +136,148 @@ export async function publishThemeSettings(theme: ThemePayload, updatedByUserId?
   };
 }
 
-export function getThemePresets() {
-  return THEME_PRESETS;
+// ── Custom preset helpers ─────────────────────────────────────────
+
+function generateCustomPresetId(existingIds: string[]): string {
+  const letters = 'CDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (const letter of letters) {
+    const candidate = `custom_${letter}`;
+    if (!existingIds.includes(candidate)) return candidate;
+  }
+  // Fallback with timestamp
+  return `custom_${Date.now()}`;
+}
+
+function customPresetLabel(id: string): string {
+  const letter = id.replace('custom_', '');
+  return `Personalizado ${letter}`;
+}
+
+interface CustomPresetRow {
+  id: string;
+  key: string; // e.g. "preset_custom_C"
+  preset: string; // same as id
+  tokensJson: string;
+  overridesJson: string;
+  updatedAt: Date;
+  updatedByUserId: string | null;
+}
+
+function presetRowToThemePreset(row: CustomPresetRow): ThemePreset {
+  const tokens = safeParseJson(row.tokensJson, DEFAULT_THEME.tokens);
+  const overrides = safeParseJson(row.overridesJson, DEFAULT_THEME.overrides);
+  const meta = safeParseJson<{ name?: string; description?: string }>(
+    // We store name/description in a special meta key alongside; parse from preset field
+    '{}',
+    {}
+  );
+
+  // Name/description stored encoded in key as "preset_<id>__<name>__<desc>"
+  const parts = row.key.split('__');
+  const name = parts[1] ? decodeURIComponent(parts[1]) : customPresetLabel(row.preset);
+  const description = parts[2] ? decodeURIComponent(parts[2]) : 'Preset personalizado';
+
+  return {
+    id: row.preset,
+    name,
+    description,
+    isBase: false,
+    theme: { preset: row.preset, tokens, overrides },
+  };
+}
+
+function buildCustomPresetKey(id: string, name: string, description: string): string {
+  return `preset_${id}__${encodeURIComponent(name)}__${encodeURIComponent(description)}`;
+}
+
+export async function getCustomPresets(): Promise<ThemePreset[]> {
+  const rows = await prisma.themeSettings.findMany({
+    where: { key: { startsWith: 'preset_custom_' } },
+    orderBy: { createdAt: 'asc' },
+  });
+  return rows.map((r) => presetRowToThemePreset(r as unknown as CustomPresetRow));
+}
+
+export async function getThemePresets(): Promise<ThemePreset[]> {
+  const customPresets = await getCustomPresets();
+  return [...BUILT_IN_THEME_PRESETS, ...customPresets];
+}
+
+export async function createCustomPreset(input: {
+  name: string;
+  description: string;
+  tokens: ThemePayload['tokens'];
+  overrides: ThemePayload['overrides'];
+  createdByUserId: string;
+}): Promise<ThemePreset> {
+  const existingCustom = await getCustomPresets();
+  const existingIds = existingCustom.map((p) => p.id);
+  const newId = generateCustomPresetId(existingIds);
+  const key = buildCustomPresetKey(newId, input.name, input.description);
+
+  const row = await prisma.themeSettings.create({
+    data: {
+      key,
+      preset: newId,
+      tokensJson: JSON.stringify(input.tokens),
+      overridesJson: JSON.stringify(input.overrides),
+      updatedByUserId: input.createdByUserId,
+    },
+  });
+
+  return presetRowToThemePreset(row as unknown as CustomPresetRow);
+}
+
+export async function updateCustomPreset(
+  id: string,
+  data: {
+    name?: string;
+    description?: string;
+    tokens?: ThemePayload['tokens'];
+    overrides?: ThemePayload['overrides'];
+  }
+): Promise<ThemePreset> {
+  if (isBasePreset(id)) {
+    throw new Error('Los presets base no se pueden modificar');
+  }
+
+  const existing = await prisma.themeSettings.findFirst({
+    where: { preset: id, key: { startsWith: 'preset_custom_' } },
+  });
+
+  if (!existing) {
+    throw new Error('Preset no encontrado');
+  }
+
+  const currentPreset = presetRowToThemePreset(existing as unknown as CustomPresetRow);
+  const newName = data.name ?? currentPreset.name;
+  const newDescription = data.description ?? currentPreset.description;
+  const newKey = buildCustomPresetKey(id, newName, newDescription);
+
+  const row = await prisma.themeSettings.update({
+    where: { id: existing.id },
+    data: {
+      key: newKey,
+      ...(data.tokens ? { tokensJson: JSON.stringify(data.tokens) } : {}),
+      ...(data.overrides ? { overridesJson: JSON.stringify(data.overrides) } : {}),
+    },
+  });
+
+  return presetRowToThemePreset(row as unknown as CustomPresetRow);
+}
+
+export async function deleteCustomPreset(id: string): Promise<void> {
+  if (isBasePreset(id)) {
+    throw new Error('Los presets base no se pueden eliminar');
+  }
+
+  const existing = await prisma.themeSettings.findFirst({
+    where: { preset: id, key: { startsWith: 'preset_custom_' } },
+  });
+
+  if (!existing) {
+    throw new Error('Preset no encontrado');
+  }
+
+  await prisma.themeSettings.delete({ where: { id: existing.id } });
 }

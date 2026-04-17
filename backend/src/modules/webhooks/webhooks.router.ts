@@ -17,6 +17,7 @@ const webhookSchema = z.object({
   notifyModifications: z.boolean().default(true),
   notifyLastMinute: z.boolean().default(true),
   fridayReminderEnabled: z.boolean().default(true),
+  mondayVacationReminderEnabled: z.boolean().default(true),
   fridayReminderTime: z.string().default('12:00'),
 });
 

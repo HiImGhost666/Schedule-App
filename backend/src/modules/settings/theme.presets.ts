@@ -74,7 +74,16 @@ export interface ThemePreset {
   id: string;
   name: string;
   description: string;
+  isBase: boolean; // base presets cannot be edited or deleted
   theme: ThemePayload;
+}
+
+/** IDs of the built-in (non-deletable, non-editable) presets */
+export const BASE_PRESET_IDS = ['light', 'corporate', 'dark'] as const;
+export type BasePresetId = typeof BASE_PRESET_IDS[number];
+
+export function isBasePreset(id: string): id is BasePresetId {
+  return (BASE_PRESET_IDS as readonly string[]).includes(id);
 }
 
 const corporateTheme: ThemePayload = {
@@ -383,7 +392,7 @@ const forestTheme: ThemePayload = {
       managerBackground: '#0f766e',
       managerText: '#ffffff',
       viewerBackground: '#dcfce7',
-      viewerText: '#166534',
+      viewerText: '#166634',
       activeBackground: '#bbf7d0',
       activeText: '#14532d',
       disabledBackground: '#f1f5f9',
@@ -407,42 +416,53 @@ const forestTheme: ThemePayload = {
   },
 };
 
-export const THEME_PRESETS: ThemePreset[] = [
+export const BUILT_IN_THEME_PRESETS: ThemePreset[] = [
   {
     id: 'light',
     name: 'Claro',
     description: 'Contraste suave y fondo claro',
+    isBase: true,
     theme: lightTheme,
   },
   {
     id: 'corporate',
     name: 'Corporativo',
     description: 'Paleta original de la aplicacion',
+    isBase: true,
     theme: corporateTheme,
   },
   {
     id: 'dark',
     name: 'Oscuro',
     description: 'Interfaz nocturna de alto contraste',
+    isBase: true,
     theme: darkTheme,
   },
   {
     id: 'sunrise',
     name: 'Personalizado A',
     description: 'Tonos calidos para operaciones diurnas',
+    isBase: false,
     theme: sunriseTheme,
   },
   {
     id: 'forest',
     name: 'Personalizado B',
     description: 'Verdes corporativos orientados a legibilidad',
+    isBase: false,
     theme: forestTheme,
   },
 ];
 
 export const DEFAULT_THEME = lightTheme;
 
-export function getPresetTheme(presetId: string): ThemePayload | null {
-  const preset = THEME_PRESETS.find((item) => item.id === presetId);
+export function getBuiltInPreset(presetId: string): ThemePayload | null {
+  const preset = BUILT_IN_THEME_PRESETS.find((item) => item.id === presetId);
   return preset ? preset.theme : null;
+}
+
+// Legacy alias kept for compatibility
+export const THEME_PRESETS = BUILT_IN_THEME_PRESETS;
+export function getPresetTheme(presetId: string): ThemePayload | null {
+  return getBuiltInPreset(presetId);
 }

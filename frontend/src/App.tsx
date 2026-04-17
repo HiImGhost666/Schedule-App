@@ -18,6 +18,7 @@ import { ThemeManagerPage } from '@/pages/admin/ThemeManagerPage';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import type { ThemeConfig } from '@/types';
+import { QueryInvalidationBridge } from '@/realtime/queryInvalidationBridge';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -85,6 +86,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <QueryInvalidationBridge />
       <BrowserRouter>
         <Routes>
           <Route
