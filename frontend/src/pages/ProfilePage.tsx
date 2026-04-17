@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Lock, Shield, AlertTriangle } from 'lucide-react';
+import { User, Lock, Shield, AlertTriangle, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useNavigate } from 'react-router-dom';
 import api from '@/config/api';
 import { ROLE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -27,15 +28,15 @@ type PwForm = z.infer<typeof pwSchema>;
 export function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const logout = useAuthStore((s) => s.logout);
   const { accessToken, refreshToken } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const qc = useQueryClient();
 
-  // Auto-open password form when forcePasswordChange or ?change=1
   const forceChange = user?.forcePasswordChange === true || searchParams.get('change') === '1';
   const [showPwForm, setShowPwForm] = useState(forceChange);
 
-  // Remove the query param after opening the form
   useEffect(() => {
     if (searchParams.get('change') === '1') {
       setSearchParams({}, { replace: true });
@@ -53,7 +54,6 @@ export function ProfilePage() {
       toast.success('Contraseña actualizada correctamente');
       setShowPwForm(false);
       reset();
-      // Update stored user to clear forcePasswordChange flag
       if (user && accessToken && refreshToken) {
         setAuth({ ...user, forcePasswordChange: false }, accessToken, refreshToken);
       }
@@ -61,6 +61,15 @@ export function ProfilePage() {
     },
     onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout', { refreshToken: useAuthStore.getState().refreshToken });
+    } catch { /* ignore */ }
+    logout();
+    navigate('/login');
+    toast.success('Sesión cerrada');
+  };
 
   if (!user) return null;
 
@@ -73,7 +82,6 @@ export function ProfilePage() {
         <p className="text-sm text-navy-400 mt-1.5">Gestiona tu información y seguridad</p>
       </div>
 
-      {/* Force password change banner */}
       {user?.forcePasswordChange && (
         <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -212,6 +220,17 @@ export function ProfilePage() {
       <div className="flex items-center gap-3 p-4 bg-navy-50 rounded-xl border border-navy-100">
         <User className="h-4 w-4 text-navy-400 flex-shrink-0" />
         <p className="text-sm text-navy-500">Para cambiar tu email, nombre o rol, contacta con el administrador del sistema.</p>
+      </div>
+
+      {/* Logout button — visible on mobile, hidden on desktop (sidebar has it) */}
+      <div className="md:hidden">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-red-200 text-red-500 bg-red-50 text-sm font-semibold hover:bg-red-100 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar Sesión
+        </button>
       </div>
     </div>
   );

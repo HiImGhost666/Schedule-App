@@ -36,7 +36,7 @@ interface ThemeContrastViolation {
   message?: string;
 }
 
-// ─── Color field ──────────────────────────────────────────────────────────────
+// ─── Color field with hex input ───────────────────────────────────────────────
 
 interface ColorFieldProps {
   label: string;
@@ -46,24 +46,86 @@ interface ColorFieldProps {
 }
 
 function ColorField({ label, value, onChange, disabled }: ColorFieldProps) {
+  const [hexInput, setHexInput] = useState(value);
+
+  // Keep local hex input in sync when value changes externally (e.g. preset switch)
+  useEffect(() => {
+    setHexInput(value);
+  }, [value]);
+
+  const isValidHex = (v: string) => /^#[0-9A-Fa-f]{6}$/.test(v);
+
+  const handleHexChange = (raw: string) => {
+    let v = raw;
+    // Auto-prepend # if user forgot it
+    if (v.length > 0 && !v.startsWith('#')) v = '#' + v;
+    setHexInput(v);
+    // Propagate only when we have a valid full hex
+    if (isValidHex(v)) {
+      onChange(v.toUpperCase());
+    }
+  };
+
+  const handleHexBlur = () => {
+    // Reset to last known good value if input is invalid on blur
+    if (!isValidHex(hexInput)) {
+      setHexInput(value);
+    } else {
+      setHexInput(hexInput.toUpperCase());
+    }
+  };
+
+  const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
+    const newVal = e.target.value.toUpperCase();
+    onChange(newVal);
+    setHexInput(newVal);
+  };
+
+  const hexInvalid = hexInput.length > 1 && !isValidHex(hexInput);
+
   return (
-    <label
-      className={`flex items-center justify-between gap-3 p-2 rounded-lg border border-theme-color bg-theme-surface ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+    <div
+      className={`flex items-center justify-between gap-3 p-2 rounded-lg border bg-theme-surface ${
+        disabled ? "opacity-50 cursor-not-allowed" : ""
+      } ${hexInvalid ? "border-red-400" : "border-theme-color"}`}
     >
-      <span className="text-xs text-theme-muted font-medium">{label}</span>
-      <div className="flex items-center gap-2">
+      <span className="text-xs text-theme-muted font-medium truncate flex-1 min-w-0">{label}</span>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Color swatch / native picker */}
+        <div className="relative">
+          <div
+            className="h-7 w-7 rounded border border-theme-color cursor-pointer flex-shrink-0 overflow-hidden"
+            style={{ backgroundColor: isValidHex(hexInput) ? hexInput : value }}
+          >
+            <input
+              type="color"
+              value={isValidHex(value) ? value : '#000000'}
+              onChange={handleColorPickerChange}
+              disabled={disabled}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+              title="Abrir selector de color"
+            />
+          </div>
+        </div>
+        {/* Hex text input */}
         <input
-          type="color"
-          value={value}
-          onChange={(e) => !disabled && onChange(e.target.value)}
+          type="text"
+          value={hexInput}
+          onChange={(e) => !disabled && handleHexChange(e.target.value)}
+          onBlur={handleHexBlur}
           disabled={disabled}
-          className="h-8 w-8 rounded border border-theme-border-color cursor-pointer disabled:cursor-not-allowed"
+          maxLength={7}
+          placeholder="#000000"
+          spellCheck={false}
+          className={`w-[82px] text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary disabled:cursor-not-allowed focus:outline-none transition-colors uppercase ${
+            hexInvalid
+              ? "border-red-400 focus:border-red-500"
+              : "border-theme-color focus:border-theme-text-muted"
+          }`}
         />
-        <span className="text-xs text-theme-muted uppercase w-16 text-right">
-          {value}
-        </span>
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -143,7 +205,7 @@ function CreatePresetModal({
       if (details?.violations?.length) {
         const v = details.violations[0];
         toast.error(
-          `Contraste insuficiente: ${v.label} (${v.ratio.toFixed(2)}:1)`,
+          `Contraste insuficiente: ${v.label} (${v.ratio.toFixed(2)}:1)`
         );
         return;
       }
@@ -342,12 +404,12 @@ export function ThemeManagerPage() {
   const { themeConfig, themeDraft, setThemeConfig, setThemeDraft, resetDraft } =
     useUIStore();
   const [selectedPresetId, setSelectedPresetId] = useState<string>(
-    themeDraft?.preset || themeConfig?.preset || "",
+    themeDraft?.preset || themeConfig?.preset || ""
   );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renamePreset, setRenamePreset] = useState<ExtendedThemePreset | null>(
-    null,
+    null
   );
   const [deleteConfirm, setDeleteConfirm] =
     useState<ExtendedThemePreset | null>(null);
@@ -372,7 +434,7 @@ export function ThemeManagerPage() {
         ...p,
         isBase: isBasePreset(p.id),
       })),
-    [presetsRaw],
+    [presetsRaw]
   );
 
   useEffect(() => {
@@ -419,7 +481,7 @@ export function ThemeManagerPage() {
           const extras = violations.length - 1;
           const extraText = extras > 0 ? ` (+${extras} más)` : "";
           toast.error(
-            `Contraste no válido en ${first.component}: ${first.label} (${first.ratio.toFixed(2)}:1, min ${first.minRatio}:1)${extraText}`,
+            `Contraste no válido en ${first.component}: ${first.label} (${first.ratio.toFixed(2)}:1, min ${first.minRatio}:1)${extraText}`
           );
           return;
         }
@@ -446,7 +508,7 @@ export function ThemeManagerPage() {
       if (details?.violations?.length) {
         const v = details.violations[0];
         toast.error(
-          `Contraste insuficiente: ${v.label} (${v.ratio.toFixed(2)}:1)`,
+          `Contraste insuficiente: ${v.label} (${v.ratio.toFixed(2)}:1)`
         );
         return;
       }
@@ -475,7 +537,7 @@ export function ThemeManagerPage() {
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const setColor = (path: string[], value: string) => {
-    if (isSelectedBase) return; // guard: base presets are read-only
+    if (isSelectedBase) return;
     const draft = cloneTheme(activeTheme);
     let target: Record<string, unknown> = draft as unknown as Record<
       string,
@@ -498,9 +560,7 @@ export function ThemeManagerPage() {
     });
     setThemeDraft(nextTheme);
     setThemeConfig(nextTheme);
-
     applyThemeToDocument(nextTheme);
-
     toast.success("Tema aplicado");
   };
 
@@ -528,11 +588,10 @@ export function ThemeManagerPage() {
         { id: selectedPreset.id, theme: themeDraft },
         {
           onSuccess: () => publishMutation.mutate(activeTheme),
-        },
+        }
       );
       return;
     }
-
     publishMutation.mutate(activeTheme);
   };
 
@@ -566,7 +625,6 @@ export function ThemeManagerPage() {
             <RotateCcw className="h-4 w-4" />
             Restablecer
           </button>
-          {/* Delete preset (only for custom) */}
           {selectedPreset && !isSelectedBase && isSelectedPersistedCustom && (
             <button
               onClick={() => setDeleteConfirm(selectedPreset)}
@@ -576,7 +634,6 @@ export function ThemeManagerPage() {
               Eliminar Preset
             </button>
           )}
-          {/* Rename preset (only for custom) */}
           {selectedPreset && !isSelectedBase && isSelectedPersistedCustom && (
             <button
               onClick={() => {
@@ -667,19 +724,15 @@ export function ThemeManagerPage() {
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 w-full">
-                  <p className="text-xs text-theme-muted flex-1">
-                    {presets.find((p) => p.id === selectedPresetId)
-                      ?.description || "Preset personalizado editable"}
-                  </p>
-                </div>
+                <p className="text-xs text-theme-muted flex-1">
+                  {presets.find((p) => p.id === selectedPresetId)
+                    ?.description || "Preset personalizado editable"}
+                </p>
               )}
             </div>
           </div>
 
-          {/* ── Color editor (disabled for base presets) ── */}
-
-          {/* Sidebar */}
+          {/* ── Sidebar ── */}
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
               Sidebar
@@ -792,7 +845,7 @@ export function ThemeManagerPage() {
             </div>
           </div>
 
-          {/* TopBar & buttons */}
+          {/* ── TopBar & buttons ── */}
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
               TopBar y botones
@@ -850,7 +903,7 @@ export function ThemeManagerPage() {
             </div>
           </div>
 
-          {/* Badges */}
+          {/* ── Badges ── */}
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
               Badges
@@ -910,7 +963,7 @@ export function ThemeManagerPage() {
             </div>
           </div>
 
-          {/* Calendar & toasts */}
+          {/* ── Calendar & toasts ── */}
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
               Calendario y toasts
@@ -933,7 +986,7 @@ export function ThemeManagerPage() {
                 onChange={(v) =>
                   setColor(
                     ["overrides", "calendar", "activeButtonBackground"],
-                    v,
+                    v
                   )
                 }
                 disabled={isSelectedBase}

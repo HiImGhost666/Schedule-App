@@ -11,22 +11,27 @@ interface StatCardProps {
 }
 
 const colorMap = {
-  navy:   { bg: 'bg-navy-800',  light: 'bg-navy-50',   text: 'text-navy-700' },
-  gold:   { bg: 'bg-red-500',   light: 'bg-red-50',    text: 'text-red-500'  },
+  navy:   { bg: 'bg-navy-800',    light: 'bg-navy-50',    text: 'text-navy-700' },
+  gold:   { bg: 'bg-red-500',     light: 'bg-red-50',     text: 'text-red-500'  },
   green:  { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-600' },
-  purple: { bg: 'bg-lilac-400', light: 'bg-lilac-50',  text: 'text-lilac-600' },
+  purple: { bg: 'bg-lilac-400',   light: 'bg-lilac-50',   text: 'text-lilac-600' },
 };
 
 export function StatCard({ title, value, icon: Icon, trend, color = 'navy', className }: StatCardProps) {
   const c = colorMap[color];
   return (
-    <div className={cn('card p-7 flex items-center gap-5 hover:shadow-md transition-shadow', className)}>
-      <div className={cn('p-4 rounded-xl flex-shrink-0', c.light)}>
-        <Icon className={cn('h-6 w-6', c.text)} />
+    <div className={cn('card p-4 md:p-7 flex items-center gap-3.5 md:gap-5 hover:shadow-md transition-shadow', className)}>
+      {/* Icon — smaller on mobile */}
+      <div className={cn('p-2.5 md:p-4 rounded-xl flex-shrink-0', c.light)}>
+        <Icon className={cn('h-5 w-5 md:h-6 md:w-6', c.text)} />
       </div>
+
+      {/* Text */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-navy-400 uppercase tracking-wider leading-relaxed">{title}</p>
-        <p className="text-2xl font-bold text-navy-800 mt-1">{value}</p>
+        <p className="text-[10px] md:text-xs font-semibold text-navy-400 uppercase tracking-wider leading-tight">
+          {title}
+        </p>
+        <p className="text-xl md:text-2xl font-bold text-navy-800 mt-0.5 md:mt-1">{value}</p>
         {trend && (
           <p className="text-xs text-navy-400 mt-0.5">
             <span className={trend.value >= 0 ? 'text-emerald-600' : 'text-red-500'}>
