@@ -1,28 +1,39 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Users, Settings, Webhook, Bell, ClipboardList, LogOut, MoreHorizontal } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
-import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import api from '@/config/api';
-import toast from 'react-hot-toast';
+import { NavLink, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Calendar,
+  Users,
+  Settings,
+  Webhook,
+  Bell,
+  ClipboardList,
+  LogOut,
+  MoreHorizontal,
+} from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import api from "@/config/api";
+import toast from "react-hot-toast";
+import { User } from "lucide-react";
 
 const baseItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Inicio', exact: true },
-  { to: '/schedule', icon: Calendar, label: 'Turnos' },
+  { to: "/", icon: LayoutDashboard, label: "Inicio", exact: true },
+  { to: "/schedule", icon: Calendar, label: "Turnos" },
 ];
 
 const adminExtraItems = [
-  { to: '/admin/webhooks', icon: Webhook, label: 'Webhooks' },
-  { to: '/admin/notifications', icon: Bell, label: 'Notificaciones' },
-  { to: '/admin/audit', icon: ClipboardList, label: 'Auditoría' },
+  { to: "/admin/webhooks", icon: Webhook, label: "Webhooks" },
+  { to: "/admin/notifications", icon: Bell, label: "Notificaciones" },
+  { to: "/admin/audit", icon: ClipboardList, label: "Auditoría" },
 ];
 
 export function MobileNav() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
-  const isAdmin = user?.role === 'admin';
-  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === "admin";
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -35,10 +46,10 @@ export function MobileNav() {
           />
           <div
             className="md:hidden fixed bottom-16 left-0 right-0 z-30 mx-3 mb-1 rounded-2xl border border-navy-100 shadow-xl overflow-hidden"
-            style={{ backgroundColor: 'var(--theme-surface)' }}
+            style={{ backgroundColor: "var(--theme-surface)" }}
           >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-theme-muted px-4 pt-3 pb-1">
-              {isAdminOrManager ? 'Administración' : 'Cuenta'}
+              {isAdminOrManager ? "Administración" : "Cuenta"}
             </p>
 
             {isAdminOrManager && (
@@ -47,8 +58,10 @@ export function MobileNav() {
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors',
-                    isActive ? 'text-gold-500 bg-navy-50/50' : 'text-theme-primary'
+                    "flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors",
+                    isActive
+                      ? "text-gold-500 bg-navy-50/50"
+                      : "text-theme-primary",
                   )
                 }
               >
@@ -57,29 +70,32 @@ export function MobileNav() {
               </NavLink>
             )}
 
-            {isAdmin && adminExtraItems.map(({ to, icon: Icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                onClick={() => setMenuOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors',
-                    isActive ? 'text-gold-500 bg-navy-50/50' : 'text-theme-primary'
-                  )
-                }
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </NavLink>
-            ))}
+            {isAdmin &&
+              adminExtraItems.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors",
+                      isActive
+                        ? "text-gold-500 bg-navy-50/50"
+                        : "text-theme-primary",
+                    )
+                  }
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </NavLink>
+              ))}
           </div>
         </>
       )}
 
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 border-t border-navy-100 z-30 safe-area-bottom"
-        style={{ backgroundColor: 'var(--theme-surface)' }}
+        style={{ backgroundColor: "var(--theme-surface)" }}
       >
         <div className="flex items-center justify-around h-14">
           {baseItems.map(({ to, icon: Icon, label, exact }) => (
@@ -89,14 +105,16 @@ export function MobileNav() {
               end={exact}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors',
-                  isActive ? 'text-navy-600' : 'text-navy-300'
+                  "flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors",
+                  isActive ? "text-navy-600" : "text-navy-300",
                 )
               }
             >
               {({ isActive }) => (
                 <>
-                  <Icon className={cn('h-5 w-5', isActive && 'text-gold-500')} />
+                  <Icon
+                    className={cn("h-5 w-5", isActive && "text-gold-500")}
+                  />
                   <span>{label}</span>
                 </>
               )}
@@ -107,14 +125,14 @@ export function MobileNav() {
             to="/profile"
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors',
-                isActive ? 'text-navy-600' : 'text-navy-300'
+                "flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors",
+                isActive ? "text-navy-600" : "text-navy-300",
               )
             }
           >
             {({ isActive }) => (
               <>
-                <Settings className={cn('h-5 w-5', isActive && 'text-gold-500')} />
+                <User className={cn("h-5 w-5", isActive && "text-gold-500")} />
                 <span>Perfil</span>
               </>
             )}
@@ -123,11 +141,13 @@ export function MobileNav() {
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className={cn(
-              'flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors',
-              menuOpen ? 'text-gold-500' : 'text-navy-300'
+              "flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors",
+              menuOpen ? "text-gold-500" : "text-navy-300",
             )}
           >
-            <MoreHorizontal className={cn('h-5 w-5', menuOpen && 'text-gold-500')} />
+            <MoreHorizontal
+              className={cn("h-5 w-5", menuOpen && "text-gold-500")}
+            />
             <span>Más</span>
           </button>
         </div>
