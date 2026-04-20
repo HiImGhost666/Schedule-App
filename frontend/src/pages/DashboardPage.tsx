@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, Users, Shield, AlertTriangle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Users, Shield, AlertTriangle, Clock, ExternalLink } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -57,6 +58,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
@@ -106,12 +108,23 @@ export function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Turnos de esta semana"
-          value={loadingSchedules ? '—' : (weekSchedules?.length || 0)}
-          icon={Calendar}
-          color="navy"
-        />
+        <div className="relative group">
+          <StatCard
+            title="Turnos de esta semana"
+            value={loadingSchedules ? '—' : (weekSchedules?.length || 0)}
+            icon={Calendar}
+            color="navy"
+          />
+          <button
+            type="button"
+            onClick={() => navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } })}
+            className="absolute bottom-3 right-3 p-1.5 rounded-lg bg-navy-500/10 hover:bg-navy-500/20 text-navy-600 transition-all z-10"
+            title="Ver en calendario (Vista semanal)"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        </div>
+
         <StatCard
           title="Mis turnos"
           value={loadingSchedules ? '—' : mySchedules.length}
@@ -142,6 +155,7 @@ export function DashboardPage() {
               <Calendar className="h-4 w-4 text-gold-500" />
               Turnos de esta semana
             </h2>
+
             <span className="text-xs text-theme-muted">
               {format(weekStart, 'dd/MM')} — {format(weekEnd, 'dd/MM')}
             </span>
