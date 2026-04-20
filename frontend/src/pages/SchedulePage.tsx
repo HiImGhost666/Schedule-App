@@ -11,6 +11,7 @@ import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-re
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useUIStore } from '@/store/uiStore';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import {
   CalendarDetailPopover,
@@ -296,9 +297,11 @@ export function SchedulePage() {
   const navigate = useNavigate();
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -686,6 +689,49 @@ export function SchedulePage() {
     }
   }, [navigate, scheduleId]);
 
+  const reflowCalendar = useCallback(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    api.updateSize();
+  }, []);
+
+  useEffect(() => {
+    if (!calendarContainerRef.current || typeof ResizeObserver === 'undefined') return;
+
+    let rafId: number | null = null;
+    const scheduleReflow = () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        reflowCalendar();
+      });
+    };
+
+    const observer = new ResizeObserver(() => {
+      scheduleReflow();
+    });
+
+    observer.observe(calendarContainerRef.current);
+    window.addEventListener('resize', scheduleReflow);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleReflow);
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [reflowCalendar]);
+
+  useEffect(() => {
+    reflowCalendar();
+
+    const delayA = window.setTimeout(reflowCalendar, 120);
+    const delayB = window.setTimeout(reflowCalendar, 340);
+
+    return () => {
+      window.clearTimeout(delayA);
+      window.clearTimeout(delayB);
+    };
+  }, [sidebarCollapsed, reflowCalendar]);
+
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Header */}
@@ -842,7 +888,7 @@ export function SchedulePage() {
 
           {/* Calendar */}
           <div className="p-6">
-            <div className="fc-google-like">
+            <div ref={calendarContainerRef} className="fc-google-like">
               <FullCalendar
                 ref={calendarRef}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
