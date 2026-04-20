@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 
@@ -35,9 +36,11 @@ function renderPage() {
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AuditLogPage />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <AuditLogPage />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 

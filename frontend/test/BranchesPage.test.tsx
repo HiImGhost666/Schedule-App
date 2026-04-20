@@ -72,6 +72,7 @@ describe('BranchesPage', () => {
 
     renderPage();
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Nueva sucursal' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Crear' }));
 
     expect(toast.error).toHaveBeenCalledWith('Nombre y código son obligatorios');
@@ -100,6 +101,7 @@ describe('BranchesPage', () => {
 
     renderPage();
 
+  await userEvent.click(await screen.findByRole('button', { name: 'Nueva sucursal' }));
     await userEvent.type(await screen.findByPlaceholderText('Nombre'), 'Valencia');
     await userEvent.type(screen.getByPlaceholderText('Código (ej: MAD01)'), 'vlc99');
     await userEvent.click(screen.getByRole('button', { name: 'Crear' }));
