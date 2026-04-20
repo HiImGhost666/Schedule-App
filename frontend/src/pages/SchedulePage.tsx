@@ -340,48 +340,35 @@ export function SchedulePage() {
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
+  const effectiveActiveBranchId = (() => {
+    if (!branches?.data?.length) return '';
+
+    if (!isAdmin) {
+      if (!assignedBranchId) return '';
+      return branches.data.some((branch) => branch.id === assignedBranchId) ? assignedBranchId : '';
+    }
+
+    if (activeBranchId && branches.data.some((branch) => branch.id === activeBranchId)) {
+      return activeBranchId;
+    }
+
+    return '';
+  })();
+
   const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
   const branchNameById = useMemo(
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
     [availableBranches],
   );
   const selectedBranch = useMemo(
-    () => availableBranches.find((branch) => branch.id === activeBranchId) ?? availableBranches[0],
-    [availableBranches, activeBranchId],
+    () => availableBranches.find((branch) => branch.id === effectiveActiveBranchId) ?? availableBranches[0],
+    [availableBranches, effectiveActiveBranchId],
   );
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!branches?.data?.length) return;
-
-    if (!isAdmin) {
-      if (!assignedBranchId) {
-        if (activeBranchId) setActiveBranchId('');
-        return;
-      }
-
-      const assignedBranch = branches.data.find((branch) => branch.id === assignedBranchId);
-      if (!assignedBranch) {
-        if (activeBranchId) setActiveBranchId('');
-        return;
-      }
-
-      if (activeBranchId !== assignedBranchId) {
-        setActiveBranchId(assignedBranchId);
-      }
-      return;
-    }
-
-    if (!activeBranchId || !branches.data.some((branch) => branch.id === activeBranchId)) {
-      setActiveBranchId('');
-    }
-  }, [branches?.data, activeBranchId, isAdmin, assignedBranchId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
       'schedules',
-      activeBranchId || 'all',
+      effectiveActiveBranchId || 'all',
       shouldUseWeekEndpoint ? 'week-view' : 'month-view',
       shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
     ],
@@ -389,7 +376,7 @@ export function SchedulePage() {
       if (shouldUseWeekEndpoint) {
         return api
           .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`, {
-            params: activeBranchId ? { branchId: activeBranchId } : {},
+            params: effectiveActiveBranchId ? { branchId: effectiveActiveBranchId } : {},
           })
           .then((r) => r.data.data.items.map(mapWeekItemToSchedule));
       }
@@ -397,7 +384,7 @@ export function SchedulePage() {
       return api
         .get<{ data: Schedule[] }>('/schedules', {
           params: {
-            ...(activeBranchId ? { branchId: activeBranchId } : {}),
+            ...(effectiveActiveBranchId ? { branchId: effectiveActiveBranchId } : {}),
             from: new Date(
               dateRange.from.getFullYear(),
               dateRange.from.getMonth() - 1,
@@ -412,26 +399,26 @@ export function SchedulePage() {
         })
         .then((r) => r.data.data);
     },
-    enabled: isAdmin || Boolean(activeBranchId),
+    enabled: isAdmin || Boolean(effectiveActiveBranchId),
   });
 
   const { data: branchHolidays } = useQuery<{ data: BranchHoliday[] }>({
     queryKey: [
       'branch-holidays-calendar',
-      activeBranchId,
+      effectiveActiveBranchId,
       format(dateRange.from, 'yyyy-MM-dd'),
       format(dateRange.to, 'yyyy-MM-dd'),
     ],
     queryFn: () =>
       api
-        .get(`/branches/${activeBranchId}/holidays`, {
+        .get(`/branches/${effectiveActiveBranchId}/holidays`, {
           params: {
             from: dateRange.from.toISOString(),
             to: dateRange.to.toISOString(),
           },
         })
         .then((r) => r.data),
-    enabled: Boolean(activeBranchId),
+    enabled: Boolean(effectiveActiveBranchId),
   });
 
   const { data: scheduleDetail } = useQuery({
@@ -802,7 +789,7 @@ export function SchedulePage() {
                       onClick={() => setActiveBranchId('')}
                       className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
                       style={
-                        !activeBranchId
+                        !effectiveActiveBranchId
                           ? {
                             backgroundColor: 'var(--theme-sidebar-active-bg)',
                             color: 'var(--theme-sidebar-active-text)',
@@ -826,7 +813,7 @@ export function SchedulePage() {
                         onClick={() => setActiveBranchId(branch.id)}
                         className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
                         style={
-                          activeBranchId === branch.id
+                          effectiveActiveBranchId === branch.id
                             ? {
                               backgroundColor: 'var(--theme-sidebar-active-bg)',
                               color: 'var(--theme-sidebar-active-text)',
@@ -871,7 +858,7 @@ export function SchedulePage() {
                 )}
               </div>
 
-              {activeBranchId && (
+              {effectiveActiveBranchId && (
                 <div className="mt-3 pt-3 border-t border-theme-color flex flex-col gap-1.5">
                   {(Object.keys(HOLIDAY_TYPE_LABELS) as BranchHoliday['type'][]).map((type) => (
                     <span key={type} className="flex items-center gap-1.5 text-[10px] text-theme-muted">
@@ -968,7 +955,7 @@ export function SchedulePage() {
         schedule={selectedSchedule}
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
-        defaultBranchId={activeBranchId}
+        defaultBranchId={effectiveActiveBranchId}
       />
 
       <CalendarDetailPopover

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, Filter, Pencil, Plus, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -64,26 +64,28 @@ export function HolidaysPage() {
         .then((r) => r.data),
   });
 
-  const selectedBranch = useMemo(
-    () => branches?.data.find((branch) => branch.id === selectedBranchId),
-    [branches?.data, selectedBranchId],
-  );
+  const branchList = branches?.data ?? [];
+  const hasBranches = branchList.length > 0;
 
-  useEffect(() => {
-    if (!branches?.data?.length) return;
-    if (!selectedBranchId || !branches.data.some((b) => b.id === selectedBranchId)) {
-      const next = branches.data.find((b) => b.isActive) ?? branches.data[0];
-      setSelectedBranchId(next.id);
+  const effectiveSelectedBranchId = (() => {
+    if (!hasBranches) return '';
+    if (selectedBranchId && branchList.some((branch) => branch.id === selectedBranchId)) {
+      return selectedBranchId;
     }
-  }, [branches?.data, selectedBranchId]);
+
+    const fallback = branchList.find((branch) => branch.isActive) ?? branchList[0];
+    return fallback?.id ?? '';
+  })();
+
+  const selectedBranch = branches?.data.find((branch) => branch.id === effectiveSelectedBranchId);
 
   const { data: holidays, isLoading: holidaysLoading } = useQuery<{ data: BranchHoliday[] }>({
-    queryKey: ['branch-holidays', selectedBranchId, holidayYear],
+    queryKey: ['branch-holidays', effectiveSelectedBranchId, holidayYear],
     queryFn: () =>
       api
-        .get(`/branches/${selectedBranchId}/holidays`, { params: { year: holidayYear } })
+        .get(`/branches/${effectiveSelectedBranchId}/holidays`, { params: { year: holidayYear } })
         .then((r) => r.data),
-    enabled: Boolean(selectedBranchId),
+    enabled: Boolean(effectiveSelectedBranchId),
   });
 
   const filteredHolidays = useMemo(() => {
@@ -93,7 +95,7 @@ export function HolidaysPage() {
   }, [holidays?.data, holidayTypeFilter]);
 
   const createHolidayMutation = useMutation({
-    mutationFn: () => api.post(`/branches/${selectedBranchId}/holidays`, holidayForm),
+    mutationFn: () => api.post(`/branches/${effectiveSelectedBranchId}/holidays`, holidayForm),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['branch-holidays'] });
       qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
@@ -105,7 +107,7 @@ export function HolidaysPage() {
   });
 
   const updateHolidayMutation = useMutation({
-    mutationFn: (holidayId: string) => api.patch(`/branches/${selectedBranchId}/holidays/${holidayId}`, holidayForm),
+    mutationFn: (holidayId: string) => api.patch(`/branches/${effectiveSelectedBranchId}/holidays/${holidayId}`, holidayForm),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['branch-holidays'] });
       qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
@@ -117,7 +119,7 @@ export function HolidaysPage() {
   });
 
   const deleteHolidayMutation = useMutation({
-    mutationFn: (holidayId: string) => api.delete(`/branches/${selectedBranchId}/holidays/${holidayId}`),
+    mutationFn: (holidayId: string) => api.delete(`/branches/${effectiveSelectedBranchId}/holidays/${holidayId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['branch-holidays'] });
       qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
@@ -139,7 +141,7 @@ export function HolidaysPage() {
   };
 
   const onSaveHoliday = () => {
-    if (!selectedBranchId) {
+    if (!effectiveSelectedBranchId) {
       toast.error('Selecciona una sucursal');
       return;
     }
@@ -185,9 +187,11 @@ export function HolidaysPage() {
             </label>
             {branchesLoading ? (
               <div className="flex items-center gap-2 text-sm text-theme-muted"><LoadingSpinner size="sm" />Cargando sucursales…</div>
+            ) : !hasBranches ? (
+              <p className="text-sm text-theme-muted">No hay sucursales disponibles</p>
             ) : (
               <select
-                value={selectedBranchId}
+                value={effectiveSelectedBranchId}
                 onChange={(e) => setSelectedBranchId(e.target.value)}
                 className="input-field text-sm min-w-72"
               >
@@ -260,7 +264,9 @@ export function HolidaysPage() {
           </div>
         </div>
 
-        {!selectedBranch ? (
+        {!hasBranches ? (
+          <EmptyState icon={CalendarDays} title="Sin sucursales" description="Crea una sucursal para poder configurar festivos" />
+        ) : !selectedBranch ? (
           <EmptyState icon={CalendarDays} title="Selecciona una sucursal" description="Elige una sucursal para gestionar sus festivos" />
         ) : (
           <>

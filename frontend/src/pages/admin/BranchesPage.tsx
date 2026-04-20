@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Save, Trash2, Pencil, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -36,27 +36,23 @@ export function BranchesPage() {
         .then((r) => r.data),
   });
 
-  const selectedBranch = useMemo(
-    () => branches?.data.find((branch) => branch.id === selectedBranchId),
-    [branches?.data, selectedBranchId],
-  );
+  const effectiveSelectedBranchId = (() => {
+    if (!branches?.data?.length) return '';
+    if (selectedBranchId && branches.data.some((branch) => branch.id === selectedBranchId)) {
+      return selectedBranchId;
+    }
 
-  const activeBranchesCount = useMemo(
-    () => (branches?.data ?? []).filter((branch) => branch.isActive).length,
-    [branches?.data],
-  );
+    const fallback = branches.data.find((branch) => branch.isActive) ?? branches.data[0];
+    return fallback?.id ?? '';
+  })();
+
+  const selectedBranch = branches?.data.find((branch) => branch.id === effectiveSelectedBranchId);
+
+  const activeBranchesCount = (branches?.data ?? []).filter((branch) => branch.isActive).length;
 
   const isLastActiveSelectedBranch = Boolean(
     selectedBranch?.isActive && activeBranchesCount <= 1,
   );
-
-  useEffect(() => {
-    if (!branches?.data?.length) return;
-    if (!selectedBranchId || !branches.data.some((b) => b.id === selectedBranchId)) {
-      const next = branches.data.find((b) => b.isActive) ?? branches.data[0];
-      setSelectedBranchId(next.id);
-    }
-  }, [branches?.data, selectedBranchId]);
 
   const createBranchMutation = useMutation({
     mutationFn: () => api.post('/branches', { ...branchForm, code: branchForm.code.toUpperCase() }),
@@ -164,7 +160,7 @@ export function BranchesPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-4">
             <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
               {branches.data.map((branch) => {
-                const active = selectedBranchId === branch.id;
+                const active = effectiveSelectedBranchId === branch.id;
                 return (
                   <button
                     key={branch.id}
