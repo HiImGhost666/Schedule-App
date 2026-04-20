@@ -13,6 +13,13 @@ export interface User {
   islandCalendar?: string;
   companyPhone?: string;
   auxiliaryPhone?: string;
+  branchId?: string | null;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+    isActive: boolean;
+  } | null;
 }
 
 export interface Schedule {
@@ -27,6 +34,13 @@ export interface Schedule {
   notes?: string;
   isLastMinute: boolean;
   hoursPerDay?: number;
+  branchId?: string;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+    isActive: boolean;
+  };
   calendarType?: string;
   createdById: string;
   createdBy: { id: string; name: string };
@@ -71,8 +85,35 @@ export interface WeekScheduleItem {
   notes?: string | null;
   isLastMinute: boolean;
   hoursPerDay?: number;
+  branchId?: string | null;
   calendarType?: string;
   assignees: WeekScheduleAssignee[];
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  countryCode: string;
+  timezone: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BranchHoliday {
+  id: string;
+  branchId: string;
+  date: string;
+  name: string;
+  type: 'nacional' | 'autonomica' | 'local' | 'mejora' | 'regional' | 'company';
+  scope: 'national' | 'regional' | 'local' | 'company';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface WeekSchedulesResponse {

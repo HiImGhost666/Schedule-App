@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Trash2, Clock, MapPin, FileText, Users, CalendarDays, Info, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import { SCHEDULE_TYPES, type Schedule, type User } from '@/types';
+import { SCHEDULE_TYPES, type Branch, type BranchHoliday, type Schedule, type User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -13,15 +13,55 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
-import {
-  countWorkingDays,
-  getHolidaysForCalendar,
-  CALENDAR_LABELS,
-  HOLIDAY_COLORS,
-  HOLIDAY_TYPE_LABELS,
-  type CalendarType,
-  type HolidayEntry,
-} from '@/config/holidays';
+
+const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
+  nacional: '#dc2626',
+  autonomica: '#ea580c',
+  local: '#d97706',
+  mejora: '#65a30d',
+  regional: '#0ea5e9',
+  company: '#7c3aed',
+};
+
+const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
+  nacional: 'Nacional',
+  autonomica: 'Autonómica',
+  local: 'Local',
+  mejora: 'Mejora convenio',
+  regional: 'Regional',
+  company: 'Empresa',
+};
+
+function toIsoDate(value: Date): string {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+}
+
+function countWorkingDaysWithHolidays(
+  start: Date,
+  end: Date,
+  excludeWeekends: boolean,
+  holidayDates: Set<string>,
+) {
+  let count = 0;
+  const cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setHours(0, 0, 0, 0);
+
+  while (cursor <= endDay) {
+    const day = cursor.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const isHoliday = holidayDates.has(toIsoDate(cursor));
+
+    if (!(excludeWeekends && isWeekend) && !isHoliday) {
+      count += 1;
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return count;
+}
 
 const shiftSchema = z.object({
   title: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -32,9 +72,9 @@ const shiftSchema = z.object({
   color: z.string().default('#2563eb'),
   location: z.string().optional(),
   notes: z.string().optional(),
+  branchId: z.string().min(1, 'Sucursal requerida'),
   reason: z.string().optional(),
   hoursPerDay: z.coerce.number().min(0.5).max(24).default(8),
-  calendarType: z.string().default('tenerife'),
 });
 
 type ShiftForm = z.infer<typeof shiftSchema>;
@@ -46,23 +86,28 @@ interface ShiftModalProps {
   schedule?: Schedule | null;
   defaultStart?: Date;
   defaultEnd?: Date;
+  defaultBranchId?: string;
 }
 
-export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }: ShiftModalProps) {
+export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, defaultBranchId }: ShiftModalProps) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [includeWeekends, setIncludeWeekends] = useState(false);
-  const [holidayConflicts, setHolidayConflicts] = useState<{
-    userName: string;
-    island: string;
-    holidays: HolidayEntry[];
-  }[]>([]);
+  const [holidayConflicts, setHolidayConflicts] = useState<BranchHoliday[]>([]);
   const [pendingPayload, setPendingPayload] = useState<(ShiftForm & { assigneeIds: string[] }) | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
+
+  const { data: branches } = useQuery<{ data: Branch[] }>({
+    queryKey: ['branches', 'active-only'],
+    queryFn: () => api.get<{ data: Branch[] }>('/branches').then((r) => r.data),
+    enabled: open,
+  });
+
+  const branchesList = branches?.data ?? [];
 
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
@@ -82,7 +127,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       type: 'guardia',
       color: '#2563eb',
       hoursPerDay: 8,
-      calendarType: 'tenerife',
+      branchId: defaultBranchId ?? '',
       startDatetime: defaultStart ? fmt(defaultStart) : '',
       endDatetime: defaultEnd ? fmt(defaultEnd) : '',
     },
@@ -100,7 +145,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
         location: schedule.location || '',
         notes: schedule.notes || '',
         hoursPerDay: schedule.hoursPerDay ?? 8,
-        calendarType: schedule.calendarType ?? 'tenerife',
+        branchId: schedule.branchId ?? defaultBranchId ?? '',
       });
       setSelectedUsers(schedule.assignments.map((a) => a.userId));
       setIncludeWeekends(false);
@@ -109,27 +154,63 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
         type: 'guardia',
         color: '#2563eb',
         hoursPerDay: 8,
-        calendarType: 'tenerife',
+        branchId: defaultBranchId ?? '',
         startDatetime: defaultStart ? fmt(defaultStart) : '',
         endDatetime: defaultEnd ? fmt(defaultEnd) : '',
       });
       setSelectedUsers([]);
       setIncludeWeekends(false);
     }
-  }, [schedule, defaultStart, defaultEnd, reset]);
+  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId]);
+
+  useEffect(() => {
+    if (!open || schedule) return;
+    const currentBranchId = watch('branchId');
+    if (currentBranchId) return;
+
+    const nextBranchId = defaultBranchId ?? branchesList[0]?.id;
+    if (nextBranchId) {
+      setValue('branchId', nextBranchId, { shouldValidate: true });
+    }
+  }, [open, schedule, defaultBranchId, branchesList, setValue, watch]);
 
   const selectedType = watch('type');
+  const selectedBranchId = watch('branchId');
+  const startVal = watch('startDatetime');
+  const endVal = watch('endDatetime');
+
   useEffect(() => {
     const typeColor = SCHEDULE_TYPES.find((t) => t.value === selectedType)?.color || '#1e3a5f';
     setValue('color', typeColor);
   }, [selectedType, setValue]);
 
+  const { data: branchRangeHolidays } = useQuery({
+    queryKey: ['branch-holidays-modal', selectedBranchId, startVal, endVal],
+    queryFn: () =>
+      api
+        .get<{ data: BranchHoliday[] }>(`/branches/${selectedBranchId}/holidays`, {
+          params: {
+            ...(startVal ? { from: new Date(startVal).toISOString() } : {}),
+            ...(endVal ? { to: new Date(endVal).toISOString() } : {}),
+          },
+        })
+        .then((r) => r.data.data),
+    enabled: open && Boolean(selectedBranchId),
+  });
+
   // Live preview calculation
-  const startVal = watch('startDatetime');
-  const endVal = watch('endDatetime');
   const hoursPerDayRaw = watch('hoursPerDay');
   const hoursPerDay = typeof hoursPerDayRaw === 'number' ? hoursPerDayRaw : Number(hoursPerDayRaw ?? 8);
-  const calendarType = watch('calendarType') as CalendarType;
+
+  const holidayDates = useMemo(
+    () => new Set((branchRangeHolidays ?? []).map((h) => h.date.slice(0, 10))),
+    [branchRangeHolidays],
+  );
+
+  const selectedBranch = useMemo(
+    () => branchesList.find((branch) => branch.id === selectedBranchId),
+    [branchesList, selectedBranchId],
+  );
 
   const preview = useMemo(() => {
     if (!startVal || !endVal) return null;
@@ -137,13 +218,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       const start = new Date(startVal);
       const end = new Date(endVal);
       if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
-      const days = countWorkingDays(start, end, !includeWeekends, calendarType ?? 'tenerife');
+      const days = countWorkingDaysWithHolidays(start, end, !includeWeekends, holidayDates);
       const totalHours = Math.round(days * hoursPerDay * 10) / 10;
       return { days, totalHours };
     } catch {
       return null;
     }
-  }, [startVal, endVal, hoursPerDay, includeWeekends, calendarType]);
+  }, [startVal, endVal, hoursPerDay, includeWeekends, holidayDates]);
 
   const createMutation = useMutation({
     mutationFn: (data: ShiftForm & { assigneeIds: string[] }) => api.post('/schedules', data),
@@ -178,48 +259,25 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
   const checkHolidayConflicts = useCallback((
     start: Date,
     end: Date,
-    assigneeIds: string[],
-    usersData: User[],
+    holidays: BranchHoliday[],
   ) => {
-    const conflicts: { userName: string; island: string; holidays: HolidayEntry[] }[] = [];
+    const rangeStart = new Date(start);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(end);
+    rangeEnd.setHours(23, 59, 59, 999);
 
-    for (const uid of assigneeIds) {
-      const u = usersData.find((x) => x.id === uid);
-      if (!u || !u.islandCalendar || u.islandCalendar === 'none') continue;
+    const hits = holidays.filter((holiday) => {
+      const holidayDate = new Date(holiday.date);
+      holidayDate.setHours(0, 0, 0, 0);
 
-      const cal = u.islandCalendar as CalendarType;
-      const holidays = getHolidaysForCalendar(cal);
+      if (holidayDate < rangeStart || holidayDate > rangeEnd) return false;
+      if (includeWeekends) return true;
 
-      // Iterate through each day in range
-      const hits: HolidayEntry[] = [];
-      const cur = new Date(start);
-      cur.setHours(0, 0, 0, 0);
-      const endDay = new Date(end);
-      endDay.setHours(23, 59, 59, 999);
+      const day = holidayDate.getDay();
+      return day !== 0 && day !== 6;
+    });
 
-      while (cur <= endDay) {
-        const dow = cur.getDay();
-        // Only check working days (respect includeWeekends state)
-        if (includeWeekends || (dow !== 0 && dow !== 6)) {
-          const isoDate = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-          const match = holidays.find((h) => h.date === isoDate);
-          if (match && !hits.find((h) => h.date === match.date)) {
-            hits.push(match);
-          }
-        }
-        cur.setDate(cur.getDate() + 1);
-      }
-
-      if (hits.length > 0) {
-        conflicts.push({
-          userName: u.name,
-          island: cal === 'tenerife' ? 'Tenerife' : 'Las Palmas',
-          holidays: hits,
-        });
-      }
-    }
-
-    return conflicts;
+    return hits.sort((a, b) => a.date.localeCompare(b.date));
   }, [includeWeekends]);
 
   const onSubmit = (data: ShiftForm) => {
@@ -234,11 +292,11 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
       assigneeIds: selectedUsers,
     };
 
-    // Check for holiday conflicts among assigned users
-    if (users && data.startDatetime && data.endDatetime) {
+    // Warn when branch holidays overlap selected period.
+    if (data.startDatetime && data.endDatetime) {
       const start = new Date(data.startDatetime);
       const end = new Date(data.endDatetime);
-      const conflicts = checkHolidayConflicts(start, end, selectedUsers, users);
+      const conflicts = checkHolidayConflicts(start, end, branchRangeHolidays ?? []);
       if (conflicts.length > 0) {
         setHolidayConflicts(conflicts);
         setPendingPayload(payload);
@@ -272,8 +330,6 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
   const isLoading = createMutation.isPending || updateMutation.isPending;
 
   if (!open) return null;
-
-  const calOptions: CalendarType[] = ['tenerife', 'las_palmas', 'none'];
 
   return (
     <>
@@ -361,7 +417,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
               </div>
             </div>
 
-            {/* Hours per day + calendar type */}
+            {/* Hours per day + branch */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-navy-600 mb-1">
@@ -380,27 +436,21 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
               </div>
               <div>
                 <label className="block text-sm font-medium text-navy-600 mb-1">
-                  <CalendarDays className="inline h-3.5 w-3.5 mr-1" />Festivos
+                  <CalendarDays className="inline h-3.5 w-3.5 mr-1" />Sucursal
                 </label>
-                <div className="flex rounded-lg border border-theme-color overflow-hidden">
-                  {calOptions.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => canEdit && setValue('calendarType', opt)}
-                      className="flex-1 py-2 text-xs font-medium transition-colors"
-                      style={
-                        calendarType === opt
-                          ? { backgroundColor: '#1e3a5f', color: '#fff' }
-                          : { backgroundColor: 'var(--theme-surface)', color: 'var(--theme-text-muted)' }
-                      }
-                    >
-                      {opt === 'none' ? 'Ninguno' : opt === 'tenerife' ? 'Tenerife' : 'LP'}
-                    </button>
+                <select
+                  {...register('branchId')}
+                  className="input-field text-sm"
+                  disabled={!canEdit || !branchesList.length}
+                >
+                  <option value="">Selecciona sucursal</option>
+                  {branchesList.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name} ({branch.code})
+                    </option>
                   ))}
-                </div>
-                <input type="hidden" {...register('calendarType')} />
+                </select>
+                {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
               </div>
             </div>
 
@@ -432,7 +482,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
                   </p>
                   <p className="text-xs text-theme-muted mt-0.5">
                     {!includeWeekends ? 'Fines de semana excluidos' : 'Fines de semana incluidos'}
-                    {calendarType !== 'none' ? ` · Festivos ${CALENDAR_LABELS[calendarType]}` : ''}
+                    {selectedBranch ? ` · Sucursal ${selectedBranch.name}` : ''}
+                    {(branchRangeHolidays?.length ?? 0) > 0 ? ` · ${(branchRangeHolidays?.length ?? 0)} festivo(s) en rango` : ''}
                   </p>
                 </div>
               </div>
@@ -540,32 +591,21 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd }
               <div>
                 <h3 className="font-semibold text-amber-800">Festivos detectados</h3>
                 <p className="text-xs text-amber-600 mt-0.5">
-                  Algunos técnicos tienen días festivos en el periodo seleccionado
+                  Hay festivos configurados para la sucursal en el periodo seleccionado
                 </p>
               </div>
             </div>
             <div className="p-6 space-y-4 max-h-72 overflow-y-auto">
-              {holidayConflicts.map((c) => (
-                <div key={c.userName} className="space-y-1.5">
-                  <p className="text-sm font-semibold text-theme-primary flex items-center gap-1.5">
-                    <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
-                    {c.userName}
-                    <span className="text-xs font-normal text-theme-muted">({c.island})</span>
-                  </p>
-                  <ul className="space-y-0.5 pl-3.5">
-                    {c.holidays.map((h) => (
-                      <li key={h.date} className="flex items-center gap-2 text-xs text-theme-muted">
-                        <span className="font-mono text-theme-muted">{h.date}</span>
-                        <span className="truncate">{h.name}</span>
-                        <span
-                          className="shrink-0 px-1.5 py-0.5 rounded-full text-white font-medium"
-                          style={{ backgroundColor: HOLIDAY_COLORS[h.type], fontSize: '9px' }}
-                        >
-                          {HOLIDAY_TYPE_LABELS[h.type]}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+              {holidayConflicts.map((holiday) => (
+                <div key={holiday.id} className="flex items-center gap-2 text-xs text-theme-muted">
+                  <span className="font-mono text-theme-muted">{holiday.date.slice(0, 10)}</span>
+                  <span className="truncate flex-1">{holiday.name}</span>
+                  <span
+                    className="shrink-0 px-1.5 py-0.5 rounded-full text-white font-medium"
+                    style={{ backgroundColor: HOLIDAY_COLORS[holiday.type], fontSize: '9px' }}
+                  >
+                    {HOLIDAY_TYPE_LABELS[holiday.type]}
+                  </span>
                 </div>
               ))}
             </div>

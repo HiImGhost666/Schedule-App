@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, MapPin } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { X } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import type { User } from '@/types';
+import type { Branch, User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -16,21 +16,37 @@ const schema = z.object({
   password: z.string().min(8).optional().or(z.literal('')),
   role: z.enum(['admin', 'manager', 'viewer']),
   department: z.string().optional(),
-  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).default('none'),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
+  branchId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
 type FormDataInput = z.input<typeof schema>;
 
-interface Props { open: boolean; user: User | null; onClose: () => void; }
+interface Props {
+  open: boolean;
+  user: User | null;
+  onClose: () => void;
+}
 
 export function UserFormModal({ open, user, onClose }: Props) {
   const qc = useQueryClient();
   const isEdit = !!user;
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
+  const { data: branchesData, isLoading: branchesLoading } = useQuery<{ data: Branch[] }>({
+    queryKey: ['branches', 'user-form'],
+    queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
+    enabled: open,
+  });
+  const branches = branchesData?.data ?? [];
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormDataInput, unknown, FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -41,33 +57,40 @@ export function UserFormModal({ open, user, onClose }: Props) {
         email: user.email,
         role: user.role,
         department: user.department || '',
-        islandCalendar: (user.islandCalendar as 'tenerife' | 'las_palmas' | 'none') || 'none',
         companyPhone: user.companyPhone || '',
-        auxiliaryPhone: user.auxiliaryPhone || ''
+        auxiliaryPhone: user.auxiliaryPhone || '',
+        branchId: user.branchId || '',
       });
-    } else {
-      reset({
-        name: '',
-        email: '',
-        password: '',
-        role: 'viewer',
-        department: '',
-        islandCalendar: 'none',
-        companyPhone: '',
-        auxiliaryPhone: ''
-      });
+      return;
     }
+
+    reset({
+      name: '',
+      email: '',
+      password: '',
+      role: 'viewer',
+      department: '',
+      companyPhone: '',
+      auxiliaryPhone: '',
+      branchId: '',
+    });
   }, [user, reset]);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
+      const payload = {
+        ...data,
+        branchId: data.branchId ? data.branchId : null,
+      };
+
       if (!isEdit) {
-        return api.post('/users', data);
+        return api.post('/users', payload);
       }
-      const { role, ...rest } = data;
-      const payload = { ...rest };
-      if (!payload.password) delete payload.password;
-      await api.patch(`/users/${user!.id}`, payload);
+
+      const { role, ...rest } = payload;
+      const updatePayload = { ...rest };
+      if (!updatePayload.password) delete updatePayload.password;
+      await api.patch(`/users/${user!.id}`, updatePayload);
       if (role !== user!.role) {
         await api.patch(`/users/${user!.id}/role`, { role });
       }
@@ -87,26 +110,32 @@ export function UserFormModal({ open, user, onClose }: Props) {
       <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
         <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color">
           <h2 className="text-lg font-semibold text-theme-primary">{isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
-          <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
+            <X className="h-4 w-4" />
+          </button>
         </div>
+
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">Nombre completo *</label>
-            <input {...register('name')} className="input-field" placeholder="Juan García" />
+            <input {...register('name')} className="input-field" placeholder="Juan Garcia" />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
           </div>
+
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">Email *</label>
             <input {...register('email')} type="email" className="input-field" placeholder="juan@empresa.com" />
             {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
           </div>
+
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">
               Contraseña {isEdit ? '(dejar en blanco para no cambiar)' : '*'}
             </label>
-            <input {...register('password')} type="password" className="input-field" placeholder="Mínimo 8 caracteres" />
+            <input {...register('password')} type="password" className="input-field" placeholder="Minimo 8 caracteres" />
             {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Rol *</label>
@@ -121,40 +150,37 @@ export function UserFormModal({ open, user, onClose }: Props) {
               <input {...register('department')} className="input-field" placeholder="Seguridad" />
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal</label>
+            <select {...register('branchId')} className="input-field" disabled={branchesLoading}>
+              <option value="">Sin sucursal asignada</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name} ({branch.code}){branch.isActive ? '' : ' · inactiva'}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-theme-muted mb-1">Teléfono Empresa</label>
+              <label className="block text-sm font-medium text-theme-muted mb-1">Telefono Empresa</label>
               <input {...register('companyPhone')} className="input-field" placeholder="Ext. 123" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-theme-muted mb-1">Teléfono Auxiliar</label>
-              <input {...register('auxiliaryPhone')} className="input-field" placeholder="Móvil / Casa" />
+              <label className="block text-sm font-medium text-theme-muted mb-1">Telefono Auxiliar</label>
+              <input {...register('auxiliaryPhone')} className="input-field" placeholder="Movil / Casa" />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-theme-muted mb-1">
-              <MapPin className="inline h-3.5 w-3.5 mr-1" />Isla / Calendario de festivos
-            </label>
-            <div className="flex rounded-lg border border-theme-color overflow-hidden text-sm font-medium">
-              {([['tenerife', 'Tenerife'], ['las_palmas', 'Las Palmas'], ['none', 'Sin asignar']] as const).map(([val, lbl]) => (
-                <label
-                  key={val}
-                  className="flex-1 flex items-center justify-center py-2 cursor-pointer transition-colors"
-                  style={
-                    watch('islandCalendar') === val
-                      ? { backgroundColor: '#1e3a5f', color: '#fff' }
-                      : { backgroundColor: 'var(--theme-surface)', color: 'var(--theme-text-muted)' }
-                  }
-                >
-                  <input type="radio" value={val} {...register('islandCalendar')} className="sr-only" />
-                  {lbl}
-                </label>
-              ))}
-            </div>
-          </div>
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 btn-ghost text-sm">Cancelar</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="flex-1 btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+            >
               {mutation.isPending && <LoadingSpinner size="sm" className="border-white border-t-white/30" />}
               {isEdit ? 'Guardar' : 'Crear usuario'}
             </button>

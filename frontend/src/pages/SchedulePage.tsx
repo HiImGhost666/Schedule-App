@@ -13,17 +13,27 @@ import { useAuthStore } from '@/store/authStore';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Schedule, WeekScheduleItem } from '@/types';
+import type { Branch, BranchHoliday, Schedule, WeekScheduleItem } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
-import {
-  getHolidaysForCalendar,
-  getPartialDaysForCalendar,
-  CALENDAR_LABELS,
-  HOLIDAY_COLORS,
-  HOLIDAY_TYPE_LABELS,
-  type CalendarType,
-} from '@/config/holidays';
+
+const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
+  nacional: 'Nacional',
+  autonomica: 'Autonómica',
+  local: 'Local',
+  mejora: 'Mejora convenio',
+  regional: 'Regional',
+  company: 'Empresa',
+};
+
+const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
+  nacional: '#dc2626',
+  autonomica: '#ea580c',
+  local: '#d97706',
+  mejora: '#65a30d',
+  regional: '#0ea5e9',
+  company: '#7c3aed',
+};
 
 /* ─── helpers ──────────────────────────────────────────────────── */
 
@@ -44,6 +54,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     notes: item.notes ?? undefined,
     isLastMinute: item.isLastMinute,
     hoursPerDay: item.hoursPerDay,
+    branchId: item.branchId ?? undefined,
     calendarType: item.calendarType,
     createdById: '',
     createdBy: { id: '', name: 'Sistema' },
@@ -71,6 +82,27 @@ function hexToRgb(hex: string) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r}, ${g}, ${b}`;
+}
+
+function toLocalDateOnly(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addOneDay(dateIso: string) {
+  const [year, month, day] = dateIso.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + 1);
+
+  const nextYear = date.getFullYear();
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(date.getDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
 /* ─── month-view event pill ─────────────────────────────────────── */
@@ -240,6 +272,7 @@ export function SchedulePage() {
   const navigate = useNavigate();
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
 
@@ -248,7 +281,7 @@ export function SchedulePage() {
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [defaultEnd, setDefaultEnd] = useState<Date | undefined>();
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-  const [activeCalendar, setActiveCalendar] = useState<CalendarType>('tenerife');
+  const [activeBranchId, setActiveBranchId] = useState<string>('');
   const [activeView, setActiveView] = useState('dayGridMonth');
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
@@ -261,23 +294,65 @@ export function SchedulePage() {
   const weekRefDate = dateRange.from;
   const isoWeekYear = getISOWeekYear(weekRefDate);
   const isoWeek = getISOWeek(weekRefDate);
+  const assignedBranchId = user?.branchId ?? '';
+
+  const { data: branches } = useQuery<{ data: Branch[] }>({
+    queryKey: ['branches', 'schedule-page', user?.id, user?.role, assignedBranchId],
+    queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
+  });
+
+  const availableBranches = branches?.data ?? [];
+  const selectedBranch = useMemo(
+    () => availableBranches.find((branch) => branch.id === activeBranchId) ?? availableBranches[0],
+    [availableBranches, activeBranchId],
+  );
+
+  useEffect(() => {
+    if (!branches?.data?.length) return;
+
+    if (!isAdmin) {
+      if (!assignedBranchId) {
+        if (activeBranchId) setActiveBranchId('');
+        return;
+      }
+
+      const assignedBranch = branches.data.find((branch) => branch.id === assignedBranchId);
+      if (!assignedBranch) {
+        if (activeBranchId) setActiveBranchId('');
+        return;
+      }
+
+      if (activeBranchId !== assignedBranchId) {
+        setActiveBranchId(assignedBranchId);
+      }
+      return;
+    }
+
+    if (!activeBranchId || !branches.data.some((branch) => branch.id === activeBranchId)) {
+      setActiveBranchId('');
+    }
+  }, [branches?.data, activeBranchId, isAdmin, assignedBranchId]);
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
       'schedules',
+      activeBranchId || 'all',
       shouldUseWeekEndpoint ? 'week-view' : 'month-view',
       shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
     ],
     queryFn: () => {
       if (shouldUseWeekEndpoint) {
         return api
-          .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`)
+          .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`, {
+            params: activeBranchId ? { branchId: activeBranchId } : {},
+          })
           .then((r) => r.data.data.items.map(mapWeekItemToSchedule));
       }
 
       return api
         .get<{ data: Schedule[] }>('/schedules', {
           params: {
+            ...(activeBranchId ? { branchId: activeBranchId } : {}),
             from: new Date(
               dateRange.from.getFullYear(),
               dateRange.from.getMonth() - 1,
@@ -292,6 +367,26 @@ export function SchedulePage() {
         })
         .then((r) => r.data.data);
     },
+    enabled: isAdmin || Boolean(activeBranchId),
+  });
+
+  const { data: branchHolidays } = useQuery<{ data: BranchHoliday[] }>({
+    queryKey: [
+      'branch-holidays-calendar',
+      activeBranchId,
+      format(dateRange.from, 'yyyy-MM-dd'),
+      format(dateRange.to, 'yyyy-MM-dd'),
+    ],
+    queryFn: () =>
+      api
+        .get(`/branches/${activeBranchId}/holidays`, {
+          params: {
+            from: dateRange.from.toISOString(),
+            to: dateRange.to.toISOString(),
+          },
+        })
+        .then((r) => r.data),
+    enabled: Boolean(activeBranchId),
   });
 
   const { data: scheduleDetail } = useQuery({
@@ -348,32 +443,34 @@ export function SchedulePage() {
         };
       }) ?? [];
 
-  /* holiday background events for the active calendar */
+  /* holiday background events for active branch */
   const holidayEvents = useMemo(() => {
-    const holidays = getHolidaysForCalendar(activeCalendar).map((h) => ({
+    const holidays = (branchHolidays?.data ?? []).map((h) => ({
       id: `holiday-${h.date}-${h.type}`,
       title: h.name,
-      start: h.date,
+      start: toLocalDateOnly(h.date),
+      end: addOneDay(toLocalDateOnly(h.date)),
+      allDay: true,
       display: 'background' as const,
       backgroundColor: HOLIDAY_COLORS[h.type] + '33', // 20% opacity
       extendedProps: { isHoliday: true, holidayType: h.type },
     }));
-    const partials = getPartialDaysForCalendar(activeCalendar).map((p) => ({
-      id: `partial-${p.date}`,
-      title: p.name,
-      start: p.date,
-      display: 'background' as const,
-      backgroundColor: '#7c3aed33',
-      extendedProps: { isHoliday: true, holidayType: 'partial' },
-    }));
-    return [...holidays, ...partials];
-  }, [activeCalendar]);
+    return holidays;
+  }, [branchHolidays?.data]);
 
   /* type counts for legend badges */
   const typeCounts: Record<string, number> = {};
   schedules?.forEach((s) => {
     typeCounts[s.type] = (typeCounts[s.type] ?? 0) + 1;
   });
+
+  const holidayTypeCounts = useMemo(() => {
+    const counts: Partial<Record<BranchHoliday['type'], number>> = {};
+    (branchHolidays?.data ?? []).forEach((holiday) => {
+      counts[holiday.type] = (counts[holiday.type] ?? 0) + 1;
+    });
+    return counts;
+  }, [branchHolidays?.data]);
 
   const toggleType = useCallback((type: string) => {
     setHiddenTypes((prev) => {
@@ -467,42 +564,96 @@ export function SchedulePage() {
             <div className="px-5 py-4 border-b border-theme-color">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
                 <CalendarDays className="h-3.5 w-3.5" />
-                Festivos
+                Sucursal y festivos
               </div>
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
-                {(['tenerife', 'las_palmas', 'none'] as CalendarType[]).map((cal) => (
-                  <button
-                    key={cal}
-                    onClick={() => setActiveCalendar(cal)}
-                    className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
-                    style={
-                      activeCalendar === cal
-                        ? {
-                          backgroundColor: 'var(--theme-sidebar-active-bg)',
-                          color: 'var(--theme-sidebar-active-text)',
-                          borderColor: 'var(--theme-sidebar-active-bg)',
+                {isAdmin ? (
+                  <>
+                    <button
+                      onClick={() => setActiveBranchId('')}
+                      className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
+                      style={
+                        !activeBranchId
+                          ? {
+                            backgroundColor: 'var(--theme-sidebar-active-bg)',
+                            color: 'var(--theme-sidebar-active-text)',
+                            borderColor: 'var(--theme-sidebar-active-bg)',
+                          }
+                          : {
+                            backgroundColor: 'var(--theme-surface)',
+                            color: 'var(--theme-text-muted)',
+                            borderColor: 'var(--theme-border-color)',
+                          }
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">Todas las sucursales</span>
+                      </div>
+                    </button>
+
+                    {availableBranches.map((branch) => (
+                      <button
+                        key={branch.id}
+                        onClick={() => setActiveBranchId(branch.id)}
+                        className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
+                        style={
+                          activeBranchId === branch.id
+                            ? {
+                              backgroundColor: 'var(--theme-sidebar-active-bg)',
+                              color: 'var(--theme-sidebar-active-text)',
+                              borderColor: 'var(--theme-sidebar-active-bg)',
+                            }
+                            : {
+                              backgroundColor: 'var(--theme-surface)',
+                              color: 'var(--theme-text-muted)',
+                              borderColor: 'var(--theme-border-color)',
+                            }
                         }
-                        : {
-                          backgroundColor: 'var(--theme-surface)',
-                          color: 'var(--theme-text-muted)',
-                          borderColor: 'var(--theme-border-color)',
-                        }
-                    }
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">{branch.name}</span>
+                          {!branch.isActive && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </>
+                ) : selectedBranch ? (
+                  <div
+                    className="w-full text-left px-3 py-2 rounded-lg border"
+                    style={{
+                      backgroundColor: 'var(--theme-sidebar-active-bg)',
+                      color: 'var(--theme-sidebar-active-text)',
+                      borderColor: 'var(--theme-sidebar-active-bg)',
+                    }}
                   >
-                    {CALENDAR_LABELS[cal]}
-                  </button>
-                ))}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">{selectedBranch.name}</span>
+                      {!selectedBranch.isActive && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    No tienes una sucursal asignada. Contacta con un administrador.
+                  </p>
+                )}
               </div>
 
-              {activeCalendar !== 'none' && (
+              {activeBranchId && (
                 <div className="mt-3 pt-3 border-t border-theme-color flex flex-col gap-1.5">
-                  {(['nacional', 'autonomica', 'local', 'mejora'] as const).map((type) => (
+                  {(Object.keys(HOLIDAY_TYPE_LABELS) as BranchHoliday['type'][]).map((type) => (
                     <span key={type} className="flex items-center gap-1.5 text-[10px] text-theme-muted">
                       <span
                         className="inline-block w-2.5 h-2.5 rounded-sm opacity-70"
                         style={{ backgroundColor: HOLIDAY_COLORS[type] }}
                       />
-                      <span className="text-theme-muted">{HOLIDAY_TYPE_LABELS[type]}</span>
+                      <span className="text-theme-muted">
+                        {HOLIDAY_TYPE_LABELS[type]}
+                        {holidayTypeCounts[type] ? ` (${holidayTypeCounts[type]})` : ''}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -582,6 +733,7 @@ export function SchedulePage() {
         schedule={selectedSchedule}
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
+        defaultBranchId={activeBranchId}
       />
     </div>
   );

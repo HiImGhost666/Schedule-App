@@ -23,6 +23,7 @@ export const createUserBodySchema = z.object({
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
+  branchId: z.string().min(1).nullable().optional(),
 });
 
 export const updateUserBodySchema = createUserBodySchema
