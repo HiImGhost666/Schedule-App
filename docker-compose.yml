@@ -64,7 +64,6 @@ services:
       - schedule-network
     init: true
     environment:
-      VITE_API_URL: http://backend:3001
       CHOKIDAR_USEPOLLING: "true"
     depends_on:
       backend:
