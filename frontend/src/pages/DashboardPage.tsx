@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, Users, Shield, AlertTriangle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Users, Shield, AlertTriangle, Clock, ExternalLink } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -57,6 +58,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
 
@@ -74,9 +76,9 @@ export function DashboardPage() {
         .then((r) => r.data.data.items.map(mapWeekItemToSchedule)),
   });
 
-  const { data: usersData } = useQuery({
-    queryKey: ['users', 'count'],
-    queryFn: () => api.get('/users?limit=1').then((r) => r.data.pagination?.total || 0),
+  const { data: usersData, isLoading: loadingUsers } = useQuery({
+    queryKey: ['users', 'count', 'active'],
+    queryFn: () => api.get('/users?limit=1&status=active').then((r) => r.data.pagination?.total || 0),
     enabled: user?.role === 'admin' || user?.role === 'manager',
   });
 
@@ -106,32 +108,63 @@ export function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Turnos de esta semana"
-          value={loadingSchedules ? '—' : (weekSchedules?.length || 0)}
-          icon={Calendar}
-          color="navy"
-        />
-        <StatCard
-          title="Mis turnos"
-          value={loadingSchedules ? '—' : mySchedules.length}
-          icon={Shield}
-          color="gold"
-        />
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        <div className="relative group flex flex-col h-full">
           <StatCard
-            title="Usuarios activos"
-            value={usersData || '—'}
-            icon={Users}
-            color="green"
+            title="Turnos de esta semana"
+            value={loadingSchedules ? '—' : (weekSchedules?.length || 0)}
+            icon={Calendar}
+            color="navy"
+            className="h-full"
           />
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } }); }}
+            className="absolute bottom-4 right-4 p-1.5 rounded-lg bg-white/90 hover:bg-white text-navy-600 transition-all z-20 shadow-sm border border-navy-200"
+            title="Ver en calendario (Vista semanal)"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="relative group flex flex-col h-full">
+          <StatCard
+            title="Mis turnos"
+            value={loadingSchedules ? '—' : mySchedules.length}
+            icon={Shield}
+            color="gold"
+            className="h-full"
+          />
+        </div>
+
+        {(user?.role === 'admin' || user?.role === 'manager') && (
+          <div className="relative group flex flex-col h-full">
+            <StatCard
+              title="Usuarios activos"
+              value={loadingUsers ? '—' : (usersData || 0)}
+              icon={Users}
+              color="green"
+              className="h-full"
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/admin/users', { state: { status: 'active' } }); }}
+              className="absolute bottom-4 right-4 p-1.5 rounded-lg bg-white/90 hover:bg-white text-green-600 transition-all z-20 shadow-sm border border-green-200"
+              title="Ver gestión de usuarios"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </button>
+          </div>
         )}
-        <StatCard
-          title="Cambios urgentes"
-          value={loadingSchedules ? '—' : lastMinuteCount}
-          icon={AlertTriangle}
-          color={lastMinuteCount > 0 ? 'purple' : 'navy'}
-        />
+
+        <div className="relative group flex flex-col h-full">
+          <StatCard
+            title="Cambios urgentes"
+            value={loadingSchedules ? '—' : lastMinuteCount}
+            icon={AlertTriangle}
+            color={lastMinuteCount > 0 ? 'purple' : 'navy'}
+            className="h-full"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -142,6 +175,7 @@ export function DashboardPage() {
               <Calendar className="h-4 w-4 text-gold-500" />
               Turnos de esta semana
             </h2>
+
             <span className="text-xs text-theme-muted">
               {format(weekStart, 'dd/MM')} — {format(weekEnd, 'dd/MM')}
             </span>
