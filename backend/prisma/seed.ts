@@ -22,19 +22,56 @@ async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: st
     return user;
   } catch (error) {
     if (isAppError(error) && error.code === 'CONFLICT') {
-      console.log(`[USER] ${label} already exists: ${input.email}`);
-      return prisma.user.findUnique({ where: { email: input.email } });
+      const existing = await prisma.user.findUnique({
+        where: { email: input.email },
+        select: { id: true, email: true, branchId: true },
+      });
+
+      if (!existing) return null;
+
+      if (input.branchId && existing.branchId !== input.branchId) {
+        await prisma.user.update({
+          where: { id: existing.id },
+          data: { branch: { connect: { id: input.branchId } } },
+        });
+        console.log(`[USER] ${label} branch linked: ${input.email}`);
+      } else {
+        console.log(`[USER] ${label} already exists: ${input.email}`);
+      }
+
+      return prisma.user.findUnique({ where: { id: existing.id } });
     }
     throw error;
   }
 }
 
-async function ensureSeedSchedule(adminId: string, userId: string, title: string, type: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
+async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, type: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
   const existing = await prisma.schedule.findFirst({
     where: { title, createdById: adminId, startDatetime: startAt, endDatetime: endAt }
   });
 
   if (existing) {
+    const existingAssignment = await prisma.scheduleAssignment.findUnique({
+      where: {
+        scheduleId_userId: {
+          scheduleId: existing.id,
+          userId,
+        },
+      },
+    });
+
+    if (existing.branchId !== branchId || !existingAssignment) {
+      const repaired = await prisma.schedule.update({
+        where: { id: existing.id },
+        data: {
+          ...(existing.branchId !== branchId ? { branchId } : {}),
+          ...(!existingAssignment ? { assignments: { create: { userId } } } : {}),
+        },
+      });
+      console.log(`[SCHEDULE] Schedule repaired: ${title}`);
+      return repaired;
+    }
+
     console.log(`[SCHEDULE] Schedule already exists: ${title}`);
     return existing;
   }
@@ -50,6 +87,7 @@ async function ensureSeedSchedule(adminId: string, userId: string, title: string
       hoursPerDay: 8,
       calendarType: 'tenerife',
       createdById: adminId,
+      branchId,
       assignments: {
         create: { userId }
       }
@@ -88,10 +126,54 @@ async function main() {
   } else {
     console.log('[THEME] Global theme settings already exist');
   }
+  console.log('Seeding database...');
+
+  let mainBranch = await prisma.branch.findUnique({ where: { code: 'MAIN' } });
+
+  if (!mainBranch) {
+    const legacyMainBranch = await prisma.branch.findUnique({ where: { id: 'branch_default_main' } });
+    if (legacyMainBranch) {
+      mainBranch = await prisma.branch.update({
+        where: { id: legacyMainBranch.id },
+        data: {
+          code: 'MAIN',
+          name: legacyMainBranch.name || 'Sucursal Principal',
+          city: legacyMainBranch.city || 'Sin especificar',
+          region: legacyMainBranch.region || 'Sin especificar',
+          countryCode: legacyMainBranch.countryCode || 'ES',
+          timezone: legacyMainBranch.timezone || 'Europe/Madrid',
+          isActive: true,
+        },
+      });
+    }
+  }
+
+  if (!mainBranch) {
+    mainBranch = await prisma.branch.create({
+      data: {
+        name: 'Sucursal Principal',
+        code: 'MAIN',
+        city: 'Sin especificar',
+        region: 'Sin especificar',
+        countryCode: 'ES',
+        timezone: 'Europe/Madrid',
+        isActive: true,
+      },
+    });
+  }
+
+  if (!mainBranch.isActive) {
+    mainBranch = await prisma.branch.update({
+      where: { id: mainBranch.id },
+      data: { isActive: true },
+    });
+  }
 
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
-  const { SEED_ADMIN_EMAIL: adminEmail, SEED_ADMIN_PASSWORD: adminPassword, SEED_ADMIN_NAME: adminName } = env;
+  const adminEmail = env.SEED_ADMIN_EMAIL || 'admin@company.com';
+  const adminPassword = env.SEED_ADMIN_PASSWORD || 'AdminPass123!';
+  const adminName = env.SEED_ADMIN_NAME || 'Administrador Sistema';
 
   const adminUser = await ensureSeedUser(
     {
@@ -104,6 +186,7 @@ async function main() {
       islandCalendar: 'none',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
+      branchId: mainBranch.id,
     },
     'Admin'
   );
@@ -119,6 +202,7 @@ async function main() {
       islandCalendar: 'none',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
+      branchId: mainBranch.id,
     },
     'Demo manager'
   );
@@ -139,6 +223,7 @@ async function main() {
         role: 'viewer',
         status: 'active',
         islandCalendar: 'none',
+        branchId: mainBranch.id,
       },
       'Demo user'
     );
@@ -159,6 +244,7 @@ async function main() {
     await ensureSeedSchedule(
       adminUser.id,
       carlosInfo.id,
+      mainBranch.id,
       'Vacaciones Carlos',
       'vacaciones',
       '#65a30d',
@@ -171,6 +257,7 @@ async function main() {
     await ensureSeedSchedule(
       adminUser.id,
       anaInfo.id,
+      mainBranch.id,
       'Guardia General',
       'guardia',
       '#2563eb',
@@ -183,6 +270,7 @@ async function main() {
     await ensureSeedSchedule(
       adminUser.id,
       anaInfo.id,
+      mainBranch.id,
       'Guardia Extraordinaria',
       'guardia_extra',
       '#db2777',
@@ -211,6 +299,7 @@ async function main() {
         await ensureSeedSchedule(
           adminUser.id,
           task.user.id,
+          mainBranch.id,
           task.title,
           task.type,
           task.color,

@@ -123,6 +123,12 @@ export function UserDetailsModal({ open, userId, userName, onClose }: UserDetail
                     <p className="text-xs text-navy-400 mb-1">Departamento</p>
                     <p className="text-sm font-medium text-navy-700">{user.department || 'Sin departamento'}</p>
                   </div>
+                  <div className="rounded-xl border border-navy-100 p-4 md:col-span-2">
+                    <p className="text-xs text-navy-400 mb-1">Sucursal</p>
+                    <p className="text-sm font-medium text-navy-700">
+                      {user.branch ? `${user.branch.name} (${user.branch.code})` : 'Sin sucursal asignada'}
+                    </p>
+                  </div>
                 </div>
               )}
             </>

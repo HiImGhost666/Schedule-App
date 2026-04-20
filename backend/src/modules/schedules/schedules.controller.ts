@@ -5,15 +5,16 @@ import { isAppError } from '../../common/errors/app-error';
 import {
   createScheduleEntry,
   deleteScheduleEntry,
-  getScheduleById,
-  listSchedules,
-  listWeekSchedules,
+  getScheduleByIdForActor,
+  listSchedulesForActor,
+  listWeekSchedulesForActor,
   updateScheduleEntry,
 } from './schedules.service';
 import {
   createScheduleBodySchema,
   deleteScheduleBodySchema,
   listSchedulesQuerySchema,
+  listWeekSchedulesQuerySchema,
   scheduleIdParamsSchema,
   updateScheduleBodySchema,
   weekParamsSchema,
@@ -29,8 +30,16 @@ export async function listSchedulesController(req: AuthRequest, res: Response) {
     return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
-  const schedules = await listSchedules(parsed.data);
-  return sendSuccess(res, schedules);
+  try {
+    const schedules = await listSchedulesForActor(parsed.data, {
+      role: req.user!.role,
+      branchId: req.user!.branchId,
+    });
+    return sendSuccess(res, schedules);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
 }
 
 /**
@@ -43,8 +52,21 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
     return sendError(res, 'Parámetros de semana inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
-  const result = await listWeekSchedules(parsed.data.year, parsed.data.week);
-  return sendSuccess(res, result);
+  const parsedQuery = listWeekSchedulesQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const result = await listWeekSchedulesForActor(parsed.data.year, parsed.data.week, parsedQuery.data.branchId, {
+      role: req.user!.role,
+      branchId: req.user!.branchId,
+    });
+    return sendSuccess(res, result);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
 }
 
 /**
@@ -58,7 +80,10 @@ export async function getScheduleController(req: AuthRequest, res: Response) {
   }
 
   try {
-    const schedule = await getScheduleById(parsed.data.id);
+    const schedule = await getScheduleByIdForActor(parsed.data.id, {
+      role: req.user!.role,
+      branchId: req.user!.branchId,
+    });
     return sendSuccess(res, schedule);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
@@ -82,6 +107,7 @@ export async function createScheduleController(req: AuthRequest, res: Response) 
       email: req.user!.email,
       name: req.user!.name,
       role: req.user!.role,
+      branchId: req.user!.branchId,
       ipAddress: req.ip,
     });
     return sendSuccess(res, schedule, 'Guardia creada', 201);
@@ -112,6 +138,7 @@ export async function updateScheduleController(req: AuthRequest, res: Response) 
       email: req.user!.email,
       name: req.user!.name,
       role: req.user!.role,
+      branchId: req.user!.branchId,
       ipAddress: req.ip,
     });
     return sendSuccess(res, schedule, 'Guardia actualizada');
@@ -142,6 +169,7 @@ export async function deleteScheduleController(req: AuthRequest, res: Response) 
       email: req.user!.email,
       name: req.user!.name,
       role: req.user!.role,
+      branchId: req.user!.branchId,
       ipAddress: req.ip,
     });
     return sendSuccess(res, null, 'Guardia eliminada');

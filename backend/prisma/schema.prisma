@@ -25,6 +25,8 @@ model User {
   islandCalendar      String     @default("none") @map("island_calendar")
   companyPhone        String?    @map("company_phone")
   auxiliaryPhone      String?    @map("auxiliary_phone")
+  branchId            String?    @map("branch_id")
+  branch              Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   refreshTokens       RefreshToken[]
   createdSchedules    Schedule[]           @relation("ScheduleCreator")
@@ -32,7 +34,45 @@ model User {
   auditLogs           AuditLog[]           @relation("AuditActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
 
+  @@index([branchId])
   @@map("users")
+}
+
+model Branch {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  address     String?
+  city        String?
+  region      String?
+  countryCode String   @default("ES") @map("country_code")
+  timezone    String   @default("Europe/Madrid")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users     User[]
+  schedules Schedule[]
+  holidays  BranchHoliday[]
+
+  @@map("branches")
+}
+
+model BranchHoliday {
+  id        String   @id @default(cuid())
+  branchId  String   @map("branch_id")
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  date      DateTime
+  name      String
+  type      String   @default("local")
+  scope     String   @default("local")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([branchId, date])
+  @@unique([branchId, date, name])
+  @@map("branch_holidays")
 }
 
 model RefreshToken {
@@ -61,6 +101,8 @@ model Schedule {
   notes         String?  @db.Text
   isLastMinute  Boolean  @default(false) @map("is_last_minute")
   hoursPerDay   Float?   @default(8) @map("hours_per_day")
+  branchId      String?  @map("branch_id")
+  branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   calendarType  String?  @map("calendar_type")
   createdById   String   @map("created_by")
   createdBy     User     @relation("ScheduleCreator", fields: [createdById], references: [id])
@@ -70,6 +112,7 @@ model Schedule {
   assignments ScheduleAssignment[]
 
   @@index([startDatetime, endDatetime])
+  @@index([branchId])
   @@map("schedules")
 }
 

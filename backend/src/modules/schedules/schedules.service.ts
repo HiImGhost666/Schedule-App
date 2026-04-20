@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { prisma } from '../../config/database';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
@@ -20,7 +21,7 @@ import {
   parseOptionalDate,
 } from './domain/schedule.rules';
 
-type Actor = { id: string; role: string; email: string; name: string; ipAddress?: string };
+type Actor = { id: string; role: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
 const scheduleCreateInputSchema = z.object({
   title: z.string().min(2),
   description: z.string().optional(),
@@ -30,6 +31,7 @@ const scheduleCreateInputSchema = z.object({
   color: z.string().default('#1e3a5f'),
   location: z.string().optional(),
   notes: z.string().optional(),
+  branchId: z.string().min(1).optional(),
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
@@ -43,8 +45,16 @@ const scheduleUpdateInputSchema = scheduleCreateInputSchema.partial().extend({
 type ScheduleCreateInput = z.infer<typeof scheduleCreateInputSchema>;
 type ScheduleUpdateInput = z.infer<typeof scheduleUpdateInputSchema>;
 
-/** Filtra y enumera eventos (guardias/ausencias) validando colisiones dentro del marco cronológico solicitado. */
-export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string }) {
+async function ensureActiveBranch(branchId: string) {
+  const branch = await prisma.branch.findUnique({
+    where: { id: branchId },
+    select: { id: true, isActive: true },
+  });
+  if (!branch) throw createAppError('NOT_FOUND', 'Sucursal no encontrada');
+  if (!branch.isActive) throw createAppError('BAD_REQUEST', 'La sucursal está desactivada');
+}
+
+export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string }) {
   const where: Record<string, unknown> = {};
   const fromDate = parseOptionalDate(params.from);
   const toDate = parseOptionalDate(params.to);
@@ -52,6 +62,31 @@ export function listSchedules(params: { from?: string; to?: string; userId?: str
   if (rangeFilter) Object.assign(where, rangeFilter);
   if (params.type) where.type = params.type;
   if (params.userId) where.assignments = { some: { userId: params.userId } };
+  if (params.branchId) where.branchId = params.branchId;
+  return findSchedules(where);
+}
+
+export function listSchedulesForActor(
+  params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string },
+  actor: Pick<Actor, 'role' | 'branchId'>,
+) {
+  const where: Record<string, unknown> = {};
+  const fromDate = parseOptionalDate(params.from);
+  const toDate = parseOptionalDate(params.to);
+  const rangeFilter = buildOverlapRangeFilter(fromDate, toDate);
+  if (rangeFilter) Object.assign(where, rangeFilter);
+  if (params.type) where.type = params.type;
+  if (params.userId) where.assignments = { some: { userId: params.userId } };
+
+  if (actor.role === 'admin') {
+    if (params.branchId) where.branchId = params.branchId;
+  } else {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    where.branchId = actor.branchId;
+  }
+
   return findSchedules(where);
 }
 
@@ -59,7 +94,7 @@ export function listSchedules(params: { from?: string; to?: string; userId?: str
  * @description Construye matriz semanal ISO 8601, buscando eventos que intercepten dentro del lunes-domingo de la semana provista.
  * @param year @param week
  */
-export async function listWeekSchedules(year: number, week: number) {
+export async function listWeekSchedules(year: number, week: number, branchId?: string) {
   const jan4 = new Date(year, 0, 4);
   const weekStart = new Date(jan4);
   weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
@@ -72,6 +107,7 @@ export async function listWeekSchedules(year: number, week: number) {
     AND: [
       { startDatetime: { lte: weekEnd } },
       { endDatetime: { gte: weekStart } },
+      ...(branchId ? [{ branchId }] : []),
     ],
   });
 
@@ -86,6 +122,7 @@ export async function listWeekSchedules(year: number, week: number) {
     notes: schedule.notes,
     isLastMinute: schedule.isLastMinute,
     hoursPerDay: schedule.hoursPerDay,
+    branchId: schedule.branchId,
     calendarType: schedule.calendarType,
     assignees: schedule.assignments.map((assignment) => ({
       id: assignment.user.id,
@@ -106,6 +143,23 @@ export async function listWeekSchedules(year: number, week: number) {
     total: items.length,
     items,
   };
+}
+
+export async function listWeekSchedulesForActor(
+  year: number,
+  week: number,
+  branchId: string | undefined,
+  actor: Pick<Actor, 'role' | 'branchId'>,
+) {
+  if (actor.role === 'admin') {
+    return listWeekSchedules(year, week, branchId);
+  }
+
+  if (!actor.branchId) {
+    throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+  }
+
+  return listWeekSchedules(year, week, actor.branchId);
 }
 
 /** Evita empalmes validando que la constelación de asignados esté libre en la brecha dt_ini a dt_fin. */
@@ -151,6 +205,22 @@ export async function getScheduleById(scheduleId: string) {
   return schedule;
 }
 
+export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'role' | 'branchId'>) {
+  const schedule = await getScheduleById(scheduleId);
+
+  if (actor.role !== 'admin') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+
+    if (schedule.branchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes permisos para acceder a esta guardia');
+    }
+  }
+
+  return schedule;
+}
+
 /**
  * @description Inserta guardias en BD bajo validaciones estrictas (Anti-Overlap); despacha triggers informativos (Realtime/Emails).
  * @param input @param actor
@@ -165,7 +235,22 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   const endDt = new Date(parsed.data.endDatetime);
   ensureValidScheduleRange(startDt, endDt);
 
-  const { assigneeIds, reason, ...scheduleData } = parsed.data;
+  const { assigneeIds, reason, branchId, ...scheduleData } = parsed.data;
+  const targetBranchId = branchId ?? actor.branchId ?? undefined;
+
+  if (targetBranchId) {
+    await ensureActiveBranch(targetBranchId);
+  }
+
+  if (actor.role !== 'admin') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (targetBranchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
+    }
+  }
+
   await ensureNoOverlaps(assigneeIds, startDt, endDt);
 
   const isLastMinute = isLastMinuteSchedule(startDt);
@@ -176,6 +261,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
       startDatetime: startDt,
       endDatetime: endDt,
       isLastMinute,
+      ...(targetBranchId ? { branch: { connect: { id: targetBranchId } } } : {}),
       createdBy: { connect: { id: actor.id } },
       assignments: { create: assigneeIds.map((userId) => ({ userId })) },
     }, tx);
@@ -232,7 +318,24 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const existing = await findScheduleById(scheduleId);
   if (!existing) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  const { assigneeIds, reason, ...updateData } = parsed.data;
+  const { assigneeIds, reason, branchId, ...updateData } = parsed.data;
+  const nextBranchId = branchId ?? existing.branchId;
+  if (nextBranchId) await ensureActiveBranch(nextBranchId);
+
+  if (actor.role !== 'admin') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+
+    if (existing.branchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'Solo puedes editar guardias de tu sucursal asignada');
+    }
+
+    if (nextBranchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No puedes mover una guardia fuera de tu sucursal asignada');
+    }
+  }
+
   const startDt = updateData.startDatetime ? new Date(updateData.startDatetime) : existing.startDatetime;
   const endDt = updateData.endDatetime ? new Date(updateData.endDatetime) : existing.endDatetime;
   ensureValidScheduleRange(startDt, endDt);
@@ -247,6 +350,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
 
     const updated = await updateSchedule(scheduleId, {
       ...updateData,
+      ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
       ...(updateData.startDatetime && { startDatetime: new Date(updateData.startDatetime) }),
       ...(updateData.endDatetime && { endDatetime: new Date(updateData.endDatetime) }),
       isLastMinute,
@@ -304,6 +408,15 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
 export async function deleteScheduleEntry(scheduleId: string, reason: string | undefined, actor: Actor) {
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
+
+  if (actor.role !== 'admin') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (schedule.branchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'Solo puedes eliminar guardias de tu sucursal asignada');
+    }
+  }
 
   await executeInTransaction(async (tx) => {
     await deleteSchedule(scheduleId, tx);

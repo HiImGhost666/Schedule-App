@@ -15,6 +15,15 @@ export const USER_RESPONSE_SELECT = {
   islandCalendar: true,
   companyPhone: true,
   auxiliaryPhone: true,
+  branchId: true,
+  branch: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      isActive: true,
+    },
+  },
 } as const;
 
 export const USER_SAFE_SELECT = {
@@ -32,6 +41,15 @@ export const USER_SAFE_SELECT = {
   islandCalendar: true,
   companyPhone: true,
   auxiliaryPhone: true,
+  branchId: true,
+  branch: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      isActive: true,
+    },
+  },
 } as const;
 
 export type UserResponse = Prisma.UserGetPayload<{ select: typeof USER_RESPONSE_SELECT }>;
