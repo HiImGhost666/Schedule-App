@@ -572,8 +572,8 @@ export function ThemeManagerPage() {
   };
 
   const handlePublish = () => {
-    if (selectedPreset && themeDraft) {
-      // For ALL presets (base and custom): persist colors via PATCH first, then publish globally
+    if (selectedPreset && themeDraft && isSelectedPersistedCustom) {
+      // Persist custom preset colors first, then publish globally.
       saveCustomMutation.mutate(
         { id: selectedPreset.id, theme: themeDraft },
         { onSuccess: () => publishMutation.mutate(activeTheme) }
@@ -618,7 +618,7 @@ export function ThemeManagerPage() {
               Eliminar Preset
             </button>
           )}
-          {selectedPreset && (
+          {selectedPreset && isSelectedPersistedCustom && (
             <button
               onClick={() => {
                 setRenamePreset(selectedPreset);
