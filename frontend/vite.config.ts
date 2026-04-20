@@ -14,6 +14,7 @@ export default defineConfig({
       // [CAMBIO PRODUCCIÓN]: Si no usas Docker o cambias el nombre del servicio,
       // actualiza "http://backend:3001" por la IP o nombre de host de tu backend.
       '/api': { target: 'http://backend:3001', changeOrigin: true },
+      '/uploads': { target: 'http://backend:3001', changeOrigin: true },
       '/socket.io': {
         target: 'http://backend:3001',
         ws: true,

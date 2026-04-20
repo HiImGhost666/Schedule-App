@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Save, Trash2, Pencil, X } from 'lucide-react';
+import { Building2, Save, Trash2, Pencil, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -53,7 +53,6 @@ export function BranchesPage() {
   const isLastActiveSelectedBranch = Boolean(
     selectedBranch?.isActive && activeBranchesCount <= 1,
   );
-
   const createBranchMutation = useMutation({
     mutationFn: () => api.post('/branches', { ...branchForm, code: branchForm.code.toUpperCase() }),
     onSuccess: () => {
@@ -126,6 +125,7 @@ export function BranchesPage() {
   };
 
   const branchSaving = createBranchMutation.isPending || updateBranchMutation.isPending;
+  const hasBranches = Boolean(branches?.data?.length);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -141,57 +141,71 @@ export function BranchesPage() {
           <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
             <Building2 className="h-4 w-4" />Gestión de sucursales
           </h2>
-          <label className="text-xs text-theme-muted flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={showInactiveBranches}
-              onChange={(e) => setShowInactiveBranches(e.target.checked)}
-              className="rounded border-theme-color"
-            />
-            Mostrar inactivas
-          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingBranchId(null);
+                setBranchForm(emptyBranchForm);
+              }}
+              className="btn-ghost text-sm inline-flex items-center gap-1.5"
+            >
+              <Plus className="h-4 w-4" />Nueva sucursal
+            </button>
+            <label className="text-xs text-theme-muted flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={showInactiveBranches}
+                onChange={(e) => setShowInactiveBranches(e.target.checked)}
+                className="rounded border-theme-color"
+              />
+              Mostrar inactivas
+            </label>
+          </div>
         </div>
 
         {branchesLoading ? (
           <div className="flex justify-center py-8"><LoadingSpinner size="lg" /></div>
-        ) : !branches?.data?.length ? (
-          <EmptyState icon={Building2} title="Sin sucursales" description="Crea la primera sucursal" />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-4">
+          <div className={`grid gap-4 ${hasBranches ? 'grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]' : 'grid-cols-1'}`}>
             <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-              {branches.data.map((branch) => {
-                const active = effectiveSelectedBranchId === branch.id;
-                return (
-                  <button
-                    key={branch.id}
-                    onClick={() => setSelectedBranchId(branch.id)}
-                    className="w-full text-left rounded-xl border px-3 py-2.5 transition-colors"
-                    style={
-                      active
-                        ? {
-                            backgroundColor: 'var(--theme-sidebar-active-bg)',
-                            borderColor: 'var(--theme-sidebar-active-bg)',
-                            color: 'var(--theme-sidebar-active-text)',
-                          }
-                        : {
-                            backgroundColor: 'var(--theme-surface)',
-                            borderColor: 'var(--theme-border-color)',
-                            color: 'var(--theme-text-primary)',
-                          }
-                    }
-                  >
-                    <p className="text-sm font-semibold truncate">{branch.name}</p>
-                    <p className="text-xs opacity-80 truncate">
-                      {branch.code} · {branch.city || 'Sin ciudad'}
-                    </p>
-                    {!branch.isActive && (
-                      <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-semibold">
-                        Inactiva
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {hasBranches ? (
+                (branches?.data ?? []).map((branch) => {
+                  const active = effectiveSelectedBranchId === branch.id;
+                  return (
+                    <button
+                      key={branch.id}
+                      onClick={() => setSelectedBranchId(branch.id)}
+                      className="w-full text-left rounded-xl border px-3 py-2.5 transition-colors"
+                      style={
+                        active
+                          ? {
+                              backgroundColor: 'var(--theme-sidebar-active-bg)',
+                              borderColor: 'var(--theme-sidebar-active-bg)',
+                              color: 'var(--theme-sidebar-active-text)',
+                            }
+                          : {
+                              backgroundColor: 'var(--theme-surface)',
+                              borderColor: 'var(--theme-border-color)',
+                              color: 'var(--theme-text-primary)',
+                            }
+                      }
+                    >
+                      <p className="text-sm font-semibold truncate">{branch.name}</p>
+                      <p className="text-xs opacity-80 truncate">
+                        {branch.code} · {branch.city || 'Sin ciudad'}
+                      </p>
+                      {!branch.isActive && (
+                        <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-semibold">
+                          Inactiva
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              ) : (
+                <EmptyState icon={Building2} title="Sin sucursales" description="Crea la primera sucursal" />
+              )}
             </div>
 
             <div className="border border-theme-color rounded-xl p-4 space-y-3">
