@@ -381,6 +381,37 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 0 5px;
 }
 
+.fc-google-like .fc .fc-holiday-event {
+  background: transparent !important;
+  border: none !important;
+}
+
+.google-holiday-event {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #ffffff;
+  max-width: 100%;
+}
+
+.google-holiday-event-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.google-holiday-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Time grid overlap behavior */
 .fc-google-like .fc .fc-timegrid-slot {
   height: 48px;
@@ -547,6 +578,149 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
 }
 
+.calendar-popover-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+}
+
+.calendar-popover-overlay-mobile {
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(1px);
+}
+
+.calendar-popover {
+  position: fixed;
+  max-height: min(78vh, 520px);
+  overflow-y: auto;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 46px rgba(60, 64, 67, 0.24);
+  animation: fadeIn 0.16s ease-out;
+}
+
+.calendar-popover-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 8px 0;
+}
+
+.calendar-popover-header-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.calendar-popover-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: #5f6368;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.calendar-popover-icon-btn:hover {
+  background: #f1f3f4;
+  color: #202124;
+}
+
+.calendar-popover-icon-btn-danger {
+  color: #b3261e;
+}
+
+.calendar-popover-icon-btn-danger:hover {
+  background: #fce8e6;
+  color: #8f1d17;
+}
+
+.calendar-popover-body {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendar-popover-title {
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: #1f1f1f;
+  margin: 0;
+  padding-bottom: 4px;
+}
+
+.calendar-popover-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #3c4043;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.calendar-popover-row svg {
+  color: #5f6368;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.calendar-popover-assignees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calendar-popover-assignee-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1a73e8;
+  background: #e8f0fe;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.calendar-popover-assignee-btn:hover {
+  background: #d2e3fc;
+  color: #174ea6;
+}
+
+.calendar-popover-note {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8f9fa;
+  color: #3c4043;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.calendar-popover-info {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #f1f3f4;
+  color: #5f6368;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.calendar-popover-info svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 @media (max-width: 768px) {
   .fc-google-like .fc .fc-dayGridMonth-view .fc-daygrid-day-frame {
     min-height: 112px;
@@ -556,6 +730,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
+  }
+
+  .calendar-popover {
+    width: min(92vw, 360px) !important;
+    max-height: min(72vh, 480px);
   }
 }
 
