@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import {
@@ -395,7 +395,7 @@ export function AuditLogPage() {
                   <ActivityDetail
                     action={selectedLog.action}
                     entityType={selectedLog.entityType}
-                    entityId={selectedLog.id}
+                    entityId={selectedLog.entityId}
                     beforeJson={beforeSnapshot}
                     afterJson={afterSnapshot}
                     actorName={selectedLog.user?.name || 'Sistema'}
