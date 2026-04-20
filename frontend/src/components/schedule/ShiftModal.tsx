@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Trash2, Clock, MapPin, FileText, Users, CalendarDays, Info, AlertTriangle } from 'lucide-react';
+import { X, Trash2, Clock, MapPin, FileText, Users, Info, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import { SCHEDULE_TYPES, type Branch, type BranchHoliday, type Schedule, type User } from '@/types';
+import { SCHEDULE_TYPES, type BranchHoliday, type Schedule, type User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -101,14 +101,6 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
 
-  const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'active-only'],
-    queryFn: () => api.get<{ data: Branch[] }>('/branches').then((r) => r.data),
-    enabled: open,
-  });
-
-  const branchesList = branches?.data ?? [];
-
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
     queryFn: () => api.get<{ data: User[] }>('/users?limit=100&status=active').then((r) => r.data.data),
@@ -121,13 +113,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
   };
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ShiftFormInput, unknown, ShiftForm>({
+  const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<ShiftFormInput, unknown, ShiftForm>({
     resolver: zodResolver(shiftSchema),
     defaultValues: {
       type: 'guardia',
       color: '#2563eb',
       hoursPerDay: 8,
-      branchId: defaultBranchId ?? '',
+      branchId: user?.branchId ?? defaultBranchId ?? '',
       startDatetime: defaultStart ? fmt(defaultStart) : '',
       endDatetime: defaultEnd ? fmt(defaultEnd) : '',
     },
@@ -154,30 +146,57 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         type: 'guardia',
         color: '#2563eb',
         hoursPerDay: 8,
-        branchId: defaultBranchId ?? '',
+        branchId: user?.branchId ?? defaultBranchId ?? '',
         startDatetime: defaultStart ? fmt(defaultStart) : '',
         endDatetime: defaultEnd ? fmt(defaultEnd) : '',
       });
       setSelectedUsers([]);
       setIncludeWeekends(false);
     }
-  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId]);
-
-  useEffect(() => {
-    if (!open || schedule) return;
-    const currentBranchId = watch('branchId');
-    if (currentBranchId) return;
-
-    const nextBranchId = defaultBranchId ?? branchesList[0]?.id;
-    if (nextBranchId) {
-      setValue('branchId', nextBranchId, { shouldValidate: true });
-    }
-  }, [open, schedule, defaultBranchId, branchesList, setValue, watch]);
+  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId]);
 
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
   const startVal = watch('startDatetime');
   const endVal = watch('endDatetime');
+  const isAllBranchesMode = !schedule && !defaultBranchId;
+
+  const availableAssignees = useMemo(() => {
+    const sourceUsers = users ?? [];
+    if (schedule) return sourceUsers;
+    if (!defaultBranchId) return sourceUsers;
+    return sourceUsers.filter((candidate) => candidate.branchId === defaultBranchId);
+  }, [users, schedule, defaultBranchId]);
+
+  const selectedAssigneeUsers = useMemo(() => {
+    const sourceUsers = users ?? [];
+    if (sourceUsers.length === 0 || selectedUsers.length === 0) return [];
+    return sourceUsers.filter((u) => selectedUsers.includes(u.id));
+  }, [users, selectedUsers]);
+
+  const selectedBranchIds = useMemo(() => {
+    return Array.from(new Set(selectedAssigneeUsers.map((u) => u.branchId).filter(Boolean))) as string[];
+  }, [selectedAssigneeUsers]);
+
+  const autoBranchId = useMemo(() => {
+    if (schedule?.branchId) return schedule.branchId;
+    if (selectedBranchIds.length > 0) return selectedBranchIds[0];
+    if (defaultBranchId) return defaultBranchId;
+    if (user?.branchId) return user.branchId;
+    return '';
+  }, [schedule?.branchId, selectedBranchIds, defaultBranchId, user?.branchId]);
+
+  const selectedBranchName = useMemo(() => {
+    if (schedule?.branch?.name) return schedule.branch.name;
+    return selectedAssigneeUsers.find((u) => u.branch?.name)?.branch?.name;
+  }, [schedule?.branch?.name, selectedAssigneeUsers]);
+
+  useEffect(() => {
+    if (!open || !canEdit) return;
+    const currentBranchId = getValues('branchId');
+    if (currentBranchId === autoBranchId) return;
+    setValue('branchId', autoBranchId, { shouldValidate: true, shouldDirty: false });
+  }, [open, canEdit, autoBranchId, getValues, setValue]);
 
   useEffect(() => {
     const typeColor = SCHEDULE_TYPES.find((t) => t.value === selectedType)?.color || '#1e3a5f';
@@ -205,11 +224,6 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const holidayDates = useMemo(
     () => new Set((branchRangeHolidays ?? []).map((h) => h.date.slice(0, 10))),
     [branchRangeHolidays],
-  );
-
-  const selectedBranch = useMemo(
-    () => branchesList.find((branch) => branch.id === selectedBranchId),
-    [branchesList, selectedBranchId],
   );
 
   const preview = useMemo(() => {
@@ -285,6 +299,17 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       toast.error('Asigna al menos una persona');
       return;
     }
+
+    if (!schedule && selectedBranchIds.length > 1) {
+      toast.error('Selecciona personal de una sola sucursal para crear el turno');
+      return;
+    }
+
+    if (!data.branchId) {
+      toast.error('No se pudo determinar la sucursal del turno');
+      return;
+    }
+
     const payload = {
       ...data,
       startDatetime: toIsoFromLocalInput(data.startDatetime),
@@ -397,6 +422,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                 })}
               </div>
               <input type="hidden" {...register('type')} />
+              <input type="hidden" {...register('branchId')} />
             </div>
 
             {/* Dates */}
@@ -417,8 +443,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
               </div>
             </div>
 
-            {/* Hours per day + branch */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Hours per day */}
+            <div>
               <div>
                 <label className="block text-sm font-medium text-navy-600 mb-1">
                   <Clock className="inline h-3.5 w-3.5 mr-1" />Horas por día
@@ -434,25 +460,9 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                   placeholder="8"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-navy-600 mb-1">
-                  <CalendarDays className="inline h-3.5 w-3.5 mr-1" />Sucursal
-                </label>
-                <select
-                  {...register('branchId')}
-                  className="input-field text-sm"
-                  disabled={!canEdit || !branchesList.length}
-                >
-                  <option value="">Selecciona sucursal</option>
-                  {branchesList.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name} ({branch.code})
-                    </option>
-                  ))}
-                </select>
-                {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
-              </div>
             </div>
+
+            {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
 
             {/* Weekend checkbox */}
             {canEdit && (
@@ -482,7 +492,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                   </p>
                   <p className="text-xs text-theme-muted mt-0.5">
                     {!includeWeekends ? 'Fines de semana excluidos' : 'Fines de semana incluidos'}
-                    {selectedBranch ? ` · Sucursal ${selectedBranch.name}` : ''}
+                    {selectedBranchName ? ` · Sucursal ${selectedBranchName}` : ''}
                     {(branchRangeHolidays?.length ?? 0) > 0 ? ` · ${(branchRangeHolidays?.length ?? 0)} festivo(s) en rango` : ''}
                   </p>
                 </div>
@@ -513,7 +523,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                   <span className="ml-1 text-xs text-theme-muted">({selectedUsers.length} seleccionados)</span>
                 </label>
                 <div className="border border-theme-color rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {users.map((u) => (
+                  {availableAssignees.map((u) => (
                     <label
                       key={u.id}
                       className="flex items-center gap-3 px-3 py-2.5 hover:bg-theme-surface-muted cursor-pointer border-b border-theme-color last:border-0"
@@ -527,6 +537,11 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
                         <p className="text-xs text-theme-muted truncate">{u.department || u.email}</p>
+                        {isAllBranchesMode && (
+                          <p className="text-[10px] text-theme-muted truncate mt-0.5">
+                            Sucursal: {u.branch?.name ?? 'Sin sucursal'}
+                          </p>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -542,6 +557,11 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                       </button>
                     </label>
                   ))}
+                  {availableAssignees.length === 0 && (
+                    <div className="px-3 py-4 text-xs text-theme-muted text-center">
+                      No hay personal activo para la sucursal seleccionada.
+                    </div>
+                  )}
                 </div>
               </div>
             )}

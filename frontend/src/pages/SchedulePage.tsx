@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -9,13 +9,24 @@ import type { EventClickArg, DateSelectArg, EventContentArg } from '@fullcalenda
 import esLocale from '@fullcalendar/core/locales/es';
 import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useUIStore } from '@/store/uiStore';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import {
+  CalendarDetailPopover,
+  type CalendarDetailItem,
+  type PopoverAnchor,
+} from '@/components/schedule/CalendarDetailPopover';
+import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Branch, BranchHoliday, Schedule, WeekScheduleItem } from '@/types';
+import type { Branch, BranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   nacional: 'Nacional',
@@ -176,6 +187,18 @@ function ListEventContent({ info }: { info: EventContentArg }) {
   );
 }
 
+function HolidayEventContent({ info }: { info: EventContentArg }) {
+  const holidayType = info.event.extendedProps.holidayType as BranchHoliday['type'] | undefined;
+  const color = holidayType ? HOLIDAY_COLORS[holidayType] : '#5f6368';
+
+  return (
+    <div className="google-holiday-event" style={{ borderColor: color, color }}>
+      <span className="google-holiday-event-dot" style={{ backgroundColor: color }} />
+      <span className="google-holiday-event-title">{info.event.title}</span>
+    </div>
+  );
+}
+
 /* ─── unified event content dispatcher ─────────────────────────── */
 
 function EventContent({
@@ -183,6 +206,7 @@ function EventContent({
 }: {
   info: EventContentArg;
 }) {
+  if (info.event.extendedProps.isHoliday) return <HolidayEventContent info={info} />;
   const viewType = info.view.type;
   if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} />;
   if (viewType.startsWith('list')) return <ListEventContent info={info} />;
@@ -269,17 +293,26 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
 /* ─── main page ─────────────────────────────────────────────────── */
 
 export function SchedulePage() {
+  const qc = useQueryClient();
   const navigate = useNavigate();
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [defaultEnd, setDefaultEnd] = useState<Date | undefined>();
+  const [detailItem, setDetailItem] = useState<CalendarDetailItem | null>(null);
+  const [detailAnchor, setDetailAnchor] = useState<PopoverAnchor | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CalendarDetailItem | null>(null);
+  const [holidayEditTarget, setHolidayEditTarget] = useState<BranchHoliday | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [activeBranchId, setActiveBranchId] = useState<string>('');
   const [activeView, setActiveView] = useState('dayGridMonth');
@@ -301,12 +334,17 @@ export function SchedulePage() {
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
-  const availableBranches = branches?.data ?? [];
+  const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
+  const branchNameById = useMemo(
+    () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
+    [availableBranches],
+  );
   const selectedBranch = useMemo(
     () => availableBranches.find((branch) => branch.id === activeBranchId) ?? availableBranches[0],
     [availableBranches, activeBranchId],
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!branches?.data?.length) return;
 
@@ -332,6 +370,7 @@ export function SchedulePage() {
       setActiveBranchId('');
     }
   }, [branches?.data, activeBranchId, isAdmin, assignedBranchId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
@@ -395,15 +434,57 @@ export function SchedulePage() {
     enabled: Boolean(scheduleId),
   });
 
+  const deleteScheduleMutation = useMutation({
+    mutationFn: (schedule: Schedule) =>
+      api.delete(`/schedules/${schedule.id}`, { data: { reason: 'Eliminada desde el calendario' } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schedules'] });
+      qc.invalidateQueries({ queryKey: ['schedule-detail'] });
+      toast.success('Turno eliminado');
+      setDeleteTarget(null);
+      setDetailItem(null);
+      setDetailAnchor(null);
+      if (scheduleId) {
+        navigate('/schedule', { replace: true });
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'No se pudo eliminar el turno'));
+    },
+  });
+
+  const deleteHolidayMutation = useMutation({
+    mutationFn: (holiday: BranchHoliday) => api.delete(`/branches/${holiday.branchId}/holidays/${holiday.id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['branch-holidays'] });
+      qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
+      toast.success('Festivo eliminado');
+      setDeleteTarget(null);
+      setDetailItem(null);
+      setDetailAnchor(null);
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'No se pudo eliminar el festivo'));
+    },
+  });
+
+  const detailScheduleId = detailItem?.kind === 'schedule' ? detailItem.schedule.id : null;
+
   useEffect(() => {
     if (!scheduleDetail) return;
+    if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
     const openDetailTimer = window.setTimeout(() => {
-      setSelectedSchedule(scheduleDetail);
-      setModalOpen(true);
+      if (detailScheduleId === scheduleDetail.id) return;
+      setDetailItem({
+        kind: 'schedule',
+        schedule: scheduleDetail,
+        branchName: scheduleDetail.branchId ? branchNameById[scheduleDetail.branchId] : undefined,
+      });
+      setDetailAnchor(null);
     }, 0);
 
     return () => window.clearTimeout(openDetailTimer);
-  }, [scheduleDetail]);
+  }, [scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
 
   const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
     if (!shouldUseWeekEndpoint) return endIso;
@@ -426,7 +507,7 @@ export function SchedulePage() {
   }, [shouldUseWeekEndpoint]);
 
   /* derive color from type (ignore stale DB color field) */
-  const events =
+  const scheduleEvents =
     schedules
       ?.filter((s) => !hiddenTypes.has(s.type))
       .map((s) => {
@@ -443,19 +524,35 @@ export function SchedulePage() {
         };
       }) ?? [];
 
-  /* holiday background events for active branch */
-  const holidayEvents = useMemo(() => {
-    const holidays = (branchHolidays?.data ?? []).map((h) => ({
-      id: `holiday-${h.date}-${h.type}`,
-      title: h.name,
-      start: toLocalDateOnly(h.date),
-      end: addOneDay(toLocalDateOnly(h.date)),
+  const holidayBackgroundEvents = useMemo(() => {
+    return (branchHolidays?.data ?? []).map((holiday) => ({
+      id: `holiday-bg-${holiday.id}`,
+      title: holiday.name,
+      start: toLocalDateOnly(holiday.date),
+      end: addOneDay(toLocalDateOnly(holiday.date)),
       allDay: true,
       display: 'background' as const,
-      backgroundColor: HOLIDAY_COLORS[h.type] + '33', // 20% opacity
-      extendedProps: { isHoliday: true, holidayType: h.type },
+      backgroundColor: HOLIDAY_COLORS[holiday.type] + '33',
+      extendedProps: { isHolidayBackground: true, holidayType: holiday.type },
     }));
-    return holidays;
+  }, [branchHolidays?.data]);
+
+  const holidayInteractiveEvents = useMemo(() => {
+    return (branchHolidays?.data ?? []).map((holiday) => ({
+      id: `holiday-${holiday.id}`,
+      title: holiday.name,
+      start: toLocalDateOnly(holiday.date),
+      end: addOneDay(toLocalDateOnly(holiday.date)),
+      allDay: true,
+      backgroundColor: '#ffffff',
+      borderColor: HOLIDAY_COLORS[holiday.type],
+      textColor: HOLIDAY_COLORS[holiday.type],
+      extendedProps: {
+        isHoliday: true,
+        holiday,
+        holidayType: holiday.type,
+      },
+    }));
   }, [branchHolidays?.data]);
 
   /* type counts for legend badges */
@@ -482,16 +579,45 @@ export function SchedulePage() {
   }, []);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
-    if (info.event.extendedProps.isHoliday) return; // background holiday events are not clickable
-    const clickedSchedule = info.event.extendedProps.schedule as Schedule;
-    setSelectedSchedule(clickedSchedule);
-    setModalOpen(true);
+    if (info.event.extendedProps.isHolidayBackground) return;
+
+    const rect = info.el.getBoundingClientRect();
+    const x = info.jsEvent.clientX > 0 ? info.jsEvent.clientX : rect.left + rect.width / 2;
+    const y = info.jsEvent.clientY > 0 ? info.jsEvent.clientY : rect.top + rect.height / 2;
+
+    if (info.event.extendedProps.isHoliday) {
+      const holiday = info.event.extendedProps.holiday as BranchHoliday | undefined;
+      if (!holiday) return;
+
+      setDetailItem({
+        kind: 'holiday',
+        holiday,
+        branchName: branchNameById[holiday.branchId],
+      });
+      setDetailAnchor({ x, y });
+      if (scheduleId) {
+        navigate('/schedule', { replace: true });
+      }
+      return;
+    }
+
+    const clickedSchedule = info.event.extendedProps.schedule as Schedule | undefined;
+    if (!clickedSchedule) return;
+
+    setDetailItem({
+      kind: 'schedule',
+      schedule: clickedSchedule,
+      branchName: clickedSchedule.branchId ? branchNameById[clickedSchedule.branchId] : undefined,
+    });
+    setDetailAnchor({ x, y });
     navigate(`/schedule/${clickedSchedule.id}`);
-  }, [navigate]);
+  }, [branchNameById, navigate, scheduleId]);
 
   const handleDateSelect = useCallback(
     (info: DateSelectArg) => {
       if (!canEdit) return;
+      setDetailItem(null);
+      setDetailAnchor(null);
       setSelectedSchedule(null);
       setDefaultStart(info.start);
       setDefaultEnd(info.end);
@@ -500,6 +626,58 @@ export function SchedulePage() {
     },
     [canEdit, navigate, scheduleId],
   );
+
+  const closeDetailPopover = useCallback(() => {
+    setDetailItem(null);
+    setDetailAnchor(null);
+    if (scheduleId) {
+      navigate('/schedule', { replace: true });
+    }
+  }, [navigate, scheduleId]);
+
+  const handleEditDetail = useCallback(() => {
+    if (!detailItem) return;
+
+    if (detailItem.kind === 'schedule') {
+      setSelectedSchedule(detailItem.schedule);
+      setDefaultStart(undefined);
+      setDefaultEnd(undefined);
+      setModalOpen(true);
+    } else if (isAdmin) {
+      setHolidayEditTarget(detailItem.holiday);
+    }
+
+    setDetailItem(null);
+    setDetailAnchor(null);
+  }, [detailItem, isAdmin]);
+
+  const handleDeleteDetail = useCallback(() => {
+    if (!detailItem) return;
+    setDetailItem(null);
+    setDetailAnchor(null);
+    setDeleteTarget(detailItem);
+  }, [detailItem]);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteTarget) return;
+
+    if (deleteTarget.kind === 'schedule') {
+      deleteScheduleMutation.mutate(deleteTarget.schedule);
+      return;
+    }
+
+    deleteHolidayMutation.mutate(deleteTarget.holiday);
+  }, [deleteTarget, deleteScheduleMutation, deleteHolidayMutation]);
+
+  const handleAssigneeClick = useCallback((userProfile: ScheduleAssignment['user']) => {
+    setSelectedProfileUser(userProfile);
+    setProfileModalOpen(true);
+    setDetailItem(null);
+    setDetailAnchor(null);
+    if (scheduleId) {
+      navigate('/schedule', { replace: true });
+    }
+  }, [navigate, scheduleId]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -510,6 +688,49 @@ export function SchedulePage() {
       navigate('/schedule', { replace: true });
     }
   }, [navigate, scheduleId]);
+
+  const reflowCalendar = useCallback(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    api.updateSize();
+  }, []);
+
+  useEffect(() => {
+    if (!calendarContainerRef.current || typeof ResizeObserver === 'undefined') return;
+
+    let rafId: number | null = null;
+    const scheduleReflow = () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        reflowCalendar();
+      });
+    };
+
+    const observer = new ResizeObserver(() => {
+      scheduleReflow();
+    });
+
+    observer.observe(calendarContainerRef.current);
+    window.addEventListener('resize', scheduleReflow);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleReflow);
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [reflowCalendar]);
+
+  useEffect(() => {
+    reflowCalendar();
+
+    const delayA = window.setTimeout(reflowCalendar, 120);
+    const delayB = window.setTimeout(reflowCalendar, 340);
+
+    return () => {
+      window.clearTimeout(delayA);
+      window.clearTimeout(delayB);
+    };
+  }, [sidebarCollapsed, reflowCalendar]);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -537,6 +758,8 @@ export function SchedulePage() {
                 start.setHours(start.getHours() + 1);
                 const end = new Date(start);
                 end.setHours(end.getHours() + 8);
+                setDetailItem(null);
+                setDetailAnchor(null);
                 setSelectedSchedule(null);
                 setDefaultStart(start);
                 setDefaultEnd(end);
@@ -665,7 +888,7 @@ export function SchedulePage() {
 
           {/* Calendar */}
           <div className="p-6">
-            <div className="fc-google-like">
+            <div ref={calendarContainerRef} className="fc-google-like">
               <FullCalendar
                 ref={calendarRef}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
@@ -677,7 +900,7 @@ export function SchedulePage() {
                   right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
                 }}
                 buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
-                events={[...events, ...holidayEvents]}
+                events={[...scheduleEvents, ...holidayInteractiveEvents, ...holidayBackgroundEvents]}
                 selectable={canEdit}
                 selectMirror
                 dayMaxEvents
@@ -688,6 +911,11 @@ export function SchedulePage() {
                 weekends
                 select={handleDateSelect}
                 eventClick={handleEventClick}
+                eventClassNames={(arg) => {
+                  if (arg.event.extendedProps.isHolidayBackground) return ['fc-holiday-background-event'];
+                  if (arg.event.extendedProps.isHoliday) return ['fc-holiday-event'];
+                  return [];
+                }}
                 eventContent={(info) => <EventContent info={info} />}
                 eventOrder="start,-duration,allDay,title"
                 eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
@@ -734,6 +962,49 @@ export function SchedulePage() {
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
         defaultBranchId={activeBranchId}
+      />
+
+      <CalendarDetailPopover
+        open={Boolean(detailItem)}
+        item={detailItem}
+        anchor={detailAnchor}
+        canEditSchedule={canEdit}
+        canEditHoliday={isAdmin}
+        onClose={closeDetailPopover}
+        onEdit={handleEditDetail}
+        onDelete={handleDeleteDetail}
+        onAssigneeClick={handleAssigneeClick}
+      />
+
+      <HolidayEditModal
+        key={holidayEditTarget?.id ?? 'holiday-edit-empty'}
+        open={Boolean(holidayEditTarget)}
+        holiday={holidayEditTarget}
+        branchName={holidayEditTarget ? branchNameById[holidayEditTarget.branchId] : undefined}
+        onClose={() => setHolidayEditTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.kind === 'holiday' ? 'Eliminar festivo' : 'Eliminar turno'}
+        description={
+          deleteTarget?.kind === 'holiday'
+            ? `¿Quieres eliminar "${deleteTarget.holiday.name}"?`
+            : `¿Quieres eliminar "${deleteTarget?.kind === 'schedule' ? deleteTarget.schedule.title : ''}"?`
+        }
+        confirmLabel="Eliminar"
+        loading={deleteScheduleMutation.isPending || deleteHolidayMutation.isPending}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <UserProfileModal
+        open={profileModalOpen}
+        user={selectedProfileUser}
+        onClose={() => {
+          setProfileModalOpen(false);
+          setSelectedProfileUser(null);
+        }}
       />
     </div>
   );
