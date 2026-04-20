@@ -7,17 +7,13 @@
     "module": "ESNext",
     "types": ["vite/client", "react", "react-dom"],
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"]
     },
+    /* Bundler mode */
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

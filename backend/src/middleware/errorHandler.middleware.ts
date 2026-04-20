@@ -28,7 +28,7 @@ function containsWebhookColumn(target: unknown, message?: string): boolean {
   return typeof message === 'string' && message.toLowerCase().includes('webhook_url');
 }
 
-export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   const message = err instanceof Error ? err.message : String(err);
   logger.error(message, err);
 
