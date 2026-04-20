@@ -345,12 +345,19 @@ export function AuditLogPage() {
                   <ActivityDetail
                     action={selectedLog.action}
                     entityType={selectedLog.entityType}
-                    entityId={selectedLog.entityId}
+                    entityId={selectedLog.id}
                     beforeJson={(selectedLog.detailsJson as any)?.before !== undefined ? (selectedLog.detailsJson as any).before : (selectedLog.action.includes('DELETE') ? selectedLog.detailsJson : null)}
                     afterJson={(selectedLog.detailsJson as any)?.after !== undefined ? (selectedLog.detailsJson as any).after : (!selectedLog.action.includes('DELETE') && !selectedLog.action.includes('UPDATE') && (selectedLog.detailsJson as any)?.before === undefined ? selectedLog.detailsJson : null)}
                     actorName={selectedLog.user?.name || 'Sistema'}
                     createdAt={selectedLog.createdAt}
                   />
+
+                  {selectedLog.entityId && (
+                    <div className="pt-3 border-t border-navy-100">
+                      <p className="text-[10px] font-medium text-navy-400 uppercase tracking-wider">ID del Recurso Afectado</p>
+                      <p className="text-xs font-mono text-navy-500 mt-0.5">{selectedLog.entityId}</p>
+                    </div>
+                  )}
 
                   {selectedLog.ipAddress && (
                     <div className="pt-3 border-t border-navy-100">
