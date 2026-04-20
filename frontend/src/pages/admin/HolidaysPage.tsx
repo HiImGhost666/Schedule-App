@@ -8,6 +8,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { getEffectiveBranchId } from '@/lib/branchSelection';
 import type { Branch, BranchHoliday } from '@/types';
 
 type HolidayType = BranchHoliday['type'];
@@ -67,15 +68,11 @@ export function HolidaysPage() {
   const branchList = branches?.data ?? [];
   const hasBranches = branchList.length > 0;
 
-  const effectiveSelectedBranchId = (() => {
-    if (!hasBranches) return '';
-    if (selectedBranchId && branchList.some((branch) => branch.id === selectedBranchId)) {
-      return selectedBranchId;
-    }
-
-    const fallback = branchList.find((branch) => branch.isActive) ?? branchList[0];
-    return fallback?.id ?? '';
-  })();
+  const effectiveSelectedBranchId = getEffectiveBranchId({
+    branches: branchList,
+    selectedBranchId,
+    fallbackStrategy: 'active-or-first',
+  });
 
   const selectedBranch = branches?.data.find((branch) => branch.id === effectiveSelectedBranchId);
 

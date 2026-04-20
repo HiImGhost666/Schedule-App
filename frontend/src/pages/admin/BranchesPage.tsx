@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { getEffectiveBranchId } from '@/lib/branchSelection';
 import type { Branch } from '@/types';
 
 const emptyBranchForm = {
@@ -36,15 +37,11 @@ export function BranchesPage() {
         .then((r) => r.data),
   });
 
-  const effectiveSelectedBranchId = (() => {
-    if (!branches?.data?.length) return '';
-    if (selectedBranchId && branches.data.some((branch) => branch.id === selectedBranchId)) {
-      return selectedBranchId;
-    }
-
-    const fallback = branches.data.find((branch) => branch.isActive) ?? branches.data[0];
-    return fallback?.id ?? '';
-  })();
+  const effectiveSelectedBranchId = getEffectiveBranchId({
+    branches: branches?.data,
+    selectedBranchId,
+    fallbackStrategy: 'active-or-first',
+  });
 
   const selectedBranch = branches?.data.find((branch) => branch.id === effectiveSelectedBranchId);
 

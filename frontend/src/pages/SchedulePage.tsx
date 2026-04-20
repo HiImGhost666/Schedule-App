@@ -27,6 +27,7 @@ import type { Branch, BranchHoliday, Schedule, ScheduleAssignment, WeekScheduleI
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { getEffectiveBranchId } from '@/lib/branchSelection';
 
 const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   nacional: 'Nacional',
@@ -340,20 +341,12 @@ export function SchedulePage() {
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
-  const effectiveActiveBranchId = (() => {
-    if (!branches?.data?.length) return '';
-
-    if (!isAdmin) {
-      if (!assignedBranchId) return '';
-      return branches.data.some((branch) => branch.id === assignedBranchId) ? assignedBranchId : '';
-    }
-
-    if (activeBranchId && branches.data.some((branch) => branch.id === activeBranchId)) {
-      return activeBranchId;
-    }
-
-    return '';
-  })();
+  const effectiveActiveBranchId = getEffectiveBranchId({
+    branches: branches?.data,
+    selectedBranchId: isAdmin ? activeBranchId : undefined,
+    assignedBranchId: isAdmin ? undefined : assignedBranchId,
+    fallbackStrategy: 'none',
+  });
 
   const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
   const branchNameById = useMemo(
