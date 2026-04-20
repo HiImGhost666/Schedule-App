@@ -11,10 +11,13 @@ import webhooksRouter from './modules/webhooks/webhooks.router';
 import notificationsRouter from './modules/notifications/notifications.router';
 import auditRouter from './modules/audit/audit.router';
 import settingsRouter from './modules/settings/settings.router';
-import branchesRouter from './modules/branches/branches.router';
 import { sendSuccess } from './utils/response';
+import path from 'path';
 
 const app = express();
+
+// Serve uploaded files (favicons, etc.)
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 app.use(helmet());
 
@@ -75,7 +78,6 @@ app.use('/api/webhooks', webhooksRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/settings', settingsRouter);
-app.use('/api/branches', branchesRouter);
 
 app.use(errorHandler);
 

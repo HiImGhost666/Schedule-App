@@ -200,7 +200,34 @@ export async function getCustomPresets(): Promise<ThemePreset[]> {
 
 export async function getThemePresets(): Promise<ThemePreset[]> {
   const customPresets = await getCustomPresets();
-  return [...BUILT_IN_THEME_PRESETS, ...customPresets];
+
+  // Check if any base preset has an override row in the DB and merge those in.
+  // Override rows for base presets use the pattern: preset_<id>__<name>__<desc>
+  // We query by preset id (one of the base IDs) and key NOT starting with preset_custom_.
+  const baseOverrideRows = await prisma.themeSettings.findMany({
+    where: {
+      preset: { in: BUILT_IN_THEME_PRESETS.map((p) => p.id) },
+      key: { startsWith: 'preset_' },
+      NOT: { key: { startsWith: 'preset_custom_' } },
+    },
+  });
+
+  const baseOverridesById = new Map(
+    baseOverrideRows.map((r) => [
+      (r as unknown as CustomPresetRow).preset,
+      presetRowToThemePreset(r as unknown as CustomPresetRow),
+    ])
+  );
+
+  const mergedBuiltIns: ThemePreset[] = BUILT_IN_THEME_PRESETS.map((p) => {
+    const override = baseOverridesById.get(p.id);
+    if (override) {
+      return { ...override, isBase: true };
+    }
+    return p;
+  });
+
+  return [...mergedBuiltIns, ...customPresets];
 }
 
 export async function createCustomPreset(input: {
@@ -237,46 +264,83 @@ export async function updateCustomPreset(
     overrides?: ThemePayload['overrides'];
   }
 ): Promise<ThemePreset> {
-  if (isBasePreset(id)) {
-    throw new Error('Los presets base no se pueden modificar');
-  }
+  // For base presets look for an override row (prefix preset_<id>__),
+  // for custom presets look for the standard prefix preset_custom_.
+  const keyPrefix = isBasePreset(id) ? `preset_${id}__` : 'preset_custom_';
 
   const existing = await prisma.themeSettings.findFirst({
-    where: { preset: id, key: { startsWith: 'preset_custom_' } },
+    where: { preset: id, key: { startsWith: keyPrefix } },
   });
 
-  if (!existing) {
+  // Resolve current values from DB row or, for base presets on first edit, from built-in definition
+  let currentName: string;
+  let currentDescription: string;
+  let currentTokens: ThemePayload['tokens'];
+  let currentOverrides: ThemePayload['overrides'];
+
+  if (existing) {
+    const currentPreset = presetRowToThemePreset(existing as unknown as CustomPresetRow);
+    currentName = currentPreset.name;
+    currentDescription = currentPreset.description;
+    currentTokens = currentPreset.theme.tokens;
+    currentOverrides = currentPreset.theme.overrides;
+  } else if (isBasePreset(id)) {
+    // No override row yet — seed defaults from the built-in definition
+    const builtIn = BUILT_IN_THEME_PRESETS.find((p) => p.id === id);
+    if (!builtIn) throw new Error('Preset no encontrado');
+    currentName = builtIn.name;
+    currentDescription = builtIn.description;
+    currentTokens = builtIn.theme.tokens;
+    currentOverrides = builtIn.theme.overrides;
+  } else {
     throw new Error('Preset no encontrado');
   }
 
-  const currentPreset = presetRowToThemePreset(existing as unknown as CustomPresetRow);
-  const newName = data.name ?? currentPreset.name;
-  const newDescription = data.description ?? currentPreset.description;
+  const newName = data.name ?? currentName;
+  const newDescription = data.description ?? currentDescription;
   const newKey = buildCustomPresetKey(id, newName, newDescription);
 
-  const row = await prisma.themeSettings.update({
-    where: { id: existing.id },
-    data: {
-      key: newKey,
-      ...(data.tokens ? { tokensJson: JSON.stringify(data.tokens) } : {}),
-      ...(data.overrides ? { overridesJson: JSON.stringify(data.overrides) } : {}),
-    },
-  });
+  let row: CustomPresetRow;
 
-  return presetRowToThemePreset(row as unknown as CustomPresetRow);
+  if (existing) {
+    row = await prisma.themeSettings.update({
+      where: { id: existing.id },
+      data: {
+        key: newKey,
+        ...(data.tokens ? { tokensJson: JSON.stringify(data.tokens) } : {}),
+        ...(data.overrides ? { overridesJson: JSON.stringify(data.overrides) } : {}),
+      },
+    }) as unknown as CustomPresetRow;
+  } else {
+    // First edit of a base preset — create an override row in the DB
+    row = await prisma.themeSettings.create({
+      data: {
+        key: newKey,
+        preset: id,
+        tokensJson: JSON.stringify(data.tokens ?? currentTokens),
+        overridesJson: JSON.stringify(data.overrides ?? currentOverrides),
+      },
+    }) as unknown as CustomPresetRow;
+  }
+
+  return presetRowToThemePreset(row);
 }
 
 export async function deleteCustomPreset(id: string): Promise<void> {
-  if (isBasePreset(id)) {
-    throw new Error('Los presets base no se pueden eliminar');
-  }
+  // For base presets, deleting means removing the override row (restoring built-in defaults).
+  // If no override row exists, there is nothing to delete — that is fine.
+  const keyPrefix = isBasePreset(id) ? `preset_${id}__` : 'preset_custom_';
 
   const existing = await prisma.themeSettings.findFirst({
-    where: { preset: id, key: { startsWith: 'preset_custom_' } },
+    where: { preset: id, key: { startsWith: keyPrefix } },
   });
 
   if (!existing) {
-    throw new Error('Preset no encontrado');
+    if (!isBasePreset(id)) {
+      throw new Error('Preset no encontrado');
+    }
+    // Base preset with no override row — nothing to do
+    return;
   }
 
   await prisma.themeSettings.delete({ where: { id: existing.id } });
