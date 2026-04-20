@@ -12,11 +12,13 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import type { AuditLog } from '@/types';
+import type { AuditLog, PaginatedResponse } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { formatDateTime } from '@/lib/utils';
 import { ActivityDetail } from '@/components/audit/ActivityDetail';
+import { getApiErrorMessage } from '@/lib/apiError';
+import type { LucideIcon } from 'lucide-react';
 
 const ACTION_COLORS: Record<string, string> = {
   LOGIN: 'bg-green-100 text-green-700',
@@ -46,6 +48,39 @@ const IRREVERSIBLE_ACTIONS = [
 ];
 
 type TabType = 'reversible' | 'irreversible';
+type AuditListResponse = PaginatedResponse<AuditLog>;
+type AuditDetails = {
+  before?: unknown;
+  after?: unknown;
+};
+
+function toSnapshotValue(value: unknown): string | Record<string, unknown> | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') return value as Record<string, unknown>;
+  return String(value);
+}
+
+function parseAuditDetails(value: unknown): AuditDetails {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        return parsed as AuditDetails;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof value === 'object') {
+    return value as AuditDetails;
+  }
+
+  return {};
+}
 
 // ── Subcomponente: tabla de registros ───────────────────────────────────────
 function AuditTable({
@@ -57,7 +92,7 @@ function AuditTable({
   onSelectLog,
   emptyDescription,
 }: {
-  data: any;
+  data?: AuditListResponse;
   isLoading: boolean;
   page: number;
   onPageChange: (p: number) => void;
@@ -182,16 +217,27 @@ export function AuditLogPage() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setSelectedLogId(null);
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.message || 'Error al revertir el cambio';
-      toast.error(message);
-    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Error al revertir el cambio')),
   });
+
+  const selectedLogDetails = parseAuditDetails(selectedLog?.detailsJson);
+  const beforeSnapshot = toSnapshotValue(
+    selectedLogDetails.before !== undefined
+      ? selectedLogDetails.before
+      : (selectedLog?.action.includes('DELETE') ? selectedLog.detailsJson : null),
+  );
+  const afterSnapshot = toSnapshotValue(
+    selectedLogDetails.after !== undefined
+      ? selectedLogDetails.after
+      : (!selectedLog?.action.includes('DELETE') && !selectedLog?.action.includes('UPDATE') && selectedLogDetails.before === undefined
+        ? selectedLog?.detailsJson
+        : null),
+  );
 
   const canRollback =
     selectedLog &&
     !IRREVERSIBLE_ACTIONS.includes(selectedLog.action) &&
-    ((selectedLog.detailsJson as any)?.before !== undefined || selectedLog.action.includes('CREATE'));
+    (selectedLogDetails.before !== undefined || selectedLog.action.includes('CREATE'));
 
   const handleSelectLog = (id: string) => {
     setSelectedLogId((prev) => (prev === id ? null : id));
@@ -202,7 +248,7 @@ export function AuditLogPage() {
     setSelectedLogId(null);
   };
 
-  const tabs: { key: TabType; label: string; icon: any; count?: number; description: string }[] = [
+  const tabs: { key: TabType; label: string; icon: LucideIcon; count?: number; description: string }[] = [
     {
       key: 'reversible',
       label: 'Acciones de Datos',
@@ -285,7 +331,7 @@ export function AuditLogPage() {
 
       {/* Tab description */}
       <div className="flex items-start gap-2 px-1">
-        <ShieldCheck className="h-4 w-4 text-navy-300 mt-0.5 flex-shrink-0" />
+        <ShieldCheck className="h-4 w-4 text-navy-300 mt-0.5 shrink-0" />
         <p className="text-xs text-navy-400">
           {tabs.find((t) => t.key === activeTab)?.description}
         </p>
@@ -321,7 +367,7 @@ export function AuditLogPage() {
 
         {/* Detail panel */}
         {selectedLogId && (
-          <div className="w-96 flex-shrink-0 flex flex-col gap-0 animate-slide-up">
+          <div className="w-96 shrink-0 flex flex-col gap-0 animate-slide-up">
             {/* Panel Header */}
             <div className="card px-5 py-4 flex items-center justify-between border-b border-navy-100 rounded-b-none">
               <h3 className="text-sm font-bold text-navy-800">Detalle del Registro</h3>
@@ -346,8 +392,8 @@ export function AuditLogPage() {
                     action={selectedLog.action}
                     entityType={selectedLog.entityType}
                     entityId={selectedLog.entityId}
-                    beforeJson={(selectedLog.detailsJson as any)?.before !== undefined ? (selectedLog.detailsJson as any).before : (selectedLog.action.includes('DELETE') ? selectedLog.detailsJson : null)}
-                    afterJson={(selectedLog.detailsJson as any)?.after !== undefined ? (selectedLog.detailsJson as any).after : (!selectedLog.action.includes('DELETE') && !selectedLog.action.includes('UPDATE') && (selectedLog.detailsJson as any)?.before === undefined ? selectedLog.detailsJson : null)}
+                    beforeJson={beforeSnapshot}
+                    afterJson={afterSnapshot}
                     actorName={selectedLog.user?.name || 'Sistema'}
                     createdAt={selectedLog.createdAt}
                   />
@@ -391,7 +437,7 @@ export function AuditLogPage() {
                   {activeTab === 'irreversible' && (
                     <div className="pt-4 border-t border-navy-100">
                       <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
-                        <Lock className="h-4 w-4 text-red-400 flex-shrink-0" />
+                        <Lock className="h-4 w-4 text-red-400 shrink-0" />
                         <p className="text-[11px] text-red-600 font-medium">
                           Los eventos de seguridad y sesión no se pueden revertir
                         </p>
