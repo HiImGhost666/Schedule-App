@@ -41,10 +41,10 @@ export function ProfilePage() {
     if (searchParams.get('change') === '1') {
       setSearchParams({}, { replace: true });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, setSearchParams]);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PwForm>({
-    resolver: zodResolver(pwSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(pwSchema),
   });
 
   const changePwMutation = useMutation({
@@ -84,7 +84,7 @@ export function ProfilePage() {
 
       {user?.forcePasswordChange && (
         <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-amber-800">Debes cambiar tu contraseña</p>
             <p className="text-xs text-amber-700 mt-0.5">
@@ -98,7 +98,7 @@ export function ProfilePage() {
       <div className="card p-7">
         <div className="flex items-center gap-5">
           <div
-            className="h-16 w-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg flex-shrink-0"
+            className="h-16 w-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg shrink-0"
             style={{ backgroundColor: bgColor }}
           >
             {getInitials(user.name)}
@@ -218,7 +218,7 @@ export function ProfilePage() {
       </div>
 
       <div className="flex items-center gap-3 p-4 bg-navy-50 rounded-xl border border-navy-100">
-        <User className="h-4 w-4 text-navy-400 flex-shrink-0" />
+        <User className="h-4 w-4 text-navy-400 shrink-0" />
         <p className="text-sm text-navy-500">Para cambiar tu email, nombre o rol, contacta con el administrador del sistema.</p>
       </div>
 
