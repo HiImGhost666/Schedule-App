@@ -87,7 +87,7 @@ model ScheduleAssignment {
 model WebhookConfig {
   id                    String  @id @default(cuid())
   name                  String
-  webhookUrl            String  @map("webhook_url")
+  webhookUrl            String  @map("webhook_url") @db.Text
   enabled               Boolean @default(true)
   notifyModifications   Boolean @default(true) @map("notify_modifications")
   notifyLastMinute      Boolean @default(true) @map("notify_last_minute")
