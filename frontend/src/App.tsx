@@ -21,6 +21,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import type { ThemeConfig } from '@/types';
 import { QueryInvalidationBridge } from '@/realtime/queryInvalidationBridge';
+import { applyFavicon } from '@/lib/favicon';
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -84,6 +85,15 @@ function App() {
       .catch(() => {
         // Keep local fallback theme
       });
+
+    // Sync site branding (title + favicon)
+    api
+      .get<{ data: { title: string; faviconUrl: string } }>('/settings/site')
+      .then((response) => {
+        document.title = response.data.data.title;
+        applyFavicon(response.data.data.faviconUrl, { cacheBust: true });
+      })
+      .catch(() => {});
   }, [isAuthenticated, setThemeConfig]);
 
   return (
