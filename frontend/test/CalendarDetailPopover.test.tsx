@@ -99,6 +99,7 @@ describe('CalendarDetailPopover', () => {
     const onClose = vi.fn();
     const onEdit = vi.fn();
     const onDelete = vi.fn();
+    const onAssigneeClick = vi.fn();
     const item: CalendarDetailItem = {
       kind: 'schedule',
       schedule: buildSchedule(),
@@ -114,15 +115,18 @@ describe('CalendarDetailPopover', () => {
         onClose={onClose}
         onEdit={onEdit}
         onDelete={onDelete}
+        onAssigneeClick={onAssigneeClick}
       />,
     );
 
     fireEvent.click(screen.getByTitle('Editar'));
     fireEvent.click(screen.getByTitle('Eliminar'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ana Lopez' }));
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onAssigneeClick).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

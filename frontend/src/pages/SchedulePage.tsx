@@ -18,10 +18,11 @@ import {
   type PopoverAnchor,
 } from '@/components/schedule/CalendarDetailPopover';
 import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Branch, BranchHoliday, Schedule, WeekScheduleItem } from '@/types';
+import type { Branch, BranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -307,6 +308,8 @@ export function SchedulePage() {
   const [detailAnchor, setDetailAnchor] = useState<PopoverAnchor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CalendarDetailItem | null>(null);
   const [holidayEditTarget, setHolidayEditTarget] = useState<BranchHoliday | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [activeBranchId, setActiveBranchId] = useState<string>('');
   const [activeView, setActiveView] = useState('dayGridMonth');
@@ -466,7 +469,7 @@ export function SchedulePage() {
 
   useEffect(() => {
     if (!scheduleDetail) return;
-    if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget)) return;
+    if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
     const openDetailTimer = window.setTimeout(() => {
       if (detailScheduleId === scheduleDetail.id) return;
       setDetailItem({
@@ -478,7 +481,7 @@ export function SchedulePage() {
     }, 0);
 
     return () => window.clearTimeout(openDetailTimer);
-  }, [scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget]);
+  }, [scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
 
   const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
     if (!shouldUseWeekEndpoint) return endIso;
@@ -662,6 +665,16 @@ export function SchedulePage() {
 
     deleteHolidayMutation.mutate(deleteTarget.holiday);
   }, [deleteTarget, deleteScheduleMutation, deleteHolidayMutation]);
+
+  const handleAssigneeClick = useCallback((userProfile: ScheduleAssignment['user']) => {
+    setSelectedProfileUser(userProfile);
+    setProfileModalOpen(true);
+    setDetailItem(null);
+    setDetailAnchor(null);
+    if (scheduleId) {
+      navigate('/schedule', { replace: true });
+    }
+  }, [navigate, scheduleId]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -914,6 +927,7 @@ export function SchedulePage() {
         onClose={closeDetailPopover}
         onEdit={handleEditDetail}
         onDelete={handleDeleteDetail}
+        onAssigneeClick={handleAssigneeClick}
       />
 
       <HolidayEditModal
@@ -936,6 +950,15 @@ export function SchedulePage() {
         loading={deleteScheduleMutation.isPending || deleteHolidayMutation.isPending}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <UserProfileModal
+        open={profileModalOpen}
+        user={selectedProfileUser}
+        onClose={() => {
+          setProfileModalOpen(false);
+          setSelectedProfileUser(null);
+        }}
       />
     </div>
   );

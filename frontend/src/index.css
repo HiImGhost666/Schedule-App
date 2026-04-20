@@ -670,6 +670,29 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-top: 1px;
 }
 
+.calendar-popover-assignees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calendar-popover-assignee-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1a73e8;
+  background: #e8f0fe;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.calendar-popover-assignee-btn:hover {
+  background: #d2e3fc;
+  color: #174ea6;
+}
+
 .calendar-popover-note {
   margin: 2px 0 0;
   padding: 8px 10px;

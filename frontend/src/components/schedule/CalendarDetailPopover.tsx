@@ -30,6 +30,7 @@ interface CalendarDetailPopoverProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onAssigneeClick?: (user: Schedule['assignments'][number]['user']) => void;
 }
 
 const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
@@ -131,6 +132,7 @@ export function CalendarDetailPopover({
   onClose,
   onEdit,
   onDelete,
+  onAssigneeClick,
 }: CalendarDetailPopoverProps) {
   const [mobile, setMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : true));
 
@@ -211,12 +213,18 @@ export function CalendarDetailPopover({
             {item.schedule.assignments.length > 0 && (
               <div className="calendar-popover-row">
                 <Users className="h-4 w-4" />
-                <span>
-                  {item.schedule.assignments
-                    .map((assignment) => assignment.user.name)
-                    .slice(0, 4)
-                    .join(', ')}
-                </span>
+                <div className="calendar-popover-assignees">
+                  {item.schedule.assignments.slice(0, 6).map((assignment) => (
+                    <button
+                      key={assignment.userId}
+                      type="button"
+                      className="calendar-popover-assignee-btn"
+                      onClick={() => onAssigneeClick?.(assignment.user)}
+                    >
+                      {assignment.user.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
