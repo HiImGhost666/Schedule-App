@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { webhookFormSchema } from '@/pages/admin/WebhooksPage';
+import { webhookFormSchema } from '@/pages/admin/webhooks.schema';
 
 function buildWebhookUrl(totalLength: number): string {
   const base = 'https://example.com/';

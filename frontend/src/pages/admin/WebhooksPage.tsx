@@ -12,17 +12,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
-
-export const webhookFormSchema = z.object({
-  name: z.string().min(2),
-  webhookUrl: z.string().url('URL inválida'),
-  enabled: z.boolean(),
-  notifyModifications: z.boolean(),
-  notifyLastMinute: z.boolean(),
-  fridayReminderEnabled: z.boolean(),
-  mondayVacationReminderEnabled: z.boolean(),
-  fridayReminderTime: z.string().default('12:00'),
-});
+import { webhookFormSchema } from '@/pages/admin/webhooks.schema';
 
 type FormData = z.infer<typeof webhookFormSchema>;
 type FormDataInput = z.input<typeof webhookFormSchema>;
