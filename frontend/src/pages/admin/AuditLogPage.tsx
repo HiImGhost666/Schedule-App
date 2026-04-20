@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import {
   ClipboardList,
   Search,
@@ -142,12 +143,15 @@ function AuditTable({
 
 // ── Componente principal ────────────────────────────────────────────────────
 export function AuditLogPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('reversible');
+  const location = useLocation();
+  const navState = location.state as { selectedLogId?: string; activeTab?: TabType } | null;
+
+  const [activeTab, setActiveTab] = useState<TabType>(navState?.activeTab || 'reversible');
   const [search, setSearch] = useState('');
   const [entityType, setEntityType] = useState('');
   const [pageRev, setPageRev] = useState(1);
   const [pageIrr, setPageIrr] = useState(1);
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(navState?.selectedLogId || null);
   const queryClient = useQueryClient();
 
   const commonParams = { limit: 20, action: search || undefined, entityType: entityType || undefined };
