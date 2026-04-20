@@ -91,11 +91,11 @@ function ColorField({ label, value, onChange, disabled }: ColorFieldProps) {
       } ${hexInvalid ? "border-red-400" : "border-theme-color"}`}
     >
       <span className="text-xs text-theme-muted font-medium truncate flex-1 min-w-0">{label}</span>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         {/* Color swatch / native picker */}
         <div className="relative">
           <div
-            className="h-7 w-7 rounded border border-theme-color cursor-pointer flex-shrink-0 overflow-hidden"
+            className="h-7 w-7 rounded border border-theme-color cursor-pointer shrink-0 overflow-hidden"
             style={{ backgroundColor: isValidHex(hexInput) ? hexInput : value }}
           >
             <input
@@ -118,7 +118,7 @@ function ColorField({ label, value, onChange, disabled }: ColorFieldProps) {
           maxLength={7}
           placeholder="#000000"
           spellCheck={false}
-          className={`w-[82px] text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary disabled:cursor-not-allowed focus:outline-none transition-colors uppercase ${
+          className={`w-20.5 text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary disabled:cursor-not-allowed focus:outline-none transition-colors uppercase ${
             hexInvalid
               ? "border-red-400 focus:border-red-500"
               : "border-theme-color focus:border-theme-text-muted"
@@ -415,10 +415,6 @@ export function ThemeManagerPage() {
     useState<ExtendedThemePreset | null>(null);
 
   const activeTheme = themeDraft || themeConfig || DEFAULT_THEME;
-
-  useEffect(() => {
-    setSelectedPresetId(themeDraft?.preset || themeConfig?.preset || "");
-  }, [themeDraft?.preset, themeConfig?.preset]);
 
   const { data: presetsRaw = [] } = useQuery({
     queryKey: ["theme-presets"],

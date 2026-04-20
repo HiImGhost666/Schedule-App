@@ -128,7 +128,7 @@ export function UsersPage() {
                     <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
                             {u.name[0]}
                           </div>
                           <div className="min-w-0">
