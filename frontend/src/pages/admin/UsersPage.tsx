@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Plus, Search, MoreVertical, Edit, Eye, Lock, Unlock, Trash2, Key, Shield } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
 import type { User } from '@/types';
 import { ROLE_LABELS, STATUS_LABELS } from '@/types';
@@ -18,9 +19,11 @@ export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
   const qc = useQueryClient();
+  const location = useLocation();
+  const navState = location.state as { status?: string } | null;
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(navState?.status || '');
   const [page, setPage] = useState(1);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [formUser, setFormUser] = useState<User | null | false>(false);
