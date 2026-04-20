@@ -44,7 +44,15 @@ services:
         condition: service_healthy
     command: >
       sh -c "npx prisma generate &&
-             npx prisma db push &&
+             i=0; until npx prisma db push; do
+             i=$$((i+1));
+             if [ $$i -ge 30 ]; then
+             echo 'Database not ready after 30 attempts';
+             exit 1;
+             fi;
+             echo 'Waiting for database...';
+             sleep 2;
+             done &&
              npx ts-node prisma/seed.ts &&
              npm run dev"
     healthcheck:

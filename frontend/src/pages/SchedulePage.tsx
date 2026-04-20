@@ -297,8 +297,8 @@ export function SchedulePage() {
   const assignedBranchId = user?.branchId ?? '';
 
   const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'active-only', user?.id, user?.role, assignedBranchId],
-    queryFn: () => api.get('/branches').then((r) => r.data),
+    queryKey: ['branches', 'schedule-page', user?.id, user?.role, assignedBranchId],
+    queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
   const availableBranches = branches?.data ?? [];
@@ -329,15 +329,14 @@ export function SchedulePage() {
     }
 
     if (!activeBranchId || !branches.data.some((branch) => branch.id === activeBranchId)) {
-      const firstActive = branches.data.find((branch) => branch.isActive) ?? branches.data[0];
-      setActiveBranchId(firstActive.id);
+      setActiveBranchId('');
     }
   }, [branches?.data, activeBranchId, isAdmin, assignedBranchId]);
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
       'schedules',
-      activeBranchId,
+      activeBranchId || 'all',
       shouldUseWeekEndpoint ? 'week-view' : 'month-view',
       shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
     ],
@@ -345,9 +344,7 @@ export function SchedulePage() {
       if (shouldUseWeekEndpoint) {
         return api
           .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`, {
-            params: {
-              branchId: activeBranchId,
-            },
+            params: activeBranchId ? { branchId: activeBranchId } : {},
           })
           .then((r) => r.data.data.items.map(mapWeekItemToSchedule));
       }
@@ -355,7 +352,7 @@ export function SchedulePage() {
       return api
         .get<{ data: Schedule[] }>('/schedules', {
           params: {
-            branchId: activeBranchId,
+            ...(activeBranchId ? { branchId: activeBranchId } : {}),
             from: new Date(
               dateRange.from.getFullYear(),
               dateRange.from.getMonth() - 1,
@@ -370,7 +367,7 @@ export function SchedulePage() {
         })
         .then((r) => r.data.data);
     },
-    enabled: Boolean(activeBranchId),
+    enabled: isAdmin || Boolean(activeBranchId),
   });
 
   const { data: branchHolidays } = useQuery<{ data: BranchHoliday[] }>({
@@ -571,13 +568,12 @@ export function SchedulePage() {
               </div>
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
                 {isAdmin ? (
-                  availableBranches.map((branch) => (
+                  <>
                     <button
-                      key={branch.id}
-                      onClick={() => setActiveBranchId(branch.id)}
+                      onClick={() => setActiveBranchId('')}
                       className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
                       style={
-                        activeBranchId === branch.id
+                        !activeBranchId
                           ? {
                             backgroundColor: 'var(--theme-sidebar-active-bg)',
                             color: 'var(--theme-sidebar-active-text)',
@@ -591,13 +587,38 @@ export function SchedulePage() {
                       }
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate">{branch.name}</span>
-                        {!branch.isActive && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
-                        )}
+                        <span className="truncate">Todas las sucursales</span>
                       </div>
                     </button>
-                  ))
+
+                    {availableBranches.map((branch) => (
+                      <button
+                        key={branch.id}
+                        onClick={() => setActiveBranchId(branch.id)}
+                        className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
+                        style={
+                          activeBranchId === branch.id
+                            ? {
+                              backgroundColor: 'var(--theme-sidebar-active-bg)',
+                              color: 'var(--theme-sidebar-active-text)',
+                              borderColor: 'var(--theme-sidebar-active-bg)',
+                            }
+                            : {
+                              backgroundColor: 'var(--theme-surface)',
+                              color: 'var(--theme-text-muted)',
+                              borderColor: 'var(--theme-border-color)',
+                            }
+                        }
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">{branch.name}</span>
+                          {!branch.isActive && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </>
                 ) : selectedBranch ? (
                   <div
                     className="w-full text-left px-3 py-2 rounded-lg border"
