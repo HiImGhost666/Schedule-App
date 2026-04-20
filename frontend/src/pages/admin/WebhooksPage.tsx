@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { AxiosResponse } from 'axios';
 import { Plus, Webhook, Trash2, Edit, Play, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -12,7 +13,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
 
-const schema = z.object({
+export const webhookFormSchema = z.object({
   name: z.string().min(2),
   webhookUrl: z.string().url('URL inválida'),
   enabled: z.boolean(),
@@ -23,13 +24,13 @@ const schema = z.object({
   fridayReminderTime: z.string().default('12:00'),
 });
 
-type FormData = z.infer<typeof schema>;
-type FormDataInput = z.input<typeof schema>;
+type FormData = z.infer<typeof webhookFormSchema>;
+type FormDataInput = z.input<typeof webhookFormSchema>;
 
 function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: () => void }) {
   const qc = useQueryClient();
   const { register, handleSubmit, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(webhookFormSchema),
     defaultValues: webhook
       ? { ...webhook }
       : {
@@ -68,7 +69,11 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
           </div>
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">URL del Webhook *</label>
-            <input {...register('webhookUrl')} className="input-field" placeholder="https://outlook.office.com/webhook/..." />
+            <input
+              {...register('webhookUrl')}
+              className="input-field"
+              placeholder="https://outlook.office.com/webhook/..."
+            />
             {errors.webhookUrl && <p className="text-xs text-red-500 mt-1">{errors.webhookUrl.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -113,7 +118,7 @@ export function WebhooksPage() {
 
   const { data: webhooks, isLoading } = useQuery({
     queryKey: ['webhooks'],
-    queryFn: () => api.get<{ data: WebhookConfig[] }>('/webhooks').then((r) => r.data.data),
+    queryFn: () => api.get<{ data: WebhookConfig[] }>('/webhooks').then((r: AxiosResponse<{ data: WebhookConfig[] }>) => r.data.data),
   });
 
   const deleteMutation = useMutation({
@@ -152,7 +157,7 @@ export function WebhooksPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {webhooks.map((wh) => (
+          {webhooks.map((wh: WebhookConfig) => (
             <div key={wh.id} className="card p-7 space-y-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -178,9 +183,9 @@ export function WebhooksPage() {
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5">
                     {item.value ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                      <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
                     ) : (
-                      <XCircle className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
+                      <XCircle className="h-3.5 w-3.5 text-gray-300 shrink-0" />
                     )}
                     <span className={item.value ? 'text-navy-600' : 'text-navy-300'}>{item.label}</span>
                   </div>
