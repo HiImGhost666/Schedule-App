@@ -993,7 +993,7 @@ export function ThemeManagerPage() {
               value={siteTitle}
               onChange={(e) => setSiteTitle(e.target.value)}
               className="input-field"
-              placeholder="Sistema de Guardias"
+              placeholder="Gestión de Turnos"
               maxLength={60}
             />
             <p className="text-xs text-theme-muted">{siteTitle.length}/60 caracteres</p>
