@@ -8,8 +8,8 @@ import listPlugin from '@fullcalendar/list';
 import type { EventClickArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
 import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -295,6 +295,8 @@ function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
 export function SchedulePage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = location.state as { initialView?: string; initialDate?: string } | null;
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
@@ -315,8 +317,12 @@ export function SchedulePage() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [activeBranchId, setActiveBranchId] = useState<string>('');
-  const [activeView, setActiveView] = useState('dayGridMonth');
+  const [activeView, setActiveView] = useState(navState?.initialView || 'dayGridMonth');
   const [dateRange, setDateRange] = useState(() => {
+    if (navState?.initialDate) {
+      const d = new Date(navState.initialDate);
+      return { from: d, to: d };
+    }
     const now = new Date();
     return {
       from: new Date(now.getFullYear(), now.getMonth(), 1),
@@ -892,7 +898,8 @@ export function SchedulePage() {
               <FullCalendar
                 ref={calendarRef}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                initialView="dayGridMonth"
+                initialView={navState?.initialView || 'dayGridMonth'}
+                initialDate={navState?.initialDate ? new Date(navState.initialDate) : undefined}
                 locale={esLocale}
                 headerToolbar={{
                   left: 'prev,next today',
