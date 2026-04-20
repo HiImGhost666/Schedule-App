@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import {
   ClipboardList,
   Search,
@@ -142,12 +143,15 @@ function AuditTable({
 
 // ── Componente principal ────────────────────────────────────────────────────
 export function AuditLogPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('reversible');
+  const location = useLocation();
+  const navState = location.state as { selectedLogId?: string; activeTab?: TabType } | null;
+
+  const [activeTab, setActiveTab] = useState<TabType>(navState?.activeTab || 'reversible');
   const [search, setSearch] = useState('');
   const [entityType, setEntityType] = useState('');
   const [pageRev, setPageRev] = useState(1);
   const [pageIrr, setPageIrr] = useState(1);
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(navState?.selectedLogId || null);
   const queryClient = useQueryClient();
 
   const commonParams = { limit: 20, action: search || undefined, entityType: entityType || undefined };
@@ -345,12 +349,19 @@ export function AuditLogPage() {
                   <ActivityDetail
                     action={selectedLog.action}
                     entityType={selectedLog.entityType}
-                    entityId={selectedLog.entityId}
+                    entityId={selectedLog.id}
                     beforeJson={(selectedLog.detailsJson as any)?.before !== undefined ? (selectedLog.detailsJson as any).before : (selectedLog.action.includes('DELETE') ? selectedLog.detailsJson : null)}
                     afterJson={(selectedLog.detailsJson as any)?.after !== undefined ? (selectedLog.detailsJson as any).after : (!selectedLog.action.includes('DELETE') && !selectedLog.action.includes('UPDATE') && (selectedLog.detailsJson as any)?.before === undefined ? selectedLog.detailsJson : null)}
                     actorName={selectedLog.user?.name || 'Sistema'}
                     createdAt={selectedLog.createdAt}
                   />
+
+                  {selectedLog.entityId && (
+                    <div className="pt-3 border-t border-navy-100">
+                      <p className="text-[10px] font-medium text-navy-400 uppercase tracking-wider">ID del Recurso Afectado</p>
+                      <p className="text-xs font-mono text-navy-500 mt-0.5">{selectedLog.entityId}</p>
+                    </div>
+                  )}
 
                   {selectedLog.ipAddress && (
                     <div className="pt-3 border-t border-navy-100">

@@ -13,6 +13,15 @@ import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date
 import { es } from 'date-fns/locale';
 import { SCHEDULE_TYPES } from '@/types';
 
+const IRREVERSIBLE_ACTIONS = [
+  'LOGIN',
+  'LOGOUT',
+  'CHANGE_PASSWORD',
+  'RESET_PASSWORD',
+  'FAILED_LOGIN_ATTEMPT',
+  'ROLLBACK_PERFORMED',
+];
+
 function getTypeLabel(type: string) {
   return SCHEDULE_TYPES.find((t) => t.value === type)?.label || type;
 }
@@ -252,17 +261,32 @@ export function DashboardPage() {
               <Clock className="h-4 w-4 text-gold-500" />
               Actividad Reciente
             </h2>
+
             {!auditLogs ? (
               <LoadingSpinner size="sm" />
             ) : auditLogs.length === 0 ? (
               <p className="text-sm text-theme-muted">Sin actividad reciente</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {auditLogs.map((log) => (
-                  <div key={log.id} className="flex gap-3">
-                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 flex-shrink-0" />
+                  <div 
+                    key={log.id} 
+                    className="flex gap-3 cursor-pointer hover:bg-navy-100/80 p-2 -m-2 rounded-lg transition-colors group"
+                    onClick={() => {
+                      const isIrreversible = IRREVERSIBLE_ACTIONS.includes(log.action);
+                      navigate('/admin/audit', { 
+                        state: { 
+                          selectedLogId: log.id,
+                          activeTab: isIrreversible ? 'irreversible' : 'reversible'
+                        } 
+                      });
+                    }}
+                  >
+                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 flex-shrink-0 group-hover:scale-125 transition-all" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-theme-primary">{log.action.replace(/_/g, ' ')}</p>
+                      <p className="text-sm font-medium text-theme-primary group-hover:text-navy-800 transition-colors">
+                        {log.action.replace(/_/g, ' ')}
+                      </p>
                       <p className="text-xs text-theme-muted mt-0.5">
                         {log.user?.name || 'Sistema'} · {formatRelative(log.createdAt)}
                       </p>
