@@ -9,7 +9,6 @@ import {
   getThemePresets,
   getThemeSettings,
   publishThemeSettings,
-  getCustomPresets,
   createCustomPreset,
   updateCustomPreset,
   deleteCustomPreset,

@@ -166,11 +166,6 @@ interface CustomPresetRow {
 function presetRowToThemePreset(row: CustomPresetRow): ThemePreset {
   const tokens = safeParseJson(row.tokensJson, DEFAULT_THEME.tokens);
   const overrides = safeParseJson(row.overridesJson, DEFAULT_THEME.overrides);
-  const meta = safeParseJson<{ name?: string; description?: string }>(
-    // We store name/description in a special meta key alongside; parse from preset field
-    '{}',
-    {}
-  );
 
   // Name/description stored encoded in key as "preset_<id>__<name>__<desc>"
   const parts = row.key.split('__');

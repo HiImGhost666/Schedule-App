@@ -1,4 +1,4 @@
-import { Prisma, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { TransactionClient } from '../../common/transactions/transaction.utils';
 import { USER_RESPONSE_SELECT, USER_SAFE_SELECT, type UserResponse } from './users.selects';
