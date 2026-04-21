@@ -43,7 +43,6 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     notes: item.notes ?? undefined,
     isLastMinute: item.isLastMinute,
     hoursPerDay: item.hoursPerDay,
-    calendarType: item.calendarType,
     createdById: '',
     createdBy: { id: '', name: 'Sistema' },
     createdAt: item.startDatetime,

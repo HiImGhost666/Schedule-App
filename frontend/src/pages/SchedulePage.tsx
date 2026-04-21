@@ -67,7 +67,6 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     isLastMinute: item.isLastMinute,
     hoursPerDay: item.hoursPerDay,
     branchId: item.branchId ?? undefined,
-    calendarType: item.calendarType,
     createdById: '',
     createdBy: { id: '', name: 'Sistema' },
     createdAt: item.startDatetime,
@@ -399,20 +398,20 @@ export function SchedulePage() {
   const { data: branchHolidays } = useQuery<{ data: BranchHoliday[] }>({
     queryKey: [
       'branch-holidays-calendar',
-      effectiveActiveBranchId,
+      effectiveActiveBranchId || 'all',
       format(dateRange.from, 'yyyy-MM-dd'),
       format(dateRange.to, 'yyyy-MM-dd'),
     ],
     queryFn: () =>
       api
-        .get(`/branches/${effectiveActiveBranchId}/holidays`, {
+        .get(`/branches/${effectiveActiveBranchId || 'all'}/holidays`, {
           params: {
             from: dateRange.from.toISOString(),
             to: dateRange.to.toISOString(),
           },
         })
         .then((r) => r.data),
-    enabled: Boolean(effectiveActiveBranchId),
+    enabled: isAdmin || Boolean(effectiveActiveBranchId),
   });
 
   const { data: scheduleDetail } = useQuery({
@@ -529,22 +528,51 @@ export function SchedulePage() {
   }, [branchHolidays?.data]);
 
   const holidayInteractiveEvents = useMemo(() => {
-    return (branchHolidays?.data ?? []).map((holiday) => ({
-      id: `holiday-${holiday.id}`,
-      title: holiday.name,
-      start: toLocalDateOnly(holiday.date),
-      end: addOneDay(toLocalDateOnly(holiday.date)),
-      allDay: true,
-      backgroundColor: '#ffffff',
-      borderColor: HOLIDAY_COLORS[holiday.type],
-      textColor: HOLIDAY_COLORS[holiday.type],
-      extendedProps: {
-        isHoliday: true,
-        holiday,
-        holidayType: holiday.type,
-      },
-    }));
-  }, [branchHolidays?.data]);
+    const holidays = branchHolidays?.data ?? [];
+    
+    // Contar ocurrencias de (fecha, nombre) para detectar compartidos
+    const occurrenceCount: Record<string, number> = {};
+    holidays.forEach(h => {
+      const dateStr = toLocalDateOnly(h.date);
+      const key = `${dateStr}_${h.name}`;
+      occurrenceCount[key] = (occurrenceCount[key] || 0) + 1;
+    });
+
+    return holidays.map((holiday) => {
+      const isGeneralView = !effectiveActiveBranchId;
+      const dateStr = toLocalDateOnly(holiday.date);
+      const key = `${dateStr}_${holiday.name}`;
+      const isShared = occurrenceCount[key] > 1;
+      
+      let displayTitle = holiday.name;
+      
+      // Si estamos en vista general y NO es compartido, añadimos la sede
+      if (isGeneralView && !isShared && holiday.branch?.name) {
+        displayTitle = `${holiday.name} (${holiday.branch.name})`;
+      }
+
+      // Si es parcial, añadir un indicador
+      if (holiday.isPartial) {
+        displayTitle = `🌓 ${displayTitle}`;
+      }
+
+      return {
+        id: `holiday-${holiday.id}`,
+        title: displayTitle,
+        start: dateStr,
+        end: addOneDay(dateStr),
+        allDay: true,
+        backgroundColor: '#ffffff',
+        borderColor: HOLIDAY_COLORS[holiday.type],
+        textColor: HOLIDAY_COLORS[holiday.type],
+        extendedProps: {
+          isHoliday: true,
+          holiday,
+          holidayType: holiday.type,
+        },
+      };
+    });
+  }, [branchHolidays?.data, effectiveActiveBranchId]);
 
   /* type counts for legend badges */
   const typeCounts: Record<string, number> = {};
