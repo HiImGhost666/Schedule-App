@@ -1,5 +1,5 @@
 # Stage 1: Build and Test
-FROM node:22.12.0-alpine AS builder
+FROM node:22.12.0-slim AS builder
 
 WORKDIR /app
 

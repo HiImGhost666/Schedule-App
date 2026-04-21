@@ -6,8 +6,7 @@ import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { isAppError } from '../src/common/errors/app-error';
 import { env } from '../src/config/env';
-import { UserDepartment, UserRole } from '../src/modules/users/users.constants';
-import type { UserDepartment } from '../src/modules/users/users.constants';
+import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -257,9 +256,7 @@ async function main() {
       password: adminPassword,
       role: 'admin',
       status: 'active',
-      department: 'administración' as UserDepartment,
-      department: 'Administración',
-      islandCalendar: 'none',
+      department: 'administración',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
@@ -275,9 +272,7 @@ async function main() {
       password: 'Manager123!',
       role: 'manager',
       status: 'active',
-      department: 'operaciones' as UserDepartment,
-      department: 'Operaciones',
-      islandCalendar: 'none',
+      department: 'operaciones',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
@@ -291,17 +286,6 @@ async function main() {
     { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-102' },
     { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id, employeeId: 'LAB-103' },
     { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id, employeeId: 'LAB-104' },
-  const demoUsers: Array<{
-    name: string;
-    email: string;
-    department: UserDepartment;
-    companyPhone?: string;
-    auxiliaryPhone?: string;
-  }> = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'Seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'Seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'Mantenimiento', companyPhone: '323456789' },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'Seguridad', companyPhone: '423456789' },
   ];
 
   const createdUsers = [];
