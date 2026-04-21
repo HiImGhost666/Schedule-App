@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { AlertTriangle, CalendarDays, Clock3, MapPin, Pencil, Tag, Trash2, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -159,15 +159,31 @@ export function CalendarDetailPopover({
 
   const canEdit = item.kind === 'schedule' ? canEditSchedule : canEditHoliday;
 
+  const handleOverlayMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onClose();
+  };
+
+  const consumeOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <div
       className={`calendar-popover-overlay ${mobile ? 'calendar-popover-overlay-mobile' : ''}`}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      onMouseDown={handleOverlayMouseDown}
+      onClick={consumeOverlayClick}
       role="presentation"
     >
-      <article className="calendar-popover" style={style} onMouseDown={(event) => event.stopPropagation()}>
+      <article
+        className="calendar-popover"
+        style={style}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
         <header className="calendar-popover-header">
           <div className="calendar-popover-header-actions">
             {canEdit && (

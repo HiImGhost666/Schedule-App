@@ -304,6 +304,7 @@ export function SchedulePage() {
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextRouteDetailSyncRef = useRef(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -477,7 +478,11 @@ export function SchedulePage() {
   const detailScheduleId = detailItem?.kind === 'schedule' ? detailItem.schedule.id : null;
 
   useEffect(() => {
-    if (!scheduleDetail) return;
+    if (!scheduleId || !scheduleDetail) return;
+    if (skipNextRouteDetailSyncRef.current) {
+      skipNextRouteDetailSyncRef.current = false;
+      return;
+    }
     if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
     const openDetailTimer = window.setTimeout(() => {
       if (detailScheduleId === scheduleDetail.id) return;
@@ -490,7 +495,7 @@ export function SchedulePage() {
     }, 0);
 
     return () => window.clearTimeout(openDetailTimer);
-  }, [scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
+  }, [scheduleId, scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
 
   const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
     if (!shouldUseWeekEndpoint) return endIso;
@@ -634,6 +639,9 @@ export function SchedulePage() {
   );
 
   const closeDetailPopover = useCallback(() => {
+    if (scheduleId) {
+      skipNextRouteDetailSyncRef.current = true;
+    }
     setDetailItem(null);
     setDetailAnchor(null);
     if (scheduleId) {
