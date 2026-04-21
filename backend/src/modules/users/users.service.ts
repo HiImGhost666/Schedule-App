@@ -40,6 +40,7 @@ const createUserInputSchema = z.object({
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+  employeeId: z.string().optional().nullable(),
   forcePasswordChange: z.boolean().optional(),
 });
 
@@ -52,6 +53,7 @@ const updateUserInputSchema = z.object({
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+  employeeId: z.string().optional().nullable(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserInputSchema>;
@@ -96,7 +98,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
   }
 
   const passwordHash = await hashPassword(parsed.data.password);
-  const { password: _password, branchId: createBranchId, forcePasswordChange, ...userData } = parsed.data;
+  const { password: _password, branchId: createBranchId, employeeId, forcePasswordChange, ...userData } = parsed.data;
 
   const user = await executeInTransaction(async (tx) => {
     const user = await createUserRecord({
@@ -111,6 +113,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
       ...(createBranchId
         ? { branch: { connect: { id: createBranchId } } }
         : {}),
+      employeeId: employeeId || null,
     }, tx);
 
     if (actor?.id) {
@@ -195,6 +198,7 @@ export async function updateUser(userId: string, data: {
   companyPhone?: string;
   auxiliaryPhone?: string;
   branchId?: string | null;
+  employeeId?: string | null;
 }, actor: ActorContext) {
   const parsed = updateUserInputSchema.safeParse(data);
   if (!parsed.success) {
@@ -225,7 +229,7 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-    const { branchId: updateBranchId, ...updateData } = parsed.data;
+    const { branchId: updateBranchId, employeeId, ...updateData } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -233,6 +237,7 @@ export async function updateUser(userId: string, data: {
         ...updateData,
         companyPhone: normalizedCompanyPhone,
         auxiliaryPhone: normalizedAuxiliaryPhone,
+        employeeId: employeeId !== undefined ? employeeId : undefined,
         ...(parsed.data.email ? { email: normalizeEmail(parsed.data.email) } : {}),
         ...(updateBranchId === undefined
           ? {}
@@ -451,6 +456,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
     throw createAppError('BAD_REQUEST', 'El CSV no contiene filas para importar');
   }
 
+  const branches = await prisma.branch.findMany({ select: { id: true, code: true, name: true } });
   const rejectedRows: Array<UserCsvRow & { reason: string }> = [];
   let created = 0;
   let updated = 0;
@@ -458,6 +464,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
   for (const row of rows) {
     try {
+      const employeeId = row.employeeId?.trim() || null;
       const email = normalizeEmail(row.email);
       const name = row.name.trim();
 
@@ -467,7 +474,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       const role = row.role.trim();
       const status = row.status.trim();
       const department = row.department.trim().toLowerCase();
-      const branchId = row.branchId.trim() || null;
+      const branchSearch = row.branchId?.trim();
       const companyPhone = row.companyPhone.trim() || undefined;
       const auxiliaryPhone = row.auxiliaryPhone.trim() || undefined;
 
@@ -475,21 +482,37 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       if (status && !(USER_STATUSES as readonly string[]).includes(status)) throw new Error(`Estado inválido: ${status}`);
       if (department && !(USER_DEPARTMENTS as readonly string[]).includes(department)) throw new Error(`Departamento inválido: ${department}`);
 
+      let resolvedBranchId: string | null = null;
+      if (branchSearch) {
+        const b = branches.find(b => 
+          b.code.toUpperCase() === branchSearch.toUpperCase() || 
+          b.name.toLowerCase().includes(branchSearch.toLowerCase())
+        );
+        resolvedBranchId = b?.id || null;
+      }
+
       const userRole = (role || undefined) as UserRole | undefined;
       const userStatus = (status || undefined) as UserStatus | undefined;
       const userDept = (department || undefined) as UserDepartment | undefined;
 
-      const existing = await findUserByEmailOrUsername(email);
+      let existing = null;
+      if (employeeId) {
+        existing = await prisma.user.findUnique({ where: { employeeId } });
+      }
+      if (!existing && email) {
+        existing = await findUserByEmailOrUsername(email);
+      }
 
       if (!existing) {
         await createUser({
+          employeeId,
           name,
           email,
           password: CSV_IMPORT_DEFAULT_PASSWORD.toLowerCase(),
           role: userRole,
           status: userStatus,
           department: userDept,
-          branchId,
+          branchId: resolvedBranchId,
           companyPhone,
           auxiliaryPhone,
           forcePasswordChange: true
@@ -499,7 +522,17 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       }
 
       let changed = false;
-      const updatePayload: Parameters<typeof updateUser>[1] = {};
+      const updatePayload: any = {};
+
+      if (employeeId && employeeId !== existing.employeeId) {
+        updatePayload.employeeId = employeeId;
+        changed = true;
+      }
+
+      if (email !== existing.email) {
+        updatePayload.email = email;
+        changed = true;
+      }
 
       if (name !== existing.name) {
         updatePayload.name = name;
@@ -524,8 +557,8 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
         changed = true;
       }
 
-      if (branchId !== (existing.branchId || null)) {
-        updatePayload.branchId = branchId;
+      if (resolvedBranchId !== (existing.branchId || null)) {
+        updatePayload.branchId = resolvedBranchId;
         changed = true;
       }
 

@@ -16,7 +16,7 @@ import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { UserDetailsModal } from './UserDetailsModal';
 
-const CSV_HEADERS = ['name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
+const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
 const ALLOWED_DEPARTMENTS = new Set(['seguridad', 'mantenimiento', 'operaciones', 'administración']);
@@ -104,12 +104,13 @@ export function UsersPage() {
       } while (currentPage <= totalPages);
 
       const rows = allUsers.map((user) => ({
+        employeeId: user.employeeId ?? '',
         name: user.name ?? '',
         email: user.email ?? '',
         role: user.role ?? '',
         status: user.status ?? '',
         department: user.department ?? '',
-        branchId: user.branchId ?? '',
+        branchId: user.branch?.code ?? '',
         companyPhone: user.companyPhone ?? '',
         auxiliaryPhone: user.auxiliaryPhone ?? '',
       }));
@@ -236,7 +237,7 @@ export function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">Gestión de Usuarios</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas, roles y permisos</p>
+          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas. Sedes: TFN (Tenerife), GC (Las Palmas)</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -309,6 +310,7 @@ export function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-navy-50 border-b border-navy-100">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Usuario</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Sucursal</th>
@@ -324,6 +326,7 @@ export function UsersPage() {
 
                     return (
                     <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
+                      <td className="px-5 py-3 text-xs font-mono text-navy-400 hidden xl:table-cell">{u.employeeId || '—'}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white shrink-0">

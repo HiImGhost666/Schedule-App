@@ -128,15 +128,15 @@ async function main() {
   }
   console.log('Seeding database...');
 
-  let mainBranch = await prisma.branch.findUnique({ where: { code: 'MAIN' } });
-  let secondBranch = await prisma.branch.findUnique({ where: { code: 'SECONDARY' } });
+  let mainBranch = await prisma.branch.findUnique({ where: { code: 'TFN' } });
+  let secondBranch = await prisma.branch.findUnique({ where: { code: 'GC' } });
 
   if (!mainBranch) {
     mainBranch = await prisma.branch.create({
       data: {
-        name: 'Sucursal Principal (Tenerife)',
-        code: 'MAIN',
-        city: 'Santa Cruz',
+        name: 'Lãberit Tenerife',
+        code: 'TFN',
+        city: 'Santa Cruz de Tenerife',
         region: 'Tenerife',
         countryCode: 'ES',
         timezone: 'Atlantic/Canary',
@@ -148,9 +148,9 @@ async function main() {
   if (!secondBranch) {
     secondBranch = await prisma.branch.create({
       data: {
-        name: 'Sucursal Secundaria (Las Palmas)',
-        code: 'SECONDARY',
-        city: 'Las Palmas',
+        name: 'Lãberit Las Palmas',
+        code: 'GC',
+        city: 'Las Palmas de Gran Canaria',
         region: 'Gran Canaria',
         countryCode: 'ES',
         timezone: 'Atlantic/Canary',
@@ -260,6 +260,7 @@ async function main() {
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      employeeId: 'LAB-001',
     },
     'Admin'
   );
@@ -275,15 +276,16 @@ async function main() {
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      employeeId: 'LAB-002',
     },
     'Demo manager'
   );
 
-  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string }> = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id },
+  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string; employeeId: string }> = [
+    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-101' },
+    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-102' },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id, employeeId: 'LAB-103' },
+    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id, employeeId: 'LAB-104' },
   ];
 
   const createdUsers = [];
