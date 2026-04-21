@@ -12,6 +12,8 @@ export interface AuthRequest extends Request {
     name: string;
     branchId: string | null;
   };
+  file?: Express.Multer.File;
+  files?: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
 }
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {

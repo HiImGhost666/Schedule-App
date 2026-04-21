@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -16,6 +16,7 @@ import {
   updateCustomPreset,
   deleteCustomPreset,
 } from './theme.service';
+import { isBasePreset } from './theme.presets';
 
 const router = Router();
 
@@ -226,6 +227,10 @@ router.patch('/theme/presets/:id', authMiddleware, requireRole('admin'), async (
 router.delete('/theme/presets/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
 
+  if (isBasePreset(id)) {
+    return sendError(res, 'No se puede eliminar un preset base', 403, null, 'FORBIDDEN');
+  }
+
   try {
     await deleteCustomPreset(id);
     await logAudit({
@@ -252,8 +257,8 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 const faviconStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
+  destination: (_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => cb(null, UPLOADS_DIR),
+  filename: (_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.ico';
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `favicon-${uniqueSuffix}${ext}`);
@@ -263,8 +268,8 @@ const faviconStorage = multer.diskStorage({
 const faviconUpload = multer({
   storage: faviconStorage,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
-  fileFilter: (_req, file, cb) => {
-    const allowed = ['.ico', '.png', '.svg', '.jpg', '.jpeg', '.gif', '.webp'];
+  fileFilter: (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowed = ['.ico', '.png', '.svg', '.jpg', '.jpeg', '.webp'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
