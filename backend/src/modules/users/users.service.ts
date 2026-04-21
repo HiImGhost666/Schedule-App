@@ -25,6 +25,7 @@ import {
 } from './domain/user.factory';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
+import { USER_DEPARTMENTS, type UserDepartment } from './users.constants';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
@@ -32,18 +33,19 @@ const createUserInputSchema = z.object({
   password: z.string().min(8),
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
   status: z.enum(['active', 'disabled', 'locked']).optional(),
-  department: z.string().optional(),
+  department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().url().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+  forcePasswordChange: z.boolean().optional(),
 });
 
 const updateUserInputSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  department: z.string().optional(),
+  department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
@@ -93,7 +95,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
   }
 
   const passwordHash = await hashPassword(parsed.data.password);
-  const { password: _password, branchId: createBranchId, ...userData } = parsed.data;
+  const { password: _password, branchId: createBranchId, forcePasswordChange, ...userData } = parsed.data;
 
   const user = await executeInTransaction(async (tx) => {
     const user = await createUserRecord({
@@ -105,6 +107,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
       role: parsed.data.role ?? 'viewer',
       status: parsed.data.status ?? 'active',
       islandCalendar: parsed.data.islandCalendar ?? 'none',
+      forcePasswordChange: forcePasswordChange ?? false,
       ...(createBranchId
         ? { branch: { connect: { id: createBranchId } } }
         : {}),
@@ -164,8 +167,9 @@ export async function findUserByEmailOrUsername(identifier: string) {
  * @description Obtiene una lista paginada de usuarios filtrada en la base por nombre, rol o estado.
  * @param params
  */
-export async function getUsersList(params: { page: number; limit: number; search?: string; role?: string; status?: string }) {
-  const where = buildUsersWhere(params.search, params.role, params.status);
+export async function getUsersList(params: { page: number; limit: number; search?: string; email?: string; role?: string; status?: string }) {
+  const normalizedEmail = params.email ? normalizeEmail(params.email) : undefined;
+  const where = buildUsersWhere(params.search, params.role, params.status, normalizedEmail);
   const [users, total] = await listUsers(where, params.page, params.limit);
   return { users, total };
 }
@@ -186,7 +190,7 @@ export async function getUserById(userId: string) {
 export async function updateUser(userId: string, data: {
   name?: string;
   email?: string;
-  department?: string;
+  department?: UserDepartment;
   avatarUrl?: string;
   islandCalendar?: 'tenerife' | 'las_palmas' | 'none';
   companyPhone?: string;

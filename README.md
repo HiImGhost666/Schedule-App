@@ -60,6 +60,35 @@ Sistema de logs de nivel bancario que permite:
 
 ---
 
+## 📄 CSV de Usuarios (Importar / Exportar)
+
+La gestión de usuarios soporta importación y exportación con **la misma estructura CSV**.
+
+### Cabecera oficial
+
+```csv
+name,email,role,status,department,branchId,companyPhone,auxiliaryPhone
+```
+
+### Reglas
+
+1. `name` y `email` son obligatorios.
+2. `role` permite: `admin`, `manager`, `viewer`.
+3. `status` permite: `active`, `disabled`, `locked`.
+4. `department` permite: `seguridad`, `mantenimiento`, `operaciones`, `administración`.
+5. `branchId` es opcional, pero si se informa debe existir en base de datos.
+6. `islandCalendar` no forma parte del CSV.
+7. El identificador para importar es el `email`.
+
+### Comportamiento al importar
+
+1. Si el `email` no existe, se crea el usuario mediante el endpoint de creación existente.
+2. Si el `email` existe, se actualiza solo si hay cambios (sin modificar la contraseña).
+3. Las altas por CSV usan contraseña temporal del backend (`IMPORT_DEFAULT_PASSWORD`) y fuerzan cambio al primer inicio de sesión.
+4. El proceso es parcial: las filas inválidas no bloquean el resto y se devuelven en un CSV de rechazados con motivo (`reason`).
+
+---
+
 ## 🚀 Despliegue Rápido
 
 ### Con Docker (Recomendado)

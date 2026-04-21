@@ -123,13 +123,14 @@ export function listUserSchedules(userId: string, from?: Date, to?: Date) {
   });
 }
 
-export function buildUsersWhere(search?: string, role?: string, status?: string): UserWhere {
+export function buildUsersWhere(search?: string, role?: string, status?: string, email?: string): UserWhere {
   const where: UserWhere = {
     NOT: { email: { startsWith: 'deleted_' } },
   };
   if (search) {
     where.OR = [{ name: { contains: search } }, { email: { contains: search } }];
   }
+  if (email) where.email = email;
   if (role) where.role = role;
   if (status) where.status = status;
   return where;

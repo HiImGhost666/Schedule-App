@@ -10,12 +10,23 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
 
+const DEPARTMENT_VALUES = ['seguridad', 'mantenimiento', 'operaciones', 'administración'] as const;
+
+const DEPARTMENT_OPTIONS = [
+  { value: 'seguridad', label: 'Seguridad' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
+  { value: 'operaciones', label: 'Operaciones' },
+  { value: 'administración', label: 'Administración' },
+] as const;
+
+type DepartmentValue = (typeof DEPARTMENT_VALUES)[number];
+
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8).optional().or(z.literal('')),
   role: z.enum(['admin', 'manager', 'viewer']),
-  department: z.string().optional(),
+  department: z.enum(DEPARTMENT_VALUES).optional().or(z.literal('')),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().optional(),
@@ -52,11 +63,16 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
   useEffect(() => {
     if (user) {
+      const normalizedDepartment = (user.department ?? '').toLowerCase();
+      const department = DEPARTMENT_VALUES.includes(normalizedDepartment as DepartmentValue)
+        ? (normalizedDepartment as DepartmentValue)
+        : '';
+
       reset({
         name: user.name,
         email: user.email,
         role: user.role,
-        department: user.department || '',
+        department,
         companyPhone: user.companyPhone || '',
         auxiliaryPhone: user.auxiliaryPhone || '',
         branchId: user.branchId || '',
@@ -80,6 +96,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
     mutationFn: async (data: FormData) => {
       const payload = {
         ...data,
+        department: data.department || undefined,
         branchId: data.branchId ? data.branchId : null,
       };
 
@@ -147,7 +164,12 @@ export function UserFormModal({ open, user, onClose }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Departamento</label>
-              <input {...register('department')} className="input-field" placeholder="Seguridad" />
+                <select {...register('department')} className="input-field">
+                  <option value="">Sin departamento</option>
+                  {DEPARTMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
             </div>
           </div>
 
