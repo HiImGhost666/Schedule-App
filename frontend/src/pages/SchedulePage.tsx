@@ -304,6 +304,7 @@ export function SchedulePage() {
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
+  const pageContainerRef = useRef<HTMLDivElement>(null);
   const skipNextRouteDetailSyncRef = useRef(false);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -601,8 +602,12 @@ export function SchedulePage() {
     if (info.event.extendedProps.isHolidayBackground) return;
 
     const rect = info.el.getBoundingClientRect();
-    const x = info.jsEvent.clientX > 0 ? info.jsEvent.clientX : rect.left + rect.width / 2;
-    const y = info.jsEvent.clientY > 0 ? info.jsEvent.clientY : rect.top + rect.height / 2;
+    const clientX = info.jsEvent.clientX > 0 ? info.jsEvent.clientX : rect.left + rect.width / 2;
+    const clientY = info.jsEvent.clientY > 0 ? info.jsEvent.clientY : rect.top + rect.height / 2;
+
+    const pageRect = pageContainerRef.current?.getBoundingClientRect();
+    const x = pageRect ? clientX - pageRect.left : clientX;
+    const y = pageRect ? clientY - pageRect.top : clientY;
 
     if (info.event.extendedProps.isHoliday) {
       const holiday = info.event.extendedProps.holiday as BranchHoliday | undefined;
@@ -755,7 +760,7 @@ export function SchedulePage() {
   }, [sidebarCollapsed, reflowCalendar]);
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div ref={pageContainerRef} className="relative space-y-5 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

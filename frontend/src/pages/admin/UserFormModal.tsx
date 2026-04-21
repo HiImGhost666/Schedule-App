@@ -10,16 +10,25 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
 
-const DEPARTMENT_VALUES = ['seguridad', 'mantenimiento', 'operaciones', 'administración'] as const;
+const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
 
 const DEPARTMENT_OPTIONS = [
-  { value: 'seguridad', label: 'Seguridad' },
-  { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'operaciones', label: 'Operaciones' },
-  { value: 'administración', label: 'Administración' },
+  { value: 'Seguridad', label: 'Seguridad' },
+  { value: 'Mantenimiento', label: 'Mantenimiento' },
+  { value: 'Operaciones', label: 'Operaciones' },
+  { value: 'Administración', label: 'Administración' },
 ] as const;
 
 type DepartmentValue = (typeof DEPARTMENT_VALUES)[number];
+const DEPARTMENT_LOOKUP = new Map<string, DepartmentValue>(
+  DEPARTMENT_VALUES.map((department) => [department.toLowerCase(), department]),
+);
+
+function normalizeDepartment(value?: string | null): DepartmentValue | '' {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return '';
+  return DEPARTMENT_LOOKUP.get(trimmed.toLowerCase()) ?? '';
+}
 
 const schema = z.object({
   employeeId: z.string().optional().or(z.literal('')),
@@ -64,10 +73,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
   useEffect(() => {
     if (user) {
-      const normalizedDepartment = (user.department ?? '').toLowerCase();
-      const department = DEPARTMENT_VALUES.includes(normalizedDepartment as DepartmentValue)
-        ? (normalizedDepartment as DepartmentValue)
-        : '';
+      const department = normalizeDepartment(user.department);
 
       reset({
         name: user.name,
