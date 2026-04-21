@@ -75,7 +75,7 @@ name,email,role,status,department,branchId,companyPhone,auxiliaryPhone
 1. `name` y `email` son obligatorios.
 2. `role` permite: `admin`, `manager`, `viewer`.
 3. `status` permite: `active`, `disabled`, `locked`.
-4. `department` permite: `seguridad`, `mantenimiento`, `operaciones`, `administración`.
+4. `department` permite: `Seguridad`, `Mantenimiento`, `Operaciones`, `Administración`.
 5. `branchId` es opcional, pero si se informa debe existir en base de datos.
 6. `islandCalendar` no forma parte del CSV.
 7. El identificador para importar es el `email`.

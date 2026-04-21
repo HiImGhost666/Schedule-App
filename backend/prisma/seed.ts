@@ -6,6 +6,7 @@ import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { isAppError } from '../src/common/errors/app-error';
 import { env } from '../src/config/env';
+import type { UserDepartment } from '../src/modules/users/users.constants';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -182,7 +183,7 @@ async function main() {
       password: adminPassword,
       role: 'admin',
       status: 'active',
-      department: 'administración',
+      department: 'Administración',
       islandCalendar: 'none',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
@@ -198,7 +199,7 @@ async function main() {
       password: 'Manager123!',
       role: 'manager',
       status: 'active',
-      department: 'operaciones',
+      department: 'Operaciones',
       islandCalendar: 'none',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
@@ -207,11 +208,17 @@ async function main() {
     'Demo manager'
   );
 
-  const demoUsers = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', companyPhone: '323456789' },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', companyPhone: '423456789' },
+  const demoUsers: Array<{
+    name: string;
+    email: string;
+    department: UserDepartment;
+    companyPhone?: string;
+    auxiliaryPhone?: string;
+  }> = [
+    { name: 'Carlos López', email: 'carlos@company.com', department: 'Seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
+    { name: 'Ana Martínez', email: 'ana@company.com', department: 'Seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'Mantenimiento', companyPhone: '323456789' },
+    { name: 'Laura Fernández', email: 'laura@company.com', department: 'Seguridad', companyPhone: '423456789' },
   ];
 
   const createdViewers = [];
