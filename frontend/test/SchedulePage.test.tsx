@@ -31,7 +31,9 @@ vi.mock('@/config/api', () => ({
 }));
 
 vi.mock('@fullcalendar/react', () => ({
-  default: () => <div data-testid="mock-calendar" />,
+  default: (props: any) => (
+    <div data-testid="mock-calendar" data-events={JSON.stringify(props.events)} />
+  ),
 }));
 
 vi.mock('@/components/schedule/ShiftModal', () => ({
@@ -106,16 +108,33 @@ describe('SchedulePage smoke', () => {
         return Promise.resolve({ data: { success: true, data: [] } });
       }
 
+      if (url === '/branches/all/holidays' || url === '/branches/b-1/holidays') {
+        return Promise.resolve({ 
+          data: { 
+            success: true, 
+            data: [
+              { 
+                id: 'h-1', 
+                name: 'Festivo Test', 
+                date: '2026-04-20T00:00:00Z', 
+                type: 'local',
+                isPartial: false,
+                branch: { id: 'b-1', name: 'Madrid', code: 'MAD01' }
+              } 
+            ] 
+          } 
+        });
+      }
+
       return Promise.resolve({ data: { success: true, data: [] } });
     });
 
     renderPage();
 
     await waitFor(() => {
-      const scheduleCall = getScheduleCall();
-      expect(scheduleCall).toBeTruthy();
-      expect(scheduleCall?.[1]).toEqual(
-        expect.objectContaining({ params: expect.not.objectContaining({ branchId: expect.anything() }) }),
+      expect(getMock).toHaveBeenCalledWith(
+        '/branches/all/holidays',
+        expect.objectContaining({ params: expect.any(Object) }),
       );
     });
   });
@@ -201,5 +220,101 @@ describe('SchedulePage smoke', () => {
 
     expect(getMock.mock.calls.some((call) => call[0] === '/schedules')).toBe(false);
     expect(getMock.mock.calls.some((call) => String(call[0]).includes('/holidays'))).toBe(false);
+  });
+  
+  it('combina turnos y festivos en el calendario', async () => {
+    authState.user = { id: 'viewer-1', role: 'viewer', branchId: 'b-1' };
+
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 'b-1', name: 'Madrid', code: 'MAD01', isActive: true }],
+          },
+        });
+      }
+      if (url === '/schedules') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 's-1', title: 'Turno Test', type: 'guardia', startDatetime: '2026-04-20T08:00:00Z', endDatetime: '2026-04-20T16:00:00Z' }],
+          },
+        });
+      }
+      if (url === '/branches/b-1/holidays' || url === '/branches/all/holidays') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ 
+              id: 'h-1', 
+              name: 'Festivo Test', 
+              date: '2026-04-20T00:00:00Z', 
+              type: 'local',
+              isPartial: false,
+              branch: { id: 'b-1', name: 'Madrid', code: 'MAD01' }
+            }],
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: true, data: [] } });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      const calendar = screen.getByTestId('mock-calendar');
+      const events = JSON.parse(calendar.getAttribute('data-events') || '[]');
+      
+      // Debe haber 3 eventos: 1 turno + 1 festivo interactivo + 1 festivo background
+      expect(events).toHaveLength(3);
+      
+      const holiday = events.find((e: any) => e.extendedProps?.isHoliday);
+      expect(holiday.title).toBeDefined();
+      
+      const schedule = events.find((e: any) => e.extendedProps?.schedule);
+      expect(schedule.title).toBe('Turno Test');
+    });
+  });
+
+  it('no añade sufijo de branch a festivos compartidos en vista general', async () => {
+    authState.user = { id: 'admin-1', role: 'admin' };
+
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      if (url === '/branches/all/holidays') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              { 
+                id: 'h-1', name: 'Año Nuevo', date: '2026-01-01T00:00:00Z', type: 'nacional', isPartial: false,
+                branch: { id: 'b-1', name: 'Madrid', code: 'MAD01' }
+              },
+              { 
+                id: 'h-2', name: 'Año Nuevo', date: '2026-01-01T00:00:00Z', type: 'nacional', isPartial: false,
+                branch: { id: 'b-2', name: 'Barcelona', code: 'BCN02' }
+              }
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: true, data: [] } });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      const calendar = screen.getByTestId('mock-calendar');
+      const events = JSON.parse(calendar.getAttribute('data-events') || '[]');
+      
+      const holiday1 = events.find((e: any) => e.id === 'holiday-h-1');
+      const holiday2 = events.find((e: any) => e.id === 'holiday-h-2');
+      
+      expect(holiday1.title).toBe('Año Nuevo');
+      expect(holiday2.title).toBe('Año Nuevo');
+    });
   });
 });

@@ -150,4 +150,24 @@ describe('createScheduleEntry', () => {
       expect.anything()
     );
   });
+
+  // ── Caso: Convivencia con festivos ──────────────────────────────────────
+  it('permite crear un turno en un día que es festivo (la lógica de negocio lo permite)', async () => {
+    // Escenario: El 1 de Mayo es festivo. Intentamos crear turno ese día.
+    const holidayInput = {
+      ...baseInput,
+      startDatetime: '2026-05-01T08:00:00Z',
+      endDatetime: '2026-05-01T16:00:00Z',
+    };
+
+    mockRepo.findSchedules.mockResolvedValue([]); // No hay otros turnos (no hay solapamiento)
+    mockRepo.createSchedule.mockResolvedValue(buildSchedule({
+      startDatetime: new Date('2026-05-01T08:00:00Z'),
+      endDatetime: new Date('2026-05-01T16:00:00Z'),
+    }) as any);
+
+    const result = await createScheduleEntry(holidayInput as any, mockActor);
+    expect(result).toBeDefined();
+    expect(result.startDatetime.toISOString()).toContain('2026-05-01');
+  });
 });

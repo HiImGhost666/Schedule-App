@@ -9,12 +9,14 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 const getMock = vi.fn();
 const patchMock = vi.fn();
 const deleteMock = vi.fn();
+const postMock = vi.fn();
 
 vi.mock('@/config/api', () => ({
   default: {
     get: (...args: unknown[]) => getMock(...args),
     patch: (...args: unknown[]) => patchMock(...args),
     delete: (...args: unknown[]) => deleteMock(...args),
+    post: (...args: unknown[]) => postMock(...args),
   },
 }));
 
@@ -115,6 +117,39 @@ describe('UsersPage', () => {
     await waitFor(() => {
       expect(patchMock).toHaveBeenCalledWith('/users/u-1/status', { status: 'active' });
       expect(toast.success).toHaveBeenCalledWith('Estado actualizado');
+    });
+  });
+
+  it('procesa la importacion de un archivo CSV', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        success: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 15, totalPages: 1 },
+      },
+    });
+    postMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: { created: 1, updated: 2, unchanged: 0, failed: 0, rejectedRows: [] },
+      },
+    });
+
+    renderPage();
+
+    const file = new File(['name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nJuan,juan@test.com,viewer,active,,,,'], 'users.csv', { type: 'text/csv' });
+    const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
+    
+    // El input está hidden, pero podemos interactuar con él si lo encontramos
+    expect(input).toBeTruthy();
+    
+    await userEvent.upload(input!, file);
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith('/users/import', expect.any(FormData), expect.objectContaining({
+        headers: { 'Content-Type': 'multipart/form-data' }
+      }));
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Importación completada'));
     });
   });
 });

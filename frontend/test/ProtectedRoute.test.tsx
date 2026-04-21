@@ -12,7 +12,7 @@ import type { User } from '@/types';
 const mockUser: User = {
   id: 'u1', name: 'Admin', email: 'a@a.com',
   role: 'admin', status: 'active', avatarUrl: null,
-  department: null, islandCalendar: 'none', forcePasswordChange: false,
+  department: null, forcePasswordChange: false,
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
