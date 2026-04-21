@@ -13,6 +13,7 @@ const envSchema = z.object({
   PORT: z.string().default('3001').transform(Number),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  IMPORT_DEFAULT_PASSWORD: z.string().min(8).default('ChangeMe123!'),
   SEED_ADMIN_EMAIL: z.string().email().default('admin@company.com'),
   SEED_ADMIN_PASSWORD: z.string().default('AdminPass123!'),
   SEED_ADMIN_NAME: z.string().default('Administrador Sistema'),

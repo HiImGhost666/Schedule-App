@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { USER_DEPARTMENTS } from './users.constants';
 
 export const userIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -8,6 +9,7 @@ export const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().optional(),
+  email: z.string().email().optional(),
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
   status: z.enum(['active', 'disabled', 'locked']).optional(),
 });
@@ -18,12 +20,16 @@ export const createUserBodySchema = z.object({
   password: z.string().min(8),
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
   status: z.enum(['active', 'disabled', 'locked']).optional(),
-  department: z.string().optional(),
+  department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().url().optional(),
   islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+});
+
+export const createUserCsvBodySchema = createUserBodySchema.extend({
+  password: z.string().min(8).optional(),
 });
 
 export const updateUserBodySchema = createUserBodySchema

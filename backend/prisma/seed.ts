@@ -182,7 +182,7 @@ async function main() {
       password: adminPassword,
       role: 'admin',
       status: 'active',
-      department: 'Administración',
+      department: 'administración',
       islandCalendar: 'none',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
@@ -198,7 +198,7 @@ async function main() {
       password: 'Manager123!',
       role: 'manager',
       status: 'active',
-      department: 'Operaciones',
+      department: 'operaciones',
       islandCalendar: 'none',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
@@ -208,10 +208,10 @@ async function main() {
   );
 
   const demoUsers = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'Seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'Seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'Mantenimiento', companyPhone: '323456789' },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'Seguridad', companyPhone: '423456789' },
+    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
+    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', companyPhone: '323456789' },
+    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', companyPhone: '423456789' },
   ];
 
   const createdViewers = [];

@@ -16,6 +16,7 @@ import {
 import {
   changeRoleBodySchema,
   changeStatusBodySchema,
+  createUserCsvBodySchema,
   createUserBodySchema,
   listUsersQuerySchema,
   resetPasswordBodySchema,
@@ -23,6 +24,7 @@ import {
   userIdParamsSchema,
   userSchedulesQuerySchema,
 } from './users.http.schemas';
+import { env } from '../../config/env';
 
 /**
  * @description Orquesta la consulta paginada de usuarios validando la sintaxis del query antes de contactar al servicio.
@@ -58,6 +60,26 @@ export async function getUserController(req: AuthRequest, res: Response) {
  * @param req @param res
  */
 export async function createUserController(req: AuthRequest, res: Response) {
+  const source = typeof req.query.source === 'string' ? req.query.source : undefined;
+  const isCsvImport = source === 'csv';
+
+  if (isCsvImport) {
+    const parsedCsvBody = createUserCsvBodySchema.safeParse(req.body);
+    if (!parsedCsvBody.success) return sendError(res, 'Datos inválidos', 400, parsedCsvBody.error.flatten(), 'BAD_REQUEST');
+
+    try {
+      const user = await createUser({
+        ...parsedCsvBody.data,
+        password: parsedCsvBody.data.password ?? env.IMPORT_DEFAULT_PASSWORD,
+        forcePasswordChange: true,
+      }, { id: req.user!.id, ipAddress: req.ip });
+      return sendSuccess(res, user, 'Usuario creado', 201);
+    } catch (error) {
+      if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+      throw error;
+    }
+  }
+
   const parsedBody = createUserBodySchema.safeParse(req.body);
   if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
