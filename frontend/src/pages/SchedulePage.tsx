@@ -304,6 +304,7 @@ export function SchedulePage() {
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextRouteDetailSyncRef = useRef(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -478,6 +479,10 @@ export function SchedulePage() {
 
   useEffect(() => {
     if (!scheduleId || !scheduleDetail) return;
+    if (skipNextRouteDetailSyncRef.current) {
+      skipNextRouteDetailSyncRef.current = false;
+      return;
+    }
     if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
     const openDetailTimer = window.setTimeout(() => {
       if (detailScheduleId === scheduleDetail.id) return;
@@ -634,6 +639,9 @@ export function SchedulePage() {
   );
 
   const closeDetailPopover = useCallback(() => {
+    if (scheduleId) {
+      skipNextRouteDetailSyncRef.current = true;
+    }
     setDetailItem(null);
     setDetailAnchor(null);
     if (scheduleId) {

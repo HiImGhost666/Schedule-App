@@ -21,7 +21,9 @@ const pageTitles: Record<string, string> = {
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const title = pageTitles[location.pathname] || '';
+  const title = location.pathname.startsWith('/schedule')
+    ? pageTitles['/schedule']
+    : pageTitles[location.pathname] || '';
   const user = useAuthStore((s) => s.user);
   const forcePasswordChange = user?.forcePasswordChange === true;
 
