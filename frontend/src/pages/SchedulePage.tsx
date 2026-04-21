@@ -477,7 +477,7 @@ export function SchedulePage() {
   const detailScheduleId = detailItem?.kind === 'schedule' ? detailItem.schedule.id : null;
 
   useEffect(() => {
-    if (!scheduleDetail) return;
+    if (!scheduleId || !scheduleDetail) return;
     if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
     const openDetailTimer = window.setTimeout(() => {
       if (detailScheduleId === scheduleDetail.id) return;
@@ -490,7 +490,7 @@ export function SchedulePage() {
     }, 0);
 
     return () => window.clearTimeout(openDetailTimer);
-  }, [scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
+  }, [scheduleId, scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
 
   const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
     if (!shouldUseWeekEndpoint) return endIso;

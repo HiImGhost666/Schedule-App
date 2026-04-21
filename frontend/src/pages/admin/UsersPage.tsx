@@ -124,7 +124,10 @@ export function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-navy-100">
-                  {data.data.map((u: User) => (
+                  {data.data.map((u: User, idx: number) => {
+                    const shouldOpenUp = idx >= data.data.length - 3;
+
+                    return (
                     <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
@@ -154,7 +157,7 @@ export function UsersPage() {
                           <MoreVertical className="h-4 w-4" />
                         </button>
                         {menuOpenId === u.id && (
-                          <div className="absolute right-4 top-8 card rounded-xl shadow-xl border border-theme-color z-20 w-48 py-1 animate-slide-down">
+                          <div className={`absolute right-4 ${shouldOpenUp ? 'bottom-8' : 'top-8'} card rounded-xl shadow-xl border border-theme-color z-20 w-48 py-1 animate-slide-down`}>
                             <button onClick={() => { setDetailUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
                               <Eye className="h-3.5 w-3.5" />Ver detalle
                             </button>
@@ -185,7 +188,8 @@ export function UsersPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
