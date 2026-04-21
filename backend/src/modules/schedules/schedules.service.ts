@@ -12,6 +12,7 @@ import {
   findScheduleById,
   findSchedules,
   replaceAssignments,
+  ScheduleWhere,
   updateSchedule,
 } from './schedules.repository';
 import {
@@ -55,7 +56,7 @@ async function ensureActiveBranch(branchId: string) {
 }
 
 export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string }) {
-  const where: Record<string, unknown> = {};
+  const where: ScheduleWhere = {};
   const fromDate = parseOptionalDate(params.from);
   const toDate = parseOptionalDate(params.to);
   const rangeFilter = buildOverlapRangeFilter(fromDate, toDate);
@@ -70,7 +71,7 @@ export function listSchedulesForActor(
   params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string },
   actor: Pick<Actor, 'role' | 'branchId'>,
 ) {
-  const where: Record<string, unknown> = {};
+  const where: ScheduleWhere = {};
   const fromDate = parseOptionalDate(params.from);
   const toDate = parseOptionalDate(params.to);
   const rangeFilter = buildOverlapRangeFilter(fromDate, toDate);
