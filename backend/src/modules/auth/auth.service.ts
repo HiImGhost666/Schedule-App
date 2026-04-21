@@ -92,7 +92,6 @@ export async function login(identifier: string, password: string, ipAddress?: st
     lastLoginAt: user.lastLoginAt,
     failedAttempts: user.failedAttempts,
     forcePasswordChange: user.forcePasswordChange,
-    islandCalendar: user.islandCalendar,
     companyPhone: user.companyPhone,
     auxiliaryPhone: user.auxiliaryPhone,
   };

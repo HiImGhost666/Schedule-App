@@ -10,7 +10,6 @@ export interface User {
   lastLoginAt?: string;
   failedAttempts?: number;
   forcePasswordChange?: boolean;
-  islandCalendar?: string;
   companyPhone?: string;
   auxiliaryPhone?: string;
   branchId?: string | null;
@@ -41,7 +40,6 @@ export interface Schedule {
     code: string;
     isActive: boolean;
   };
-  calendarType?: string;
   createdById: string;
   createdBy: { id: string; name: string };
   createdAt: string;
@@ -86,7 +84,6 @@ export interface WeekScheduleItem {
   isLastMinute: boolean;
   hoursPerDay?: number;
   branchId?: string | null;
-  calendarType?: string;
   assignees: WeekScheduleAssignee[];
 }
 
@@ -108,12 +105,19 @@ export interface BranchHoliday {
   id: string;
   branchId: string;
   date: string;
+  originalDate?: string | null;
   name: string;
   type: 'nacional' | 'autonomica' | 'local' | 'mejora' | 'regional' | 'company';
   scope: 'national' | 'regional' | 'local' | 'company';
+  isPartial: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+  };
 }
 
 export interface WeekSchedulesResponse {
@@ -271,17 +275,14 @@ export interface ThemePreset {
 
 export const SCHEDULE_TYPES = [
   { value: 'guardia', label: 'Guardia', color: '#2563eb' }, // blue
-  { value: 'turno_manana', label: 'Turno Mañana', color: '#d97706' }, // amber
-  { value: 'turno_tarde', label: 'Turno Tarde', color: '#7c3aed' }, // violet
-  { value: 'turno_noche', label: 'Turno Noche', color: '#1e293b' }, // slate-dark
-  { value: 'guardia_fin_semana', label: 'Guardia Fin de Semana', color: '#dc2626' }, // red
-  { value: 'guardia_festivo', label: 'Guardia Festivo', color: '#ea580c' }, // orange
-  { value: 'guardia_extra', label: 'Guardia Extra', color: '#db2777' }, // pink
-  { value: 'disponible', label: 'Disponible / Localizable', color: '#16a34a' }, // green
-  { value: 'formacion', label: 'Formación', color: '#0891b2' }, // cyan
+  { value: 'ausencia', label: 'Ausencia', color: '#64748b' }, // slate
   { value: 'vacaciones', label: 'Vacaciones', color: '#65a30d' }, // lime
-  { value: 'baja', label: 'Baja / Ausencia', color: '#64748b' }, // slate
+  { value: 'formacion', label: 'Formación', color: '#0891b2' }, // cyan
+  { value: 'otro', label: 'Otro', color: '#4b5563' }, // gray
+  { value: 'excepcion', label: 'Excepción', color: '#dc2626' }, // red
 ];
+
+export type ScheduleType = 'guardia' | 'ausencia' | 'vacaciones' | 'formacion' | 'otro' | 'excepcion';
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -305,3 +306,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   monday_vacation_summary: 'Vacaciones Semana',
   test: 'Prueba',
 };
+
+// Security Constants (Sync with backend/src/config/constants.ts)
+export const MAX_FAILED_ATTEMPTS = 5;
+export const LOCKOUT_MINUTES = 15;
