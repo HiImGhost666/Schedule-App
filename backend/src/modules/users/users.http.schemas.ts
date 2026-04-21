@@ -15,6 +15,7 @@ export const listUsersQuerySchema = z.object({
 });
 
 export const createUserBodySchema = z.object({
+  employeeId: z.string().optional().nullable(),
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),

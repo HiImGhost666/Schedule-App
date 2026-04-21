@@ -14,11 +14,13 @@ CREATE TABLE `users` (
     `failed_attempts` INTEGER NOT NULL DEFAULT 0,
     `locked_until` DATETIME(3) NULL,
     `force_password_change` BOOLEAN NOT NULL DEFAULT false,
+    `employee_id` VARCHAR(191) NULL,
     `company_phone` VARCHAR(191) NULL,
     `auxiliary_phone` VARCHAR(191) NULL,
     `branch_id` VARCHAR(191) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
+    UNIQUE INDEX `users_employee_id_key`(`employee_id`),
     INDEX `users_branch_id_idx`(`branch_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

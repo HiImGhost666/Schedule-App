@@ -43,8 +43,9 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "npx prisma generate &&
-             i=0; until npx prisma db push; do
+          sh -c "npm install &&
+            npx prisma generate &&
+             i=0; until (npx prisma migrate deploy || npx prisma db push --accept-data-loss); do
              i=$$((i+1));
              if [ $$i -ge 30 ]; then
              echo 'Database not ready after 30 attempts';

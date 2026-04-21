@@ -1,5 +1,6 @@
 export interface User {
   id: string;
+  employeeId?: string | null;
   name: string;
   email: string;
   role: 'admin' | 'manager' | 'viewer';

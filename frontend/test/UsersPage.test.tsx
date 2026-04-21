@@ -137,7 +137,7 @@ describe('UsersPage', () => {
 
     renderPage();
 
-    const file = new File(['name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nJuan,juan@test.com,viewer,active,,,,'], 'users.csv', { type: 'text/csv' });
+    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,,,'], 'users.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
     
     // El input está hidden, pero podemos interactuar con él si lo encontramos

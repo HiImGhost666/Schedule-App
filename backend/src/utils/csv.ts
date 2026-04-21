@@ -1,6 +1,6 @@
 import { TextDecoder } from 'util';
 
-export const CSV_HEADERS = ['name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
+export const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 
 export type CsvHeader = (typeof CSV_HEADERS)[number];
 export type UserCsvRow = Record<CsvHeader, string>;

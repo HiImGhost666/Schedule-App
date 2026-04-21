@@ -22,6 +22,7 @@ model User {
   failedAttempts      Int        @default(0) @map("failed_attempts")
   lockedUntil         DateTime?  @map("locked_until")
   forcePasswordChange Boolean    @default(false) @map("force_password_change")
+  employeeId          String?    @unique @map("employee_id")
   companyPhone        String?    @map("company_phone")
   auxiliaryPhone      String?    @map("auxiliary_phone")
   branchId            String?    @map("branch_id")

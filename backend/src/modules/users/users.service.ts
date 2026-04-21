@@ -5,6 +5,7 @@ import { hashPassword } from '../../utils/bcrypt';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
+import { BRANCH_CODES } from '../branches/branches.constants';
 import {
   buildUsersWhere,
   createUserRecord,
@@ -456,6 +457,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
     throw createAppError('BAD_REQUEST', 'El CSV no contiene filas para importar');
   }
 
+  const allowedBranchCodes: Set<string> = new Set(Object.values(BRANCH_CODES));
   const branches = await prisma.branch.findMany({ select: { id: true, code: true, name: true } });
   const rejectedRows: Array<UserCsvRow & { reason: string }> = [];
   let created = 0;
@@ -484,10 +486,15 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
       let resolvedBranchId: string | null = null;
       if (branchSearch) {
-        const b = branches.find(b => 
-          b.code.toUpperCase() === branchSearch.toUpperCase() || 
-          b.name.toLowerCase().includes(branchSearch.toLowerCase())
-        );
+        const normalizedBranchSearch = branchSearch.toUpperCase();
+        const b = allowedBranchCodes.has(normalizedBranchSearch)
+          ? branches.find((branch) => branch.code.toUpperCase() === normalizedBranchSearch)
+          : branches.find((branch) => branch.name.toLowerCase().includes(branchSearch.toLowerCase()));
+
+        if (!b) {
+          throw new Error(`Sucursal inválida: ${branchSearch}. Valores válidos: TFN, GC o nombre de sede`);
+        }
+
         resolvedBranchId = b?.id || null;
       }
 

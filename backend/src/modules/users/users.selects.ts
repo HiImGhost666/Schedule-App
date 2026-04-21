@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 
 export const USER_RESPONSE_SELECT = {
   id: true,
+  employeeId: true,
   name: true,
   email: true,
   role: true,
@@ -27,6 +28,7 @@ export const USER_RESPONSE_SELECT = {
 
 export const USER_SAFE_SELECT = {
   id: true,
+  employeeId: true,
   name: true,
   email: true,
   role: true,

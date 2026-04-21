@@ -89,7 +89,7 @@ describe('parseUserCsv', () => {
 
   it('parsea correctamente una fila válida completa', () => {
     const csv = buildCsv([
-      ['Juan Pérez', 'juan@test.com', 'viewer', 'active', 'Seguridad', '', '600111222', ''],
+      ['LAB-100', 'Juan Pérez', 'juan@test.com', 'viewer', 'active', 'Seguridad', '', '600111222', ''],
     ]);
     const rows = parseUserCsv(csv);
     expect(rows).toHaveLength(1);
@@ -101,30 +101,30 @@ describe('parseUserCsv', () => {
 
   it('elimina filas completamente vacías', () => {
     const csv = buildCsv([
-      ['Juan', 'juan@test.com', 'viewer', 'active', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
+      ['LAB-100', 'Juan', 'juan@test.com', 'viewer', 'active', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
     ]);
     const rows = parseUserCsv(csv);
     expect(rows).toHaveLength(1);
   });
 
   it('hace trim a los valores de cada celda', () => {
-    const csv = buildCsv([['  Ana  ', '  ana@test.com  ', 'admin', 'active', '', '', '', '']]);
+    const csv = buildCsv([['  LAB-100  ', '  Ana  ', '  ana@test.com  ', 'admin', 'active', '', '', '', '']]);
     const rows = parseUserCsv(csv);
     expect(rows[0].name).toBe('Ana');
     expect(rows[0].email).toBe('ana@test.com');
   });
 
   it('elimina el BOM (\\uFEFF) si está presente al inicio', () => {
-    const csv = '\uFEFF' + buildCsv([['Luis', 'luis@test.com', '', '', '', '', '', '']]);
+    const csv = '\uFEFF' + buildCsv([['LAB-100', 'Luis', 'luis@test.com', '', '', '', '', '', '']]);
     const rows = parseUserCsv(csv);
     expect(rows[0].name).toBe('Luis');
   });
 
   it('parsea múltiples filas correctamente', () => {
     const csv = buildCsv([
-      ['Ana', 'ana@test.com', 'admin', 'active', 'Administración', '', '', ''],
-      ['Pedro', 'pedro@test.com', 'viewer', 'disabled', 'Seguridad', '', '', ''],
+      ['LAB-100', 'Ana', 'ana@test.com', 'admin', 'active', 'Administración', '', '', ''],
+      ['LAB-101', 'Pedro', 'pedro@test.com', 'viewer', 'disabled', 'Seguridad', '', '', ''],
     ]);
     const rows = parseUserCsv(csv);
     expect(rows).toHaveLength(2);

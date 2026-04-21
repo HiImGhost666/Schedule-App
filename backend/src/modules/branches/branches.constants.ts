@@ -3,3 +3,10 @@ export type HolidayType = (typeof HOLIDAY_TYPES)[number];
 
 export const HOLIDAY_SCOPES = ['national', 'regional', 'local', 'company'] as const;
 export type HolidayScope = (typeof HOLIDAY_SCOPES)[number];
+
+export const BRANCH_CODES = {
+	TFN: 'TFN',
+	GC: 'GC',
+} as const;
+
+export type BranchCode = (typeof BRANCH_CODES)[keyof typeof BRANCH_CODES];

@@ -20,6 +20,7 @@ const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'departmen
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
 const ALLOWED_DEPARTMENTS = new Set(['seguridad', 'mantenimiento', 'operaciones', 'administración']);
+const ALLOWED_BRANCH_CODES = new Set(['TFN', 'GC']);
 
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
@@ -161,6 +162,15 @@ export function UsersPage() {
   const validateCsvRow = (row: any, index: number): string | null => {
     if (!row.name?.trim()) return `Fila ${index + 2}: El nombre es obligatorio`;
     if (!row.email?.trim() || !row.email.includes('@')) return `Fila ${index + 2}: Email inválido`;
+
+    const branchValue = row.branchId?.trim();
+    if (branchValue) {
+      const normalizedBranch = branchValue.toUpperCase();
+      const branchLooksLikeName = branchValue.toLowerCase().includes('tenerife') || branchValue.toLowerCase().includes('palmas');
+      if (!ALLOWED_BRANCH_CODES.has(normalizedBranch) && !branchLooksLikeName) {
+        return `Fila ${index + 2}: Sucursal inválida "${row.branchId}". Usa TFN, GC o nombre de sede`;
+      }
+    }
     
     if (row.role && !ALLOWED_ROLES.has(row.role.trim().toLowerCase())) {
       return `Fila ${index + 2}: Rol inválido "${row.role}"`;
@@ -197,11 +207,17 @@ export function UsersPage() {
       }
 
       // Validamos las primeras 5 filas para dar feedback inmediato sin procesar todo en el cliente
-      const headerLine = lines[0].toLowerCase();
+      const normalizedHeaders = lines[0].split(',').map((column) => column.trim().toLowerCase());
       const columnIndices: Record<string, number> = {};
       CSV_HEADERS.forEach(h => {
-        columnIndices[h] = headerLine.split(',').findIndex(col => col.trim().includes(h));
+        columnIndices[h] = normalizedHeaders.findIndex((col) => col === h.toLowerCase() || col.includes(h.toLowerCase()));
       });
+
+      const missingHeaders = CSV_HEADERS.filter((h) => columnIndices[h] < 0);
+      if (missingHeaders.length > 0) {
+        toast.error(`Faltan columnas obligatorias en el CSV: ${missingHeaders.join(', ')}`);
+        return;
+      }
 
       for (let i = 1; i < Math.min(lines.length, 6); i++) {
         const cols = lines[i].split(',');
@@ -237,7 +253,7 @@ export function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">Gestión de Usuarios</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas. Sedes: TFN (Tenerife), GC (Las Palmas)</p>
+          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas. Sedes válidas: TFN (Tenerife), GC (Las Palmas)</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2 flex-wrap justify-end">

@@ -36,6 +36,7 @@ const mockActor = { id: 'admin-id', ipAddress: '127.0.0.1' };
 // ── Helper: construye una fila CSV mínima válida ─────────────────────────────
 function buildRow(overrides: Partial<UserCsvRow> = {}): UserCsvRow {
   return {
+    employeeId: '',
     name: 'Test User',
     email: 'test@example.com',
     role: 'viewer',
