@@ -2,7 +2,7 @@ import { prisma } from '../../config/database';
 import { TransactionClient } from '../../common/transactions/transaction.utils';
 import { Prisma } from '@prisma/client';
 
-type AuditLogWhere = Prisma.Args<typeof prisma.auditLog, 'findMany'>['where'];
+export type AuditLogWhere = Prisma.Args<typeof prisma.auditLog, 'findMany'>['where'];
 type AuditLogCreateData = Prisma.Args<typeof prisma.auditLog, 'create'>['data'];
 
 function getDb(tx?: TransactionClient) {
