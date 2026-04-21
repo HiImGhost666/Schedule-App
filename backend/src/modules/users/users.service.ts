@@ -25,17 +25,18 @@ import {
 } from './domain/user.factory';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
-import { USER_DEPARTMENTS, type UserDepartment } from './users.constants';
+import { USER_DEPARTMENTS, USER_ROLES, USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserRole, type UserStatus, type UserDepartment } from './users.constants';
+import { type UserCsvRow } from '../../utils/csv';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['admin', 'manager', 'viewer']).optional(),
-  status: z.enum(['active', 'disabled', 'locked']).optional(),
+  role: z.enum(USER_ROLES).optional(),
+  status: z.enum(USER_STATUSES).optional(),
   department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().url().optional(),
-  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
@@ -47,7 +48,7 @@ const updateUserInputSchema = z.object({
   email: z.string().email().optional(),
   department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().optional(),
-  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
@@ -106,7 +107,6 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
       passwordHash,
       role: parsed.data.role ?? 'viewer',
       status: parsed.data.status ?? 'active',
-      islandCalendar: parsed.data.islandCalendar ?? 'none',
       forcePasswordChange: forcePasswordChange ?? false,
       ...(createBranchId
         ? { branch: { connect: { id: createBranchId } } }
@@ -192,7 +192,6 @@ export async function updateUser(userId: string, data: {
   email?: string;
   department?: UserDepartment;
   avatarUrl?: string;
-  islandCalendar?: 'tenerife' | 'las_palmas' | 'none';
   companyPhone?: string;
   auxiliaryPhone?: string;
   branchId?: string | null;
@@ -445,4 +444,122 @@ export async function getUserSchedules(userId: string, from?: string, to?: strin
   }
 
   return listUserSchedules(userId, fromDate, toDate);
+}
+
+export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
+  if (!rows.length) {
+    throw createAppError('BAD_REQUEST', 'El CSV no contiene filas para importar');
+  }
+
+  const rejectedRows: Array<UserCsvRow & { reason: string }> = [];
+  let created = 0;
+  let updated = 0;
+  let unchanged = 0;
+
+  for (const row of rows) {
+    try {
+      const email = normalizeEmail(row.email);
+      const name = row.name.trim();
+
+      if (!name) throw new Error('El nombre es obligatorio');
+      if (!email) throw new Error('El email es obligatorio');
+
+      const role = row.role.trim();
+      const status = row.status.trim();
+      const department = row.department.trim().toLowerCase();
+      const branchId = row.branchId.trim() || null;
+      const companyPhone = row.companyPhone.trim() || undefined;
+      const auxiliaryPhone = row.auxiliaryPhone.trim() || undefined;
+
+      if (role && !(USER_ROLES as readonly string[]).includes(role)) throw new Error(`Rol inválido: ${role}`);
+      if (status && !(USER_STATUSES as readonly string[]).includes(status)) throw new Error(`Estado inválido: ${status}`);
+      if (department && !(USER_DEPARTMENTS as readonly string[]).includes(department)) throw new Error(`Departamento inválido: ${department}`);
+
+      const userRole = (role || undefined) as UserRole | undefined;
+      const userStatus = (status || undefined) as UserStatus | undefined;
+      const userDept = (department || undefined) as UserDepartment | undefined;
+
+      const existing = await findUserByEmailOrUsername(email);
+
+      if (!existing) {
+        await createUser({
+          name,
+          email,
+          password: CSV_IMPORT_DEFAULT_PASSWORD.toLowerCase(),
+          role: userRole,
+          status: userStatus,
+          department: userDept,
+          branchId,
+          companyPhone,
+          auxiliaryPhone,
+          forcePasswordChange: true
+        }, actor);
+        created++;
+        continue;
+      }
+
+      let changed = false;
+      const updatePayload: Parameters<typeof updateUser>[1] = {};
+
+      if (name !== existing.name) {
+        updatePayload.name = name;
+        changed = true;
+      }
+      
+      const existingDepartment = existing.department || undefined;
+      if (userDept && userDept !== existingDepartment) {
+        updatePayload.department = userDept;
+        changed = true;
+      }
+
+      const existingCompanyPhone = existing.companyPhone || undefined;
+      if (companyPhone && companyPhone !== existingCompanyPhone) {
+        updatePayload.companyPhone = companyPhone;
+        changed = true;
+      }
+
+      const existingAuxiliaryPhone = existing.auxiliaryPhone || undefined;
+      if (auxiliaryPhone && auxiliaryPhone !== existingAuxiliaryPhone) {
+        updatePayload.auxiliaryPhone = auxiliaryPhone;
+        changed = true;
+      }
+
+      if (branchId !== (existing.branchId || null)) {
+        updatePayload.branchId = branchId;
+        changed = true;
+      }
+
+      if (changed) {
+        await updateUser(existing.id, updatePayload, actor);
+      }
+
+      if (userRole && userRole !== existing.role) {
+        await changeUserRole(existing.id, userRole, actor);
+        changed = true;
+      }
+
+      if (userStatus && userStatus !== existing.status) {
+        await changeUserStatus(existing.id, userStatus, actor);
+        changed = true;
+      }
+
+      if (changed) updated++;
+      else unchanged++;
+
+    } catch (err: any) {
+      rejectedRows.push({
+        ...row,
+        reason: err.message || 'Error desconocido'
+      });
+    }
+  }
+
+  return {
+    total: rows.length,
+    created,
+    updated,
+    unchanged,
+    failed: rejectedRows.length,
+    rejectedRows
+  };
 }
