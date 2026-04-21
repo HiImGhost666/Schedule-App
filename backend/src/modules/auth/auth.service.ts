@@ -45,7 +45,7 @@ export async function login(identifier: string, password: string, ipAddress?: st
 
   if (!passwordValid) {
     const newAttempts = user.failedAttempts + 1;
-    const updates: Record<string, unknown> = { failedAttempts: newAttempts };
+    const updates: Parameters<typeof updateUserById>[1] = { failedAttempts: newAttempts };
 
     if (newAttempts >= MAX_FAILED_ATTEMPTS) {
       updates.status = USER_STATUS.LOCKED;

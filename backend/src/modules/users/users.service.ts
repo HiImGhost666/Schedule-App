@@ -277,7 +277,7 @@ export async function changeUserStatus(userId: string, status: 'active' | 'disab
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes cambiar tu propio estado');
 
-  const updateData: Record<string, unknown> = { status };
+  const updateData: Parameters<typeof updateUserRecord>[1] = { status };
   if (status === 'active') {
     updateData.failedAttempts = 0;
     updateData.lockedUntil = null;
