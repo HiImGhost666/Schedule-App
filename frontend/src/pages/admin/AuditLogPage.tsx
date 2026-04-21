@@ -83,6 +83,31 @@ function parseAuditDetails(value: unknown): AuditDetails {
   return {};
 }
 
+function getLogDisplayName(log: AuditLog): string {
+  const details = (log.detailsJson ?? {}) as Record<string, unknown>;
+  const after = (details.after ?? {}) as Record<string, unknown>;
+  const before = (details.before ?? {}) as Record<string, unknown>;
+
+  const candidate =
+    after.title ??
+    after.name ??
+    details.title ??
+    details.name ??
+    before.title ??
+    before.name;
+
+  return typeof candidate === 'string' && candidate.trim() ? candidate : '-';
+}
+
+function getLogType(log: AuditLog): string {
+  const details = (log.detailsJson ?? {}) as Record<string, unknown>;
+  const after = (details.after ?? {}) as Record<string, unknown>;
+  const before = (details.before ?? {}) as Record<string, unknown>;
+
+  const candidate = after.type ?? details.type ?? before.type;
+  return typeof candidate === 'string' && candidate.trim() ? candidate : '-';
+}
+
 // ── Subcomponente: tabla de registros ───────────────────────────────────────
 function AuditTable({
   data,
@@ -122,7 +147,8 @@ function AuditTable({
             <tr className="bg-navy-50 border-b border-navy-100">
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Acción</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">Usuario</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Entidad</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Nombre</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">Tipo</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Fecha</th>
               <th className="px-5 py-3.5" />
             </tr>
@@ -140,7 +166,8 @@ function AuditTable({
                   </span>
                 </td>
                 <td className="px-5 py-4 text-sm text-navy-600 hidden md:table-cell">{log.user?.name || 'Sistema'}</td>
-                <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">{log.entityType}</td>
+                <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">{getLogDisplayName(log)}</td>
+                <td className="px-5 py-4 text-xs text-navy-400 hidden xl:table-cell">{getLogType(log)}</td>
                 <td className="px-5 py-4 text-xs text-navy-400">{formatDateTime(log.createdAt)}</td>
                 <td className="px-5 py-4"><ChevronRight className="h-3.5 w-3.5 text-navy-300" /></td>
               </tr>
