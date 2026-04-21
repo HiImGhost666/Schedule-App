@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HOLIDAY_TYPES, HOLIDAY_SCOPES } from './branches.constants';
 
 const branchCodeRegex = /^[A-Z0-9_-]{2,20}$/;
 
@@ -34,14 +35,16 @@ export const listBranchHolidaysQuerySchema = z.object({
   includeInactive: z.coerce.boolean().optional().default(false),
 });
 
-const holidayTypeSchema = z.enum(['nacional', 'autonomica', 'local', 'mejora', 'regional', 'company']);
-const holidayScopeSchema = z.enum(['national', 'regional', 'local', 'company']);
+const holidayTypeSchema = z.enum(HOLIDAY_TYPES);
+const holidayScopeSchema = z.enum(HOLIDAY_SCOPES);
 
 export const createBranchHolidayBodySchema = z.object({
   date: z.coerce.date(),
+  originalDate: z.coerce.date().optional().nullable(),
   name: z.string().min(2).max(120),
   type: holidayTypeSchema,
   scope: holidayScopeSchema.optional(),
+  isPartial: z.boolean().optional().default(false),
 });
 
 export const updateBranchHolidayBodySchema = createBranchHolidayBodySchema.partial();

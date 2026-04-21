@@ -21,6 +21,7 @@ import {
   isLastMinuteSchedule,
   parseOptionalDate,
 } from './domain/schedule.rules';
+import { SCHEDULE_TYPES } from './schedules.constants';
 
 type Actor = { id: string; role: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
 const scheduleCreateInputSchema = z.object({
@@ -28,7 +29,7 @@ const scheduleCreateInputSchema = z.object({
   description: z.string().optional(),
   startDatetime: z.coerce.date(),
   endDatetime: z.coerce.date(),
-  type: z.string().default('guardia'),
+  type: z.enum(SCHEDULE_TYPES).default('guardia'),
   color: z.string().default('#1e3a5f'),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -36,7 +37,6 @@ const scheduleCreateInputSchema = z.object({
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
-  calendarType: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
 });
 
 const scheduleUpdateInputSchema = scheduleCreateInputSchema.partial().extend({
@@ -124,7 +124,6 @@ export async function listWeekSchedules(year: number, week: number, branchId?: s
     isLastMinute: schedule.isLastMinute,
     hoursPerDay: schedule.hoursPerDay,
     branchId: schedule.branchId,
-    calendarType: schedule.calendarType,
     assignees: schedule.assignments.map((assignment) => ({
       id: assignment.user.id,
       name: assignment.user.name,
@@ -184,7 +183,11 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
         .filter((a) => assigneeIds.includes(a.userId))
         .map((a) => a.user.name);
       
-      return conflictedUsers.map(name => `${name} ya tiene el turno "${s.title}"`);
+      const typeDesc = s.type === 'vacaciones' ? 'está de vacaciones' : 
+                      s.type === 'ausencia' ? 'está ausente' : 
+                      `ya tiene el turno "${s.title}"`;
+
+      return conflictedUsers.map(name => `${name} ${typeDesc}`);
     });
 
     const uniqueConflicts = [...new Set(conflicts)];
@@ -193,6 +196,29 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
       `Conflicto de horarios: ${uniqueConflicts.join(', ')}`,
       { conflicts: uniqueConflicts }
     );
+  }
+}
+
+/** Verifica que no se asigne trabajo en días festivos (excepto excepciones como 'otro' o 'excepcion'). */
+async function ensureNoHolidayOverlap(branchId: string, startDt: Date, endDt: Date, type: string) {
+  const exceptions = ['vacaciones', 'ausencia', 'otro', 'excepcion'];
+  if (exceptions.includes(type)) return;
+
+  const holidays = await prisma.branchHoliday.findMany({
+    where: {
+      branchId,
+      date: {
+        gte: new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate()),
+        lte: new Date(endDt.getFullYear(), endDt.getMonth(), endDt.getDate()),
+      },
+      // Solo bloqueamos si NO es un festivo parcial (o bloqueamos todo si el usuario quiere "nada de trabajo")
+      // El usuario dijo "no se pueda poner trabajo", así que bloqueamos incluso si es parcial por ahora.
+    },
+  });
+
+  if (holidays.length > 0) {
+    const names = holidays.map(h => h.name).join(', ');
+    throw createAppError('BAD_REQUEST', `No se puede asignar trabajo en días festivos: ${names}`);
   }
 }
 
@@ -241,6 +267,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
 
   if (targetBranchId) {
     await ensureActiveBranch(targetBranchId);
+    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, parsed.data.type);
   }
 
   if (actor.role !== 'admin') {
@@ -341,6 +368,10 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const endDt = updateData.endDatetime ? new Date(updateData.endDatetime) : existing.endDatetime;
   ensureValidScheduleRange(startDt, endDt);
   const isLastMinute = isLastMinuteSchedule(startDt);
+
+  if (nextBranchId) {
+    await ensureNoHolidayOverlap(nextBranchId, startDt, endDt, parsed.data.type ?? existing.type);
+  }
 
   await ensureNoOverlaps(assigneeIds || existing.assignments.map(a => a.userId), startDt, endDt, scheduleId);
 

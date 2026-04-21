@@ -25,9 +25,11 @@ export type BranchInput = {
 
 export type BranchHolidayInput = {
   date: Date;
+  originalDate?: Date | null;
   name: string;
   type: BranchHolidayType;
   scope?: BranchHolidayScope;
+  isPartial?: boolean;
 };
 
 export type ListBranchesParams = {

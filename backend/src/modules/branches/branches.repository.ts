@@ -67,6 +67,15 @@ export function findBranchHolidayByIdAndBranch(holidayId: string, branchId: stri
 export function findBranchHolidays(where: BranchHolidayWhere) {
   return prisma.branchHoliday.findMany({
     where,
+    include: {
+      branch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+    },
     orderBy: [{ date: 'asc' }, { name: 'asc' }],
   });
 }

@@ -155,7 +155,9 @@ export async function listBranchHolidays(
   branchId: string,
   params: ListBranchHolidaysParams,
 ) {
-  await ensureBranch(branchId);
+  if (branchId !== 'all') {
+    await ensureBranch(branchId);
+  }
 
   const { fromDate, toDate } = ensureDateRange(params.from, params.to);
 
@@ -175,7 +177,7 @@ export async function listBranchHolidays(
   }
 
   return findBranchHolidays({
-    branchId,
+    ...(branchId !== 'all' ? { branchId } : {}),
     ...(params.includeInactive ? {} : { isActive: true }),
     ...(dateFilter ? { date: dateFilter } : {}),
   });
