@@ -14,18 +14,58 @@ CREATE TABLE `users` (
     `failed_attempts` INTEGER NOT NULL DEFAULT 0,
     `locked_until` DATETIME(3) NULL,
     `force_password_change` BOOLEAN NOT NULL DEFAULT false,
-    `island_calendar` VARCHAR(191) NOT NULL DEFAULT 'none',
+    `employee_id` VARCHAR(191) NULL,
     `company_phone` VARCHAR(191) NULL,
     `auxiliary_phone` VARCHAR(191) NULL,
+    `branch_id` VARCHAR(191) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
+    UNIQUE INDEX `users_employee_id_key`(`employee_id`),
+    INDEX `users_branch_id_idx`(`branch_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `branches` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `code` VARCHAR(191) NOT NULL,
+    `address` VARCHAR(191) NULL,
+    `city` VARCHAR(191) NULL,
+    `region` VARCHAR(191) NULL,
+    `country_code` VARCHAR(191) NOT NULL DEFAULT 'ES',
+    `timezone` VARCHAR(191) NOT NULL DEFAULT 'Europe/Madrid',
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `branches_code_key`(`code`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `branch_holidays` (
+    `id` VARCHAR(191) NOT NULL,
+    `branch_id` VARCHAR(191) NOT NULL,
+    `date` DATETIME(3) NOT NULL,
+    `original_date` DATETIME(3) NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `type` ENUM('nacional', 'autonomica', 'local', 'mejora', 'regional', 'company') NOT NULL DEFAULT 'local',
+    `scope` VARCHAR(191) NOT NULL DEFAULT 'local',
+    `is_partial` BOOLEAN NOT NULL DEFAULT false,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `branch_holidays_branch_id_date_idx`(`branch_id`, `date`),
+    UNIQUE INDEX `branch_holidays_branch_id_date_name_key`(`branch_id`, `date`, `name`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `refresh_tokens` (
     `id` VARCHAR(191) NOT NULL,
-    `token` VARCHAR(191) NOT NULL,
+    `token` VARCHAR(768) NOT NULL,
     `user_id` VARCHAR(191) NOT NULL,
     `expires_at` DATETIME(3) NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -50,12 +90,13 @@ CREATE TABLE `schedules` (
     `notes` TEXT NULL,
     `is_last_minute` BOOLEAN NOT NULL DEFAULT false,
     `hours_per_day` DOUBLE NULL DEFAULT 8,
-    `calendar_type` VARCHAR(191) NULL,
+    `branch_id` VARCHAR(191) NULL,
     `created_by` VARCHAR(191) NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
     INDEX `schedules_start_datetime_end_datetime_idx`(`start_datetime`, `end_datetime`),
+    INDEX `schedules_branch_id_idx`(`branch_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -72,7 +113,7 @@ CREATE TABLE `schedule_assignments` (
 CREATE TABLE `webhook_configs` (
     `id` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
-    `webhook_url` VARCHAR(191) NOT NULL,
+    `webhook_url` TEXT NOT NULL,
     `enabled` BOOLEAN NOT NULL DEFAULT true,
     `notify_modifications` BOOLEAN NOT NULL DEFAULT true,
     `notify_last_minute` BOOLEAN NOT NULL DEFAULT true,
@@ -135,10 +176,19 @@ CREATE TABLE `theme_settings` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
+ALTER TABLE `users` ADD CONSTRAINT `users_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `branch_holidays` ADD CONSTRAINT `branch_holidays_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `refresh_tokens` ADD CONSTRAINT `refresh_tokens_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `schedules` ADD CONSTRAINT `schedules_created_by_fkey` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `schedules` ADD CONSTRAINT `schedules_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `schedule_assignments` ADD CONSTRAINT `schedule_assignments_schedule_id_fkey` FOREIGN KEY (`schedule_id`) REFERENCES `schedules`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

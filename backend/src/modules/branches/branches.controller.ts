@@ -148,6 +148,12 @@ export async function listBranchHolidaysController(req: AuthRequest, res: Respon
     if (req.user!.branchId !== parsedParams.data.branchId) {
       return sendError(res, 'No tienes permisos para consultar festivos de otra sucursal', 403, null, 'FORBIDDEN');
     }
+  } else {
+    // Para administradores, permitimos 'all' o cualquier branch específica
+    if (parsedParams.data.branchId !== 'all') {
+      // Si no es 'all', el validador de params ya se encargó de que sea un string, 
+      // y el service se encargará de asegurar que exista.
+    }
   }
 
   try {

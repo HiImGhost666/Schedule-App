@@ -16,7 +16,7 @@ import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { UserDetailsModal } from './UserDetailsModal';
 
-const CSV_HEADERS = ['name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
+const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
 const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
@@ -226,12 +226,13 @@ export function UsersPage() {
       } while (currentPage <= totalPages);
 
       const rows = allUsers.map((user) => ({
+        employeeId: user.employeeId ?? '',
         name: user.name ?? '',
         email: user.email ?? '',
         role: user.role ?? '',
         status: user.status ?? '',
         department: user.department ?? '',
-        branchId: user.branchId ?? '',
+        branchId: user.branch?.code ?? '',
         companyPhone: user.companyPhone ?? '',
         auxiliaryPhone: user.auxiliaryPhone ?? '',
       }));
@@ -247,120 +248,18 @@ export function UsersPage() {
 
   const importCsvMutation = useMutation({
     mutationFn: async (file: File) => {
-      const rows = parseUserCsv(await decodeCsvFile(file));
-      if (!rows.length) {
-        throw new Error('El CSV no contiene filas para importar');
-      }
-
-      const rejectedRows: Array<UserCsvRow & { reason: string }> = [];
-      let created = 0;
-      let updated = 0;
-      let unchanged = 0;
-
-      for (const row of rows) {
-        try {
-          const email = row.email.trim().toLowerCase();
-          const name = row.name.trim();
-
-          if (!name) {
-            throw new Error('El nombre es obligatorio');
-          }
-          if (!email) {
-            throw new Error('El email es obligatorio');
-          }
-
-          const role = normalizeOptional(row.role);
-          const status = normalizeOptional(row.status);
-          const department = normalizeDepartment(row.department);
-          const branchId = normalizeOptional(row.branchId);
-          const companyPhone = normalizeOptional(row.companyPhone);
-          const auxiliaryPhone = normalizeOptional(row.auxiliaryPhone);
-
-          if (role && !ALLOWED_ROLES.has(role)) {
-            throw new Error(`Rol inválido: ${role}`);
-          }
-
-          if (status && !ALLOWED_STATUS.has(status)) {
-            throw new Error(`Estado inválido: ${status}`);
-          }
-
-          if (department && !ALLOWED_DEPARTMENTS.has(department)) {
-            throw new Error(`Departamento inválido: ${department}`);
-          }
-
-          const lookup = await api.get<{ data: User[] }>('/users', {
-            params: { page: 1, limit: 1, email },
-          });
-
-          const existing = lookup.data.data[0];
-
-          if (!existing) {
-            await api.post('/users', {
-              name,
-              email,
-              ...(role ? { role } : {}),
-              ...(status ? { status } : {}),
-              ...(department ? { department } : {}),
-              ...(companyPhone ? { companyPhone } : {}),
-              ...(auxiliaryPhone ? { auxiliaryPhone } : {}),
-              branchId: branchId ?? null,
-            }, {
-              params: { source: 'csv' },
-            });
-            created += 1;
-            continue;
-          }
-
-          const patchPayload: Record<string, unknown> = {};
-
-          if (name !== existing.name) patchPayload.name = name;
-          if (department && department !== (existing.department ?? '')) patchPayload.department = department;
-          if (companyPhone && companyPhone !== (existing.companyPhone ?? '')) patchPayload.companyPhone = companyPhone;
-          if (auxiliaryPhone && auxiliaryPhone !== (existing.auxiliaryPhone ?? '')) patchPayload.auxiliaryPhone = auxiliaryPhone;
-
-          const existingBranchId = existing.branchId ?? null;
-          const desiredBranchId = branchId ?? null;
-          if (desiredBranchId !== existingBranchId) {
-            patchPayload.branchId = desiredBranchId;
-          }
-
-          let changed = false;
-
-          if (Object.keys(patchPayload).length > 0) {
-            await api.patch(`/users/${existing.id}`, patchPayload);
-            changed = true;
-          }
-
-          if (role && role !== existing.role) {
-            await api.patch(`/users/${existing.id}/role`, { role });
-            changed = true;
-          }
-
-          if (status && status !== existing.status) {
-            await api.patch(`/users/${existing.id}/status`, { status });
-            changed = true;
-          }
-
-          if (changed) updated += 1;
-          else unchanged += 1;
-        } catch (error) {
-          rejectedRows.push({
-            ...row,
-            reason: getApiErrorMessage(error, 'Error desconocido'),
-          });
-        }
-      }
-
-      return {
-        total: rows.length,
-        created,
-        updated,
-        unchanged,
-        failed: rejectedRows.length,
-        rejectedRows,
-      };
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await api.post('/users/import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
     },
-    onSuccess: (summary) => {
+    onSuccess: (response) => {
+      const summary = response.data;
       if (summary.created > 0 || summary.updated > 0) {
         qc.invalidateQueries({ queryKey: ['users'] });
       }
@@ -381,6 +280,31 @@ export function UsersPage() {
     fileInputRef.current?.click();
   };
 
+  const validateCsvRow = (row: any, index: number): string | null => {
+    if (!row.name?.trim()) return `Fila ${index + 2}: El nombre es obligatorio`;
+    if (!row.email?.trim() || !row.email.includes('@')) return `Fila ${index + 2}: Email inválido`;
+
+    const branchValue = row.branchId?.trim();
+    if (branchValue) {
+      const normalizedBranch = branchValue.toUpperCase();
+      const branchLooksLikeName = branchValue.toLowerCase().includes('tenerife') || branchValue.toLowerCase().includes('palmas');
+      if (!ALLOWED_BRANCH_CODES.has(normalizedBranch) && !branchLooksLikeName) {
+        return `Fila ${index + 2}: Sucursal inválida "${row.branchId}". Usa TFN, GC o nombre de sede`;
+      }
+    }
+    
+    if (row.role && !ALLOWED_ROLES.has(row.role.trim().toLowerCase())) {
+      return `Fila ${index + 2}: Rol inválido "${row.role}"`;
+    }
+    if (row.status && !ALLOWED_STATUS.has(row.status.trim().toLowerCase())) {
+      return `Fila ${index + 2}: Estado inválido "${row.status}"`;
+    }
+    if (row.department && !ALLOWED_DEPARTMENTS.has(row.department.trim().toLowerCase())) {
+      return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
+    }
+    return null;
+  };
+
   const handleCsvSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -392,7 +316,47 @@ export function UsersPage() {
       return;
     }
 
-    await importCsvMutation.mutateAsync(file);
+    // Validación básica de formato antes de subir
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      
+      if (lines.length <= 1) {
+        toast.error('El archivo CSV está vacío o solo contiene cabeceras');
+        return;
+      }
+
+      // Validamos las primeras 5 filas para dar feedback inmediato sin procesar todo en el cliente
+      const normalizedHeaders = lines[0].split(',').map((column) => column.trim().toLowerCase());
+      const columnIndices: Record<string, number> = {};
+      CSV_HEADERS.forEach(h => {
+        columnIndices[h] = normalizedHeaders.findIndex((col) => col === h.toLowerCase() || col.includes(h.toLowerCase()));
+      });
+
+      const missingHeaders = CSV_HEADERS.filter((h) => columnIndices[h] < 0);
+      if (missingHeaders.length > 0) {
+        toast.error(`Faltan columnas obligatorias en el CSV: ${missingHeaders.join(', ')}`);
+        return;
+      }
+
+      for (let i = 1; i < Math.min(lines.length, 6); i++) {
+        const cols = lines[i].split(',');
+        const rowData: Record<string, string> = {};
+        CSV_HEADERS.forEach(h => {
+          rowData[h] = cols[columnIndices[h]]?.trim() || '';
+        });
+        
+        const error = validateCsvRow(rowData as UserCsvRow, i - 1);
+        if (error) {
+          toast.error(error);
+          return;
+        }
+      }
+      
+      await importCsvMutation.mutateAsync(file);
+    };
+    reader.readAsText(file.slice(0, 10000));
   };
 
   const roleBadge = (role: string) => {
@@ -410,7 +374,7 @@ export function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy-800">Gestión de Usuarios</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas, roles y permisos</p>
+          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas. Sedes válidas: TFN (Tenerife), GC (Las Palmas)</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -420,6 +384,7 @@ export function UsersPage() {
               accept=".csv,text/csv"
               className="hidden"
               onChange={handleCsvSelected}
+              data-testid="csv-upload-input"
             />
             <button
               onClick={handleImportClick}
@@ -482,6 +447,7 @@ export function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-navy-50 border-b border-navy-100">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Usuario</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Sucursal</th>
@@ -497,9 +463,10 @@ export function UsersPage() {
 
                     return (
                     <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
+                      <td className="px-5 py-3 text-xs font-mono text-navy-400 hidden xl:table-cell">{u.employeeId || '—'}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
                             {u.name[0]}
                           </div>
                           <div className="min-w-0">

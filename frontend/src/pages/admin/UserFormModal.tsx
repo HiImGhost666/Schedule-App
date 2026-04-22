@@ -31,6 +31,7 @@ function normalizeDepartment(value?: string | null): DepartmentValue | '' {
 }
 
 const schema = z.object({
+  employeeId: z.string().optional().or(z.literal('')),
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8).optional().or(z.literal('')),
@@ -82,6 +83,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
         companyPhone: user.companyPhone || '',
         auxiliaryPhone: user.auxiliaryPhone || '',
         branchId: user.branchId || '',
+        employeeId: user.employeeId || '',
       });
       return;
     }
@@ -95,6 +97,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       companyPhone: '',
       auxiliaryPhone: '',
       branchId: '',
+      employeeId: '',
     });
   }, [user, reset]);
 
@@ -139,6 +142,11 @@ export function UserFormModal({ open, user, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-theme-muted mb-1">ID Empleado (Lãberit)</label>
+            <input {...register('employeeId')} className="input-field font-mono" placeholder="LAB-000" />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">Nombre completo *</label>
             <input {...register('name')} className="input-field" placeholder="Juan Garcia" />

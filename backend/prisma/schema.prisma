@@ -22,7 +22,7 @@ model User {
   failedAttempts      Int        @default(0) @map("failed_attempts")
   lockedUntil         DateTime?  @map("locked_until")
   forcePasswordChange Boolean    @default(false) @map("force_password_change")
-  islandCalendar      String     @default("none") @map("island_calendar")
+  employeeId          String?    @unique @map("employee_id")
   companyPhone        String?    @map("company_phone")
   auxiliaryPhone      String?    @map("auxiliary_phone")
   branchId            String?    @map("branch_id")
@@ -58,17 +58,28 @@ model Branch {
   @@map("branches")
 }
 
+enum HolidayType {
+  nacional
+  autonomica
+  local
+  mejora
+  regional
+  company
+}
+
 model BranchHoliday {
-  id        String   @id @default(cuid())
-  branchId  String   @map("branch_id")
-  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  date      DateTime
-  name      String
-  type      String   @default("local")
-  scope     String   @default("local")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String      @id @default(cuid())
+  branchId     String      @map("branch_id")
+  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  date         DateTime
+  originalDate DateTime?   @map("original_date")
+  name         String
+  type         HolidayType @default(local)
+  scope        String      @default("local")
+  isPartial    Boolean     @default(false) @map("is_partial")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   @@index([branchId, date])
   @@unique([branchId, date, name])
@@ -103,7 +114,6 @@ model Schedule {
   hoursPerDay   Float?   @default(8) @map("hours_per_day")
   branchId      String?  @map("branch_id")
   branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  calendarType  String?  @map("calendar_type")
   createdById   String   @map("created_by")
   createdBy     User     @relation("ScheduleCreator", fields: [createdById], references: [id])
   createdAt     DateTime @default(now()) @map("created_at")
@@ -130,7 +140,7 @@ model ScheduleAssignment {
 model WebhookConfig {
   id                    String  @id @default(cuid())
   name                  String
-  webhookUrl            String  @map("webhook_url")
+  webhookUrl            String  @map("webhook_url") @db.Text
   enabled               Boolean @default(true)
   notifyModifications   Boolean @default(true) @map("notify_modifications")
   notifyLastMinute      Boolean @default(true) @map("notify_last_minute")

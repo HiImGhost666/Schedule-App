@@ -4,9 +4,10 @@
  */
 import { beforeEach, describe, it, expect } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
+import type { User } from '@/types';
 
 // ── Helper: usuario ficticio ─────────────────────────────────────────────────
-const mockUser = {
+const mockUser: User = {
   id: 'user-1',
   name: 'Admin Test',
   email: 'admin@test.com',
@@ -14,9 +15,9 @@ const mockUser = {
   status: 'active',
   avatarUrl: null,
   department: null,
-  islandCalendar: 'none',
   forcePasswordChange: false,
-} as any;
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
 
 // Reseteamos el store entre tests para aislar estado
 beforeEach(() => {

@@ -11,7 +11,14 @@ vi.mock('@/config/theme', () => ({
   applyThemeToDocument: vi.fn(),
 }));
 
-const mockTheme = { primary: '#ff0000', mode: 'light' } as any;
+const mockTheme = {
+  ...useUIStore.getState().themeConfig,
+  preset: 'dark' as const,
+  tokens: {
+    ...useUIStore.getState().themeConfig.tokens,
+    brandPrimary: '#ff0000',
+  },
+};
 
 beforeEach(() => {
   useUIStore.setState({

@@ -1,4 +1,5 @@
 import { AuditParams, IRREVERSIBLE_ACTIONS } from './domain/audit.types';
+import { Prisma } from '@prisma/client';
 import * as auditRepository from './audit.repository';
 import * as scheduleRepository from '../schedules/schedules.repository';
 import * as userRepository from '../users/users.repository';
@@ -30,26 +31,42 @@ function parseDetails(detailsJson: string | null) {
   }
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isIrreversibleAction(action: string): action is (typeof IRREVERSIBLE_ACTIONS)[number] {
+  return (IRREVERSIBLE_ACTIONS as readonly string[]).includes(action);
+}
+
 /** Desinfecta los payloads de auditoría eliminando campos comprometedores (passwords, tokens) mediante recorrido recursivo. */
-export function sanitizeSnapshot(data: any): any {
+export function sanitizeSnapshot<T>(data: T): T {
   if (!data) return data;
-  const sanitized = JSON.parse(JSON.stringify(data)); // Clonación profunda simple
+  const sanitized = JSON.parse(JSON.stringify(data)) as unknown; // Clonación profunda simple
   
   const sensitiveFields = ['passwordHash', 'password', 'token', 'refreshToken'];
   
-  const removeSensitive = (obj: any) => {
-    if (typeof obj !== 'object' || obj === null) return;
-    for (const key in obj) {
+  const removeSensitive = (obj: unknown): void => {
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        removeSensitive(item);
+      }
+      return;
+    }
+
+    if (!isObjectRecord(obj)) return;
+
+    for (const key of Object.keys(obj)) {
       if (sensitiveFields.includes(key)) {
         delete obj[key];
-      } else if (typeof obj[key] === 'object') {
+      } else {
         removeSensitive(obj[key]);
       }
     }
   };
 
   removeSensitive(sanitized);
-  return sanitized;
+  return sanitized as T;
 }
 
 /**
@@ -113,24 +130,30 @@ export async function listAuditLogs(params: {
   to?: Date;
   reversible?: 'true' | 'false';
 }) {
-  const where: any = {};
-  if (params.userId) where.userId = params.userId;
-  if (params.action) where.action = { contains: params.action };
-  if (params.entityType) where.entityType = params.entityType;
+  const auditWhere: auditRepository.AuditLogWhere = {};
+  if (params.userId) auditWhere.userId = params.userId;
+  const actionFilter: Prisma.StringFilter = {};
+  if (params.action) actionFilter.contains = params.action;
+  if (params.entityType) auditWhere.entityType = params.entityType;
   if (params.from || params.to) {
-    where.createdAt = {
+    auditWhere.createdAt = {
       ...(params.from && { gte: params.from }),
       ...(params.to && { lte: params.to }),
     };
   }
   // Filtros de pestaña: reversible vs irreversible
   if (params.reversible === 'true') {
-    where.action = { ...where.action, notIn: [...IRREVERSIBLE_ACTIONS] };
+    actionFilter.notIn = [...IRREVERSIBLE_ACTIONS];
   } else if (params.reversible === 'false') {
-    where.action = { in: [...IRREVERSIBLE_ACTIONS] };
+    delete actionFilter.contains;
+    actionFilter.in = [...IRREVERSIBLE_ACTIONS];
   }
 
-  const { logs, total } = await auditRepository.findAuditLogs(where, params.page, params.limit);
+  if (Object.keys(actionFilter).length > 0) {
+    auditWhere.action = actionFilter;
+  }
+
+  const { logs, total } = await auditRepository.findAuditLogs(auditWhere, params.page, params.limit);
 
   return {
     logs: logs.map(log => ({
@@ -175,7 +198,7 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
   }
 
   // Verificar si la acción es irreversible
-  if (IRREVERSIBLE_ACTIONS.includes(log.action as any)) {
+  if (isIrreversibleAction(log.action)) {
     throw new AppError('BAD_REQUEST', 400, `La acción "${log.action}" no puede ser revertida`);
   }
 

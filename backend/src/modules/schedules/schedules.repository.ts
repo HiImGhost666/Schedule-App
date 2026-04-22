@@ -22,7 +22,7 @@ const assigneeInclude = {
   branch: { select: { id: true, name: true, code: true, isActive: true } },
 } as const;
 
-type ScheduleWhere = Prisma.Args<typeof prisma.schedule, 'findMany'>['where'];
+export type ScheduleWhere = Prisma.Args<typeof prisma.schedule, 'findMany'>['where'];
 type ScheduleCreateData = Prisma.Args<typeof prisma.schedule, 'create'>['data'];
 type ScheduleUpdateData = Prisma.Args<typeof prisma.schedule, 'update'>['data'];
 export type ScheduleWithRelations = Prisma.ScheduleGetPayload<{ include: typeof assigneeInclude }>;

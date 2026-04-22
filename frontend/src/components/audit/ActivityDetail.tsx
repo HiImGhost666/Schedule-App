@@ -15,19 +15,27 @@ interface ActivityDetailProps {
   action: string;
   entityType: string;
   entityId?: string;
-  beforeJson?: string | Record<string, any> | null;
-  afterJson?: string | Record<string, any> | null;
+  beforeJson?: string | Record<string, unknown> | null;
+  afterJson?: string | Record<string, unknown> | null;
   actorName: string;
   createdAt: string;
   centroNombre?: string;
 }
 
+type SnapshotObject = Record<string, unknown>;
+
 /**
  * Procesa instantáneas JSON de forma segura.
  */
-const parseSnapshot = (data: any): Record<string, any> => {
+const parseSnapshot = (data: unknown): SnapshotObject => {
   if (!data) return {};
-  if (typeof data === 'object') return data;
+  if (typeof data === 'object') {
+    if (Array.isArray(data)) {
+      return { value: data };
+    }
+    return data as SnapshotObject;
+  }
+  if (typeof data !== 'string') return {};
   try {
     return JSON.parse(data);
   } catch (e) {
@@ -40,7 +48,7 @@ const parseSnapshot = (data: any): Record<string, any> => {
  * Aplana objetos anidados en una lista plana de rutas (dot notation).
  * Maneja Date objects, arrays y primitivos correctamente.
  */
-const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
+const flattenObject = (obj: unknown, prefix = ''): SnapshotObject => {
   if (obj === null || obj === undefined) {
     return prefix ? { [prefix]: obj } : {};
   }
@@ -50,11 +58,12 @@ const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
     return prefix ? { [prefix]: obj } : {};
   }
 
-  const result: Record<string, any> = {};
+  const result: SnapshotObject = {};
+  const source = obj as SnapshotObject;
 
-  for (const key of Object.keys(obj)) {
+  for (const key of Object.keys(source)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
-    const val = obj[key];
+    const val = source[key];
 
     if (
       val !== null &&
@@ -75,7 +84,7 @@ const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
 /**
  * Formatea valores según su tipo para visualización.
  */
-const formatValue = (value: any): string => {
+const formatValue = (value: unknown): string => {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'Sí' : 'No';
   if (Array.isArray(value)) return `[${value.length} elementos]`;
@@ -138,7 +147,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   const flatData = useMemo(() => {
     // Para DELETE mostramos el estado ANTES (before). Para CREATE, el estado DESPUÉS (after).
     // Fallback: si el snapshot esperado está vacío, intentar con el otro.
-    let data: Record<string, any>;
+    let data: SnapshotObject;
     if (isDelete) {
       data = Object.keys(before).length > 0 ? before : after;
     } else {
@@ -146,7 +155,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
     }
     const flattened = flattenObject(data);
     return Object.entries(flattened).filter(([key]) => key !== '_error');
-  }, [before, after, isCreate, isDelete]);
+  }, [before, after, isDelete]);
 
   const getActionStyles = () => {
     if (isCreate) return 'bg-green-100 text-green-700 border-green-200';
@@ -179,7 +188,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
             </div>
             <div>
               <p className="text-[10px] text-navy-400 font-medium">ID de Registro</p>
-              <p className="text-sm font-mono text-navy-600 truncate max-w-[120px]" title={entityId}>
+              <p className="text-sm font-mono text-navy-600 truncate max-w-30" title={entityId}>
                 {entityId || 'N/A'}
               </p>
             </div>
@@ -302,7 +311,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
       )}
 
       {/* Error State */}
-      {(before._error || after._error) && (
+      {Boolean(before._error || after._error) && (
         <div className="p-4 bg-red-50 rounded-xl border border-red-100 flex gap-3 items-start">
           <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
           <div>

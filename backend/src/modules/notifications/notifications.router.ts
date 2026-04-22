@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
 import { requireRole } from '../../middleware/role.middleware';
 import { sendSuccess, sendError, sendPaginated } from '../../utils/response';
@@ -14,9 +15,9 @@ router.get('/logs', authMiddleware, requireRole('admin'), async (req: AuthReques
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
   const { type, status } = req.query;
 
-  const where: Record<string, unknown> = {};
-  if (type) where.type = type;
-  if (status) where.status = status;
+  const where: Prisma.Args<typeof prisma.notificationLog, 'findMany'>['where'] = {};
+  if (typeof type === 'string') where.type = type;
+  if (typeof status === 'string') where.status = status;
 
   const [logs, total] = await Promise.all([
     prisma.notificationLog.findMany({

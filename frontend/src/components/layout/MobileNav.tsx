@@ -1,20 +1,16 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Calendar,
   Users,
-  Settings,
   Webhook,
   Bell,
   ClipboardList,
-  LogOut,
   MoreHorizontal,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import api from "@/config/api";
-import toast from "react-hot-toast";
 import { User } from "lucide-react";
 
 const baseItems = [
@@ -30,8 +26,6 @@ const adminExtraItems = [
 
 export function MobileNav() {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const navigate = useNavigate();
   const isAdmin = user?.role === "admin";
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
   const [menuOpen, setMenuOpen] = useState(false);
