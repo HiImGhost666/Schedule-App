@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AlertTriangle, CalendarDays, Clock3, MapPin, Pencil, Tag, Trash2, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -71,6 +71,7 @@ function formatHolidayDate(dateIso: string) {
 function getInitialStyle(anchor: PopoverAnchor | null, mobile: boolean): CSSProperties {
   if (mobile || !anchor) {
     return {
+      position: 'fixed',
       left: '50%',
       top: '50%',
       transform: 'translate(-50%, -50%)',
@@ -78,25 +79,13 @@ function getInitialStyle(anchor: PopoverAnchor | null, mobile: boolean): CSSProp
     };
   }
 
-  if (typeof window === 'undefined') {
-    return {
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: 'min(92vw, 360px)',
-    };
-  }
-
-  const panelWidth = 340;
   const gap = 12;
-  const maxLeft = Math.max(gap, window.innerWidth - panelWidth - gap);
-  const left = Math.min(maxLeft, Math.max(gap, anchor.x + gap));
-  const top = Math.min(window.innerHeight - 24, Math.max(16, anchor.y + gap));
 
   return {
-    left,
-    top,
-    width: panelWidth,
+    position: 'absolute',
+    left: Math.max(gap, anchor.x + gap),
+    top: Math.max(16, anchor.y + gap),
+    width: 340,
   };
 }
 
@@ -135,6 +124,7 @@ export function CalendarDetailPopover({
   onAssigneeClick,
 }: CalendarDetailPopoverProps) {
   const [mobile, setMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : true));
+  const popoverRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const onResize = () => setMobile(window.innerWidth < 768);
@@ -153,32 +143,33 @@ export function CalendarDetailPopover({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDownOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (popoverRef.current?.contains(target)) return;
+      onClose();
+    };
+
+    window.addEventListener('pointerdown', handlePointerDownOutside, true);
+    return () => window.removeEventListener('pointerdown', handlePointerDownOutside, true);
+  }, [open, onClose]);
+
   const style = useMemo(() => getInitialStyle(anchor, mobile), [anchor, mobile]);
 
   if (!open || !item) return null;
 
   const canEdit = item.kind === 'schedule' ? canEditSchedule : canEditHoliday;
 
-  const handleOverlayMouseDown = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) return;
-    event.preventDefault();
-    event.stopPropagation();
-    onClose();
-  };
-
-  const consumeOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
   return (
     <div
       className={`calendar-popover-overlay ${mobile ? 'calendar-popover-overlay-mobile' : ''}`}
-      onMouseDown={handleOverlayMouseDown}
-      onClick={consumeOverlayClick}
       role="presentation"
     >
       <article
+        ref={popoverRef}
         className="calendar-popover"
         style={style}
         onMouseDown={(event) => event.stopPropagation()}

@@ -579,9 +579,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .calendar-popover-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 65;
+  pointer-events: none;
+  overflow: visible;
 }
 
 .calendar-popover-overlay-mobile {
@@ -590,9 +592,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .calendar-popover {
-  position: fixed;
+  position: absolute;
   max-height: min(78vh, 520px);
   overflow-y: auto;
+  pointer-events: auto;
   border: 1px solid #dadce0;
   border-radius: 16px;
   background: #ffffff;

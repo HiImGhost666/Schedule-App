@@ -19,7 +19,11 @@ import { UserDetailsModal } from './UserDetailsModal';
 const CSV_HEADERS = ['name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
-const ALLOWED_DEPARTMENTS = new Set(['seguridad', 'mantenimiento', 'operaciones', 'administración']);
+const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
+const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
+const DEPARTMENT_LOOKUP = new Map<string, string>(
+  DEPARTMENT_VALUES.map((department) => [department.toLowerCase(), department]),
+);
 
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
@@ -163,8 +167,9 @@ function normalizeOptional(value: string): string | undefined {
 }
 
 function normalizeDepartment(value: string): string | undefined {
-  const normalized = value.trim().toLowerCase();
-  return normalized.length > 0 ? normalized : undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return DEPARTMENT_LOOKUP.get(trimmed.toLowerCase()) ?? trimmed;
 }
 
 export function UsersPage() {
