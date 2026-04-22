@@ -21,8 +21,11 @@ export async function findAuditLogs(
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,
-      include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        rolledBackBy: { select: { id: true, name: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),
@@ -35,6 +38,9 @@ export async function findAuditLogs(
 export async function findAuditLogById(id: string) {
   return prisma.auditLog.findUnique({
     where: { id },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      rolledBackBy: { select: { id: true, name: true } },
+    },
   });
 }
