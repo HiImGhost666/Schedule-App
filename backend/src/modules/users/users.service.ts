@@ -110,7 +110,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
       passwordHash,
       role: parsed.data.role ?? 'viewer',
       status: parsed.data.status ?? 'active',
-      forcePasswordChange: forcePasswordChange ?? false,
+      forcePasswordChange: forcePasswordChange ?? true,
       ...(createBranchId
         ? { branch: { connect: { id: createBranchId } } }
         : {}),

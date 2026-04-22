@@ -7,7 +7,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import type { EventClickArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
-import { Plus, RefreshCw, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
@@ -359,7 +359,7 @@ export function SchedulePage() {
     [availableBranches, effectiveActiveBranchId],
   );
 
-  const { data: schedules, isLoading, refetch } = useQuery({
+  const { data: schedules, isLoading } = useQuery({
     queryKey: [
       'schedules',
       effectiveActiveBranchId || 'all',
@@ -770,13 +770,6 @@ export function SchedulePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => refetch()}
-            className="p-2 text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted rounded-lg transition-colors"
-            title="Actualizar"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
           {canEdit && (
             <button
               onClick={() => {

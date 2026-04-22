@@ -62,12 +62,7 @@ export function LoginPage() {
       const { user, accessToken, refreshToken } = res.data.data;
       setAuth(user, accessToken, refreshToken);
       toast.success(`Bienvenido, ${user.name}`);
-      // Redirect to password change if required
-      if (user.forcePasswordChange) {
-        navigate('/profile?change=1');
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, 'Error al iniciar sesión');
       setAuthError(message);

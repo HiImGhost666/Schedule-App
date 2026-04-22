@@ -169,15 +169,20 @@ export async function getMe(userId: string) {
  * @description Altera la contraseña de forma proactiva exigiendo confirmación de la actual, limpiando la bandera "forcePasswordChange".
  * @param userId @param currentPassword @param newPassword
  */
-export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+export async function changePassword(userId: string, currentPassword: string | undefined, newPassword: string) {
   const user = await findUserById(userId);
   if (!user) {
     throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   }
 
-  const valid = await comparePassword(currentPassword, user.passwordHash);
-  if (!valid) {
-    throw createAppError('BAD_REQUEST', 'Contraseña actual incorrecta');
+  if (!user.forcePasswordChange) {
+    if (!currentPassword) {
+      throw createAppError('BAD_REQUEST', 'La contraseña actual es obligatoria');
+    }
+    const valid = await comparePassword(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw createAppError('BAD_REQUEST', 'Contraseña actual incorrecta');
+    }
   }
 
   const newHash = await hashPassword(newPassword);

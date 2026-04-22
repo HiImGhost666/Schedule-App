@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 
 async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
   try {
-    const user = await createUser(input);
+    const user = await createUser({ ...input, forcePasswordChange: false });
     console.log(`[USER] ${label} created: ${input.email}`);
     return user;
   } catch (error) {
