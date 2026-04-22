@@ -1,9 +1,11 @@
 import { TextDecoder } from 'util';
 
 export const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
+const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
 
 export type CsvHeader = (typeof CSV_HEADERS)[number];
 export type UserCsvRow = Record<CsvHeader, string>;
+type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
 
 export function decodeCsvBuffer(bytes: Buffer): string {
   if (bytes.length === 0) return '';
@@ -25,7 +27,60 @@ export function decodeCsvBuffer(bytes: Buffer): string {
   }
 }
 
-export function parseCsv(text: string): string[][] {
+function extractFirstRow(text: string): string {
+  let row = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        row += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      break;
+    }
+
+    row += char;
+  }
+
+  return row;
+}
+
+function scoreHeaderByDelimiter(headerRow: string, delimiter: CsvDelimiter): { matches: number; columns: number } {
+  const columns = parseCsv(headerRow, delimiter)[0] ?? [];
+  const normalizedHeaderSet = new Set(columns.map((column) => column.trim().toLowerCase()));
+  const matches = CSV_HEADERS.filter((header) => normalizedHeaderSet.has(header.toLowerCase())).length;
+  return { matches, columns: columns.length };
+}
+
+export function detectCsvDelimiter(text: string): CsvDelimiter {
+  const headerRow = extractFirstRow(text.replace(/^\uFEFF/, '').trim());
+  if (!headerRow) return ',';
+
+  let bestDelimiter: CsvDelimiter = ',';
+  let bestScore = { matches: -1, columns: -1 };
+
+  for (const delimiter of CSV_DELIMITERS) {
+    const score = scoreHeaderByDelimiter(headerRow, delimiter);
+    if (score.matches > bestScore.matches || (score.matches === bestScore.matches && score.columns > bestScore.columns)) {
+      bestDelimiter = delimiter;
+      bestScore = score;
+    }
+  }
+
+  return bestDelimiter;
+}
+
+export function parseCsv(text: string, delimiter: CsvDelimiter = ','): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let value = '';
@@ -58,7 +113,7 @@ export function parseCsv(text: string): string[][] {
       continue;
     }
 
-    if (char === ',' && !inQuotes) {
+    if (char === delimiter && !inQuotes) {
       pushValue();
       continue;
     }
@@ -84,7 +139,8 @@ export function parseUserCsv(text: string): UserCsvRow[] {
     throw new Error('El CSV está vacío');
   }
 
-  const matrix = parseCsv(sanitizedText);
+  const delimiter = detectCsvDelimiter(sanitizedText);
+  const matrix = parseCsv(sanitizedText, delimiter);
   if (!matrix.length) {
     throw new Error('No se encontraron datos en el CSV');
   }

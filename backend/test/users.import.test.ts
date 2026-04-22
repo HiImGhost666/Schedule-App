@@ -182,11 +182,15 @@ describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
     expect(hashPassword).toHaveBeenCalledWith(CSV_IMPORT_DEFAULT_PASSWORD);
   });
 
-  it('marca forcePasswordChange: true en el createUserRecord', async () => {
+  it('marca required para cambio de contraseña en el createUserRecord', async () => {
     await importUsersCsv([buildRow()], mockActor);
-    // El createUserRecord recibe el objeto con forcePasswordChange=true
+    // El createUserRecord recibe estado obligatorio de cambio de contraseña.
     expect(mockRepo.createUserRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ forcePasswordChange: true, employeeId: 'LAB-0002' }),
+      expect.objectContaining({
+        forcePasswordChange: true,
+        passwordChangePolicy: 'required',
+        employeeId: 'LAB-0002',
+      }),
       expect.anything()
     );
   });

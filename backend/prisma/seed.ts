@@ -250,6 +250,7 @@ async function main() {
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      forcePasswordChange: false,
     },
     'Demo manager'
   );
@@ -269,6 +270,8 @@ async function main() {
         password: 'User123!',
         role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
         status: 'active',
+        // Deja al menos un usuario listo para probar flujo obligatorio tras seed.
+        forcePasswordChange: u.email === 'carlos@company.com',
       },
       'Demo user'
     );

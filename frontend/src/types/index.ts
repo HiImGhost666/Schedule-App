@@ -8,9 +8,14 @@ export interface User {
   avatarUrl?: string;
   department?: string;
   createdAt: string;
+  passwordChangedAt?: string;
   lastLoginAt?: string;
   failedAttempts?: number;
   forcePasswordChange?: boolean;
+  passwordChangePolicy?: 'none' | 'warning' | 'required';
+  passwordChangeState?: 'none' | 'warning' | 'required';
+  passwordChangeWarnedAt?: string | null;
+  passwordChangeDeadlineAt?: string | null;
   companyPhone?: string;
   auxiliaryPhone?: string;
   branchId?: string | null;

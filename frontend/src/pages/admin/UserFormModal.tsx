@@ -10,13 +10,13 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
 
-const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
+const DEPARTMENT_VALUES = ['seguridad', 'mantenimiento', 'operaciones', 'administración'] as const;
 
 const DEPARTMENT_OPTIONS = [
-  { value: 'Seguridad', label: 'Seguridad' },
-  { value: 'Mantenimiento', label: 'Mantenimiento' },
-  { value: 'Operaciones', label: 'Operaciones' },
-  { value: 'Administración', label: 'Administración' },
+  { value: 'seguridad', label: 'Seguridad' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
+  { value: 'operaciones', label: 'Operaciones' },
+  { value: 'administración', label: 'Administración' },
 ] as const;
 
 type DepartmentValue = (typeof DEPARTMENT_VALUES)[number];
@@ -133,15 +133,15 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
-      <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color">
+      <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up max-h-[calc(100vh-2rem)] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color flex-shrink-0">
           <h2 className="text-lg font-semibold text-theme-primary">{isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
           <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">ID Empleado (Lãberit)</label>
             <input

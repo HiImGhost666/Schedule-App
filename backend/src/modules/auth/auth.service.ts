@@ -15,6 +15,11 @@ import {
 } from './auth.repository';
 import { createAppError } from '../../common/errors/error-catalog';
 import { hashPassword } from '../../utils/bcrypt';
+import {
+  buildClearedPasswordChangeFields,
+  getPolicyTransitionPatch,
+  resolvePasswordChangeState,
+} from './password-change-policy';
 
 /**
  * @description Evalúa credenciales de usuario (email/username), maneja bloqueos decrecientes (lockouts) y emite token JWT y Refresh Token.
@@ -56,8 +61,15 @@ export async function login(identifier: string, password: string, ipAddress?: st
     throw createAppError('UNAUTHORIZED', 'Credenciales incorrectas');
   }
 
-  // Reset failed attempts on success
-  await updateUserById(user.id, { failedAttempts: 0, lastLoginAt: new Date() });
+  const policyUpgradePatch = getPolicyTransitionPatch(user);
+  const successfulLoginPatch = {
+    failedAttempts: 0,
+    lastLoginAt: new Date(),
+    ...(policyUpgradePatch ?? {}),
+  };
+
+  // Reset failed attempts on success and normalize password-change policy transitions.
+  const updatedUser = await updateUserById(user.id, successfulLoginPatch);
 
   const tokenId = crypto.randomUUID();
   const accessToken = signAccessToken({
@@ -81,19 +93,24 @@ export async function login(identifier: string, password: string, ipAddress?: st
   });
 
   const safeUser = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    status: user.status,
-    avatarUrl: user.avatarUrl,
-    department: user.department,
-    createdAt: user.createdAt,
-    lastLoginAt: user.lastLoginAt,
-    failedAttempts: user.failedAttempts,
-    forcePasswordChange: user.forcePasswordChange,
-    companyPhone: user.companyPhone,
-    auxiliaryPhone: user.auxiliaryPhone,
+    id: updatedUser.id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    role: updatedUser.role,
+    status: updatedUser.status,
+    avatarUrl: updatedUser.avatarUrl,
+    department: updatedUser.department,
+    createdAt: updatedUser.createdAt,
+    lastLoginAt: updatedUser.lastLoginAt,
+    failedAttempts: updatedUser.failedAttempts,
+    forcePasswordChange: resolvePasswordChangeState(updatedUser) === 'required',
+    passwordChangedAt: updatedUser.passwordChangedAt,
+    passwordChangePolicy: updatedUser.passwordChangePolicy,
+    passwordChangeState: resolvePasswordChangeState(updatedUser),
+    passwordChangeWarnedAt: updatedUser.passwordChangeWarnedAt,
+    passwordChangeDeadlineAt: updatedUser.passwordChangeDeadlineAt,
+    companyPhone: updatedUser.companyPhone,
+    auxiliaryPhone: updatedUser.auxiliaryPhone,
   };
   return { accessToken, refreshToken, user: safeUser };
 }
@@ -158,28 +175,58 @@ export async function logout(token: string) {
  * @param userId
  */
 export async function getMe(userId: string) {
-  const user = await findUserProfileById(userId);
-  if (!user) {
+  const currentProfile = await findUserProfileById(userId);
+  if (!currentProfile) {
     throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   }
-  return user;
+
+  const policyUpgradePatch = getPolicyTransitionPatch(currentProfile);
+  let user = currentProfile;
+
+  if (policyUpgradePatch) {
+    await updateUserById(userId, policyUpgradePatch);
+    const refreshedProfile = await findUserProfileById(userId);
+    if (!refreshedProfile) {
+      throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+    }
+    user = refreshedProfile;
+  }
+
+  return {
+    ...user,
+    forcePasswordChange: resolvePasswordChangeState(user) === 'required',
+    passwordChangeState: resolvePasswordChangeState(user),
+  };
 }
 
 /**
  * @description Altera la contraseña de forma proactiva exigiendo confirmación de la actual, limpiando la bandera "forcePasswordChange".
  * @param userId @param currentPassword @param newPassword
  */
-export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+export async function changePassword(userId: string, currentPassword: string | undefined, newPassword: string) {
   const user = await findUserById(userId);
   if (!user) {
     throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   }
 
-  const valid = await comparePassword(currentPassword, user.passwordHash);
-  if (!valid) {
-    throw createAppError('BAD_REQUEST', 'Contraseña actual incorrecta');
+  if (!user.forcePasswordChange) {
+    const currentState = resolvePasswordChangeState(user);
+    const requiresCurrentPassword = currentState !== 'required';
+    if (requiresCurrentPassword) {
+      if (!currentPassword) {
+        throw createAppError('BAD_REQUEST', 'La contraseña actual es obligatoria');
+      }
+      const valid = await comparePassword(currentPassword, user.passwordHash);
+      if (!valid) {
+        throw createAppError('BAD_REQUEST', 'Contraseña actual incorrecta');
+      }
+    }
   }
 
   const newHash = await hashPassword(newPassword);
-  await updateUserById(user.id, { passwordHash: newHash, forcePasswordChange: false });
+  await updateUserById(user.id, {
+    passwordHash: newHash,
+    passwordChangedAt: new Date(),
+    ...buildClearedPasswordChangeFields(),
+  });
 }

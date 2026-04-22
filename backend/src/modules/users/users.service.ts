@@ -30,6 +30,11 @@ import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
 import { USER_DEPARTMENTS, USER_ROLES, USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserRole, type UserStatus, type UserDepartment } from './users.constants';
 import { type UserCsvRow } from '../../utils/csv';
+import {
+  buildClearedPasswordChangeFields,
+  buildRequiredPasswordChangeFields,
+  resolvePasswordChangeState,
+} from '../auth/password-change-policy';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
@@ -74,6 +79,31 @@ function normalizeLoginIdentifier(identifier: string): string {
 function normalizeEmployeeId(employeeId?: string | null) {
   const normalized = employeeId?.trim().toUpperCase();
   return normalized ? normalized : undefined;
+}
+
+function resolvePasswordChangeFields(
+  requestedForcePasswordChange: boolean | undefined,
+  existingUser?: {
+    forcePasswordChange?: boolean | null;
+    passwordChangePolicy?: string | null;
+    passwordChangeWarnedAt?: Date | null;
+    passwordChangeDeadlineAt?: Date | null;
+  } | null,
+) {
+  if (requestedForcePasswordChange === true) {
+    return buildRequiredPasswordChangeFields();
+  }
+
+  if (existingUser) {
+    return {
+      forcePasswordChange: resolvePasswordChangeState(existingUser) === 'required',
+      passwordChangePolicy: existingUser.passwordChangePolicy ?? 'none',
+      passwordChangeWarnedAt: existingUser.passwordChangeWarnedAt ?? null,
+      passwordChangeDeadlineAt: existingUser.passwordChangeDeadlineAt ?? null,
+    };
+  }
+
+  return buildClearedPasswordChangeFields();
 }
 
 async function resolveUserUpsertTarget(
@@ -222,7 +252,8 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
       status: parsed.data.status ?? identity.existingUser?.status ?? 'active',
       avatarUrl: parsed.data.avatarUrl ?? identity.existingUser?.avatarUrl ?? null,
       department: parsed.data.department ?? identity.existingUser?.department ?? null,
-      forcePasswordChange: forcePasswordChange ?? identity.existingUser?.forcePasswordChange ?? false,
+      passwordChangedAt: identity.existingUser?.passwordChangedAt ?? new Date(),
+      ...resolvePasswordChangeFields(forcePasswordChange, identity.existingUser),
       ...(createBranchId ? { branch: { connect: { id: createBranchId } } } : {}),
       employeeId: identity.employeeId,
     };
@@ -501,7 +532,8 @@ export async function resetUserPassword(userId: string, newPassword: string, act
   await executeInTransaction(async (tx) => {
     await updateUserRecord(userId, {
       passwordHash,
-      forcePasswordChange: true,
+      passwordChangedAt: new Date(),
+      ...buildRequiredPasswordChangeFields(),
       failedAttempts: 0,
       lockedUntil: null,
       status: 'active',
@@ -511,6 +543,31 @@ export async function resetUserPassword(userId: string, newPassword: string, act
       action: 'RESET_PASSWORD',
       entityType: 'User',
       entityId: userId,
+      ipAddress: actor.ipAddress,
+    }, tx);
+  });
+}
+
+/**
+ * @description Marca al usuario para cambio obligatorio de contraseña sin resetearla manualmente.
+ * @param userId @param actor
+ */
+export async function forceUserPasswordChange(userId: string, actor: ActorContext) {
+  const user = await findUserById(userId);
+  if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+  if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes forzar cambio de contraseña sobre tu propia cuenta');
+
+  await executeInTransaction(async (tx) => {
+    const updated = await updateUserRecord(userId, buildRequiredPasswordChangeFields(), tx);
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'FORCE_PASSWORD_CHANGE',
+      entityType: 'User',
+      entityId: userId,
+      detailsJson: {
+        before: sanitizeSnapshot(user),
+        after: sanitizeSnapshot(updated),
+      },
       ipAddress: actor.ipAddress,
     }, tx);
   });
@@ -660,7 +717,9 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       const targetCompanyPhone = companyPhone ?? (existing?.companyPhone ?? undefined);
       const targetAuxiliaryPhone = auxiliaryPhone ?? (existing?.auxiliaryPhone ?? undefined);
       const targetEmployeeId = employeeId ?? normalizedExistingEmployeeId ?? undefined;
-      const targetForcePasswordChange = existing ? !!existing.forcePasswordChange : true;
+      const targetForcePasswordChange = existing
+        ? resolvePasswordChangeState(existing) === 'required'
+        : true;
 
       const hasChanges = !existing
         || name !== existing.name

@@ -10,6 +10,7 @@ import {
   getUserController,
   listUserSchedulesController,
   listUsersController,
+  forcePasswordChangeController,
   resetPasswordController,
   updateUserController,
   importUsersCsvController,
@@ -71,6 +72,9 @@ router.patch('/:id/role', authMiddleware, requireRole('admin'), (req: AuthReques
 
 // Reset password
 router.post('/:id/reset-password', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => resetPasswordController(req, res));
+
+// Force password change without resetting password
+router.post('/:id/force-password-change', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => forcePasswordChangeController(req, res));
 
 // Soft delete user
 router.delete('/:id', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => deleteUserController(req, res));

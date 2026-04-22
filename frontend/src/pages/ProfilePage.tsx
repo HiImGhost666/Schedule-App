@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Lock, Shield, AlertTriangle, LogOut } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { User, Lock, Shield, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
+
 import api from '@/config/api';
 import { ROLE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getInitials, getAvatarColor, formatDate } from '@/lib/utils';
-import { useSearchParams } from 'react-router-dom';
+
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
 
@@ -30,18 +31,10 @@ export function ProfilePage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const logout = useAuthStore((s) => s.logout);
   const { accessToken, refreshToken } = useAuthStore();
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const forceChange = user?.forcePasswordChange === true || searchParams.get('change') === '1';
-  const [showPwForm, setShowPwForm] = useState(forceChange);
-
-  useEffect(() => {
-    if (searchParams.get('change') === '1') {
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  const [showPwForm, setShowPwForm] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PwForm>({
     resolver: zodResolver(pwSchema),
@@ -55,7 +48,18 @@ export function ProfilePage() {
       setShowPwForm(false);
       reset();
       if (user && accessToken && refreshToken) {
-        setAuth({ ...user, forcePasswordChange: false }, accessToken, refreshToken);
+        setAuth(
+          {
+            ...user,
+            forcePasswordChange: false,
+            passwordChangePolicy: 'none',
+            passwordChangeState: 'none',
+            passwordChangeWarnedAt: null,
+            passwordChangeDeadlineAt: null,
+          },
+          accessToken,
+          refreshToken
+        );
       }
       qc.invalidateQueries({ queryKey: ['me'] });
     },
@@ -82,17 +86,7 @@ export function ProfilePage() {
         <p className="text-sm text-navy-400 mt-1.5">Gestiona tu información y seguridad</p>
       </div>
 
-      {user?.forcePasswordChange && (
-        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Debes cambiar tu contraseña</p>
-            <p className="text-xs text-amber-700 mt-0.5">
-              Por seguridad, es obligatorio cambiar la contraseña inicial antes de continuar usando la aplicación.
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* Profile card */}
       <div className="card p-7">

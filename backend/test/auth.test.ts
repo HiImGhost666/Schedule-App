@@ -20,7 +20,7 @@ jest.mock('../src/utils/jwt', () => ({
 import * as usersRepo from '../src/modules/users/users.repository';
 import * as authRepo from '../src/modules/auth/auth.repository';
 import * as bcryptUtils from '../src/utils/bcrypt';
-import { login } from '../src/modules/auth/auth.service';
+import { changePassword, getMe, login } from '../src/modules/auth/auth.service';
 import { USER_STATUS, MAX_FAILED_ATTEMPTS } from '../src/config/constants';
 
 const mockUsersRepo = usersRepo as jest.Mocked<typeof usersRepo>;
@@ -40,8 +40,12 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
   avatarUrl: null,
   department: null,
   createdAt: new Date(),
+  passwordChangedAt: new Date(),
   lastLoginAt: null,
   forcePasswordChange: false,
+  passwordChangePolicy: 'none',
+  passwordChangeWarnedAt: null,
+  passwordChangeDeadlineAt: null,
   companyPhone: null,
   auxiliaryPhone: null,
   ...overrides,
@@ -51,7 +55,7 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
 describe('login - Seguridad y Valores Límite', () => {
   beforeEach(() => {
     mockAuthRepo.createRefreshToken.mockResolvedValue(undefined as any);
-    mockAuthRepo.updateUserById.mockResolvedValue(undefined as any);
+    (mockAuthRepo.updateUserById as jest.Mock).mockImplementation(async (_id, data) => buildUser(data));
   });
 
   // ── Caso: Credenciales inválidas — usuario no existe ────────────────────────
@@ -121,6 +125,85 @@ describe('login - Seguridad y Valores Límite', () => {
     );
   });
 
+  it('devuelve estado warning cuando existe aviso preventivo vigente', async () => {
+    const deadline = new Date(Date.now() + 60 * 60 * 1000);
+    mockAuthRepo.updateUserById.mockResolvedValueOnce(
+      buildUser({
+        passwordChangePolicy: 'warning',
+        passwordChangeDeadlineAt: deadline,
+      }) as any
+    );
+    mockUsersRepo.findUserByEmail.mockResolvedValue(
+      buildUser({
+        passwordChangePolicy: 'warning',
+        passwordChangeDeadlineAt: deadline,
+      }) as any
+    );
+    mockBcrypt.comparePassword.mockResolvedValue(true as never);
+
+    const result = await login('user@test.com', 'CorrectPass!', '127.0.0.1');
+
+    expect(result.user.passwordChangeState).toBe('warning');
+    expect(result.user.forcePasswordChange).toBe(false);
+  });
+
+  it('convierte warning expirado a required y lo persiste', async () => {
+    const expiredDeadline = new Date(Date.now() - 5 * 60 * 1000);
+    mockUsersRepo.findUserByEmail.mockResolvedValue(
+      buildUser({
+        passwordChangePolicy: 'warning',
+        passwordChangeDeadlineAt: expiredDeadline,
+      }) as any
+    );
+    mockBcrypt.comparePassword.mockResolvedValue(true as never);
+
+    const result = await login('user@test.com', 'CorrectPass!', '127.0.0.1');
+
+    expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        forcePasswordChange: true,
+        passwordChangePolicy: 'required',
+      })
+    );
+    expect(result.user.passwordChangeState).toBe('required');
+    expect(result.user.forcePasswordChange).toBe(true);
+  });
+
+  it('activa warning automático cuando pasaron 3 meses desde passwordChangedAt', async () => {
+    const oldPasswordDate = new Date();
+    oldPasswordDate.setMonth(oldPasswordDate.getMonth() - 3);
+    oldPasswordDate.setDate(oldPasswordDate.getDate() - 1);
+
+    const nextDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockAuthRepo.updateUserById.mockResolvedValueOnce(
+      buildUser({
+        passwordChangePolicy: 'warning',
+        passwordChangeWarnedAt: new Date(),
+        passwordChangeDeadlineAt: nextDeadline,
+      }) as any
+    );
+    mockUsersRepo.findUserByEmail.mockResolvedValue(
+      buildUser({
+        passwordChangePolicy: 'none',
+        forcePasswordChange: false,
+        passwordChangedAt: oldPasswordDate,
+      }) as any
+    );
+    mockBcrypt.comparePassword.mockResolvedValue(true as never);
+
+    const result = await login('user@test.com', 'CorrectPass!', '127.0.0.1');
+
+    expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        passwordChangePolicy: 'warning',
+        forcePasswordChange: false,
+      })
+    );
+    expect(result.user.passwordChangeState).toBe('warning');
+  });
+
   // ── Caso: Login exitoso con username derivado ────────────────────────
   it('permite login usando el username derivado del email', async () => {
     mockUsersRepo.findUserByEmail.mockResolvedValue(null as any); // No match on full email
@@ -146,5 +229,52 @@ describe('login - Seguridad y Valores Límite', () => {
 
     await expect(login('user@test.com', 'AnyPass!', '127.0.0.1'))
       .rejects.toThrow(/Cuenta bloqueada/);
+  });
+});
+
+describe('password policy helpers in auth.service', () => {
+  beforeEach(() => {
+    (mockAuthRepo.updateUserById as jest.Mock).mockImplementation(async (_id, data) => buildUser(data));
+    mockAuthRepo.findUserById.mockResolvedValue(buildUser() as any);
+  });
+
+  it('getMe eleva warning expirado a required', async () => {
+    const expiredDeadline = new Date(Date.now() - 5 * 60 * 1000);
+    mockAuthRepo.findUserProfileById
+      .mockResolvedValueOnce(buildUser({
+        passwordChangePolicy: 'warning',
+        passwordChangeDeadlineAt: expiredDeadline,
+      }) as any)
+      .mockResolvedValueOnce(buildUser({
+        passwordChangePolicy: 'required',
+        forcePasswordChange: true,
+      }) as any);
+
+    const me = await getMe('user-1');
+
+    expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ passwordChangePolicy: 'required', forcePasswordChange: true })
+    );
+    expect(me.passwordChangeState).toBe('required');
+  });
+
+  it('changePassword limpia estado required/warning', async () => {
+    mockAuthRepo.findUserById.mockResolvedValue(buildUser({
+      forcePasswordChange: true,
+      passwordChangePolicy: 'required',
+    }) as any);
+
+    await changePassword('user-1', undefined, 'NewSecure123!');
+
+    expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        forcePasswordChange: false,
+        passwordChangePolicy: 'none',
+        passwordChangeWarnedAt: null,
+        passwordChangeDeadlineAt: null,
+      })
+    );
   });
 });

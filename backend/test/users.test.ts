@@ -32,6 +32,7 @@ import {
   updateUser,
   changeUserStatus,
   resetUserPassword,
+  forceUserPasswordChange,
   deleteUser,
 } from '../src/modules/users/users.service';
 
@@ -167,6 +168,30 @@ describe('createUser', () => {
     expect(user.id).toBe('new-id');
     expect(user.employeeId).toBe('LAB-0002');
   });
+
+  it('aplica estado required cuando se crea con forcePasswordChange=true', async () => {
+    mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id', employeeId: 'LAB-0002' }) as any);
+
+    await createUser(
+      {
+        email: 'nuevo2@example.com',
+        password: 'Secure123!',
+        name: 'Nuevo User 2',
+        branchId: 'branch-1',
+        forcePasswordChange: true,
+      },
+      mockActor
+    );
+
+    expect(mockRepo.createUserRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        forcePasswordChange: true,
+        passwordChangePolicy: 'required',
+      }),
+      expect.anything()
+    );
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -242,7 +267,7 @@ describe('resetUserPassword', () => {
   });
 
   // ── Caso: flag forcePasswordChange se fija a true → CRÍTICO de seguridad ─────
-  it('obliga forcePasswordChange: true en el update (valor límite de seguridad)', async () => {
+  it('obliga estado required en reset de contraseña (valor límite de seguridad)', async () => {
     mockRepo.findUserById.mockResolvedValue(buildUser() as any);
     mockRepo.updateUserRecord.mockResolvedValue(buildUser() as any);
 
@@ -250,7 +275,11 @@ describe('resetUserPassword', () => {
 
     expect(mockRepo.updateUserRecord).toHaveBeenCalledWith(
       'user-id-1',
-      expect.objectContaining({ forcePasswordChange: true }),
+      expect.objectContaining({
+        forcePasswordChange: true,
+        passwordChangePolicy: 'required',
+        passwordChangedAt: expect.any(Date),
+      }),
       expect.anything() // tx
     );
   });
@@ -265,6 +294,24 @@ describe('resetUserPassword', () => {
     expect(mockRepo.updateUserRecord).toHaveBeenCalledWith(
       'user-id-1',
       expect.objectContaining({ failedAttempts: 0, lockedUntil: null }),
+      expect.anything()
+    );
+  });
+});
+
+describe('forceUserPasswordChange', () => {
+  it('marca required sin resetear hash de contraseña', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ id: 'target-id' }) as any);
+    mockRepo.updateUserRecord.mockResolvedValue(buildUser({ id: 'target-id' }) as any);
+
+    await forceUserPasswordChange('target-id', mockActor);
+
+    expect(mockRepo.updateUserRecord).toHaveBeenCalledWith(
+      'target-id',
+      expect.objectContaining({
+        forcePasswordChange: true,
+        passwordChangePolicy: 'required',
+      }),
       expect.anything()
     );
   });

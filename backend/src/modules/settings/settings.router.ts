@@ -297,7 +297,7 @@ router.post(
 
 const SITE_TITLE_KEY = 'site_title';
 const SITE_FAVICON_KEY = 'site_favicon_url';
-const SITE_TITLE_DEFAULT = 'Sistema de Guardias';
+const SITE_TITLE_DEFAULT = 'Gestión de Turnos';
 const SITE_FAVICON_DEFAULT = '/uploads/favicon.ico';
 
 async function getSiteSetting(key: string, defaultValue: string): Promise<string> {
