@@ -120,6 +120,31 @@ describe('UsersPage', () => {
     });
   });
 
+  it('muestra departamento con inicial mayuscula en la tabla', async () => {
+    getMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          {
+            id: 'u-2',
+            name: 'Carlos Viewer',
+            email: 'carlos@test.dev',
+            role: 'viewer',
+            status: 'active',
+            department: 'seguridad',
+            branch: null,
+            lastLoginAt: null,
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Seguridad')).toBeInTheDocument();
+  });
+
   it('procesa la importacion de un archivo CSV', async () => {
     getMock.mockResolvedValue({
       data: {
@@ -137,7 +162,7 @@ describe('UsersPage', () => {
 
     renderPage();
 
-    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,,,'], 'users.csv', { type: 'text/csv' });
+    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,Seguridad,,,'], 'users.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
     
     // El input está hidden, pero podemos interactuar con él si lo encontramos

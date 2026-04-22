@@ -10,15 +10,16 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
-import { UserDetailsModal } from './UserDetailsModal';
 
 const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
+const ALLOWED_BRANCH_CODES = new Set(['TFN', 'GC']);
 const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
 const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
 const DEPARTMENT_LOOKUP = new Map<string, string>(
@@ -169,12 +170,17 @@ function normalizeOptional(value: string): string | undefined {
 function normalizeDepartment(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  return DEPARTMENT_LOOKUP.get(trimmed.toLowerCase()) ?? trimmed;
+  const canonical = DEPARTMENT_LOOKUP.get(trimmed.toLowerCase());
+  if (canonical) return canonical;
+
+  const lower = trimmed.toLowerCase();
+  return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
 }
 
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
+  const usersTemplateCsvUrl = `${import.meta.env.BASE_URL}templates/Plantilla%20CSV.xlsx`;
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
@@ -231,7 +237,7 @@ export function UsersPage() {
         email: user.email ?? '',
         role: user.role ?? '',
         status: user.status ?? '',
-        department: user.department ?? '',
+        department: normalizeDepartment(user.department ?? '') ?? '',
         branchId: user.branch?.code ?? '',
         companyPhone: user.companyPhone ?? '',
         auxiliaryPhone: user.auxiliaryPhone ?? '',
@@ -280,6 +286,15 @@ export function UsersPage() {
     fileInputRef.current?.click();
   };
 
+  const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+    link.href = usersTemplateCsvUrl;
+    link.download = 'Plantilla CSV.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const validateCsvRow = (row: any, index: number): string | null => {
     if (!row.name?.trim()) return `Fila ${index + 2}: El nombre es obligatorio`;
     if (!row.email?.trim() || !row.email.includes('@')) return `Fila ${index + 2}: Email inválido`;
@@ -299,8 +314,11 @@ export function UsersPage() {
     if (row.status && !ALLOWED_STATUS.has(row.status.trim().toLowerCase())) {
       return `Fila ${index + 2}: Estado inválido "${row.status}"`;
     }
-    if (row.department && !ALLOWED_DEPARTMENTS.has(row.department.trim().toLowerCase())) {
-      return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
+    if (row.department) {
+      const normalizedDepartment = normalizeDepartment(row.department);
+      if (!normalizedDepartment || !ALLOWED_DEPARTMENTS.has(normalizedDepartment)) {
+        return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
+      }
     }
     return null;
   };
@@ -395,6 +413,13 @@ export function UsersPage() {
               Importar CSV
             </button>
             <button
+              onClick={handleDownloadTemplate}
+              className="btn-ghost text-sm flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Descargar plantilla
+            </button>
+            <button
               onClick={() => exportCsvMutation.mutate()}
               disabled={exportCsvMutation.isPending}
               className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-60"
@@ -475,7 +500,7 @@ export function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department || '—'}</td>
+                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{normalizeDepartment(u.department ?? '') || '—'}</td>
                       <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
                         {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
                       </td>
@@ -565,14 +590,11 @@ export function UsersPage() {
         />
       )}
 
-      {detailUser && (
-        <UserDetailsModal
-          open
-          userId={detailUser.id}
-          userName={detailUser.name}
-          onClose={() => setDetailUser(null)}
-        />
-      )}
+      <UserProfileModal
+        open={!!detailUser}
+        user={detailUser}
+        onClose={() => setDetailUser(null)}
+      />
 
       <ConfirmDialog
         open={!!confirmAction}

@@ -10,13 +10,13 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
 
-const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
+const DEPARTMENT_VALUES = ['seguridad', 'mantenimiento', 'operaciones', 'administración'] as const;
 
 const DEPARTMENT_OPTIONS = [
-  { value: 'Seguridad', label: 'Seguridad' },
-  { value: 'Mantenimiento', label: 'Mantenimiento' },
-  { value: 'Operaciones', label: 'Operaciones' },
-  { value: 'Administración', label: 'Administración' },
+  { value: 'seguridad', label: 'Seguridad' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
+  { value: 'operaciones', label: 'Operaciones' },
+  { value: 'administración', label: 'Administración' },
 ] as const;
 
 type DepartmentValue = (typeof DEPARTMENT_VALUES)[number];
