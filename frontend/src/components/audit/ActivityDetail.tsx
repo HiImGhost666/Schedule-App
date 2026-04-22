@@ -112,7 +112,9 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   afterJson,
   actorName,
   createdAt,
-  centroNombre
+  centroNombre,
+  rolledBackAt,
+  rolledBackBy
 }) => {
   const before = useMemo(() => parseSnapshot(beforeJson), [beforeJson]);
   const after = useMemo(() => parseSnapshot(afterJson), [afterJson]);
