@@ -20,7 +20,11 @@ export function updateUserById(
     lockedUntil?: Date | null;
     lastLoginAt?: Date;
     passwordHash?: string;
+    passwordChangedAt?: Date;
     forcePasswordChange?: boolean;
+    passwordChangePolicy?: string;
+    passwordChangeWarnedAt?: Date | null;
+    passwordChangeDeadlineAt?: Date | null;
   }
 ) {
   return prisma.user.update({

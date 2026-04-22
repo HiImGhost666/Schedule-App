@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAudit } from '../audit/audit.service';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import {
   countActiveBranches,
   countSchedulesByBranch,
@@ -11,16 +12,21 @@ import {
   findBranchById,
   findBranchCodeConflict,
   findBranchHolidayByIdAndBranch,
+  findBranchHolidaysByIds,
   findBranchHolidays,
   findBranches,
   hardDeleteBranchRecord,
   softDeleteBranchRecord,
+  deleteBranchHolidaysByIds,
+  updateBranchHolidaysByIds,
   updateBranchHolidayRecord,
   updateBranchRecord,
 } from './branches.repository';
 import { ensureDateRange, normalizeBranchCode, normalizeHolidayDate, resolveHolidayScope } from './domain/branches.rules';
 import {
   BranchActor,
+  BulkHolidayActionInput,
+  GroupedBranchHoliday,
   BranchHolidayInput,
   BranchInput,
   ListBranchHolidaysParams,
@@ -38,6 +44,67 @@ function isUniqueViolation(error: unknown) {
     error instanceof Prisma.PrismaClientKnownRequestError
     && error.code === 'P2002'
   );
+}
+
+type BranchHolidayWithBranch = Awaited<ReturnType<typeof findBranchHolidays>>[number];
+
+function buildGroupedHolidayKey(holiday: BranchHolidayWithBranch) {
+  return [
+    holiday.date.toISOString().slice(0, 10),
+    holiday.name.trim().toLowerCase(),
+    holiday.type,
+    holiday.isPartial ? '1' : '0',
+  ].join('|');
+}
+
+function groupBranchHolidays(
+  holidays: BranchHolidayWithBranch[],
+): GroupedBranchHoliday[] {
+  const groupedMap = new Map<string, GroupedBranchHoliday>();
+
+  holidays.forEach((holiday) => {
+    const key = buildGroupedHolidayKey(holiday);
+    const current = groupedMap.get(key);
+
+    if (!current) {
+      groupedMap.set(key, {
+        id: `shared-${key}`,
+        branchId: 'all',
+        date: holiday.date,
+        originalDate: holiday.originalDate,
+        name: holiday.name,
+        type: holiday.type,
+        scope: holiday.scope as GroupedBranchHoliday['scope'],
+        isPartial: holiday.isPartial,
+        isActive: holiday.isActive,
+        createdAt: holiday.createdAt,
+        updatedAt: holiday.updatedAt,
+        branch: null,
+        holidayIds: [holiday.id],
+        branches: holiday.branch ? [{ ...holiday.branch }] : [],
+        sharedCount: 1,
+      });
+      return;
+    }
+
+    current.holidayIds.push(holiday.id);
+    current.sharedCount += 1;
+    if (holiday.updatedAt > current.updatedAt) {
+      current.updatedAt = holiday.updatedAt;
+    }
+    if (holiday.createdAt < current.createdAt) {
+      current.createdAt = holiday.createdAt;
+    }
+    if (holiday.branch && !current.branches.some((branch) => branch.id === holiday.branch.id)) {
+      current.branches.push({ ...holiday.branch });
+    }
+  });
+
+  return [...groupedMap.values()].sort((a, b) => {
+    const byDate = a.date.getTime() - b.date.getTime();
+    if (byDate !== 0) return byDate;
+    return a.name.localeCompare(b.name, 'es');
+  });
 }
 
 export async function listBranches(params: ListBranchesParams) {
@@ -176,11 +243,17 @@ export async function listBranchHolidays(
     };
   }
 
-  return findBranchHolidays({
+  const holidays = await findBranchHolidays({
     ...(branchId !== 'all' ? { branchId } : {}),
     ...(params.includeInactive ? {} : { isActive: true }),
     ...(dateFilter ? { date: dateFilter } : {}),
   });
+
+  if (branchId === 'all' && params.groupShared) {
+    return groupBranchHolidays(holidays);
+  }
+
+  return holidays;
 }
 
 export async function createBranchHoliday(branchId: string, data: BranchHolidayInput, actor: BranchActor) {
@@ -273,5 +346,78 @@ export async function deleteBranchHoliday(branchId: string, holidayId: string, a
     entityId: holidayId,
     detailsJson: { branchId, date: existing.date.toISOString(), name: existing.name },
     ipAddress: actor.ipAddress,
+  });
+}
+
+export async function bulkUpdateSharedHolidays(
+  data: BulkHolidayActionInput,
+  actor: BranchActor,
+) {
+  const uniqueIds = [...new Set(data.holidayIds)];
+  const nextScope = resolveHolidayScope(data);
+
+  await executeInTransaction(async (tx) => {
+    const holidays = await findBranchHolidaysByIds(uniqueIds, tx);
+    if (holidays.length !== uniqueIds.length) {
+      throw createAppError('NOT_FOUND', 'Uno o más festivos no existen');
+    }
+
+    await updateBranchHolidaysByIds(
+      uniqueIds,
+      {
+        ...(data.date ? { date: normalizeHolidayDate(data.date) } : {}),
+        ...(data.name ? { name: data.name.trim() } : {}),
+        ...(data.type ? { type: data.type } : {}),
+        ...(nextScope ? { scope: nextScope } : {}),
+        ...(data.isPartial !== undefined ? { isPartial: data.isPartial } : {}),
+      },
+      tx,
+    );
+
+    await logAudit({
+      userId: actor.id,
+      action: 'BULK_UPDATE_BRANCH_HOLIDAY',
+      entityType: 'BranchHoliday',
+      entityId: 'all',
+      detailsJson: {
+        holidayIds: uniqueIds,
+        updates: {
+          ...(data.date ? { date: normalizeHolidayDate(data.date).toISOString() } : {}),
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.type ? { type: data.type } : {}),
+          ...(nextScope ? { scope: nextScope } : {}),
+          ...(data.isPartial !== undefined ? { isPartial: data.isPartial } : {}),
+        },
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+  });
+}
+
+export async function bulkDeleteSharedHolidays(
+  holidayIds: string[],
+  actor: BranchActor,
+) {
+  const uniqueIds = [...new Set(holidayIds)];
+
+  await executeInTransaction(async (tx) => {
+    const holidays = await findBranchHolidaysByIds(uniqueIds, tx);
+    if (holidays.length !== uniqueIds.length) {
+      throw createAppError('NOT_FOUND', 'Uno o más festivos no existen');
+    }
+
+    await deleteBranchHolidaysByIds(uniqueIds, tx);
+
+    await logAudit({
+      userId: actor.id,
+      action: 'BULK_DELETE_BRANCH_HOLIDAY',
+      entityType: 'BranchHoliday',
+      entityId: 'all',
+      detailsJson: {
+        holidayIds: uniqueIds,
+        deletedCount: uniqueIds.length,
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
   });
 }

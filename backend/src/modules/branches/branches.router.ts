@@ -4,6 +4,8 @@ import { requireRole } from '../../middleware/role.middleware';
 import {
   createBranchController,
   createBranchHolidayController,
+  bulkDeleteBranchHolidayController,
+  bulkUpdateBranchHolidayController,
   deleteBranchController,
   deleteBranchHolidayController,
   hardDeleteBranchController,
@@ -23,6 +25,8 @@ router.delete('/:branchId/permanent', authMiddleware, requireRole('admin'), (req
 
 router.get('/:branchId/holidays', authMiddleware, (req: AuthRequest, res: Response) => listBranchHolidaysController(req, res));
 router.post('/:branchId/holidays', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => createBranchHolidayController(req, res));
+router.patch('/:branchId/holidays/bulk', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => bulkUpdateBranchHolidayController(req, res));
+router.delete('/:branchId/holidays/bulk', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => bulkDeleteBranchHolidayController(req, res));
 router.patch('/:branchId/holidays/:holidayId', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => updateBranchHolidayController(req, res));
 router.delete('/:branchId/holidays/:holidayId', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => deleteBranchHolidayController(req, res));
 

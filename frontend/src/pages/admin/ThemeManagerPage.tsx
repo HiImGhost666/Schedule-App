@@ -348,8 +348,8 @@ export function ThemeManagerPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<ExtendedThemePreset | null>(null);
 
   // ── Site branding state ────────────────────────────────────────
-  const [siteTitle, setSiteTitle] = useState('');
-  const [siteFaviconUrl, setSiteFaviconUrl] = useState('');
+  const [siteTitleDraft, setSiteTitleDraft] = useState<string | null>(null);
+  const [siteFaviconUrlDraft, setSiteFaviconUrlDraft] = useState<string | null>(null);
   const [brandingSaved, setBrandingSaved] = useState(false);
 
   const { data: siteData } = useQuery({
@@ -360,12 +360,8 @@ export function ThemeManagerPage() {
         .then((r) => r.data.data),
   });
 
-  useEffect(() => {
-    if (siteData) {
-      setSiteTitle(siteData.title);
-      setSiteFaviconUrl(siteData.faviconUrl);
-    }
-  }, [siteData]);
+  const siteTitle = siteTitleDraft ?? siteData?.title ?? '';
+  const siteFaviconUrl = siteFaviconUrlDraft ?? siteData?.faviconUrl ?? '';
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -380,7 +376,7 @@ export function ThemeManagerPage() {
     },
     onSuccess: (res) => {
       const url = res.data.data.faviconUrl;
-      setSiteFaviconUrl(url);
+      setSiteFaviconUrlDraft(url);
       applyFavicon(url, { cacheBust: true });
       toast.success('Favicon subido correctamente');
     },
@@ -988,7 +984,7 @@ export function ThemeManagerPage() {
             <input
               type="text"
               value={siteTitle}
-              onChange={(e) => setSiteTitle(e.target.value)}
+              onChange={(e) => setSiteTitleDraft(e.target.value)}
               className="input-field"
               placeholder="Gestión de Turnos"
               maxLength={60}
@@ -1058,7 +1054,7 @@ export function ThemeManagerPage() {
               <input
                 type="text"
                 value={siteFaviconUrl}
-                onChange={(e) => setSiteFaviconUrl(e.target.value)}
+                onChange={(e) => setSiteFaviconUrlDraft(e.target.value)}
                 className="input-field text-xs"
                 placeholder="/uploads/favicon.ico"
               />

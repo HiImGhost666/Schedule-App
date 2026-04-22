@@ -66,6 +66,7 @@ describe('UsersPage', () => {
     getMock.mockReset();
     patchMock.mockReset();
     deleteMock.mockReset();
+    postMock.mockReset();
     vi.mocked(toast.success).mockReset();
     vi.mocked(toast.error).mockReset();
   });
@@ -120,6 +121,43 @@ describe('UsersPage', () => {
     });
   });
 
+  it('permite forzar cambio de contraseña desde acciones de usuario', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        success: true,
+        data: [
+          {
+            id: 'u-10',
+            name: 'Pedro Manager',
+            email: 'pedro@test.dev',
+            role: 'manager',
+            status: 'active',
+            department: 'operaciones',
+            branch: null,
+            lastLoginAt: null,
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
+      },
+    });
+    postMock.mockResolvedValueOnce({ data: { success: true } });
+
+    renderPage();
+
+    const userNameCell = await screen.findByText('Pedro Manager');
+    const row = userNameCell.closest('tr');
+    const menuButton = row?.querySelector('button');
+    expect(menuButton).toBeTruthy();
+
+    await userEvent.click(menuButton as HTMLButtonElement);
+    await userEvent.click(await screen.findByRole('button', { name: /Forzar cambio de contraseña/i }));
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith('/users/u-10/force-password-change');
+      expect(toast.success).toHaveBeenCalledWith('Cambio de contraseña forzado');
+    });
+  });
+
   it('muestra departamento con inicial mayuscula en la tabla', async () => {
     getMock.mockResolvedValueOnce({
       data: {
@@ -146,12 +184,23 @@ describe('UsersPage', () => {
   });
 
   it('procesa la importacion de un archivo CSV', async () => {
-    getMock.mockResolvedValue({
-      data: {
-        success: true,
-        data: [],
-        pagination: { total: 0, page: 1, limit: 15, totalPages: 1 },
-      },
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 'branch-1', code: 'TFN', name: 'Tenerife', isActive: true }],
+          },
+        });
+      }
+
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: [],
+          pagination: { total: 0, page: 1, limit: 15, totalPages: 1 },
+        },
+      });
     });
     postMock.mockResolvedValueOnce({
       data: {
@@ -162,7 +211,7 @@ describe('UsersPage', () => {
 
     renderPage();
 
-    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,Seguridad,,,'], 'users.csv', { type: 'text/csv' });
+    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,TFN,,'], 'users.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
     
     // El input está hidden, pero podemos interactuar con él si lo encontramos
@@ -175,6 +224,53 @@ describe('UsersPage', () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       }));
       expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Importación completada'));
+    });
+  });
+
+  it.each([
+    { label: 'punto y coma', delimiter: ';' },
+    { label: 'tab', delimiter: '\t' },
+    { label: 'pipe', delimiter: '|' },
+  ])('procesa importacion CSV con delimitador $label', async ({ delimiter }) => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 'branch-1', code: 'TFN', name: 'Tenerife', isActive: true }],
+          },
+        });
+      }
+
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: [],
+          pagination: { total: 0, page: 1, limit: 15, totalPages: 1 },
+        },
+      });
+    });
+    postMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: { created: 1, updated: 0, unchanged: 0, failed: 0, rejectedRows: [] },
+      },
+    });
+
+    renderPage();
+
+    const headers = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'].join(delimiter);
+    const row = ['LAB-201', 'Juana', 'juana@test.com', 'viewer', 'active', '', 'TFN', '', ''].join(delimiter);
+    const file = new File([`${headers}\n${row}`], 'users-alt-delimiter.csv', { type: 'text/csv' });
+    const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
+
+    await userEvent.upload(input, file);
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith('/users/import', expect.any(FormData), expect.objectContaining({
+        headers: { 'Content-Type': 'multipart/form-data' }
+      }));
+      expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('Faltan columnas obligatorias'));
     });
   });
 });

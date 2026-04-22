@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,7 +48,18 @@ export function ProfilePage() {
       setShowPwForm(false);
       reset();
       if (user && accessToken && refreshToken) {
-        setAuth({ ...user, forcePasswordChange: false }, accessToken, refreshToken);
+        setAuth(
+          {
+            ...user,
+            forcePasswordChange: false,
+            passwordChangePolicy: 'none',
+            passwordChangeState: 'none',
+            passwordChangeWarnedAt: null,
+            passwordChangeDeadlineAt: null,
+          },
+          accessToken,
+          refreshToken
+        );
       }
       qc.invalidateQueries({ queryKey: ['me'] });
     },

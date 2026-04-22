@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { Plus, Search, MoreVertical, Edit, Eye, Lock, Unlock, Trash2, Key, Shield, Upload, Download } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
-import type { User } from '@/types';
+import type { Branch, User } from '@/types';
 import { ROLE_LABELS, STATUS_LABELS } from '@/types';
 import { formatRelative } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -17,17 +17,15 @@ import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
 
 const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
+const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
-const ALLOWED_BRANCH_CODES = new Set(['TFN', 'GC']);
 const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
 const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
-const DEPARTMENT_LOOKUP = new Map<string, string>(
-  DEPARTMENT_VALUES.map((department) => [department.toLowerCase(), department]),
-);
 
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
+type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
 
 function escapeCsvValue(value: string): string {
   if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
@@ -78,28 +76,14 @@ async function decodeCsvFile(file: File): Promise<string> {
   }
 }
 
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
+function parseCsvLine(line: string, delimiter: CsvDelimiter): string[] {
+  const cells: string[] = [];
   let value = '';
   let inQuotes = false;
 
-  const pushValue = () => {
-    row.push(value);
-    value = '';
-  };
-
-  const pushRow = () => {
-    if (row.length > 0 || value.length > 0) {
-      pushValue();
-      rows.push(row);
-      row = [];
-    }
-  };
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
 
     if (char === '"') {
       if (inQuotes && next === '"') {
@@ -111,72 +95,49 @@ function parseCsv(text: string): string[][] {
       continue;
     }
 
-    if (char === ',' && !inQuotes) {
-      pushValue();
-      continue;
-    }
-
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') {
-        i += 1;
-      }
-      pushRow();
+    if (char === delimiter && !inQuotes) {
+      cells.push(value);
+      value = '';
       continue;
     }
 
     value += char;
   }
 
-  pushRow();
-  return rows;
+  cells.push(value);
+  return cells;
 }
 
-function parseUserCsv(text: string): UserCsvRow[] {
-  const sanitizedText = text.replace(/^\uFEFF/, '').trim();
-  if (!sanitizedText) {
-    throw new Error('El CSV está vacío');
+function detectCsvDelimiter(headerLine: string): CsvDelimiter {
+  const normalizedHeaderLine = headerLine.replace(/^\uFEFF/, '').trim();
+  if (!normalizedHeaderLine) return ',';
+
+  let bestDelimiter: CsvDelimiter = ',';
+  let bestMatches = -1;
+  let bestColumns = -1;
+
+  for (const delimiter of CSV_DELIMITERS) {
+    const headers = parseCsvLine(normalizedHeaderLine, delimiter).map((column) => column.trim().toLowerCase());
+    const headerSet = new Set(headers);
+    const matches = CSV_HEADERS.filter((header) => headerSet.has(header.toLowerCase())).length;
+
+    if (matches > bestMatches || (matches === bestMatches && headers.length > bestColumns)) {
+      bestDelimiter = delimiter;
+      bestMatches = matches;
+      bestColumns = headers.length;
+    }
   }
 
-  const matrix = parseCsv(sanitizedText);
-  if (!matrix.length) {
-    throw new Error('No se encontraron datos en el CSV');
-  }
-
-  const headers = matrix[0].map((header) => header.trim());
-  const missingHeaders = CSV_HEADERS.filter((header) => !headers.includes(header));
-
-  if (missingHeaders.length > 0) {
-    throw new Error(`Faltan columnas obligatorias en el CSV: ${missingHeaders.join(', ')}`);
-  }
-
-  return matrix
-    .slice(1)
-    .filter((row) => row.some((cell) => (cell ?? '').trim().length > 0))
-    .map((row) => {
-      const mapped = {} as UserCsvRow;
-      CSV_HEADERS.forEach((header) => {
-        const index = headers.indexOf(header);
-        mapped[header] = (row[index] ?? '').trim();
-      });
-      return mapped;
-    });
-}
-
-function normalizeOptional(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  return bestDelimiter;
 }
 
 function normalizeDepartment(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  const canonical = DEPARTMENT_LOOKUP.get(trimmed.toLowerCase());
-  if (canonical) return canonical;
-
-  const lower = trimmed.toLowerCase();
-  return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
+  const normalized = trimmed.toLowerCase();
+  const matched = DEPARTMENT_VALUES.find((department) => department.toLowerCase() === normalized);
+  return matched ?? undefined;
 }
-
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
@@ -214,6 +175,15 @@ export function UsersPage() {
     mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Usuario eliminado'); setConfirmAction(null); },
     onError: () => toast.error('Error al eliminar usuario'),
+  });
+
+  const forcePasswordChangeMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/users/${id}/force-password-change`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Cambio de contraseña forzado');
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo forzar el cambio de contraseña')),
   });
 
   const exportCsvMutation = useMutation({
@@ -286,26 +256,23 @@ export function UsersPage() {
     fileInputRef.current?.click();
   };
 
-  const handleDownloadTemplate = () => {
-    const link = document.createElement('a');
-    link.href = usersTemplateCsvUrl;
-    link.download = 'Plantilla CSV.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const validateCsvRow = (row: any, index: number): string | null => {
+  const validateCsvRow = (row: UserCsvRow, index: number, branchesCatalog: Branch[]): string | null => {
     if (!row.name?.trim()) return `Fila ${index + 2}: El nombre es obligatorio`;
     if (!row.email?.trim() || !row.email.includes('@')) return `Fila ${index + 2}: Email inválido`;
 
     const branchValue = row.branchId?.trim();
-    if (branchValue) {
-      const normalizedBranch = branchValue.toUpperCase();
-      const branchLooksLikeName = branchValue.toLowerCase().includes('tenerife') || branchValue.toLowerCase().includes('palmas');
-      if (!ALLOWED_BRANCH_CODES.has(normalizedBranch) && !branchLooksLikeName) {
-        return `Fila ${index + 2}: Sucursal inválida "${row.branchId}". Usa TFN, GC o nombre de sede`;
-      }
+    if (!branchValue) {
+      return `Fila ${index + 2}: La sucursal es obligatoria`;
+    }
+
+    const normalizedBranch = branchValue.toUpperCase();
+    const normalizedBranchName = branchValue.toLowerCase();
+    const branchExists = branchesCatalog.some(
+      (branch) => branch.code.toUpperCase() === normalizedBranch
+        || branch.name.toLowerCase().includes(normalizedBranchName),
+    );
+    if (!branchExists) {
+      return `Fila ${index + 2}: Sucursal inválida "${row.branchId}". Usa TFN, GC o nombre de sede`;
     }
     
     if (row.role && !ALLOWED_ROLES.has(row.role.trim().toLowerCase())) {
@@ -335,46 +302,61 @@ export function UsersPage() {
     }
 
     // Validación básica de formato antes de subir
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split(/\r?\n/).filter(line => line.trim());
-      
-      if (lines.length <= 1) {
-        toast.error('El archivo CSV está vacío o solo contiene cabeceras');
-        return;
-      }
+    const text = await decodeCsvFile(file);
+    const lines = text.split(/\r?\n/).filter(line => line.trim());
+    
+    if (lines.length <= 1) {
+      toast.error('El archivo CSV está vacío o solo contiene cabeceras');
+      return;
+    }
 
-      // Validamos las primeras 5 filas para dar feedback inmediato sin procesar todo en el cliente
-      const normalizedHeaders = lines[0].split(',').map((column) => column.trim().toLowerCase());
-      const columnIndices: Record<string, number> = {};
+    // Validamos las primeras 5 filas para dar feedback inmediato sin procesar todo en el cliente
+    const delimiter = detectCsvDelimiter(lines[0]);
+    const normalizedHeaders = parseCsvLine(lines[0], delimiter).map((column) => column.trim().toLowerCase());
+    const columnIndices: Record<string, number> = {};
+    CSV_HEADERS.forEach(h => {
+      columnIndices[h] = normalizedHeaders.findIndex((col) => col === h.toLowerCase() || col.includes(h.toLowerCase()));
+    });
+
+    const missingHeaders = CSV_HEADERS.filter((h) => columnIndices[h] < 0);
+    if (missingHeaders.length > 0) {
+      toast.error(`Faltan columnas obligatorias en el CSV: ${missingHeaders.join(', ')}`);
+      return;
+    }
+
+    const branchesResponse = await api.get<{ data: Branch[] }>('/branches', {
+      params: { includeInactive: true },
+    });
+    const branchesCatalog = branchesResponse.data.data ?? [];
+    if (branchesCatalog.length === 0) {
+      toast.error('No se pudo validar el catálogo de sucursales para importar el CSV');
+      return;
+    }
+
+    for (let i = 1; i < Math.min(lines.length, 6); i++) {
+      const cols = parseCsvLine(lines[i], delimiter);
+      const rowData = {} as UserCsvRow;
       CSV_HEADERS.forEach(h => {
-        columnIndices[h] = normalizedHeaders.findIndex((col) => col === h.toLowerCase() || col.includes(h.toLowerCase()));
+        rowData[h] = cols[columnIndices[h]]?.trim() || '';
       });
-
-      const missingHeaders = CSV_HEADERS.filter((h) => columnIndices[h] < 0);
-      if (missingHeaders.length > 0) {
-        toast.error(`Faltan columnas obligatorias en el CSV: ${missingHeaders.join(', ')}`);
+      
+      const error = validateCsvRow(rowData, i - 1, branchesCatalog);
+      if (error) {
+        toast.error(error);
         return;
       }
+    }
+    
+    await importCsvMutation.mutateAsync(file);
+  };
 
-      for (let i = 1; i < Math.min(lines.length, 6); i++) {
-        const cols = lines[i].split(',');
-        const rowData: Record<string, string> = {};
-        CSV_HEADERS.forEach(h => {
-          rowData[h] = cols[columnIndices[h]]?.trim() || '';
-        });
-        
-        const error = validateCsvRow(rowData as UserCsvRow, i - 1);
-        if (error) {
-          toast.error(error);
-          return;
-        }
-      }
-      
-      await importCsvMutation.mutateAsync(file);
-    };
-    reader.readAsText(file.slice(0, 10000));
+  const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+    link.href = usersTemplateCsvUrl;
+    link.download = 'Plantilla CSV.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const roleBadge = (role: string) => {
@@ -528,6 +510,15 @@ export function UsersPage() {
                                 </button>
                                 <button onClick={() => { setResetUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary">
                                   <Key className="h-3.5 w-3.5" />Resetear contraseña
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    forcePasswordChangeMutation.mutate(u.id);
+                                    setMenuOpenId(null);
+                                  }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary"
+                                >
+                                  <Shield className="h-3.5 w-3.5" />Forzar cambio de contraseña
                                 </button>
                                 {u.status === 'active' ? (
                                   <button onClick={() => { setConfirmAction({ type: 'lock', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-amber-50 text-amber-700">

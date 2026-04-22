@@ -14,6 +14,10 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const prisma = new PrismaClient();
 
+function getDerivedUsername(email: string) {
+  return email.trim().toLowerCase().split('@')[0];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Usuarios de producción
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,6 +163,7 @@ async function main() {
       data: {
         name: u.name,
         email: u.email,
+        derivedUsername: getDerivedUsername(u.email),
         passwordHash,
         role: u.role,
         status: 'active',

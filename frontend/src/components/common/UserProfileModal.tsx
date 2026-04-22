@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Mail, Phone, CalendarDays, ShieldAlert, Clock3, Activity } from 'lucide-react';
 import api from '@/config/api';
 import { useAuthStore } from '@/store/authStore';
 import { type Schedule, type User, ROLE_LABELS, STATUS_LABELS } from '@/types';
 import { getInitials, getAvatarColor, formatDate, formatDateTime, formatRelative } from '@/lib/utils';
+import { resolvePasswordChangeState } from '@/lib/passwordPolicy';
 
 interface UserProfileModalProps {
     open: boolean;
@@ -121,10 +122,6 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
         };
     }, [schedules]);
 
-    useEffect(() => {
-        if (open) setActiveTab('general');
-    }, [open]);
-
     const profileUser = detailedUser ?? user;
 
     if (!open || !profileUser) return null;
@@ -136,10 +133,14 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
     const branch = (profileUser as User).branch;
     const lastLoginAt = (profileUser as User).lastLoginAt;
     const failedAttempts = (profileUser as User).failedAttempts;
-    const forcePasswordChange = (profileUser as User).forcePasswordChange;
+    const passwordChangeState = resolvePasswordChangeState(profileUser as User);
 
     const accountStatusLabel = status ? STATUS_LABELS[status] : 'No disponible';
-    const forcedPasswordLabel = forcePasswordChange ? 'Sí' : 'No';
+    const forcedPasswordLabel = passwordChangeState === 'required'
+        ? 'Obligatorio'
+        : passwordChangeState === 'warning'
+          ? 'Aviso'
+          : 'No';
 
     const tabButtonClass = (tab: ProfileTab) => (
         `px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${

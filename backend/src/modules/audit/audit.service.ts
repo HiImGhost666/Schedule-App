@@ -1,5 +1,5 @@
-import { AuditParams, IRREVERSIBLE_ACTIONS } from './domain/audit.types';
-import { Prisma } from '@prisma/client';
+import { AuditParams, IRREVERSIBLE_ACTIONS, AuditDetails } from './domain/audit.types';
+import type { Prisma } from '@prisma/client';
 import * as auditRepository from './audit.repository';
 import * as scheduleRepository from '../schedules/schedules.repository';
 import * as userRepository from '../users/users.repository';
@@ -7,6 +7,7 @@ import { AppError } from '../../common/errors/app-error';
 import { executeInTransaction, TransactionClient } from '../../common/transactions/transaction.utils';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
+import { extractUsernameFromEmail } from '../users/domain/user.factory';
 
 export * from './domain/audit.types';
 
@@ -22,12 +23,16 @@ function buildAuditCreateData(params: AuditParams) {
   };
 }
 
-function parseDetails(detailsJson: string | null) {
+function parseDetails(detailsJson: string | null): AuditDetails | null {
   if (!detailsJson) return null;
   try {
-    return JSON.parse(detailsJson);
+    const parsed = JSON.parse(detailsJson);
+    if (isObjectRecord(parsed)) {
+      return parsed as AuditDetails;
+    }
+    return null;
   } catch {
-    return detailsJson;
+    return null;
   }
 }
 
@@ -189,12 +194,11 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
   if (!log) throw new AppError('NOT_FOUND', 404, 'Log no encontrado');
 
   const details = parseDetails(log.detailsJson);
-  if (!details || !details.before) {
-    if (log.action.startsWith('CREATE')) {
-      // Create is a special case where "before" is null, but we can rollback by deleting.
-    } else {
-      throw new AppError('BAD_REQUEST', 400, 'Este log no contiene información suficiente para un rollback (falta snapshot "before")');
-    }
+  if (!details && !log.action.startsWith('CREATE')) {
+    throw new AppError('BAD_REQUEST', 400, 'Este log no contiene información para un rollback (JSON inválido)');
+  }
+  if (!details?.before && !log.action.startsWith('CREATE')) {
+    throw new AppError('BAD_REQUEST', 400, 'Este log no contiene información suficiente para un rollback (falta snapshot "before")');
   }
 
   // Verificar si la acción es irreversible
@@ -212,8 +216,9 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
     if (entityType === 'Schedule') {
       if (action === 'CREATE_SCHEDULE') {
         await scheduleRepository.deleteSchedule(entityId, tx);
-      } else if (action === 'UPDATE_SCHEDULE' || action === 'DELETE_SCHEDULE') {
-        const { assigneeIds, ...data } = details.before;
+      } else if (details?.before && (action === 'UPDATE_SCHEDULE' || action === 'DELETE_SCHEDULE')) {
+        const beforeState = details.before as (Prisma.ScheduleGetPayload<{}> & { assigneeIds: string[] });
+        const { assigneeIds, ...data } = beforeState;
         // Restaurar base
         rollbackResult = await tx.schedule.upsert({
           where: { id: entityId },
@@ -238,8 +243,9 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
       if (action === 'CREATE_USER') {
         // En este sistema los usuarios se deshabilitan, pero un rollback de creación podría ser un borrado real o deshabilitado.
         // Optamos por deshabilitarlo para evitar romper integridad referencial si ya se usó.
-        const targetEmail = details.after?.email || details.email || 'unknown';
-        rollbackResult = await userRepository.updateUserRecord(entityId, { status: 'disabled', email: `revoked_${Date.now()}_${targetEmail}` }, tx);
+        const targetEmail = (details?.after?.email as string) ?? 'unknown';
+        const newEmail = `revoked_${Date.now()}_${targetEmail}`;
+        rollbackResult = await userRepository.updateUserRecord(entityId, { status: 'disabled', email: newEmail, derivedUsername: newEmail }, tx);
 
         publishRealtimeEvent(REALTIME_EVENTS.USER_DELETED, {
           entity: 'user',
@@ -250,7 +256,13 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
         });
       } else {
         // UPDATE_USER, USER_STATUS_CHANGE, USER_ROLE_CHANGE, DELETE_USER
-        const data = details.before;
+        const data: Partial<Prisma.UserGetPayload<{}>> = { ...details?.before };
+        // Si el snapshot a restaurar tiene un email, nos aseguramos de recalcular el derivedUsername
+        // para mantener la consistencia, por si el snapshot es antiguo y no lo tenía.
+        if (data.email && typeof data.email === 'string') {
+          const isAnonymized = data.email.startsWith('deleted_') || data.email.startsWith('revoked_');
+          data.derivedUsername = isAnonymized ? data.email : extractUsernameFromEmail(data.email);
+        }
         rollbackResult = await userRepository.updateUserRecord(entityId, data, tx);
 
         publishRealtimeEvent(REALTIME_EVENTS.USER_UPDATED, {
@@ -264,11 +276,12 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
     } else if (entityType === 'WebhookConfig') {
       if (action === 'CREATE_WEBHOOK') {
         rollbackResult = await tx.webhookConfig.delete({ where: { id: entityId } });
-      } else {
-        const { id, createdAt, updatedAt, ...data } = details.before;
+      } else if (details?.before) {
+        const beforeState = details.before as Prisma.WebhookConfigGetPayload<{}>;
+        const { id, createdAt, updatedAt, ...data } = beforeState;
         rollbackResult = await tx.webhookConfig.upsert({
           where: { id: entityId },
-          create: { ...details.before, id: entityId },
+          create: { ...beforeState, id: entityId },
           update: data,
         });
       }

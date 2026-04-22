@@ -20,11 +20,18 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
 }));
 jest.mock('../src/config/database', () => ({
   prisma: {
-    branch: { findUnique: jest.fn().mockResolvedValue({ id: 'branch-1' }) },
+    branch: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'branch-1' }),
+      findMany: jest.fn().mockResolvedValue([
+        { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
+        { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+      ]),
+    },
   },
 }));
 
 import * as usersRepo from '../src/modules/users/users.repository';
+import { prisma } from '../src/config/database';
 import { importUsersCsv } from '../src/modules/users/users.service';
 import { hashPassword } from '../src/utils/bcrypt';
 import { CSV_IMPORT_DEFAULT_PASSWORD } from '../src/modules/users/users.constants';
@@ -32,6 +39,12 @@ import type { UserCsvRow } from '../src/utils/csv';
 
 const mockRepo = usersRepo as jest.Mocked<typeof usersRepo>;
 const mockActor = { id: 'admin-id', ipAddress: '127.0.0.1' };
+const mockPrisma = prisma as unknown as {
+  branch: {
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+  };
+};
 
 // ── Helper: construye una fila CSV mínima válida ─────────────────────────────
 function buildRow(overrides: Partial<UserCsvRow> = {}): UserCsvRow {
@@ -42,7 +55,7 @@ function buildRow(overrides: Partial<UserCsvRow> = {}): UserCsvRow {
     role: 'viewer',
     status: 'active',
     department: '',
-    branchId: '',
+    branchId: 'TFN',
     companyPhone: '',
     auxiliaryPhone: '',
     ...overrides,
@@ -53,6 +66,7 @@ function buildRow(overrides: Partial<UserCsvRow> = {}): UserCsvRow {
 function buildDbUser(overrides: Record<string, any> = {}) {
   return {
     id: 'user-db-1',
+    employeeId: 'LAB-0001',
     email: 'test@example.com',
     name: 'Test User',
     role: 'viewer',
@@ -71,6 +85,14 @@ function buildDbUser(overrides: Record<string, any> = {}) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — validación de payload', () => {
+  beforeEach(() => {
+    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
+    mockPrisma.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    ]);
+  });
+
   it('lanza BAD_REQUEST si el array de filas está vacío', async () => {
     await expect(importUsersCsv([], mockActor)).rejects.toThrow(
       'El CSV no contiene filas para importar'
@@ -118,15 +140,33 @@ describe('importUsersCsv — validación de payload', () => {
     expect(result.failed).toBe(1);
     expect(result.rejectedRows[0].reason).toMatch(/departamento inválido/i);
   });
+
+  it('rechaza filas con username derivado en conflicto', async () => {
+    // Simulamos que ya existe un usuario 'testuser@dominio-a.com'
+    mockRepo.findUserByDerivedUsername.mockResolvedValue(buildDbUser({ email: 'testuser@dominio-a.com' }) as any);
+    mockRepo.findUserByEmail.mockResolvedValue(null as any); // El email completo no existe
+
+    // Intentamos importar 'testuser@dominio-b.com', que tiene el mismo username derivado
+    const result = await importUsersCsv([buildRow({ email: 'testuser@dominio-b.com' })], mockActor);
+
+    expect(result.failed).toBe(1);
+    expect(result.rejectedRows[0].reason).toMatch(/username ya está registrado/i);
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
   beforeEach(() => {
+    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
+    mockPrisma.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    ]);
     // Usuario inexistente → path CREATE
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.findUserByEmployeeId.mockResolvedValue(null as any);
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername.mockResolvedValue(null as any);
+    mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-0002');
     mockRepo.createUserRecord.mockResolvedValue(buildDbUser() as any);
   });
 
@@ -142,11 +182,15 @@ describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
     expect(hashPassword).toHaveBeenCalledWith(CSV_IMPORT_DEFAULT_PASSWORD);
   });
 
-  it('marca forcePasswordChange: true en el createUserRecord', async () => {
+  it('marca required para cambio de contraseña en el createUserRecord', async () => {
     await importUsersCsv([buildRow()], mockActor);
-    // El createUserRecord recibe el objeto con forcePasswordChange=true
+    // El createUserRecord recibe estado obligatorio de cambio de contraseña.
     expect(mockRepo.createUserRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ forcePasswordChange: true }),
+      expect.objectContaining({
+        forcePasswordChange: true,
+        passwordChangePolicy: 'required',
+        employeeId: 'LAB-0002',
+      }),
       expect.anything()
     );
   });
@@ -162,11 +206,17 @@ describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — actualización de usuario existente (path UPDATE)', () => {
-  const existing = buildDbUser({ name: 'Nombre Viejo', companyPhone: '600000000' });
+  const existing = buildDbUser({ name: 'Nombre Viejo', companyPhone: '600000000', branchId: 'branch-1' });
 
   beforeEach(() => {
+    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
+    mockPrisma.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    ]);
     // Usuario existe → path UPDATE
     mockRepo.findUserByEmail.mockResolvedValue(existing as any);
+    mockRepo.findUserByEmployeeId.mockResolvedValue(existing as any);
     mockRepo.findUserById.mockResolvedValue(existing as any); // Crucial para updateUser() interno
     mockRepo.updateUserRecord.mockResolvedValue({ ...existing, name: 'Nombre Nuevo' } as any);
     // para la lógica de findUserByEmailOrUsername con @
@@ -203,16 +253,23 @@ describe('importUsersCsv — actualización de usuario existente (path UPDATE)',
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — procesamiento mixto (no propaga excepciones)', () => {
+  beforeEach(() => {
+    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
+    mockPrisma.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    ]);
+  });
+
   it('continúa procesando filas tras un fallo en una de ellas', async () => {
     // Primera fila: crea bien → segunda fila: falla
     mockRepo.findUserByEmail
       .mockResolvedValueOnce(null as any)        // fila 1: no existe → crear
       .mockRejectedValueOnce(new Error('DB down')); // fila 2: explota BD
 
+    mockRepo.findUserByEmployeeId.mockResolvedValue(null as any);
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername
-      .mockResolvedValueOnce(null as any)
-      .mockResolvedValueOnce(null as any);
+    mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-0002');
     mockRepo.createUserRecord.mockResolvedValue(buildDbUser() as any);
 
     const rows = [
@@ -230,8 +287,9 @@ describe('importUsersCsv — procesamiento mixto (no propaga excepciones)', () =
 
   it('devuelve la estructura completa { total, created, updated, unchanged, failed, rejectedRows }', async () => {
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.findUserByEmployeeId.mockResolvedValue(null as any);
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername.mockResolvedValue(null as any);
+    mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-0002');
     mockRepo.createUserRecord.mockResolvedValue(buildDbUser() as any);
 
     const result = await importUsersCsv([buildRow()], mockActor);

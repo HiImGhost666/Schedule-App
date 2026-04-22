@@ -6,6 +6,8 @@ import {
   branchIdParamsSchema,
   createBranchBodySchema,
   createBranchHolidayBodySchema,
+  bulkDeleteBranchHolidayBodySchema,
+  bulkUpdateBranchHolidayBodySchema,
   holidayIdParamsSchema,
   listBranchesQuerySchema,
   listBranchHolidaysQuerySchema,
@@ -15,6 +17,8 @@ import {
 import {
   createBranch,
   createBranchHoliday,
+  bulkDeleteSharedHolidays,
+  bulkUpdateSharedHolidays,
   deleteBranch,
   deleteBranchHoliday,
   hardDeleteBranch,
@@ -223,6 +227,58 @@ export async function deleteBranchHolidayController(req: AuthRequest, res: Respo
       ipAddress: req.ip,
     });
     return sendSuccess(res, null, 'Festivo eliminado');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function bulkUpdateBranchHolidayController(req: AuthRequest, res: Response) {
+  const parsedParams = branchIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+  if (parsedParams.data.branchId !== 'all') {
+    return sendError(res, 'La actualización masiva solo aplica para la vista global', 400, null, 'BAD_REQUEST');
+  }
+
+  const parsedBody = bulkUpdateBranchHolidayBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    await bulkUpdateSharedHolidays(parsedBody.data, {
+      id: req.user!.id,
+      ipAddress: req.ip,
+    });
+    return sendSuccess(res, null, 'Festivos compartidos actualizados');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function bulkDeleteBranchHolidayController(req: AuthRequest, res: Response) {
+  const parsedParams = branchIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+  if (parsedParams.data.branchId !== 'all') {
+    return sendError(res, 'La eliminación masiva solo aplica para la vista global', 400, null, 'BAD_REQUEST');
+  }
+
+  const parsedBody = bulkDeleteBranchHolidayBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    await bulkDeleteSharedHolidays(parsedBody.data.holidayIds, {
+      id: req.user!.id,
+      ipAddress: req.ip,
+    });
+    return sendSuccess(res, null, 'Festivos compartidos eliminados');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

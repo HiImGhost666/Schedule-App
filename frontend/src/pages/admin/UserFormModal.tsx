@@ -39,7 +39,7 @@ const schema = z.object({
   department: z.enum(DEPARTMENT_VALUES).optional().or(z.literal('')),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
-  branchId: z.string().optional(),
+  branchId: z.string().min(1, 'La sucursal es obligatoria'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -106,7 +106,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       const payload = {
         ...data,
         department: data.department || undefined,
-        branchId: data.branchId ? data.branchId : null,
+        branchId: data.branchId,
       };
 
       if (!isEdit) {
@@ -144,7 +144,17 @@ export function UserFormModal({ open, user, onClose }: Props) {
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">ID Empleado (Lãberit)</label>
-            <input {...register('employeeId')} className="input-field font-mono" placeholder="LAB-000" />
+            <input
+              {...register('employeeId')}
+              className="input-field font-mono"
+              placeholder="LAB-000"
+              disabled={isEdit}
+            />
+            {isEdit && (
+              <p className="text-xs text-theme-muted mt-1">
+                El employeeId se asigna automáticamente y no puede editarse.
+              </p>
+            )}
           </div>
 
           <div>
@@ -188,15 +198,16 @@ export function UserFormModal({ open, user, onClose }: Props) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal</label>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal *</label>
             <select {...register('branchId')} className="input-field" disabled={branchesLoading}>
-              <option value="">Sin sucursal asignada</option>
+              <option value="" disabled>Selecciona una sucursal</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name} ({branch.code}){branch.isActive ? '' : ' · inactiva'}
                 </option>
               ))}
             </select>
+            {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

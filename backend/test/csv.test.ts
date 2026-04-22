@@ -4,7 +4,7 @@
  * Cubre: BOM stripping, comillas RFC 4180, columnas faltantes, filas vacías, encodings.
  */
 
-import { decodeCsvBuffer, parseCsv, parseUserCsv, CSV_HEADERS } from '../src/utils/csv';
+import { decodeCsvBuffer, parseCsv, parseUserCsv, CSV_HEADERS, detectCsvDelimiter } from '../src/utils/csv';
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('decodeCsvBuffer', () => {
@@ -65,6 +65,41 @@ describe('parseCsv (tokenizador de bajo nivel)', () => {
 
   it('devuelve array vacío para string vacío', () => {
     expect(parseCsv('')).toEqual([]);
+  });
+
+  it('parsea usando delimitador punto y coma', () => {
+    expect(parseCsv('a;b;c', ';')).toEqual([['a', 'b', 'c']]);
+  });
+
+  it('parsea usando delimitador tab', () => {
+    expect(parseCsv('a\tb\tc', '\t')).toEqual([['a', 'b', 'c']]);
+  });
+
+  it('parsea usando delimitador pipe', () => {
+    expect(parseCsv('a|b|c', '|')).toEqual([['a', 'b', 'c']]);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+describe('detectCsvDelimiter', () => {
+  it('detecta delimitador coma', () => {
+    const csv = 'employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\n1,Juan,juan@test.com,,,,,,';
+    expect(detectCsvDelimiter(csv)).toBe(',');
+  });
+
+  it('detecta delimitador punto y coma', () => {
+    const csv = 'employeeId;name;email;role;status;department;branchId;companyPhone;auxiliaryPhone\n1;Juan;juan@test.com;;;;;;';
+    expect(detectCsvDelimiter(csv)).toBe(';');
+  });
+
+  it('detecta delimitador tab', () => {
+    const csv = 'employeeId\tname\temail\trole\tstatus\tdepartment\tbranchId\tcompanyPhone\tauxiliaryPhone\n1\tJuan\tjuan@test.com\t\t\t\t\t\t';
+    expect(detectCsvDelimiter(csv)).toBe('\t');
+  });
+
+  it('detecta delimitador pipe', () => {
+    const csv = 'employeeId|name|email|role|status|department|branchId|companyPhone|auxiliaryPhone\n1|Juan|juan@test.com||||||';
+    expect(detectCsvDelimiter(csv)).toBe('|');
   });
 });
 
@@ -130,5 +165,34 @@ describe('parseUserCsv', () => {
     expect(rows).toHaveLength(2);
     expect(rows[1].name).toBe('Pedro');
     expect(rows[1].status).toBe('disabled');
+  });
+
+  it('parsea CSV con delimitador punto y coma', () => {
+    const csv = `${CSV_HEADERS.join(';')}\nLAB-100;Ana;ana@test.com;admin;active;Administración;TFN;;`;
+    const rows = parseUserCsv(csv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Ana');
+    expect(rows[0].branchId).toBe('TFN');
+  });
+
+  it('parsea CSV con delimitador tab', () => {
+    const csv = `${CSV_HEADERS.join('\t')}\nLAB-100\tAna\tana@test.com\tadmin\tactive\tAdministración\tTFN\t\t`;
+    const rows = parseUserCsv(csv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].email).toBe('ana@test.com');
+  });
+
+  it('parsea CSV con delimitador pipe', () => {
+    const csv = `${CSV_HEADERS.join('|')}\nLAB-100|Ana|ana@test.com|admin|active|Administración|TFN||`;
+    const rows = parseUserCsv(csv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].role).toBe('admin');
+  });
+
+  it('respeta delimitador dentro de comillas en CSV con punto y coma', () => {
+    const csv = `${CSV_HEADERS.join(';')}\nLAB-100;"Ana;María";ana@test.com;viewer;active;Operaciones;TFN;;`;
+    const rows = parseUserCsv(csv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Ana;María');
   });
 });

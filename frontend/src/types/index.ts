@@ -8,9 +8,14 @@ export interface User {
   avatarUrl?: string;
   department?: string;
   createdAt: string;
+  passwordChangedAt?: string;
   lastLoginAt?: string;
   failedAttempts?: number;
   forcePasswordChange?: boolean;
+  passwordChangePolicy?: 'none' | 'warning' | 'required';
+  passwordChangeState?: 'none' | 'warning' | 'required';
+  passwordChangeWarnedAt?: string | null;
+  passwordChangeDeadlineAt?: string | null;
   companyPhone?: string;
   auxiliaryPhone?: string;
   branchId?: string | null;
@@ -120,6 +125,30 @@ export interface BranchHoliday {
     code: string;
   };
 }
+
+export interface GroupedBranchHoliday {
+  id: string;
+  branchId: 'all';
+  date: string;
+  originalDate?: string | null;
+  name: string;
+  type: BranchHoliday['type'];
+  scope: BranchHoliday['scope'];
+  isPartial: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  branch: null;
+  holidayIds: string[];
+  branches: Array<{
+    id: string;
+    name: string;
+    code: string;
+  }>;
+  sharedCount: number;
+}
+
+export type CalendarBranchHoliday = BranchHoliday | GroupedBranchHoliday;
 
 export interface WeekSchedulesResponse {
   year: number;

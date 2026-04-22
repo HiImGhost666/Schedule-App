@@ -39,7 +39,18 @@ export function ForceChangePassword() {
     onSuccess: () => {
       toast.success('Contraseña actualizada correctamente');
       if (user && accessToken && refreshToken) {
-        setAuth({ ...user, forcePasswordChange: false }, accessToken, refreshToken);
+        setAuth(
+          {
+            ...user,
+            forcePasswordChange: false,
+            passwordChangePolicy: 'none',
+            passwordChangeState: 'none',
+            passwordChangeWarnedAt: null,
+            passwordChangeDeadlineAt: null,
+          },
+          accessToken,
+          refreshToken
+        );
       }
       qc.invalidateQueries({ queryKey: ['me'] });
     },

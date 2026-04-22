@@ -25,6 +25,8 @@ jest.mock('../src/modules/branches/branches.controller', () => ({
   deleteBranchController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true })),
   hardDeleteBranchController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true })),
   listBranchHolidaysController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true, data: [] })),
+  bulkUpdateBranchHolidayController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true })),
+  bulkDeleteBranchHolidayController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true })),
   createBranchHolidayController: jest.fn((_req: any, res: any) => res.status(201).json({ success: true })),
   updateBranchHolidayController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true })),
   deleteBranchHolidayController: jest.fn((_req: any, res: any) => res.status(200).json({ success: true })),
@@ -86,5 +88,25 @@ describe('branches.router', () => {
 
     expect(response.status).toBe(200);
     expect(branchesController.listBranchHolidaysController).toHaveBeenCalledTimes(1);
+  });
+
+  it('delegates PATCH /all/holidays/bulk to bulkUpdateBranchHolidayController for admin', async () => {
+    const response = await request(app)
+      .patch('/api/branches/all/holidays/bulk')
+      .set('x-test-role', 'admin')
+      .send({ holidayIds: ['h-1'], name: 'Nuevo nombre' });
+
+    expect(response.status).toBe(200);
+    expect(branchesController.bulkUpdateBranchHolidayController).toHaveBeenCalledTimes(1);
+  });
+
+  it('delegates DELETE /all/holidays/bulk to bulkDeleteBranchHolidayController for admin', async () => {
+    const response = await request(app)
+      .delete('/api/branches/all/holidays/bulk')
+      .set('x-test-role', 'admin')
+      .send({ holidayIds: ['h-1'] });
+
+    expect(response.status).toBe(200);
+    expect(branchesController.bulkDeleteBranchHolidayController).toHaveBeenCalledTimes(1);
   });
 });

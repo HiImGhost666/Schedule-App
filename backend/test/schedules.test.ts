@@ -16,6 +16,12 @@ jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }))
 jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn((fn: any) => fn({})),
 }));
+jest.mock('../src/config/database', () => ({
+  prisma: {
+    branch: { findUnique: jest.fn().mockResolvedValue({ id: 'branch-1', isActive: true }) },
+    branchHoliday: { findMany: jest.fn().mockResolvedValue([]) },
+  },
+}));
 
 import * as schedulesRepo from '../src/modules/schedules/schedules.repository';
 import { createScheduleEntry } from '../src/modules/schedules/schedules.service';
@@ -47,6 +53,7 @@ const baseInput = {
   startDatetime: '2026-06-01T08:00:00Z', // Fecha futura para evitar isLastMinute
   endDatetime: '2026-06-01T16:00:00Z',
   type: 'guardia',
+  branchId: 'branch-1',
   assigneeIds: ['user-1'],
 };
 
@@ -55,6 +62,8 @@ describe('createScheduleEntry', () => {
   beforeEach(() => {
     // Por defecto: sin overlaps y creación exitosa
     mockRepo.findSchedules.mockResolvedValue([]);
+    (require('../src/config/database').prisma.branch.findUnique as jest.Mock).mockResolvedValue({ id: 'branch-1', isActive: true });
+    (require('../src/config/database').prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([]);
     mockRepo.createSchedule.mockResolvedValue(buildSchedule() as any);
   });
 
@@ -151,23 +160,21 @@ describe('createScheduleEntry', () => {
     );
   });
 
-  // ── Caso: Convivencia con festivos ──────────────────────────────────────
-  it('permite crear un turno en un día que es festivo (la lógica de negocio lo permite)', async () => {
+  // ── Caso: Creación en día festivo (bloqueado) ───────────────────────────
+  it('rechaza crear un turno de tipo "guardia" en un día festivo', async () => {
     // Escenario: El 1 de Mayo es festivo. Intentamos crear turno ese día.
     const holidayInput = {
       ...baseInput,
       startDatetime: '2026-05-01T08:00:00Z',
       endDatetime: '2026-05-01T16:00:00Z',
     };
+    
+    // Simulamos que la BD devuelve un festivo para ese día
+    (require('../src/config/database').prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([
+      { name: 'Día del Trabajo', date: new Date('2026-05-01') }
+    ]);
 
-    mockRepo.findSchedules.mockResolvedValue([]); // No hay otros turnos (no hay solapamiento)
-    mockRepo.createSchedule.mockResolvedValue(buildSchedule({
-      startDatetime: new Date('2026-05-01T08:00:00Z'),
-      endDatetime: new Date('2026-05-01T16:00:00Z'),
-    }) as any);
-
-    const result = await createScheduleEntry(holidayInput as any, mockActor);
-    expect(result).toBeDefined();
-    expect(result.startDatetime.toISOString()).toContain('2026-05-01');
+    await expect(createScheduleEntry(holidayInput as any, mockActor))
+      .rejects.toThrow('No se puede asignar trabajo en días festivos');
   });
 });

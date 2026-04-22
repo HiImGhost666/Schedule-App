@@ -11,6 +11,7 @@ import {
   getUserSchedules,
   getUsersList,
   resetUserPassword,
+  forceUserPasswordChange,
   updateUser,
   importUsersCsv,
 } from './users.service';
@@ -18,7 +19,6 @@ import { decodeCsvBuffer, parseUserCsv } from '../../utils/csv';
 import {
   changeRoleBodySchema,
   changeStatusBodySchema,
-  createUserCsvBodySchema,
   createUserBodySchema,
   listUsersQuerySchema,
   resetPasswordBodySchema,
@@ -26,7 +26,6 @@ import {
   userIdParamsSchema,
   userSchedulesQuerySchema,
 } from './users.http.schemas';
-import { env } from '../../config/env';
 
 /**
  * @description Orquesta la consulta paginada de usuarios validando la sintaxis del query antes de contactar al servicio.
@@ -165,6 +164,23 @@ export async function resetPasswordController(req: AuthRequest, res: Response) {
   try {
     await resetUserPassword(parsedParams.data.id, parsedBody.data.newPassword, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Contraseña restablecida. El usuario deberá cambiarla en el próximo inicio de sesión');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+/**
+ * @description Fuerza al usuario a pasar por el flujo obligatorio de cambio de contraseña en su siguiente uso.
+ * @param req @param res
+ */
+export async function forcePasswordChangeController(req: AuthRequest, res: Response) {
+  const parsedParams = userIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    await forceUserPasswordChange(parsedParams.data.id, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, null, 'Cambio de contraseña forzado');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

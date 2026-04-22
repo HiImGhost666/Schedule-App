@@ -11,7 +11,9 @@ model User {
   id                  String     @id @default(cuid())
   name                String
   email               String     @unique
+  derivedUsername     String     @unique @map("derived_username")
   passwordHash        String     @map("password_hash")
+  passwordChangedAt   DateTime   @default(now()) @map("password_changed_at")
   role                String     @default("viewer")
   status              String     @default("active")
   avatarUrl           String?    @map("avatar_url")
@@ -22,6 +24,9 @@ model User {
   failedAttempts      Int        @default(0) @map("failed_attempts")
   lockedUntil         DateTime?  @map("locked_until")
   forcePasswordChange Boolean    @default(false) @map("force_password_change")
+  passwordChangePolicy String    @default("none") @map("password_change_policy")
+  passwordChangeWarnedAt DateTime? @map("password_change_warned_at")
+  passwordChangeDeadlineAt DateTime? @map("password_change_deadline_at")
   employeeId          String?    @unique @map("employee_id")
   companyPhone        String?    @map("company_phone")
   auxiliaryPhone      String?    @map("auxiliary_phone")
@@ -47,6 +52,15 @@ model User {
   // MySQL puede usar el índice UNIQUE de email para LIKE 'prefix%', así que no necesita índice extra
 
   @@map("users")
+}
+
+model EmployeeIdSequence {
+  id         String   @id
+  lastNumber Int      @default(0) @map("last_number")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("employee_id_sequences")
 }
 
 model Branch {

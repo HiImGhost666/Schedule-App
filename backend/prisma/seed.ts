@@ -4,7 +4,6 @@ import path from 'path';
 import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
-import { isAppError } from '../src/common/errors/app-error';
 import { env } from '../src/config/env';
 import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
 
@@ -17,33 +16,9 @@ const prisma = new PrismaClient();
 // ============================================================================
 
 async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
-  try {
-    const user = await createUser({ ...input, forcePasswordChange: false });
-    console.log(`[USER] ${label} created: ${input.email}`);
-    return user;
-  } catch (error) {
-    if (isAppError(error) && error.code === 'CONFLICT') {
-      const existing = await prisma.user.findUnique({
-        where: { email: input.email },
-        select: { id: true, email: true, branchId: true },
-      });
-
-      if (!existing) return null;
-
-      if (input.branchId && existing.branchId !== input.branchId) {
-        await prisma.user.update({
-          where: { id: existing.id },
-          data: { branch: { connect: { id: input.branchId } } },
-        });
-        console.log(`[USER] ${label} branch linked: ${input.email}`);
-      } else {
-        console.log(`[USER] ${label} already exists: ${input.email}`);
-      }
-
-      return prisma.user.findUnique({ where: { id: existing.id } });
-    }
-    throw error;
-  }
+  const user = await createUser(input, undefined, { upsertExisting: true });
+  console.log(`[USER] ${label} synced: ${input.email}`);
+  return user;
 }
 
 async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, type: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
@@ -260,7 +235,6 @@ async function main() {
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
-      employeeId: 'LAB-001',
     },
     'Admin'
   );
@@ -276,16 +250,16 @@ async function main() {
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
-      employeeId: 'LAB-002',
+      forcePasswordChange: false,
     },
     'Demo manager'
   );
 
-  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string; employeeId: string }> = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-101' },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-102' },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id, employeeId: 'LAB-103' },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id, employeeId: 'LAB-104' },
+  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string }> = [
+    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id },
+    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id },
+    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id },
   ];
 
   const createdUsers = [];
@@ -296,6 +270,8 @@ async function main() {
         password: 'User123!',
         role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
         status: 'active',
+        // Deja al menos un usuario listo para probar flujo obligatorio tras seed.
+        forcePasswordChange: u.email === 'carlos@company.com',
       },
       'Demo user'
     );

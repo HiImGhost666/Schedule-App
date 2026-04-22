@@ -1,12 +1,8 @@
-export type BranchHolidayType =
-  | 'nacional'
-  | 'autonomica'
-  | 'local'
-  | 'mejora'
-  | 'regional'
-  | 'company';
+import { HolidayScope, HolidayType } from '../branches.constants';
 
-export type BranchHolidayScope = 'national' | 'regional' | 'local' | 'company';
+export type BranchHolidayType = HolidayType;
+
+export type BranchHolidayScope = HolidayScope;
 
 export type BranchActor = {
   id: string;
@@ -41,4 +37,36 @@ export type ListBranchHolidaysParams = {
   from?: string;
   to?: string;
   includeInactive: boolean;
+  groupShared?: boolean;
+};
+
+export type BulkHolidayActionInput = {
+  holidayIds: string[];
+  name?: string;
+  date?: Date;
+  type?: BranchHolidayType;
+  scope?: BranchHolidayScope;
+  isPartial?: boolean;
+};
+
+export type GroupedBranchHoliday = {
+  id: string;
+  branchId: 'all';
+  date: Date;
+  originalDate?: Date | null;
+  name: string;
+  type: BranchHolidayType;
+  scope: BranchHolidayScope;
+  isPartial: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  branch: null;
+  holidayIds: string[];
+  branches: Array<{
+    id: string;
+    name: string;
+    code: string;
+  }>;
+  sharedCount: number;
 };

@@ -25,7 +25,7 @@ export const createUserBodySchema = z.object({
   avatarUrl: z.string().url().optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
-  branchId: z.string().min(1).nullable().optional(),
+  branchId: z.string().min(1),
 });
 
 export const createUserCsvBodySchema = createUserBodySchema.extend({

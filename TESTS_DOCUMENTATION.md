@@ -14,7 +14,8 @@ Esta aplicación cuenta con una suite completa de pruebas automatizadas que cubr
 
 **Escenarios de Prueba:**
 
-- **Login exitoso**: Verifica credenciales válidas y generación de tokens JWT
+- **Login exitoso**: Verifica credenciales válidas (email completo o username derivado) y la generación de tokens JWT.
+- **Login con username**: Permite iniciar sesión con el nombre de usuario derivado del email (ej: `jdoe` para `jdoe@company.com`).
 - **Bloqueo de cuenta por intentos fallidos**: Sistema de lockout después de múltiples fallos
 - **Cuentas deshabilitadas**: Prevención de acceso a usuarios inactivos
 - **Rotación de tokens**: Refresh tokens y expiración de sesiones
@@ -31,18 +32,20 @@ Esta aplicación cuenta con una suite completa de pruebas automatizadas que cubr
 
 **Escenarios de Prueba:**
 
-- **Creación de usuarios**: Validación de datos requeridos y únicos
+- **Creación y actualización de usuarios (Upsert)**:
+  - **Conflicto de Email**: Evita crear usuarios con un email que ya existe. Si se encuentra, actualiza el registro existente (comportamiento `upsert`).
+  - **Conflicto de Username Derivado**: Evita crear un usuario si su `username` (la parte local del email) ya está en uso por otro usuario, incluso con un dominio diferente (ej: `jdoe@a.com` vs `jdoe@b.com`).
+  - **Conflicto de `employeeId`**: Previene la creación si el `employeeId` ya está asignado a otro usuario.
 - **Actualización de perfiles**: Modificación de información personal
 - **Cambio de contraseñas**: Políticas de seguridad y validación
 - **Eliminación lógica**: Soft delete manteniendo integridad referencial
 - **Paginación y filtros**: Listado eficiente de usuarios
 - **Validación de roles**: Permisos y autorizaciones por rol
 
-**Validaciones implementadas:**
-- Email único en el sistema
-- Contraseñas con requisitos mínimos de complejidad
-- Campos obligatorios vs. opcionales
-- Integridad referencial con otros módulos
+**Validaciones de Identidad Implementadas:**
+- El **email** debe ser único en toda la base de datos.
+- El **username derivado** del email también debe ser único para evitar ambigüedades en el login.
+- El **`employeeId`** (código de empleado) es único si se proporciona.
 
 ### 3. **Módulo de Horarios (`schedules.test.ts`)**
 

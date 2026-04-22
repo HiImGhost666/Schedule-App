@@ -3,6 +3,7 @@ CREATE TABLE `users` (
     `id` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
     `email` VARCHAR(191) NOT NULL,
+    `derived_username` VARCHAR(191) NOT NULL,
     `password_hash` VARCHAR(191) NOT NULL,
     `role` VARCHAR(191) NOT NULL DEFAULT 'viewer',
     `status` VARCHAR(191) NOT NULL DEFAULT 'active',
@@ -20,8 +21,19 @@ CREATE TABLE `users` (
     `branch_id` VARCHAR(191) NULL,
 
     UNIQUE INDEX `users_email_key`(`email`),
+    UNIQUE INDEX `users_derived_username_key`(`derived_username`),
     UNIQUE INDEX `users_employee_id_key`(`employee_id`),
     INDEX `users_branch_id_idx`(`branch_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `employee_id_sequences` (
+    `id` VARCHAR(191) NOT NULL,
+    `last_number` INTEGER NOT NULL DEFAULT 0,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 

@@ -24,11 +24,50 @@ export function findUserByEmail(email: string, tx?: TransactionClient) {
   return getDb(tx).user.findUnique({ where: { email } });
 }
 
+export function findUserByEmployeeId(employeeId: string, tx?: TransactionClient) {
+  return getDb(tx).user.findUnique({ where: { employeeId } });
+}
+
+export async function reserveNextEmployeeId(tx?: TransactionClient): Promise<string> {
+  const db = getDb(tx);
+  const sequenceId = 'global';
+
+  await db.employeeIdSequence.upsert({
+    where: { id: sequenceId },
+    create: { id: sequenceId, lastNumber: 0 },
+    update: {},
+  });
+
+  await db.$executeRaw`
+    SELECT id
+    FROM employee_id_sequences
+    WHERE id = ${sequenceId}
+    FOR UPDATE
+  `;
+
+  const [row] = await db.$queryRaw<Array<{ maxNumber: number | bigint | null }>>`
+    SELECT COALESCE(MAX(CAST(SUBSTRING(employee_id, 5) AS UNSIGNED)), 0) AS maxNumber
+    FROM users
+    WHERE employee_id LIKE 'LAB-%'
+  `;
+
+  const sequence = await db.employeeIdSequence.findUnique({ where: { id: sequenceId } });
+  const currentNumber = Math.max(sequence?.lastNumber ?? 0, Number(row?.maxNumber ?? 0));
+  const nextNumber = currentNumber + 1;
+
+  await db.employeeIdSequence.update({
+    where: { id: sequenceId },
+    data: { lastNumber: nextNumber },
+  });
+
+  return `LAB-${String(nextNumber).padStart(4, '0')}`;
+}
+
 export function findUserByNormalizedEmailOrDerivedUsername(email: string, username: string, tx?: TransactionClient) {
   return getDb(tx).user.findFirst({
     where: {
       NOT: { email: { startsWith: 'deleted_' } },
-      OR: [{ email }, { email: { startsWith: `${username}@` } }],
+      OR: [{ email }, { derivedUsername: username }],
     },
     select: { email: true },
   });
@@ -37,10 +76,8 @@ export function findUserByNormalizedEmailOrDerivedUsername(email: string, userna
 export function findUserByDerivedUsername(username: string, tx?: TransactionClient) {
   return getDb(tx).user.findFirst({
     where: {
-      email: { startsWith: `${username}@` },
-      NOT: { email: { startsWith: 'deleted_' } },
+      derivedUsername: username,
     },
-    orderBy: { createdAt: 'asc' },
   });
 }
 
@@ -49,7 +86,7 @@ export function findUserIdentityConflict(email: string, username: string, exclud
     where: {
       id: { not: excludeUserId },
       NOT: { email: { startsWith: 'deleted_' } },
-      OR: [{ email }, { email: { startsWith: `${username}@` } }],
+      OR: [{ email }, { derivedUsername: username }],
     },
     select: { id: true, email: true },
   });
