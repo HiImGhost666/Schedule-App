@@ -19,6 +19,7 @@ import { UserDetailsModal } from './UserDetailsModal';
 const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
+const ALLOWED_BRANCH_CODES = new Set(['TFN', 'GC']);
 const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
 const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
 const DEPARTMENT_LOOKUP = new Map<string, string>(
@@ -169,7 +170,11 @@ function normalizeOptional(value: string): string | undefined {
 function normalizeDepartment(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  return DEPARTMENT_LOOKUP.get(trimmed.toLowerCase()) ?? trimmed;
+  const canonical = DEPARTMENT_LOOKUP.get(trimmed.toLowerCase());
+  if (canonical) return canonical;
+
+  const lower = trimmed.toLowerCase();
+  return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
 }
 
 export function UsersPage() {
@@ -231,7 +236,7 @@ export function UsersPage() {
         email: user.email ?? '',
         role: user.role ?? '',
         status: user.status ?? '',
-        department: user.department ?? '',
+        department: normalizeDepartment(user.department ?? '') ?? '',
         branchId: user.branch?.code ?? '',
         companyPhone: user.companyPhone ?? '',
         auxiliaryPhone: user.auxiliaryPhone ?? '',
@@ -299,8 +304,11 @@ export function UsersPage() {
     if (row.status && !ALLOWED_STATUS.has(row.status.trim().toLowerCase())) {
       return `Fila ${index + 2}: Estado inválido "${row.status}"`;
     }
-    if (row.department && !ALLOWED_DEPARTMENTS.has(row.department.trim().toLowerCase())) {
-      return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
+    if (row.department) {
+      const normalizedDepartment = normalizeDepartment(row.department);
+      if (!normalizedDepartment || !ALLOWED_DEPARTMENTS.has(normalizedDepartment)) {
+        return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
+      }
     }
     return null;
   };
@@ -475,7 +483,7 @@ export function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department || '—'}</td>
+                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{normalizeDepartment(u.department ?? '') || '—'}</td>
                       <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
                         {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
                       </td>
