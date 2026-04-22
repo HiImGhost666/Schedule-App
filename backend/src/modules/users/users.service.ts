@@ -4,6 +4,7 @@ import { prisma } from '../../config/database';
 import { hashPassword } from '../../utils/bcrypt';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import type { TransactionClient } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { BRANCH_CODES } from '../branches/branches.constants';
 import {
@@ -13,10 +14,11 @@ import {
   findUserByDerivedUsername,
   findUserDetailById,
   findUserById,
+  findUserByEmployeeId,
   findUserIdentityConflict,
-  findUserByNormalizedEmailOrDerivedUsername,
   listUserSchedules,
   listUsers,
+  reserveNextEmployeeId,
   updateUserRecord,
 } from './users.repository';
 import {
@@ -40,7 +42,7 @@ const createUserInputSchema = z.object({
 
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
-  branchId: z.string().min(1).nullable().optional(),
+  branchId: z.string().min(1),
   employeeId: z.string().optional().nullable(),
   forcePasswordChange: z.boolean().optional(),
 });
@@ -58,12 +60,120 @@ const updateUserInputSchema = z.object({
 });
 
 export type CreateUserInput = z.infer<typeof createUserInputSchema>;
+type CreateUserOptions = {
+  upsertExisting?: boolean;
+};
 
 type ActorContext = { id: string; ipAddress?: string };
 
 /** Normaliza el identificador logístico a formato case-insensitive limpio. */
 function normalizeLoginIdentifier(identifier: string): string {
   return identifier.trim().toLowerCase();
+}
+
+function normalizeEmployeeId(employeeId?: string | null) {
+  const normalized = employeeId?.trim().toUpperCase();
+  return normalized ? normalized : undefined;
+}
+
+async function resolveUserUpsertTarget(
+  input: { email: string; employeeId?: string | null },
+  tx?: TransactionClient,
+) {
+  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedEmployeeId = normalizeEmployeeId(input.employeeId);
+  const username = extractUsernameFromEmail(normalizedEmail);
+
+  const [existingByEmployeeId, existingByEmail] = await Promise.all([
+    normalizedEmployeeId ? findUserByEmployeeId(normalizedEmployeeId, tx) : Promise.resolve(null),
+    findUserByEmail(normalizedEmail, tx),
+  ]);
+  const usernameConflict = await findUserByDerivedUsername(username, tx);
+
+  if (usernameConflict) {
+    const conflictsWithTarget =
+      usernameConflict.id === existingByEmployeeId?.id
+      || usernameConflict.id === existingByEmail?.id;
+
+    if (!conflictsWithTarget) {
+      throw createAppError('CONFLICT', 'El username ya está registrado');
+    }
+  }
+
+  if (normalizedEmployeeId) {
+    if (existingByEmployeeId && existingByEmail && existingByEmployeeId.id !== existingByEmail.id) {
+      throw createAppError('CONFLICT', 'El employeeId ya está registrado en otro usuario');
+    }
+
+    const existingEmailEmployeeId = (existingByEmail as { employeeId?: string | null } | null)?.employeeId;
+
+    if (
+      existingByEmail
+      && existingEmailEmployeeId
+      && normalizeEmployeeId(existingEmailEmployeeId) !== normalizedEmployeeId
+    ) {
+      throw createAppError('CONFLICT', 'El email ya está asociado a otro employeeId');
+    }
+
+    return {
+      existingUser: existingByEmployeeId ?? existingByEmail,
+      employeeId: normalizedEmployeeId,
+      createNew: !existingByEmployeeId && !existingByEmail,
+      username,
+    };
+  }
+
+  if (existingByEmail) {
+    const existingEmailEmployeeId = (existingByEmail as { employeeId?: string | null }).employeeId;
+
+    return {
+      existingUser: existingByEmail,
+      employeeId: normalizeEmployeeId(existingEmailEmployeeId) ?? await reserveNextEmployeeId(tx),
+      createNew: false,
+      username,
+    };
+  }
+
+  return {
+    existingUser: null,
+    employeeId: await reserveNextEmployeeId(tx),
+    createNew: true,
+    username,
+  };
+}
+
+async function resolveUserCreateTarget(
+  input: { email: string; employeeId?: string | null },
+  tx?: TransactionClient,
+) {
+  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedEmployeeId = normalizeEmployeeId(input.employeeId);
+  const username = extractUsernameFromEmail(normalizedEmail);
+
+  const [existingByEmail, existingByEmployeeId, existingByUsername] = await Promise.all([
+    findUserByEmail(normalizedEmail, tx),
+    normalizedEmployeeId ? findUserByEmployeeId(normalizedEmployeeId, tx) : Promise.resolve(null),
+    findUserByDerivedUsername(username, tx),
+  ]);
+
+  if (existingByEmail) {
+    throw createAppError('CONFLICT', 'El email ya está registrado');
+  }
+
+  if (existingByEmployeeId) {
+    throw createAppError('CONFLICT', 'El employeeId ya está registrado');
+  }
+
+  if (existingByUsername) {
+    throw createAppError('CONFLICT', 'El username ya está registrado');
+  }
+
+  return {
+    existingUser: null,
+    employeeId: normalizedEmployeeId ?? await reserveNextEmployeeId(tx),
+    createNew: true,
+    username,
+  };
 }
 
 async function ensureBranchExists(branchId: string) {
@@ -77,76 +187,83 @@ async function ensureBranchExists(branchId: string) {
  * @description Crea un usuario validando duplicados (email/username), hashea password y emite evento en tiempo real.
  * @param input @param actor
  */
-export async function createUser(input: CreateUserInput, actor?: ActorContext) {
+export async function createUser(input: CreateUserInput, actor?: ActorContext, options?: CreateUserOptions) {
   const parsed = createUserInputSchema.safeParse(input);
   if (!parsed.success) {
     throw createAppError('BAD_REQUEST', 'Datos inválidos', parsed.error.flatten());
   }
 
   const normalizedEmail = normalizeEmail(parsed.data.email);
-  const username = extractUsernameFromEmail(normalizedEmail);
+  const normalizedName = parsed.data.name.trim();
+  const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
+  const shouldUpsertExisting = options?.upsertExisting ?? false;
+  await ensureBranchExists(parsed.data.branchId);
+  const { password: _password, branchId: createBranchId, forcePasswordChange, ...userData } = parsed.data;
 
-  const existingUser = await findUserByNormalizedEmailOrDerivedUsername(normalizedEmail, username);
-  if (existingUser) {
-    if (existingUser.email === normalizedEmail) {
-      throw createAppError('CONFLICT', 'El email ya está registrado');
-    }
-    throw createAppError('CONFLICT', 'El username ya está registrado');
-  }
+  const result = await executeInTransaction(async (tx) => {
+    const identity = shouldUpsertExisting
+      ? await resolveUserUpsertTarget(
+          { email: normalizedEmail, employeeId: normalizedEmployeeId },
+          tx,
+        )
+      : await resolveUserCreateTarget(
+          { email: normalizedEmail, employeeId: normalizedEmployeeId },
+          tx,
+        );
 
-  if (parsed.data.branchId) {
-    await ensureBranchExists(parsed.data.branchId);
-  }
-
-  const passwordHash = await hashPassword(parsed.data.password);
-  const { password: _password, branchId: createBranchId, employeeId, forcePasswordChange, ...userData } = parsed.data;
-
-  const user = await executeInTransaction(async (tx) => {
-    const user = await createUserRecord({
+    const baseUserData = {
       ...userData,
+      name: normalizedName,
       email: normalizedEmail,
-      companyPhone: normalizePhone(parsed.data.companyPhone),
-      auxiliaryPhone: normalizePhone(parsed.data.auxiliaryPhone),
-      passwordHash,
-      role: parsed.data.role ?? 'viewer',
-      status: parsed.data.status ?? 'active',
-      forcePasswordChange: forcePasswordChange ?? false,
-      ...(createBranchId
-        ? { branch: { connect: { id: createBranchId } } }
-        : {}),
-      employeeId: employeeId || null,
-    }, tx);
+      derivedUsername: identity.username,
+      companyPhone: normalizePhone(parsed.data.companyPhone) ?? identity.existingUser?.companyPhone ?? null,
+      auxiliaryPhone: normalizePhone(parsed.data.auxiliaryPhone) ?? identity.existingUser?.auxiliaryPhone ?? null,
+      role: parsed.data.role ?? identity.existingUser?.role ?? 'viewer',
+      status: parsed.data.status ?? identity.existingUser?.status ?? 'active',
+      avatarUrl: parsed.data.avatarUrl ?? identity.existingUser?.avatarUrl ?? null,
+      department: parsed.data.department ?? identity.existingUser?.department ?? null,
+      forcePasswordChange: forcePasswordChange ?? identity.existingUser?.forcePasswordChange ?? false,
+      ...(createBranchId ? { branch: { connect: { id: createBranchId } } } : {}),
+      employeeId: identity.employeeId,
+    };
+
+    const user = identity.createNew
+      ? await createUserRecord({
+          ...baseUserData,
+          passwordHash: await hashPassword(parsed.data.password),
+        }, tx)
+      : await updateUserRecord(identity.existingUser!.id, baseUserData, tx);
 
     if (actor?.id) {
       await logAuditOrThrow({
         userId: actor.id,
-        action: 'CREATE_USER',
+        action: identity.createNew || !shouldUpsertExisting ? 'CREATE_USER' : 'UPDATE_USER',
         entityType: 'User',
         entityId: user.id,
         detailsJson: {
-          before: null,
+          before: identity.createNew ? null : sanitizeSnapshot(identity.existingUser),
           after: sanitizeSnapshot(user),
         },
         ipAddress: actor.ipAddress,
       }, tx);
     }
 
-    return user;
+    return { user, created: identity.createNew };
   });
 
-  publishRealtimeEvent(REALTIME_EVENTS.USER_CREATED, {
+  publishRealtimeEvent(result.created ? REALTIME_EVENTS.USER_CREATED : REALTIME_EVENTS.USER_UPDATED, {
     entity: 'user',
-    action: 'created',
-    id: user.id,
+    action: result.created ? 'created' : 'updated',
+    id: result.user.id,
     changedAt: new Date().toISOString(),
     actorId: actor?.id ?? null,
     meta: {
-      role: user.role,
-      status: user.status,
+      role: result.user.role,
+      status: result.user.status,
     },
   });
 
-  return user;
+  return result.user;
 }
 
 /**
@@ -226,6 +343,15 @@ export async function updateUser(userId: string, data: {
     await ensureBranchExists(parsed.data.branchId);
   }
 
+  if (parsed.data.employeeId !== undefined) {
+    const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
+    const currentEmployeeId = normalizeEmployeeId((user as { employeeId?: string | null }).employeeId);
+
+    if (normalizedEmployeeId !== currentEmployeeId) {
+      throw createAppError('BAD_REQUEST', 'El employeeId se asigna automáticamente y no puede modificarse manualmente');
+    }
+  }
+
   const updated = await executeInTransaction(async (tx) => {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
@@ -239,13 +365,18 @@ export async function updateUser(userId: string, data: {
         companyPhone: normalizedCompanyPhone,
         auxiliaryPhone: normalizedAuxiliaryPhone,
         employeeId: employeeId !== undefined ? employeeId : undefined,
-        ...(parsed.data.email ? { email: normalizeEmail(parsed.data.email) } : {}),
+        ...(parsed.data.email
+          ? {
+              email: normalizeEmail(parsed.data.email),
+              derivedUsername: extractUsernameFromEmail(normalizeEmail(parsed.data.email)),
+            }
+          : {}),
         ...(updateBranchId === undefined
           ? {}
           : updateBranchId
             ? { branch: { connect: { id: updateBranchId } } }
             : { branch: { disconnect: true } }),
-      },
+      } as Parameters<typeof updateUserRecord>[1],
       tx,
     );
     await logAuditOrThrow({
@@ -395,7 +526,8 @@ export async function deleteUser(userId: string, actor: ActorContext) {
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes eliminar tu propia cuenta');
 
   await executeInTransaction(async (tx) => {
-    const updated = await updateUserRecord(userId, { status: 'disabled', email: `deleted_${Date.now()}_${user.email}` }, tx);
+    const newEmail = `deleted_${Date.now()}_${user.email}`;
+    const updated = await updateUserRecord(userId, { status: 'disabled', email: newEmail, derivedUsername: newEmail }, tx);
     await logAuditOrThrow({
       userId: actor.id,
       action: 'DELETE_USER',
@@ -466,125 +598,108 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
   for (const row of rows) {
     try {
-      const employeeId = row.employeeId?.trim() || null;
+      const employeeId = normalizeEmployeeId(row.employeeId);
       const email = normalizeEmail(row.email);
       const name = row.name.trim();
 
       if (!name) throw new Error('El nombre es obligatorio');
       if (!email) throw new Error('El email es obligatorio');
 
-      const role = row.role.trim();
-      const status = row.status.trim();
+      const role = row.role.trim().toLowerCase();
+      const status = row.status.trim().toLowerCase();
       const department = row.department.trim().toLowerCase();
       const branchSearch = row.branchId?.trim();
       const companyPhone = row.companyPhone.trim() || undefined;
       const auxiliaryPhone = row.auxiliaryPhone.trim() || undefined;
 
+      if (!branchSearch) throw new Error('La sucursal es obligatoria');
       if (role && !(USER_ROLES as readonly string[]).includes(role)) throw new Error(`Rol inválido: ${role}`);
       if (status && !(USER_STATUSES as readonly string[]).includes(status)) throw new Error(`Estado inválido: ${status}`);
       if (department && !(USER_DEPARTMENTS as readonly string[]).includes(department)) throw new Error(`Departamento inválido: ${department}`);
 
-      let resolvedBranchId: string | null = null;
-      if (branchSearch) {
-        const normalizedBranchSearch = branchSearch.toUpperCase();
-        const b = allowedBranchCodes.has(normalizedBranchSearch)
-          ? branches.find((branch) => branch.code.toUpperCase() === normalizedBranchSearch)
-          : branches.find((branch) => branch.name.toLowerCase().includes(branchSearch.toLowerCase()));
+      const normalizedBranchSearch = branchSearch.toUpperCase();
+      const branch = allowedBranchCodes.has(normalizedBranchSearch)
+        ? branches.find((item) => item.code.toUpperCase() === normalizedBranchSearch)
+        : branches.find((item) => item.name.toLowerCase().includes(branchSearch.toLowerCase()));
 
-        if (!b) {
-          throw new Error(`Sucursal inválida: ${branchSearch}. Valores válidos: TFN, GC o nombre de sede`);
-        }
-
-        resolvedBranchId = b?.id || null;
+      if (!branch) {
+        throw new Error(`Sucursal inválida: ${branchSearch}. Valores válidos: TFN, GC o nombre de sede`);
       }
 
+      const resolvedBranchId = branch.id;
       const userRole = (role || undefined) as UserRole | undefined;
       const userStatus = (status || undefined) as UserStatus | undefined;
       const userDept = (department || undefined) as UserDepartment | undefined;
 
-      let existing = null;
-      if (employeeId) {
-        existing = await prisma.user.findUnique({ where: { employeeId } });
-      }
-      if (!existing && email) {
-        existing = await findUserByEmailOrUsername(email);
+      const [existingByEmployeeId, existingByEmail] = await Promise.all([
+        employeeId ? findUserByEmployeeId(employeeId) : Promise.resolve(null),
+        findUserByEmail(email),
+      ]);
+
+      if (employeeId && existingByEmployeeId && existingByEmail && existingByEmployeeId.id !== existingByEmail.id) {
+        throw new Error('El employeeId ya está registrado en otro usuario');
       }
 
+      if (
+        employeeId
+        && existingByEmail
+        && (existingByEmail as { employeeId?: string | null }).employeeId
+        && normalizeEmployeeId((existingByEmail as { employeeId?: string | null }).employeeId) !== employeeId
+      ) {
+        throw new Error('El email ya está asociado a otro employeeId');
+      }
+
+      const existing = existingByEmployeeId ?? existingByEmail;
+
+      const normalizedExistingEmployeeId = normalizeEmployeeId((existing as { employeeId?: string | null } | null)?.employeeId);
+      const shouldGenerateEmployeeId = !employeeId && !normalizedExistingEmployeeId;
+
+      const targetRole = userRole ?? (existing?.role as UserRole | undefined);
+      const targetStatus = userStatus ?? (existing?.status as UserStatus | undefined);
+      const targetDepartment = userDept ?? ((existing?.department ?? undefined) as UserDepartment | undefined);
+      const targetCompanyPhone = companyPhone ?? (existing?.companyPhone ?? undefined);
+      const targetAuxiliaryPhone = auxiliaryPhone ?? (existing?.auxiliaryPhone ?? undefined);
+      const targetEmployeeId = employeeId ?? normalizedExistingEmployeeId ?? undefined;
+      const targetForcePasswordChange = existing ? !!existing.forcePasswordChange : true;
+
+      const hasChanges = !existing
+        || name !== existing.name
+        || email !== existing.email
+        || targetRole !== existing.role
+        || targetStatus !== existing.status
+        || (targetDepartment ?? undefined) !== (existing.department ?? undefined)
+        || (targetCompanyPhone ?? undefined) !== (existing.companyPhone ?? undefined)
+        || (targetAuxiliaryPhone ?? undefined) !== (existing.auxiliaryPhone ?? undefined)
+        || (existing.branchId ?? null) !== resolvedBranchId
+        || (targetEmployeeId ?? undefined) !== (normalizeEmployeeId((existing as { employeeId?: string | null } | null)?.employeeId) ?? undefined)
+        || shouldGenerateEmployeeId;
+
+      if (!hasChanges) {
+        unchanged++;
+        continue;
+      }
+
+      await createUser({
+        employeeId,
+        name,
+        email,
+        password: CSV_IMPORT_DEFAULT_PASSWORD,
+        role: targetRole,
+        status: targetStatus,
+        department: targetDepartment,
+        branchId: resolvedBranchId,
+        companyPhone: targetCompanyPhone,
+        auxiliaryPhone: targetAuxiliaryPhone,
+        forcePasswordChange: targetForcePasswordChange,
+        ...(targetEmployeeId ? { employeeId: targetEmployeeId } : {}),
+      }, actor, { upsertExisting: true });
+
       if (!existing) {
-        await createUser({
-          employeeId,
-          name,
-          email,
-          password: CSV_IMPORT_DEFAULT_PASSWORD.toLowerCase(),
-          role: userRole,
-          status: userStatus,
-          department: userDept,
-          branchId: resolvedBranchId,
-          companyPhone,
-          auxiliaryPhone,
-          forcePasswordChange: true
-        }, actor);
         created++;
         continue;
       }
 
-      let changed = false;
-      const updatePayload: any = {};
-
-      if (employeeId && employeeId !== existing.employeeId) {
-        updatePayload.employeeId = employeeId;
-        changed = true;
-      }
-
-      if (email !== existing.email) {
-        updatePayload.email = email;
-        changed = true;
-      }
-
-      if (name !== existing.name) {
-        updatePayload.name = name;
-        changed = true;
-      }
-      
-      const existingDepartment = existing.department || undefined;
-      if (userDept && userDept !== existingDepartment) {
-        updatePayload.department = userDept;
-        changed = true;
-      }
-
-      const existingCompanyPhone = existing.companyPhone || undefined;
-      if (companyPhone && companyPhone !== existingCompanyPhone) {
-        updatePayload.companyPhone = companyPhone;
-        changed = true;
-      }
-
-      const existingAuxiliaryPhone = existing.auxiliaryPhone || undefined;
-      if (auxiliaryPhone && auxiliaryPhone !== existingAuxiliaryPhone) {
-        updatePayload.auxiliaryPhone = auxiliaryPhone;
-        changed = true;
-      }
-
-      if (resolvedBranchId !== (existing.branchId || null)) {
-        updatePayload.branchId = resolvedBranchId;
-        changed = true;
-      }
-
-      if (changed) {
-        await updateUser(existing.id, updatePayload, actor);
-      }
-
-      if (userRole && userRole !== existing.role) {
-        await changeUserRole(existing.id, userRole, actor);
-        changed = true;
-      }
-
-      if (userStatus && userStatus !== existing.status) {
-        await changeUserStatus(existing.id, userStatus, actor);
-        changed = true;
-      }
-
-      if (changed) updated++;
-      else unchanged++;
+      updated++;
 
     } catch (err: any) {
       rejectedRows.push({

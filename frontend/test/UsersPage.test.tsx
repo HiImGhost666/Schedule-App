@@ -121,12 +121,23 @@ describe('UsersPage', () => {
   });
 
   it('procesa la importacion de un archivo CSV', async () => {
-    getMock.mockResolvedValue({
-      data: {
-        success: true,
-        data: [],
-        pagination: { total: 0, page: 1, limit: 15, totalPages: 1 },
-      },
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 'branch-1', code: 'TFN', name: 'Tenerife', isActive: true }],
+          },
+        });
+      }
+
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: [],
+          pagination: { total: 0, page: 1, limit: 15, totalPages: 1 },
+        },
+      });
     });
     postMock.mockResolvedValueOnce({
       data: {
@@ -137,7 +148,7 @@ describe('UsersPage', () => {
 
     renderPage();
 
-    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,,,'], 'users.csv', { type: 'text/csv' });
+    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,TFN,,'], 'users.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
     
     // El input está hidden, pero podemos interactuar con él si lo encontramos

@@ -31,8 +31,8 @@ vi.mock('@/config/api', () => ({
 }));
 
 vi.mock('@fullcalendar/react', () => ({
-  default: (props: any) => (
-    <div data-testid="mock-calendar" data-events={JSON.stringify(props.events)} />
+  default: (props: { events?: unknown[] }) => (
+    <div data-testid="mock-calendar" data-events={JSON.stringify(props.events ?? [])} />
   ),
 }));
 
@@ -76,6 +76,15 @@ function getScheduleCall() {
 }
 
 describe('SchedulePage smoke', () => {
+  type CalendarEvent = {
+    id?: string;
+    title?: string;
+    extendedProps?: {
+      isHoliday?: boolean;
+      schedule?: unknown;
+    };
+  };
+
   beforeEach(() => {
     getMock.mockReset();
   });
@@ -269,10 +278,10 @@ describe('SchedulePage smoke', () => {
       // Debe haber 3 eventos: 1 turno + 1 festivo interactivo + 1 festivo background
       expect(events).toHaveLength(3);
       
-      const holiday = events.find((e: any) => e.extendedProps?.isHoliday);
+      const holiday = (events as CalendarEvent[]).find((e) => e.extendedProps?.isHoliday);
       expect(holiday.title).toBeDefined();
       
-      const schedule = events.find((e: any) => e.extendedProps?.schedule);
+      const schedule = (events as CalendarEvent[]).find((e) => e.extendedProps?.schedule);
       expect(schedule.title).toBe('Turno Test');
     });
   });
@@ -310,8 +319,8 @@ describe('SchedulePage smoke', () => {
       const calendar = screen.getByTestId('mock-calendar');
       const events = JSON.parse(calendar.getAttribute('data-events') || '[]');
       
-      const holiday1 = events.find((e: any) => e.id === 'holiday-h-1');
-      const holiday2 = events.find((e: any) => e.id === 'holiday-h-2');
+      const holiday1 = (events as CalendarEvent[]).find((e) => e.id === 'holiday-h-1');
+      const holiday2 = (events as CalendarEvent[]).find((e) => e.id === 'holiday-h-2');
       
       expect(holiday1.title).toBe('Año Nuevo');
       expect(holiday2.title).toBe('Año Nuevo');

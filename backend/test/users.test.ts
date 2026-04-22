@@ -9,6 +9,13 @@ jest.mock('../src/modules/audit/audit.service', () => ({
   logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
   sanitizeSnapshot: jest.fn((x) => x),
 }));
+jest.mock('../src/config/database', () => ({
+  prisma: {
+    branch: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'branch-1' }),
+    },
+  },
+}));
 jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }));
 jest.mock('../src/utils/bcrypt', () => ({
   hashPassword: jest.fn().mockResolvedValue('hashed_password'),
@@ -19,8 +26,10 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
 }));
 
 import * as usersRepo from '../src/modules/users/users.repository';
+import { prisma } from '../src/config/database';
 import {
   createUser,
+  updateUser,
   changeUserStatus,
   resetUserPassword,
   deleteUser,
@@ -29,10 +38,14 @@ import {
 const mockRepo = usersRepo as jest.Mocked<typeof usersRepo>;
 
 const mockActor = { id: 'admin-id-1', ipAddress: '127.0.0.1' };
+const mockPrisma = prisma as unknown as {
+  branch: { findUnique: jest.Mock };
+};
 
 // ── Helper para crear un usuario ficticio compatible ────────────────────────
 const buildUser = (overrides: Record<string, any> = {}) => ({
   id: 'user-id-1',
+  employeeId: 'LAB-0001',
   email: 'test@example.com',
   name: 'Test User',
   role: 'viewer',
@@ -46,47 +59,143 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
 
 // ═══════════════════════════════════════════════════════════════════════════════
 describe('createUser', () => {
-  // ── Caso: Email duplicado ────────────────────────────────────────────────────
-  it('rechaza la creación si el email normalizado ya está registrado', async () => {
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername.mockResolvedValue(
-      buildUser({ email: 'test@example.com' }) as any
-    );
+  beforeEach(() => {
+    mockRepo.findUserByEmployeeId.mockResolvedValue(null as any);
+    mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
+    mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-0002');
+    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
+    mockRepo.updateUserRecord.mockResolvedValue(buildUser({ id: 'existing-id' }) as any);
+  });
+
+  // ── Caso: branchId obligatorio ───────────────────────────────────────────────
+  it('rechaza la creación si no se envía sucursal', async () => {
+    await expect(
+      createUser({ email: 'nuevo@example.com', password: 'Secure123!', name: 'Test' } as any, mockActor)
+    ).rejects.toThrow();
+  });
+
+  // ── Caso: Email duplicado → conflicto ───────────────────────────────────────
+  it('rechaza la creación cuando el email ya existe', async () => {
+    const existing = buildUser({ id: 'existing-id', email: 'test@example.com', employeeId: 'LAB-0001' });
+    mockRepo.findUserByEmail.mockResolvedValue(existing as any);
 
     await expect(
-      createUser({ email: 'TEST@example.com', password: 'Secure123!', name: 'Test' }, mockActor)
+      createUser(
+        {
+          email: 'TEST@example.com',
+          password: 'Secure123!',
+          name: 'Test Updated',
+          branchId: 'branch-1',
+        },
+        mockActor
+      )
     ).rejects.toThrow('El email ya está registrado');
+
+    expect(mockRepo.updateUserRecord).not.toHaveBeenCalled();
+  });
+
+  // ── Caso: employeeId duplicado → conflicto ──────────────────────────────────
+  it('rechaza la creación cuando el employeeId ya existe', async () => {
+    const existing = buildUser({ id: 'existing-id', employeeId: 'LAB-0007', email: 'otro@example.com' });
+    mockRepo.findUserByEmployeeId.mockResolvedValue(existing as any);
+
+    await expect(
+      createUser(
+        {
+          email: 'nuevo@example.com',
+          employeeId: 'LAB-0007',
+          password: 'Secure123!',
+          name: 'Test Updated',
+          branchId: 'branch-1',
+        },
+        mockActor
+      )
+    ).rejects.toThrow('El employeeId ya está registrado');
+
+    expect(mockRepo.updateUserRecord).not.toHaveBeenCalled();
+  });
+
+  // ── Caso: Email + employeeId apuntando a mismo usuario sigue en conflicto ───
+  it('mantiene semántica strict-create aunque email y employeeId apunten al mismo usuario', async () => {
+    const existing = buildUser({ id: 'existing-id', employeeId: 'LAB-0007', email: 'otro@example.com' });
+    mockRepo.findUserByEmployeeId.mockResolvedValue(existing as any);
+    mockRepo.findUserByEmail.mockResolvedValue(existing as any);
+
+    await expect(
+      createUser(
+      {
+        email: 'otro@example.com',
+        employeeId: 'LAB-0007',
+        password: 'Secure123!',
+        name: 'Test Updated',
+        branchId: 'branch-1',
+      },
+      mockActor
+    )).rejects.toThrow('El email ya está registrado');
   });
 
   // ── Caso: Username derivado duplicado (mismo prefijo antes del @) ───────────
   it('rechaza la creación si el username derivado del email ya existe', async () => {
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername.mockResolvedValue(
-      buildUser({ email: 'otro@dominio.com' }) as any // email diferente → colisión en username
+    mockRepo.findUserByDerivedUsername.mockResolvedValue(
+      buildUser({ id: 'other-id', email: 'otro@dominio.com' }) as any
     );
 
     await expect(
-      createUser({ email: 'libre@dominio.com', password: 'Secure123!', name: 'Test' }, mockActor)
+      createUser({ email: 'libre@dominio.com', password: 'Secure123!', name: 'Test', branchId: 'branch-1' }, mockActor)
     ).rejects.toThrow('El username ya está registrado');
   });
 
   // ── Caso: Password demasiado corta (valor límite = 8 chars, probamos 7) ─────
   it('rechaza password de 7 caracteres (por debajo del límite mínimo de 8)', async () => {
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername.mockResolvedValue(null);
+    mockRepo.findUserByEmail.mockResolvedValue(null as any);
 
     await expect(
-      createUser({ email: 'nuevo@example.com', password: 'Only7!x', name: 'Test' }, mockActor)
+      createUser({ email: 'nuevo@example.com', password: 'Only7!x', name: 'Test', branchId: 'branch-1' }, mockActor)
     ).rejects.toThrow(); // Zod valida min(8)
   });
 
   // ── Caso: Creación exitosa limpia ────────────────────────────────────────────
   it('crea el usuario cuando no existen conflictos de identidad', async () => {
-    mockRepo.findUserByNormalizedEmailOrDerivedUsername.mockResolvedValue(null);
-    mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id' }) as any);
+    mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id', employeeId: 'LAB-0002' }) as any);
 
     const user = await createUser(
-      { email: 'nuevo@example.com', password: 'Secure123!', name: 'Nuevo User' },
+      { email: 'nuevo@example.com', password: 'Secure123!', name: 'Nuevo User', branchId: 'branch-1' },
       mockActor
     );
     expect(user.id).toBe('new-id');
+    expect(user.employeeId).toBe('LAB-0002');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+describe('updateUser', () => {
+  beforeEach(() => {
+    mockRepo.findUserById.mockResolvedValue(buildUser() as any);
+    mockRepo.findUserIdentityConflict.mockResolvedValue(null as any);
+    mockRepo.updateUserRecord.mockResolvedValue(buildUser() as any);
+  });
+
+  it('rechaza la actualización si el nuevo email genera un username derivado en conflicto', async () => {
+    mockRepo.findUserIdentityConflict.mockResolvedValue({ id: 'other-user', email: 'conflicto@otrodominio.com' } as any);
+
+    await expect(
+      updateUser('user-id-1', { email: 'conflicto@dominio.com' }, mockActor)
+    ).rejects.toThrow('El username ya está registrado');
+  });
+
+  it('actualiza el derivedUsername cuando se cambia el email', async () => {
+    await updateUser('user-id-1', { email: 'nuevo.email@example.com' }, mockActor);
+
+    expect(mockRepo.updateUserRecord).toHaveBeenCalledWith(
+      'user-id-1',
+      expect.objectContaining({
+        email: 'nuevo.email@example.com',
+        derivedUsername: 'nuevo.email',
+      }),
+      expect.anything()
+    );
   });
 });
 
@@ -173,8 +282,8 @@ describe('deleteUser', () => {
   });
 
   // ── Caso: Soft-delete cambia el email con prefijo "deleted_" ────────────────
-  it('modifica el email añadiendo prefijo deleted_ (mecanismo de soft-delete)', async () => {
-    mockRepo.findUserById.mockResolvedValue(buildUser({ id: 'victim-id' }) as any);
+  it('modifica el email y derivedUsername añadiendo prefijo deleted_ (mecanismo de soft-delete)', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ id: 'victim-id', email: 'victim@example.com' }) as any);
     mockRepo.updateUserRecord.mockResolvedValue(buildUser() as any);
 
     await deleteUser('victim-id', mockActor);
@@ -183,6 +292,7 @@ describe('deleteUser', () => {
       'victim-id',
       expect.objectContaining({
         email: expect.stringMatching(/^deleted_/),
+        derivedUsername: expect.stringMatching(/^deleted_/),
         status: 'disabled',
       }),
       expect.anything()

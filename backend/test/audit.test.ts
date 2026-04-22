@@ -14,8 +14,10 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
 import * as auditRepo from '../src/modules/audit/audit.repository';
 import { rollbackAudit, getAuditLogById } from '../src/modules/audit/audit.service';
 import { IRREVERSIBLE_ACTIONS } from '../src/modules/audit/domain/audit.types';
+import * as usersRepo from '../src/modules/users/users.repository';
 
 const mockAuditRepo = auditRepo as jest.Mocked<typeof auditRepo>;
+const mockUsersRepo = usersRepo as jest.Mocked<typeof usersRepo>;
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 const buildLog = (overrides: Record<string, any> = {}) => ({
@@ -35,6 +37,14 @@ const buildLog = (overrides: Record<string, any> = {}) => ({
 
 // ═══════════════════════════════════════════════════════════════════════════════
 describe('rollbackAudit', () => {
+  beforeEach(() => {
+    mockAuditRepo.createAuditLog.mockResolvedValue({
+      id: 'rollback-log',
+      createdAt: new Date(),
+      userId: 'admin-id',
+    } as any);
+  });
+
   // ── Caso: Log no encontrado (404) ─────────────────────────────────────────
   it('lanza NOT_FOUND si el log de auditoría no existe', async () => {
     mockAuditRepo.findAuditLogById.mockResolvedValue(null as any);
@@ -75,6 +85,49 @@ describe('rollbackAudit', () => {
 
     await expect(rollbackAudit('log-1', 'admin', '127.0.0.1'))
       .rejects.toThrow();
+  });
+
+  // ── Caso: Rollback de usuario recalcula derivedUsername ───────────────────
+  it('recalcula el derivedUsername al revertir un UPDATE_USER a un email normal', async () => {
+    const logWithUserUpdate = buildLog({
+      action: 'UPDATE_USER',
+      entityType: 'User',
+      detailsJson: JSON.stringify({
+        before: { email: 'restaurado@example.com', name: 'Nombre Viejo' },
+        after: { email: 'cambiado@example.com', name: 'Nombre Nuevo' },
+      }),
+    });
+    mockAuditRepo.findAuditLogById.mockResolvedValue(logWithUserUpdate as any);
+
+    await rollbackAudit('log-1', 'admin-id');
+
+    expect(mockUsersRepo.updateUserRecord).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        email: 'restaurado@example.com',
+        derivedUsername: 'restaurado',
+      }),
+      expect.anything()
+    );
+  });
+
+  it('maneja el derivedUsername para emails anonimizados (revoked_) en un rollback', async () => {
+    const logWithUserUpdate = buildLog({
+      action: 'UPDATE_USER',
+      entityType: 'User',
+      detailsJson: JSON.stringify({
+        before: { email: 'revoked_12345_test@example.com', name: 'Usuario Revocado' },
+      }),
+    });
+    mockAuditRepo.findAuditLogById.mockResolvedValue(logWithUserUpdate as any);
+
+    await rollbackAudit('log-1', 'admin-id');
+
+    expect(mockUsersRepo.updateUserRecord).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ derivedUsername: 'revoked_12345_test@example.com' }),
+      expect.anything()
+    );
   });
 });
 

@@ -11,6 +11,7 @@ model User {
   id                  String     @id @default(cuid())
   name                String
   email               String     @unique
+  derivedUsername     String     @unique @map("derived_username")
   passwordHash        String     @map("password_hash")
   role                String     @default("viewer")
   status              String     @default("active")
@@ -36,6 +37,15 @@ model User {
 
   @@index([branchId])
   @@map("users")
+}
+
+model EmployeeIdSequence {
+  id         String   @id
+  lastNumber Int      @default(0) @map("last_number")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("employee_id_sequences")
 }
 
 model Branch {

@@ -18,7 +18,6 @@ import { decodeCsvBuffer, parseUserCsv } from '../../utils/csv';
 import {
   changeRoleBodySchema,
   changeStatusBodySchema,
-  createUserCsvBodySchema,
   createUserBodySchema,
   listUsersQuerySchema,
   resetPasswordBodySchema,
@@ -26,7 +25,6 @@ import {
   userIdParamsSchema,
   userSchedulesQuerySchema,
 } from './users.http.schemas';
-import { env } from '../../config/env';
 
 /**
  * @description Orquesta la consulta paginada de usuarios validando la sintaxis del query antes de contactar al servicio.

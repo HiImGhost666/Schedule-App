@@ -121,6 +121,22 @@ describe('login - Seguridad y Valores Límite', () => {
     );
   });
 
+  // ── Caso: Login exitoso con username derivado ────────────────────────
+  it('permite login usando el username derivado del email', async () => {
+    mockUsersRepo.findUserByEmail.mockResolvedValue(null as any); // No match on full email
+    mockUsersRepo.findUserByDerivedUsername.mockResolvedValue(buildUser() as any);
+    mockBcrypt.comparePassword.mockResolvedValue(true as never);
+
+    const result = await login('user', 'CorrectPass!', '127.0.0.1'); // 'user' instead of 'user@test.com'
+
+    expect(result.accessToken).toBe('mock-access-token');
+    expect(mockUsersRepo.findUserByDerivedUsername).toHaveBeenCalledWith('user');
+    expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ failedAttempts: 0 })
+    );
+  });
+
   // ── Caso: Cuenta bloqueada con lockedUntil en el futuro — deniega acceso ────
   it('deniega acceso a cuenta bloqueada cuyo lockedUntil está en el futuro', async () => {
     const futureDate = new Date(Date.now() + 60 * 60 * 1000); // +1 hora
