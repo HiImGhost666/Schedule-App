@@ -12,11 +12,15 @@ import { AlertTriangle, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const pwSchema = z.object({
+  currentPassword: z.string().min(1, 'Contraseña actual requerida'),
   newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
   confirmPassword: z.string(),
 }).refine((d) => d.newPassword === d.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],
+}).refine((d) => d.newPassword !== d.currentPassword, {
+  message: 'La nueva contraseña no puede ser igual a la anterior',
+  path: ['newPassword'],
 });
 
 type PwForm = z.infer<typeof pwSchema>;
@@ -34,7 +38,7 @@ export function ForceChangePassword() {
   });
 
   const changePwMutation = useMutation({
-    mutationFn: (data: { newPassword: string }) =>
+    mutationFn: (data: PwForm) =>
       api.patch('/auth/change-password', data),
     onSuccess: () => {
       toast.success('Contraseña actualizada correctamente');
@@ -77,6 +81,16 @@ export function ForceChangePassword() {
           </div>
 
           <form onSubmit={handleSubmit((d) => changePwMutation.mutate(d))} className="space-y-4 text-left">
+            <div>
+              <label className="block text-sm font-medium text-navy-600 mb-1">Contraseña actual</label>
+              <input 
+                {...register('currentPassword')} 
+                type="password" 
+                className="input-field" 
+                placeholder="Escribe tu contraseña actual" 
+              />
+              {errors.currentPassword && <p className="text-xs text-red-500 mt-1">{errors.currentPassword.message}</p>}
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-navy-600 mb-1">Nueva contraseña</label>
