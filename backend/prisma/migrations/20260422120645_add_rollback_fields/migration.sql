@@ -75,14 +75,4 @@ CREATE INDEX `webhook_configs_enabled_monday_vacation_reminder_enabled_idx` ON `
 -- AddForeignKey
 ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_rolled_back_by_user_id_fkey` FOREIGN KEY (`rolled_back_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
--- RenameIndex
-ALTER TABLE `notification_logs` RENAME INDEX `notification_logs_webhook_config_id_fkey` TO `notification_logs_webhook_config_id_idx`;
 
--- RenameIndex
-ALTER TABLE `refresh_tokens` RENAME INDEX `refresh_tokens_user_id_fkey` TO `refresh_tokens_user_id_idx`;
-
--- RenameIndex
-ALTER TABLE `schedule_assignments` RENAME INDEX `schedule_assignments_user_id_fkey` TO `schedule_assignments_user_id_idx`;
-
--- RenameIndex
-ALTER TABLE `schedules` RENAME INDEX `schedules_created_by_fkey` TO `schedules_created_by_idx`;

@@ -8,7 +8,12 @@ jest.mock('../src/modules/audit/audit.repository');
 jest.mock('../src/modules/schedules/schedules.repository');
 jest.mock('../src/modules/users/users.repository');
 jest.mock('../src/common/transactions/transaction.utils', () => ({
-  executeInTransaction: jest.fn((fn: any) => fn({ schedule: { upsert: jest.fn() }, user: { upsert: jest.fn() } })),
+  executeInTransaction: jest.fn((fn: any) => fn({ 
+    schedule: { upsert: jest.fn() }, 
+    user: { update: jest.fn(), upsert: jest.fn() },
+    webhookConfig: { delete: jest.fn(), upsert: jest.fn() },
+    auditLog: { update: jest.fn() }
+  })),
 }));
 
 import * as auditRepo from '../src/modules/audit/audit.repository';
