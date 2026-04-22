@@ -7,7 +7,8 @@ import {
   MapPin,
   ArrowRight,
   AlertCircle,
-  FileText
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 import { formatDateTime, cn } from '@/lib/utils';
 
@@ -20,6 +21,8 @@ interface ActivityDetailProps {
   actorName: string;
   createdAt: string;
   centroNombre?: string;
+  rolledBackAt?: string | null;
+  rolledBackBy?: { id: string; name: string } | null;
 }
 
 type SnapshotObject = Record<string, unknown>;
@@ -166,6 +169,32 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Rollback Badge (High Visibility) */}
+      {rolledBackAt && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-4 shadow-sm animate-pulse-subtle">
+          <div className="p-2.5 bg-red-100 rounded-full text-red-600">
+            <RotateCcw className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-red-700">Cambio Revertido</h4>
+              <span className="text-[10px] font-bold bg-red-200 text-red-800 px-2 py-0.5 rounded-full uppercase">Audit Trail</span>
+            </div>
+            <p className="text-xs text-red-600 mt-1 leading-relaxed">
+              Esta acción fue deshecha por <span className="font-bold">{rolledBackBy?.name || 'Sistema'}</span> el día <span className="font-medium">{formatDateTime(rolledBackAt)}</span>.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <div className="bg-white/50 px-2 py-1 rounded text-[10px] text-red-800 border border-red-100">
+                <span className="opacity-60">Acción Original:</span> {action || '-'}
+              </div>
+              <div className="bg-white/50 px-2 py-1 rounded text-[10px] text-red-800 border border-red-100">
+                <span className="opacity-60">Ref:</span> {entityId || 'N/A'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Info */}
       <div className="bg-white rounded-xl border border-navy-100 overflow-hidden shadow-sm">
         <div className={cn("px-4 py-2 text-[10px] font-bold uppercase tracking-wider border-b", getActionStyles())}>

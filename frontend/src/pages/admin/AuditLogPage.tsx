@@ -163,6 +163,7 @@ function AuditTable({
                 <td className="px-5 py-4">
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ACTION_COLORS[log.action] || 'bg-navy-100 text-navy-600'}`}>
                     {log.action.replace(/_/g, ' ')}
+                    {log.rolledBackAt && <span className="ml-1 opacity-70">(ROLLBACK)</span>}
                   </span>
                 </td>
                 <td className="px-5 py-4 text-sm text-navy-600 hidden md:table-cell">{log.user?.name || 'Sistema'}</td>
@@ -241,12 +242,12 @@ export function AuditLogPage() {
 
   const rollbackMutation = useMutation({
     mutationFn: (id: string) => api.post(`/audit/${id}/rollback`),
-    onSuccess: () => {
+    onSuccess: (_, logId) => {
       toast.success('Cambio revertido correctamente');
       queryClient.invalidateQueries({ queryKey: ['audit'] });
+      queryClient.invalidateQueries({ queryKey: ['audit-detail', logId] });
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setSelectedLogId(null);
     },
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Error al revertir el cambio')),
   });
@@ -268,6 +269,7 @@ export function AuditLogPage() {
   const canRollback =
     selectedLog &&
     !IRREVERSIBLE_ACTIONS.includes(selectedLog.action) &&
+    !selectedLog.rolledBackAt &&
     (selectedLogDetails.before !== undefined || selectedLog.action.includes('CREATE'));
 
   const handleSelectLog = (id: string) => {
@@ -427,6 +429,8 @@ export function AuditLogPage() {
                     afterJson={afterSnapshot}
                     actorName={selectedLog.user?.name || 'Sistema'}
                     createdAt={selectedLog.createdAt}
+                    rolledBackAt={selectedLog.rolledBackAt}
+                    rolledBackBy={selectedLog.rolledBackBy}
                   />
 
                   {selectedLog.entityId && (
@@ -442,6 +446,7 @@ export function AuditLogPage() {
                       <p className="text-xs font-mono text-navy-500 mt-0.5">{selectedLog.ipAddress}</p>
                     </div>
                   )}
+
 
                   {/* Rollback — solo en pestaña reversible */}
                   {activeTab === 'reversible' && (
@@ -465,7 +470,9 @@ export function AuditLogPage() {
                       </button>
                       {!canRollback && (
                         <p className="text-[10px] text-navy-300 mt-2 text-center">
-                          Este registro no contiene datos previos suficientes para el rollback
+                          {selectedLog.rolledBackAt 
+                            ? 'Este cambio ya ha sido revertido'
+                            : 'Este registro no contiene datos previos suficientes para el rollback'}
                         </p>
                       )}
                     </div>

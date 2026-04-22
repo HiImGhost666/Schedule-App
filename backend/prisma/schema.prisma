@@ -32,6 +32,7 @@ model User {
   createdSchedules    Schedule[]           @relation("ScheduleCreator")
   scheduleAssignments ScheduleAssignment[]
   auditLogs           AuditLog[]           @relation("AuditActor")
+  rolledBackAuditLogs AuditLog[]           @relation("AuditRollbackActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
 
   // -- ÍNDICES --
@@ -253,10 +254,17 @@ model AuditLog {
   ipAddress   String?  @map("ip_address")
   userAgent   String?  @map("user_agent")
   createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  rolledBackAt      DateTime? @map("rolled_back_at")
+  rolledBackByUserId String?   @map("rolled_back_by_user_id")
+  rolledBackBy      User?     @relation("AuditRollbackActor", fields: [rolledBackByUserId], references: [id])
 
   // -- ÍNDICES --
   // createdAt: listado paginado ordenado cronológicamente
   @@index([createdAt])
+  // updatedAt: para mover registros arriba al ser modificados (rollbacks)
+  @@index([updatedAt])
   // userId: actividad de un usuario concreto
   @@index([userId])
   // action: filtrar por tipo de acción (LOGIN, UPDATE_USER, etc.) y la lógica reversible/irreversible

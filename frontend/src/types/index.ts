@@ -164,6 +164,9 @@ export interface AuditLog {
   detailsJson?: unknown;
   ipAddress?: string;
   createdAt: string;
+  updatedAt: string;
+  rolledBackAt?: string | null;
+  rolledBackBy?: { id: string; name: string } | null;
   user?: { id: string; name: string; email: string } | null;
 }
 

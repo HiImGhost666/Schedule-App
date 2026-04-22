@@ -197,9 +197,13 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
     }
   }
 
-  // Verificar si la acción es irreversible
+  // Verificar si la acción es irreversible o ya ha sido revertida
   if (isIrreversibleAction(log.action)) {
     throw new AppError('BAD_REQUEST', 400, `La acción "${log.action}" no puede ser revertida`);
+  }
+
+  if ((log as any).rolledBackAt) {
+    throw new AppError('BAD_REQUEST', 400, 'Este cambio ya ha sido revertido');
   }
 
   return executeInTransaction(async (tx) => {
@@ -276,19 +280,16 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
       throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);
     }
 
-    // Registrar el hecho de que se realizó un rollback
-    await logAuditOrThrow({
-      userId: actorId,
-      action: 'ROLLBACK_PERFORMED',
-      entityType: 'AuditLog',
-      entityId: logId,
-      detailsJson: {
-        originalAction: log.action,
-        entityType,
-        entityId,
+    // Marcar el registro original como revertido
+    // Al usar Prisma.AuditLog.update, @updatedAt se disparará automáticamente,
+    // desplazando el registro a la parte superior del listado (si se ordena por updatedAt: desc)
+    await tx.auditLog.update({
+      where: { id: logId },
+      data: {
+        rolledBackAt: new Date(),
+        rolledBackByUserId: actorId,
       },
-      ipAddress,
-    }, tx);
+    });
 
     return rollbackResult;
   });
