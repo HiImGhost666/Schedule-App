@@ -10,11 +10,11 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { UserProfileModal } from '@/components/common/UserProfileModal';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { UserFormModal } from './UserFormModal';
 import { ResetPasswordModal } from './ResetPasswordModal';
-import { UserDetailsModal } from './UserDetailsModal';
 
 const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
@@ -590,14 +590,11 @@ export function UsersPage() {
         />
       )}
 
-      {detailUser && (
-        <UserDetailsModal
-          open
-          userId={detailUser.id}
-          userName={detailUser.name}
-          onClose={() => setDetailUser(null)}
-        />
-      )}
+      <UserProfileModal
+        open={!!detailUser}
+        user={detailUser}
+        onClose={() => setDetailUser(null)}
+      />
 
       <ConfirmDialog
         open={!!confirmAction}
