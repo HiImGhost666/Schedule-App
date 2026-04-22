@@ -180,6 +180,7 @@ function normalizeDepartment(value: string): string | undefined {
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
+  const usersTemplateCsvUrl = `${import.meta.env.BASE_URL}templates/Plantilla%20CSV.xlsx`;
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
@@ -283,6 +284,15 @@ export function UsersPage() {
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+    link.href = usersTemplateCsvUrl;
+    link.download = 'Plantilla CSV.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const validateCsvRow = (row: any, index: number): string | null => {
@@ -401,6 +411,13 @@ export function UsersPage() {
             >
               {importCsvMutation.isPending ? <LoadingSpinner size="sm" /> : <Upload className="h-4 w-4" />}
               Importar CSV
+            </button>
+            <button
+              onClick={handleDownloadTemplate}
+              className="btn-ghost text-sm flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Descargar plantilla
             </button>
             <button
               onClick={() => exportCsvMutation.mutate()}
