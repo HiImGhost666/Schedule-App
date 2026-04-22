@@ -34,7 +34,18 @@ model User {
   auditLogs           AuditLog[]           @relation("AuditActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
 
+  // -- ÍNDICES --
+  // branchId: para JOIN con Branch y filtros por sede
   @@index([branchId])
+  // status + role: listado de usuarios con filtros combinados (muy frecuente en UsersPage)
+  @@index([status, role])
+  // role: búsquedas solo por rol
+  @@index([role])
+  // status: búsquedas solo por estado (activos, bloqueados...)
+  @@index([status])
+  // email prefix para la lógica soft-delete ("deleted_...") y login por username derivado
+  // MySQL puede usar el índice UNIQUE de email para LIKE 'prefix%', así que no necesita índice extra
+
   @@map("users")
 }
 
@@ -54,6 +65,10 @@ model Branch {
   users     User[]
   schedules Schedule[]
   holidays  BranchHoliday[]
+
+  // -- ÍNDICES --
+  // isActive: listBranches filtra por activas constantemente
+  @@index([isActive])
 
   @@map("branches")
 }
@@ -81,8 +96,14 @@ model BranchHoliday {
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
+  // -- ÍNDICES --
+  // (branchId, date): consulta principal — festivos de una sede en un rango de fechas
   @@index([branchId, date])
+  // (branchId, isActive): filtrar festivos activos de una sede
+  @@index([branchId, isActive])
+  // Unicidad: no puede haber dos festivos con mismo nombre en la misma sede y fecha
   @@unique([branchId, date, name])
+
   @@map("branch_holidays")
 }
 
@@ -96,6 +117,14 @@ model RefreshToken {
   revokedAt DateTime? @map("revoked_at")
   ipAddress String?   @map("ip_address")
   userAgent String?   @map("user_agent")
+
+  // -- ÍNDICES --
+  // userId: revocar todos los tokens de un usuario en logout / account actions
+  @@index([userId])
+  // expiresAt: limpiar tokens expirados en jobs de mantenimiento
+  @@index([expiresAt])
+  // (userId, revokedAt): buscar tokens activos de un usuario (revokedAt IS NULL)
+  @@index([userId, revokedAt])
 
   @@map("refresh_tokens")
 }
@@ -121,8 +150,19 @@ model Schedule {
 
   assignments ScheduleAssignment[]
 
+  // -- ÍNDICES --
+  // (startDatetime, endDatetime): rango de fechas — todas las queries de calendario lo usan
   @@index([startDatetime, endDatetime])
-  @@index([branchId])
+  // (branchId, startDatetime, endDatetime): CLAVE — overlap check + listado por sede + rango
+  // Es el índice más importante: ensureNoOverlaps y listSchedulesForActor lo explotan constantemente
+  @@index([branchId, startDatetime, endDatetime])
+  // type: filtros por tipo de turno (guardia, vacaciones, ausencia...)
+  @@index([type])
+  // isLastMinute: notificaciones y filtros de urgencia
+  @@index([isLastMinute])
+  // createdById: historial de guardias creadas por un usuario
+  @@index([createdById])
+
   @@map("schedules")
 }
 
@@ -134,23 +174,41 @@ model ScheduleAssignment {
   assignedAt DateTime @default(now()) @map("assigned_at")
 
   @@id([scheduleId, userId])
+  // -- ÍNDICES --
+  // userId: buscar todos los turnos asignados a un usuario (getUserSchedules, overlap check)
+  // La clave primaria (scheduleId, userId) ya cubre búsquedas por scheduleId.
+  // MySQL no indexa automáticamente la segunda columna de un PK compuesto para búsquedas inversas.
+  @@index([userId])
+
   @@map("schedule_assignments")
 }
 
 model WebhookConfig {
-  id                    String  @id @default(cuid())
-  name                  String
-  webhookUrl            String  @map("webhook_url") @db.Text
-  enabled               Boolean @default(true)
-  notifyModifications   Boolean @default(true) @map("notify_modifications")
-  notifyLastMinute      Boolean @default(true) @map("notify_last_minute")
-  fridayReminderEnabled Boolean @default(true) @map("friday_reminder_enabled")
+  id                            String  @id @default(cuid())
+  name                          String
+  webhookUrl                    String  @map("webhook_url") @db.Text
+  enabled                       Boolean @default(true)
+  notifyModifications           Boolean @default(true) @map("notify_modifications")
+  notifyLastMinute              Boolean @default(true) @map("notify_last_minute")
+  fridayReminderEnabled         Boolean @default(true) @map("friday_reminder_enabled")
   mondayVacationReminderEnabled Boolean @default(true) @map("monday_vacation_reminder_enabled")
-  fridayReminderTime    String  @default("12:00") @map("friday_reminder_time")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  fridayReminderTime            String  @default("12:00") @map("friday_reminder_time")
+  createdAt                     DateTime @default(now()) @map("created_at")
+  updatedAt                     DateTime @updatedAt @map("updated_at")
 
   notificationLogs NotificationLog[]
+
+  // -- ÍNDICES --
+  // enabled: notifyScheduleChange y schedulers filtran siempre por enabled = true
+  @@index([enabled])
+  // (enabled, notifyModifications): filtro compuesto en notifyScheduleChange
+  @@index([enabled, notifyModifications])
+  // (enabled, notifyLastMinute): filtro compuesto para cambios de último momento
+  @@index([enabled, notifyLastMinute])
+  // (enabled, fridayReminderEnabled): scheduler del viernes
+  @@index([enabled, fridayReminderEnabled])
+  // (enabled, mondayVacationReminderEnabled): scheduler del lunes
+  @@index([enabled, mondayVacationReminderEnabled])
 
   @@map("webhook_configs")
 }
@@ -159,7 +217,7 @@ model NotificationLog {
   id              String    @id @default(cuid())
   type            String
   message         String
-  payload         String?  @db.Text
+  payload         String?   @db.Text
   webhookConfigId String?   @map("webhook_config_id")
   webhookConfig   WebhookConfig? @relation(fields: [webhookConfigId], references: [id])
   sentAt          DateTime  @default(now()) @map("sent_at")
@@ -169,7 +227,18 @@ model NotificationLog {
   errorMessage    String?   @map("error_message")
   scheduleId      String?   @map("schedule_id")
 
+  // -- ÍNDICES --
+  // sentAt: listado paginado ordenado por fecha (el más usado)
   @@index([sentAt])
+  // status: filtrar por estado (sent/failed/pending) — NotificationsPage lo usa
+  @@index([status])
+  // (status, sentAt): combinación para reenvíos fallidos ordenados cronológicamente
+  @@index([status, sentAt])
+  // type: filtrar por tipo de notificación
+  @@index([type])
+  // webhookConfigId: historial de un webhook concreto
+  @@index([webhookConfigId])
+
   @@map("notification_logs")
 }
 
@@ -185,8 +254,18 @@ model AuditLog {
   userAgent   String?  @map("user_agent")
   createdAt   DateTime @default(now()) @map("created_at")
 
+  // -- ÍNDICES --
+  // createdAt: listado paginado ordenado cronológicamente
   @@index([createdAt])
+  // userId: actividad de un usuario concreto
   @@index([userId])
+  // action: filtrar por tipo de acción (LOGIN, UPDATE_USER, etc.) y la lógica reversible/irreversible
+  @@index([action])
+  // (entityType, entityId): buscar historial completo de una entidad — usado en rollback y detail view
+  @@index([entityType, entityId])
+  // (userId, createdAt): actividad de un usuario en orden cronológico (dashboard de actividad reciente)
+  @@index([userId, createdAt])
+
   @@map("audit_logs")
 }
 
@@ -199,6 +278,10 @@ model ThemeSettings {
   updatedByUserId String?  @map("updated_by_user_id")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // key tiene @unique, que ya actúa como índice — no necesita índices adicionales
+  // preset: se consulta en getCustomPresets() con WHERE preset LIKE 'custom_%'
+  @@index([preset])
 
   @@map("theme_settings")
 }
