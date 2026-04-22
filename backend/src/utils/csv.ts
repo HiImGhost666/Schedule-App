@@ -1,0 +1,110 @@
+import { TextDecoder } from 'util';
+
+export const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'] as const;
+
+export type CsvHeader = (typeof CSV_HEADERS)[number];
+export type UserCsvRow = Record<CsvHeader, string>;
+
+export function decodeCsvBuffer(bytes: Buffer): string {
+  if (bytes.length === 0) return '';
+
+  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+    return new TextDecoder('utf-16le').decode(bytes);
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+    return new TextDecoder('utf-16be').decode(bytes);
+  }
+
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
+
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = '';
+  let inQuotes = false;
+
+  const pushValue = () => {
+    row.push(value);
+    value = '';
+  };
+
+  const pushRow = () => {
+    if (row.length > 0 || value.length > 0) {
+      pushValue();
+      rows.push(row);
+      row = [];
+    }
+  };
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        value += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      pushValue();
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') {
+        i += 1;
+      }
+      pushRow();
+      continue;
+    }
+
+    value += char;
+  }
+
+  pushRow();
+  return rows;
+}
+
+export function parseUserCsv(text: string): UserCsvRow[] {
+  const sanitizedText = text.replace(/^\uFEFF/, '').trim();
+  if (!sanitizedText) {
+    throw new Error('El CSV está vacío');
+  }
+
+  const matrix = parseCsv(sanitizedText);
+  if (!matrix.length) {
+    throw new Error('No se encontraron datos en el CSV');
+  }
+
+  const headers = matrix[0].map((header) => header.trim());
+  const missingHeaders = CSV_HEADERS.filter((header) => !headers.includes(header));
+
+  if (missingHeaders.length > 0) {
+    throw new Error(`Faltan columnas obligatorias en el CSV: ${missingHeaders.join(', ')}`);
+  }
+
+  return matrix
+    .slice(1)
+    .filter((row) => row.some((cell) => (cell ?? '').trim().length > 0))
+    .map((row) => {
+      const mapped = {} as UserCsvRow;
+      CSV_HEADERS.forEach((header) => {
+        const index = headers.indexOf(header);
+        mapped[header] = (row[index] ?? '').trim();
+      });
+      return mapped;
+    });
+}

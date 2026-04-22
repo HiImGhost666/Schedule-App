@@ -6,7 +6,7 @@ import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { isAppError } from '../src/common/errors/app-error';
 import { env } from '../src/config/env';
-import type { UserDepartment } from '../src/modules/users/users.constants';
+import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -86,7 +86,6 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
       startDatetime: startAt,
       endDatetime: endAt,
       hoursPerDay: 8,
-      calendarType: 'tenerife',
       createdById: adminId,
       branchId,
       assignments: {
@@ -129,46 +128,120 @@ async function main() {
   }
   console.log('Seeding database...');
 
-  let mainBranch = await prisma.branch.findUnique({ where: { code: 'MAIN' } });
-
-  if (!mainBranch) {
-    const legacyMainBranch = await prisma.branch.findUnique({ where: { id: 'branch_default_main' } });
-    if (legacyMainBranch) {
-      mainBranch = await prisma.branch.update({
-        where: { id: legacyMainBranch.id },
-        data: {
-          code: 'MAIN',
-          name: legacyMainBranch.name || 'Sucursal Principal',
-          city: legacyMainBranch.city || 'Sin especificar',
-          region: legacyMainBranch.region || 'Sin especificar',
-          countryCode: legacyMainBranch.countryCode || 'ES',
-          timezone: legacyMainBranch.timezone || 'Europe/Madrid',
-          isActive: true,
-        },
-      });
-    }
-  }
+  let mainBranch = await prisma.branch.findUnique({ where: { code: 'TFN' } });
+  let secondBranch = await prisma.branch.findUnique({ where: { code: 'GC' } });
 
   if (!mainBranch) {
     mainBranch = await prisma.branch.create({
       data: {
-        name: 'Sucursal Principal',
-        code: 'MAIN',
-        city: 'Sin especificar',
-        region: 'Sin especificar',
+        name: 'Lãberit Tenerife',
+        code: 'TFN',
+        city: 'Santa Cruz de Tenerife',
+        region: 'Tenerife',
         countryCode: 'ES',
-        timezone: 'Europe/Madrid',
+        timezone: 'Atlantic/Canary',
         isActive: true,
       },
     });
   }
 
-  if (!mainBranch.isActive) {
-    mainBranch = await prisma.branch.update({
-      where: { id: mainBranch.id },
-      data: { isActive: true },
+  if (!secondBranch) {
+    secondBranch = await prisma.branch.create({
+      data: {
+        name: 'Lãberit Las Palmas',
+        code: 'GC',
+        city: 'Las Palmas de Gran Canaria',
+        region: 'Gran Canaria',
+        countryCode: 'ES',
+        timezone: 'Atlantic/Canary',
+        isActive: true,
+      },
     });
   }
+
+  // --- BLOQUE 2.1.1: FERIADOS POR SEDE ---
+  console.log('BLOQUE: FERIADOS (Limpieza y Seeding)');
+  
+  // Limpieza previa para evitar duplicados y asegurar estado limpio
+  await prisma.scheduleAssignment.deleteMany();
+  await prisma.schedule.deleteMany();
+  await prisma.branchHoliday.deleteMany();
+
+  const holidays_2026 = [
+    // Festivos Nacionales
+    { date: new Date(2026, 0, 1), name: 'Año Nuevo', type: 'nacional', scope: 'national', targetRegion: 'all' },
+    { date: new Date(2026, 0, 6), name: 'Reyes Magos', type: 'nacional', scope: 'national', targetRegion: 'all' },
+    { date: new Date(2026, 3, 3), name: 'Viernes Santo', type: 'nacional', scope: 'national', targetRegion: 'all' },
+    { date: new Date(2026, 4, 1), name: 'Día del Trabajo', type: 'nacional', scope: 'national', targetRegion: 'all' },
+    { date: new Date(2026, 9, 12), name: 'Fiesta Nacional de España', type: 'nacional', scope: 'national', targetRegion: 'all' },
+    { date: new Date(2026, 11, 8), name: 'Inmaculada Concepción', type: 'nacional', scope: 'national', targetRegion: 'all' },
+    { date: new Date(2026, 11, 25), name: 'Navidad', type: 'nacional', scope: 'national', targetRegion: 'all' },
+
+    // Festivos Autonómicos – Canarias (asumimos que todas las sedes están en Canarias)
+    { date: new Date(2026, 3, 2), name: 'Jueves Santo', type: 'autonomica', scope: 'regional', targetRegion: 'Canarias' },
+    { date: new Date(2026, 10, 2), name: 'Todos los Santos (sustitución)', type: 'autonomica', scope: 'regional', targetRegion: 'Canarias' },
+
+    // Mejoras de Convenio
+    { date: new Date(2026, 11, 24), name: 'Nochebuena (Mejora Convenio)', type: 'mejora', scope: 'company', targetRegion: 'all' },
+    { date: new Date(2026, 11, 31), name: 'Nochevieja (Mejora Convenio)', type: 'mejora', scope: 'company', targetRegion: 'all' },
+
+    // Locales TENERIFE
+    { date: new Date(2026, 1, 2), name: 'Virgen de Candelaria', type: 'local', scope: 'local', targetRegion: 'Tenerife' },
+    { date: new Date(2026, 1, 17), name: 'Martes de Carnaval', type: 'local', scope: 'local', targetRegion: 'Tenerife' },
+
+    // Locales GRAN CANARIA
+    { date: new Date(2026, 1, 17), name: 'Martes de Carnaval', type: 'local', scope: 'local', targetRegion: 'Gran Canaria' },
+    { date: new Date(2026, 5, 24), name: 'Día de San Juan', type: 'local', scope: 'local', targetRegion: 'Gran Canaria' },
+    { date: new Date(2026, 8, 8), name: 'Patrona de Gran Canaria', type: 'local', scope: 'local', targetRegion: 'Gran Canaria' },
+  ];
+
+  const partial_days_2026 = [
+    { date: new Date(2026, 0, 5), name: 'Víspera de Reyes (tarde libre)', targetRegion: 'all' },
+    { date: new Date(2026, 5, 23), name: 'Víspera de San Juan (tarde libre)', targetRegion: 'Gran Canaria' },
+  ];
+
+  const allBranches = [mainBranch, secondBranch].filter((b): b is NonNullable<typeof b> => b !== null);
+
+  for (const h of holidays_2026) {
+    for (const b of allBranches) {
+      const isApplicable = h.targetRegion === 'all' || 
+                          h.targetRegion === 'Canarias' || 
+                          b.region === h.targetRegion;
+
+      if (isApplicable) {
+        await prisma.branchHoliday.create({
+          data: {
+            name: h.name,
+            date: h.date,
+            type: h.type as any,
+            scope: h.scope,
+            branchId: b.id,
+            isPartial: false
+          } as any
+        });
+      }
+    }
+  }
+
+  for (const p of partial_days_2026) {
+    for (const b of allBranches) {
+      const isApplicable = p.targetRegion === 'all' || b.region === p.targetRegion;
+
+      if (isApplicable) {
+        await prisma.branchHoliday.create({
+          data: {
+            name: p.name,
+            date: p.date,
+            type: 'mejora',
+            scope: 'company',
+            branchId: b.id,
+            isPartial: true
+          } as any
+        });
+      }
+    }
+  }
+  console.log(`[HOLIDAY] ${holidays_2026.length} holidays and ${partial_days_2026.length} partial days seeded.`);
 
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
@@ -183,11 +256,11 @@ async function main() {
       password: adminPassword,
       role: 'admin',
       status: 'active',
-      department: 'Administración',
-      islandCalendar: 'none',
+      department: 'administración',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      employeeId: 'LAB-001',
     },
     'Admin'
   );
@@ -199,53 +272,45 @@ async function main() {
       password: 'Manager123!',
       role: 'manager',
       status: 'active',
-      department: 'Operaciones',
-      islandCalendar: 'none',
+      department: 'operaciones',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      employeeId: 'LAB-002',
     },
     'Demo manager'
   );
 
-  const demoUsers: Array<{
-    name: string;
-    email: string;
-    department: UserDepartment;
-    companyPhone?: string;
-    auxiliaryPhone?: string;
-  }> = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'Seguridad', companyPhone: '123456789', auxiliaryPhone: '987654321' },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'Seguridad', companyPhone: '223456789', auxiliaryPhone: '887654321' },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'Mantenimiento', companyPhone: '323456789' },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'Seguridad', companyPhone: '423456789' },
+  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string; employeeId: string }> = [
+    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-101' },
+    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id, employeeId: 'LAB-102' },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id, employeeId: 'LAB-103' },
+    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id, employeeId: 'LAB-104' },
   ];
 
-  const createdViewers = [];
+  const createdUsers = [];
   for (const u of demoUsers) {
     const user = await ensureSeedUser(
       {
         ...u,
         password: 'User123!',
-        role: 'viewer',
+        role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
         status: 'active',
-        islandCalendar: 'none',
-        branchId: mainBranch.id,
       },
       'Demo user'
     );
-    if (user) createdViewers.push(user);
+    if (user) createdUsers.push(user);
   }
 
   // --- BLOQUE 2.3: SCHEDULES (GUARDIAS Y VACACIONES) ---
   console.log('BLOQUE: SCHEDULES');
-  if (adminUser && createdViewers.length >= 2) {
+  if (adminUser && createdUsers.length >= 2) {
     // Definimos las fechas a un marco relativo (esta semana)
     const today = new Date();
     const monday = startOfWeek(today, { weekStartsOn: 1 });
 
-    const carlosInfo = createdViewers.find(u => u.email === 'carlos@company.com')!;
-    const anaInfo = createdViewers.find(u => u.email === 'ana@company.com')!;
+    const carlosInfo = createdUsers.find(u => u.email === 'carlos@company.com')!;
+    const anaInfo = createdUsers.find(u => u.email === 'ana@company.com')!;
 
     // Carlos: Vacaciones (Toda la semana)
     await ensureSeedSchedule(
@@ -273,13 +338,13 @@ async function main() {
       setHours(setMinutes(addDays(monday, 1), 0), 16) // Martes 16:00
     );
 
-    // Ana: Guardia Extra de última hora
+    // Ana: Guardia Extraordinaria
     await ensureSeedSchedule(
       adminUser.id,
       anaInfo.id,
       mainBranch.id,
       'Guardia Extraordinaria',
-      'guardia_extra',
+      'guardia',
       '#db2777',
       true,
       setHours(setMinutes(addDays(monday, 3), 0), 14), // Jueves 14:00
@@ -293,12 +358,12 @@ async function main() {
     const stressEnd = setHours(setMinutes(wednesday, 0), 12);   // Miércoles 12:00
 
     const stressTasks = [
-      { user: adminUser, title: 'Reunión de Dirección', type: 'reunion', color: '#4f46e5' },
-      { user: managerUser, title: 'Formación Seguridad', type: 'formacion', color: '#0891b2' },
-      { user: createdViewers[0], title: 'Tarea Administrativa', type: 'administrativo', color: '#4b5563' },
-      { user: createdViewers[1], title: 'Urgencia Técnica', type: 'urgencia', color: '#dc2626' },
-      { user: createdViewers[2], title: 'Mantenimiento Preventivo', type: 'mantenimiento', color: '#16a34a' },
-      { user: createdViewers[3], title: 'Soporte Remoto', type: 'soporte', color: '#ea580c' },
+      { user: adminUser, title: 'Reunión de Dirección', type: 'otro', color: '#4f46e5', branchId: mainBranch.id },
+      { user: managerUser, title: 'Formación Seguridad', type: 'formacion', color: '#0891b2', branchId: mainBranch.id },
+      { user: createdUsers[0], title: 'Tarea Administrativa', type: 'otro', color: '#4b5563', branchId: createdUsers[0].branchId || mainBranch.id },
+      { user: createdUsers[1], title: 'Urgencia Técnica', type: 'otro', color: '#dc2626', branchId: createdUsers[1].branchId || mainBranch.id },
+      { user: createdUsers[2], title: 'Mantenimiento Preventivo', type: 'otro', color: '#16a34a', branchId: createdUsers[2].branchId || secondBranch.id },
+      { user: createdUsers[3], title: 'Soporte Remoto', type: 'otro', color: '#ea580c', branchId: createdUsers[3].branchId || secondBranch.id },
     ];
 
     for (const task of stressTasks) {
@@ -306,7 +371,7 @@ async function main() {
         await ensureSeedSchedule(
           adminUser.id,
           task.user.id,
-          mainBranch.id,
+          (task as any).branchId,
           task.title,
           task.type,
           task.color,

@@ -89,10 +89,11 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
       }`}
     >
       <span className="text-xs text-theme-muted font-medium truncate flex-1 min-w-0">{label}</span>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Color swatch / native picker */}
         <div className="relative">
           <div
-            className="h-7 w-7 rounded border border-theme-color cursor-pointer flex-shrink-0 overflow-hidden"
+            className="h-7 w-7 rounded border border-theme-color cursor-pointer shrink-0 overflow-hidden"
             style={{ backgroundColor: isValidHex(hexInput) ? hexInput : value }}
           >
             <input
@@ -112,7 +113,7 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
           maxLength={7}
           placeholder="#000000"
           spellCheck={false}
-          className={`w-[82px] text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary focus:outline-none transition-colors uppercase ${
+          className={`w-20.5 text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary disabled:cursor-not-allowed focus:outline-none transition-colors uppercase ${
             hexInvalid
               ? "border-red-400 focus:border-red-500"
               : "border-theme-color focus:border-theme-text-muted"
@@ -429,10 +430,6 @@ export function ThemeManagerPage() {
 
   const activeTheme = themeDraft || themeConfig || DEFAULT_THEME;
 
-  useEffect(() => {
-    setSelectedPresetId(themeDraft?.preset || themeConfig?.preset || "");
-  }, [themeDraft?.preset, themeConfig?.preset]);
-
   const { data: presetsRaw = [] } = useQuery({
     queryKey: ["theme-presets"],
     queryFn: () =>
@@ -575,8 +572,8 @@ export function ThemeManagerPage() {
   };
 
   const handlePublish = () => {
-    if (selectedPreset && themeDraft) {
-      // For ALL presets (base and custom): persist colors via PATCH first, then publish globally
+    if (selectedPreset && themeDraft && isSelectedPersistedCustom) {
+      // Persist custom preset colors first, then publish globally.
       saveCustomMutation.mutate(
         { id: selectedPreset.id, theme: themeDraft },
         { onSuccess: () => publishMutation.mutate(activeTheme) }
@@ -621,7 +618,7 @@ export function ThemeManagerPage() {
               Eliminar Preset
             </button>
           )}
-          {selectedPreset && (
+          {selectedPreset && isSelectedPersistedCustom && (
             <button
               onClick={() => {
                 setRenamePreset(selectedPreset);
@@ -1057,7 +1054,7 @@ export function ThemeManagerPage() {
 
             {/* Current favicon URL editable */}
             <div className="flex items-center gap-2">
-              <FileImage className="h-3.5 w-3.5 text-theme-muted flex-shrink-0" />
+              <FileImage className="h-3.5 w-3.5 text-theme-muted shrink-0" />
               <input
                 type="text"
                 value={siteFaviconUrl}

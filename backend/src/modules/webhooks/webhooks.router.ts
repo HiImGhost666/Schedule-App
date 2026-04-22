@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction, RequestHandler } from 'express';
 import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
 import { requireRole } from '../../middleware/role.middleware';
@@ -10,9 +10,57 @@ import { logAudit } from '../audit/audit.service';
 
 const router = Router();
 
+const asyncRoute = (handler: RequestHandler): RequestHandler => {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+};
+
+function isPrismaColumnTooLongError(error: unknown, columnName: string): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: unknown;
+    meta?: { target?: unknown };
+    message?: unknown;
+  };
+
+  if (candidate.code !== 'P2000') {
+    return false;
+  }
+
+  const target = candidate.meta?.target;
+  if (Array.isArray(target)) {
+    return target.some((item) => String(item).toLowerCase().includes(columnName.toLowerCase()));
+  }
+
+  if (typeof target === 'string') {
+    return target.toLowerCase().includes(columnName.toLowerCase());
+  }
+
+  return typeof candidate.message === 'string' && candidate.message.toLowerCase().includes(columnName.toLowerCase());
+}
+
+function handleWebhookPersistenceError(error: unknown, res: Response): boolean {
+  if (isPrismaColumnTooLongError(error, 'webhook_url')) {
+    sendError(
+      res,
+      'La URL del webhook es demasiado larga para el almacenamiento actual',
+      400,
+      { fieldErrors: { webhookUrl: ['URL demasiado larga'] } },
+      'BAD_REQUEST'
+    );
+    return true;
+  }
+
+  return false;
+}
+
 const webhookSchema = z.object({
   name: z.string().min(2),
-  webhookUrl: z.string().url(),
+  webhookUrl: z.string().url('URL inválida'),
   enabled: z.boolean().default(true),
   notifyModifications: z.boolean().default(true),
   notifyLastMinute: z.boolean().default(true),
@@ -21,42 +69,60 @@ const webhookSchema = z.object({
   fridayReminderTime: z.string().default('12:00'),
 });
 
-router.get('/', authMiddleware, requireRole('admin'), async (_req: AuthRequest, res: Response) => {
+router.get('/', authMiddleware, requireRole('admin'), asyncRoute(async (_req: AuthRequest, res: Response) => {
   const webhooks = await prisma.webhookConfig.findMany({ orderBy: { createdAt: 'desc' } });
   return sendSuccess(res, webhooks);
-});
+}));
 
-router.post('/', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.post('/', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const parsed = webhookSchema.safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten());
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
-  const webhook = await prisma.webhookConfig.create({ data: parsed.data });
+  let webhook;
+  try {
+    webhook = await prisma.webhookConfig.create({ data: parsed.data });
+  } catch (error) {
+    if (handleWebhookPersistenceError(error, res)) {
+      return;
+    }
+    return next(error);
+  }
+
   await logAudit({ userId: req.user!.id, action: 'CREATE_WEBHOOK', entityType: 'WebhookConfig', entityId: webhook.id, detailsJson: { before: null, after: webhook }, ipAddress: req.ip });
   return sendSuccess(res, webhook, 'Webhook creado', 201);
-});
+}));
 
-router.patch('/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.patch('/:id', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const parsed = webhookSchema.partial().safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   const existing = await prisma.webhookConfig.findUnique({ where: { id: req.params.id } });
   if (!existing) return sendError(res, 'Webhook no encontrado', 404);
 
-  const webhook = await prisma.webhookConfig.update({ where: { id: req.params.id }, data: parsed.data });
+  let webhook;
+  try {
+    webhook = await prisma.webhookConfig.update({ where: { id: req.params.id }, data: parsed.data });
+  } catch (error) {
+    if (handleWebhookPersistenceError(error, res)) {
+      return;
+    }
+    return next(error);
+  }
+
   await logAudit({ userId: req.user!.id, action: 'UPDATE_WEBHOOK', entityType: 'WebhookConfig', entityId: req.params.id, detailsJson: { before: existing, after: webhook }, ipAddress: req.ip });
   return sendSuccess(res, webhook, 'Webhook actualizado');
-});
+}));
 
-router.delete('/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response) => {
   const existing = await prisma.webhookConfig.findUnique({ where: { id: req.params.id } });
   if (!existing) return sendError(res, 'Webhook no encontrado', 404);
 
   await prisma.webhookConfig.delete({ where: { id: req.params.id } });
   await logAudit({ userId: req.user!.id, action: 'DELETE_WEBHOOK', entityType: 'WebhookConfig', entityId: req.params.id, detailsJson: { before: existing, after: null }, ipAddress: req.ip });
   return sendSuccess(res, null, 'Webhook eliminado');
-});
+}));
 
-router.post('/:id/test', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.post('/:id/test', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response) => {
   const webhook = await prisma.webhookConfig.findUnique({ where: { id: req.params.id } });
   if (!webhook) return sendError(res, 'Webhook no encontrado', 404);
 
@@ -74,6 +140,6 @@ router.post('/:id/test', authMiddleware, requireRole('admin'), async (req: AuthR
     return sendError(res, `Error al enviar: ${result.errorMessage}`, 500);
   }
   return sendSuccess(res, null, 'Mensaje de prueba enviado correctamente');
-});
+}));
 
 export default router;

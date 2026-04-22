@@ -483,7 +483,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
             {/* Live preview */}
             {preview && (
               <div className="flex items-start gap-3 p-3.5 bg-theme-surface-muted border border-theme-color rounded-xl">
-                <Info className="h-4 w-4 text-theme-primary flex-shrink-0 mt-0.5" />
+                <Info className="h-4 w-4 text-theme-primary shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-semibold text-theme-primary">
                     {preview.days} día{preview.days !== 1 ? 's' : ''} laborable{preview.days !== 1 ? 's' : ''}

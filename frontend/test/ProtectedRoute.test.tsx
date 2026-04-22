@@ -7,12 +7,14 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ProtectedRoute, RoleGuard } from '@/components/auth/ProtectedRoute';
 import { useAuthStore } from '@/store/authStore';
+import type { User } from '@/types';
 
-const mockUser = {
+const mockUser: User = {
   id: 'u1', name: 'Admin', email: 'a@a.com',
   role: 'admin', status: 'active', avatarUrl: null,
-  department: null, islandCalendar: 'none', forcePasswordChange: false,
-} as any;
+  department: null, forcePasswordChange: false,
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
 
 beforeEach(() => {
   useAuthStore.setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isBootstrapping: false });

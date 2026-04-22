@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SCHEDULE_TYPES } from './schedules.constants';
 
 export const scheduleIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -26,7 +27,7 @@ export const createScheduleBodySchema = z.object({
   description: z.string().optional(),
   startDatetime: z.coerce.date(),
   endDatetime: z.coerce.date(),
-  type: z.string().default('guardia'),
+  type: z.enum(SCHEDULE_TYPES).default('guardia'),
   color: z.string().default('#1e3a5f'),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -34,7 +35,6 @@ export const createScheduleBodySchema = z.object({
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
-  calendarType: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
 });
 
 export const updateScheduleBodySchema = createScheduleBodySchema.partial().extend({

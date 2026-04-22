@@ -27,6 +27,7 @@ import type { Branch, BranchHoliday, Schedule, ScheduleAssignment, WeekScheduleI
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { getEffectiveBranchId } from '@/lib/branchSelection';
 
 const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   nacional: 'Nacional',
@@ -66,7 +67,6 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     isLastMinute: item.isLastMinute,
     hoursPerDay: item.hoursPerDay,
     branchId: item.branchId ?? undefined,
-    calendarType: item.calendarType,
     createdById: '',
     createdBy: { id: '', name: 'Sistema' },
     createdAt: item.startDatetime,
@@ -342,48 +342,27 @@ export function SchedulePage() {
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
+  const effectiveActiveBranchId = getEffectiveBranchId({
+    branches: branches?.data,
+    selectedBranchId: isAdmin ? activeBranchId : undefined,
+    assignedBranchId: isAdmin ? undefined : assignedBranchId,
+    fallbackStrategy: 'none',
+  });
+
   const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
   const branchNameById = useMemo(
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
     [availableBranches],
   );
   const selectedBranch = useMemo(
-    () => availableBranches.find((branch) => branch.id === activeBranchId) ?? availableBranches[0],
-    [availableBranches, activeBranchId],
+    () => availableBranches.find((branch) => branch.id === effectiveActiveBranchId) ?? availableBranches[0],
+    [availableBranches, effectiveActiveBranchId],
   );
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!branches?.data?.length) return;
-
-    if (!isAdmin) {
-      if (!assignedBranchId) {
-        if (activeBranchId) setActiveBranchId('');
-        return;
-      }
-
-      const assignedBranch = branches.data.find((branch) => branch.id === assignedBranchId);
-      if (!assignedBranch) {
-        if (activeBranchId) setActiveBranchId('');
-        return;
-      }
-
-      if (activeBranchId !== assignedBranchId) {
-        setActiveBranchId(assignedBranchId);
-      }
-      return;
-    }
-
-    if (!activeBranchId || !branches.data.some((branch) => branch.id === activeBranchId)) {
-      setActiveBranchId('');
-    }
-  }, [branches?.data, activeBranchId, isAdmin, assignedBranchId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const { data: schedules, isLoading, refetch } = useQuery({
     queryKey: [
       'schedules',
-      activeBranchId || 'all',
+      effectiveActiveBranchId || 'all',
       shouldUseWeekEndpoint ? 'week-view' : 'month-view',
       shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
     ],
@@ -391,7 +370,7 @@ export function SchedulePage() {
       if (shouldUseWeekEndpoint) {
         return api
           .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`, {
-            params: activeBranchId ? { branchId: activeBranchId } : {},
+            params: effectiveActiveBranchId ? { branchId: effectiveActiveBranchId } : {},
           })
           .then((r) => r.data.data.items.map(mapWeekItemToSchedule));
       }
@@ -399,7 +378,7 @@ export function SchedulePage() {
       return api
         .get<{ data: Schedule[] }>('/schedules', {
           params: {
-            ...(activeBranchId ? { branchId: activeBranchId } : {}),
+            ...(effectiveActiveBranchId ? { branchId: effectiveActiveBranchId } : {}),
             from: new Date(
               dateRange.from.getFullYear(),
               dateRange.from.getMonth() - 1,
@@ -414,26 +393,26 @@ export function SchedulePage() {
         })
         .then((r) => r.data.data);
     },
-    enabled: isAdmin || Boolean(activeBranchId),
+    enabled: isAdmin || Boolean(effectiveActiveBranchId),
   });
 
   const { data: branchHolidays } = useQuery<{ data: BranchHoliday[] }>({
     queryKey: [
       'branch-holidays-calendar',
-      activeBranchId,
+      effectiveActiveBranchId || 'all',
       format(dateRange.from, 'yyyy-MM-dd'),
       format(dateRange.to, 'yyyy-MM-dd'),
     ],
     queryFn: () =>
       api
-        .get(`/branches/${activeBranchId}/holidays`, {
+        .get(`/branches/${effectiveActiveBranchId || 'all'}/holidays`, {
           params: {
             from: dateRange.from.toISOString(),
             to: dateRange.to.toISOString(),
           },
         })
         .then((r) => r.data),
-    enabled: Boolean(activeBranchId),
+    enabled: isAdmin || Boolean(effectiveActiveBranchId),
   });
 
   const { data: scheduleDetail } = useQuery({
@@ -550,22 +529,51 @@ export function SchedulePage() {
   }, [branchHolidays?.data]);
 
   const holidayInteractiveEvents = useMemo(() => {
-    return (branchHolidays?.data ?? []).map((holiday) => ({
-      id: `holiday-${holiday.id}`,
-      title: holiday.name,
-      start: toLocalDateOnly(holiday.date),
-      end: addOneDay(toLocalDateOnly(holiday.date)),
-      allDay: true,
-      backgroundColor: '#ffffff',
-      borderColor: HOLIDAY_COLORS[holiday.type],
-      textColor: HOLIDAY_COLORS[holiday.type],
-      extendedProps: {
-        isHoliday: true,
-        holiday,
-        holidayType: holiday.type,
-      },
-    }));
-  }, [branchHolidays?.data]);
+    const holidays = branchHolidays?.data ?? [];
+    
+    // Contar ocurrencias de (fecha, nombre) para detectar compartidos
+    const occurrenceCount: Record<string, number> = {};
+    holidays.forEach(h => {
+      const dateStr = toLocalDateOnly(h.date);
+      const key = `${dateStr}_${h.name}`;
+      occurrenceCount[key] = (occurrenceCount[key] || 0) + 1;
+    });
+
+    return holidays.map((holiday) => {
+      const isGeneralView = !effectiveActiveBranchId;
+      const dateStr = toLocalDateOnly(holiday.date);
+      const key = `${dateStr}_${holiday.name}`;
+      const isShared = occurrenceCount[key] > 1;
+      
+      let displayTitle = holiday.name;
+      
+      // Si estamos en vista general y NO es compartido, añadimos la sede
+      if (isGeneralView && !isShared && holiday.branch?.name) {
+        displayTitle = `${holiday.name} (${holiday.branch.name})`;
+      }
+
+      // Si es parcial, añadir un indicador
+      if (holiday.isPartial) {
+        displayTitle = `🌓 ${displayTitle}`;
+      }
+
+      return {
+        id: `holiday-${holiday.id}`,
+        title: displayTitle,
+        start: dateStr,
+        end: addOneDay(dateStr),
+        allDay: true,
+        backgroundColor: '#ffffff',
+        borderColor: HOLIDAY_COLORS[holiday.type],
+        textColor: HOLIDAY_COLORS[holiday.type],
+        extendedProps: {
+          isHoliday: true,
+          holiday,
+          holidayType: holiday.type,
+        },
+      };
+    });
+  }, [branchHolidays?.data, effectiveActiveBranchId]);
 
   /* type counts for legend badges */
   const typeCounts: Record<string, number> = {};
@@ -815,7 +823,7 @@ export function SchedulePage() {
                       onClick={() => setActiveBranchId('')}
                       className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
                       style={
-                        !activeBranchId
+                        !effectiveActiveBranchId
                           ? {
                             backgroundColor: 'var(--theme-sidebar-active-bg)',
                             color: 'var(--theme-sidebar-active-text)',
@@ -839,7 +847,7 @@ export function SchedulePage() {
                         onClick={() => setActiveBranchId(branch.id)}
                         className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
                         style={
-                          activeBranchId === branch.id
+                          effectiveActiveBranchId === branch.id
                             ? {
                               backgroundColor: 'var(--theme-sidebar-active-bg)',
                               color: 'var(--theme-sidebar-active-text)',
@@ -884,7 +892,7 @@ export function SchedulePage() {
                 )}
               </div>
 
-              {activeBranchId && (
+              {effectiveActiveBranchId && (
                 <div className="mt-3 pt-3 border-t border-theme-color flex flex-col gap-1.5">
                   {(Object.keys(HOLIDAY_TYPE_LABELS) as BranchHoliday['type'][]).map((type) => (
                     <span key={type} className="flex items-center gap-1.5 text-[10px] text-theme-muted">
@@ -981,7 +989,7 @@ export function SchedulePage() {
         schedule={selectedSchedule}
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
-        defaultBranchId={activeBranchId}
+        defaultBranchId={effectiveActiveBranchId}
       />
 
       <CalendarDetailPopover

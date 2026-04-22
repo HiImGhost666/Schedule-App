@@ -12,7 +12,9 @@ import {
   getUsersList,
   resetUserPassword,
   updateUser,
+  importUsersCsv,
 } from './users.service';
+import { decodeCsvBuffer, parseUserCsv } from '../../utils/csv';
 import {
   changeRoleBodySchema,
   changeStatusBodySchema,
@@ -60,26 +62,6 @@ export async function getUserController(req: AuthRequest, res: Response) {
  * @param req @param res
  */
 export async function createUserController(req: AuthRequest, res: Response) {
-  const source = typeof req.query.source === 'string' ? req.query.source : undefined;
-  const isCsvImport = source === 'csv';
-
-  if (isCsvImport) {
-    const parsedCsvBody = createUserCsvBodySchema.safeParse(req.body);
-    if (!parsedCsvBody.success) return sendError(res, 'Datos inválidos', 400, parsedCsvBody.error.flatten(), 'BAD_REQUEST');
-
-    try {
-      const user = await createUser({
-        ...parsedCsvBody.data,
-        password: parsedCsvBody.data.password ?? env.IMPORT_DEFAULT_PASSWORD,
-        forcePasswordChange: true,
-      }, { id: req.user!.id, ipAddress: req.ip });
-      return sendSuccess(res, user, 'Usuario creado', 201);
-    } catch (error) {
-      if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
-      throw error;
-    }
-  }
-
   const parsedBody = createUserBodySchema.safeParse(req.body);
   if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
@@ -89,6 +71,23 @@ export async function createUserController(req: AuthRequest, res: Response) {
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
+  }
+}
+
+/**
+ * @description Centraliza la carga intercediendo el buffer, decodificando y llamando al servicio transaccional.
+ */
+export async function importUsersCsvController(req: AuthRequest, res: Response) {
+  if (!req.file) return sendError(res, 'No se proporcionó ningún archivo CSV', 400);
+
+  try {
+    const csvContent = decodeCsvBuffer(req.file.buffer);
+    const rows = parseUserCsv(csvContent);
+    const result = await importUsersCsv(rows, { id: req.user!.id, ipAddress: req.ip });
+    return sendSuccess(res, result, 'Importación completada');
+  } catch (error: any) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    return sendError(res, error.message || 'Error al procesar el archivo CSV', 400);
   }
 }
 

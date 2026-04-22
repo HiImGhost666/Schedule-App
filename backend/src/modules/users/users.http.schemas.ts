@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_DEPARTMENTS } from './users.constants';
+import { USER_DEPARTMENTS, USER_ROLES, USER_STATUSES } from './users.constants';
 
 export const userIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -10,19 +10,19 @@ export const listUsersQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().optional(),
   email: z.string().email().optional(),
-  role: z.enum(['admin', 'manager', 'viewer']).optional(),
-  status: z.enum(['active', 'disabled', 'locked']).optional(),
+  role: z.enum(USER_ROLES).optional(),
+  status: z.enum(USER_STATUSES).optional(),
 });
 
 export const createUserBodySchema = z.object({
+  employeeId: z.string().optional().nullable(),
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['admin', 'manager', 'viewer']).optional(),
-  status: z.enum(['active', 'disabled', 'locked']).optional(),
+  role: z.enum(USER_ROLES).optional(),
+  status: z.enum(USER_STATUSES).optional(),
   department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().url().optional(),
-  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
@@ -37,11 +37,11 @@ export const updateUserBodySchema = createUserBodySchema
   .partial();
 
 export const changeStatusBodySchema = z.object({
-  status: z.enum(['active', 'disabled', 'locked']),
+  status: z.enum(USER_STATUSES),
 });
 
 export const changeRoleBodySchema = z.object({
-  role: z.enum(['admin', 'manager', 'viewer']),
+  role: z.enum(USER_ROLES),
 });
 
 export const resetPasswordBodySchema = z.object({

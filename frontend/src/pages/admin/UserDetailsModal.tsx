@@ -103,6 +103,10 @@ export function UserDetailsModal({ open, userId, userName, onClose }: UserDetail
                 <p className="text-sm text-navy-400">No se pudo cargar el usuario.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-navy-100 p-4 md:col-span-2">
+                    <p className="text-xs text-navy-400 mb-1">ID Empleado</p>
+                    <p className="text-sm font-mono font-medium text-navy-700">{user.employeeId || 'No asignado'}</p>
+                  </div>
                   <div className="rounded-xl border border-navy-100 p-4">
                     <p className="text-xs text-navy-400 mb-1">Nombre</p>
                     <p className="text-sm font-medium text-navy-700">{user.name}</p>

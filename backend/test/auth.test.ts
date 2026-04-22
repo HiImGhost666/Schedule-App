@@ -42,7 +42,6 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
   createdAt: new Date(),
   lastLoginAt: null,
   forcePasswordChange: false,
-  islandCalendar: 'none',
   companyPhone: null,
   auxiliaryPhone: null,
   ...overrides,

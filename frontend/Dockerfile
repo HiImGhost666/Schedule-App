@@ -1,5 +1,5 @@
 # Stage 1: Build and Test
-FROM node:22.12.0-alpine AS builder
+FROM node:22.12.0-slim AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,8 @@ RUN npm install
 COPY . .
 
 # Run tests - if they fail, the build stops
-RUN npm run test
+ENV CI=true
+RUN npm run test -- --maxWorkers=1 --testTimeout=15000
 
 # Stage 2: Runtime - inherit from builder to keep all dependencies
 FROM builder AS runner

@@ -153,24 +153,9 @@ function customPresetLabel(id: string): string {
   return `Personalizado ${letter}`;
 }
 
-interface CustomPresetRow {
-  id: string;
-  key: string; // e.g. "preset_custom_C"
-  preset: string; // same as id
-  tokensJson: string;
-  overridesJson: string;
-  updatedAt: Date;
-  updatedByUserId: string | null;
-}
-
-function presetRowToThemePreset(row: CustomPresetRow): ThemePreset {
+function presetRowToThemePreset(row: ThemeSettings): ThemePreset {
   const tokens = safeParseJson(row.tokensJson, DEFAULT_THEME.tokens);
   const overrides = safeParseJson(row.overridesJson, DEFAULT_THEME.overrides);
-  const meta = safeParseJson<{ name?: string; description?: string }>(
-    // We store name/description in a special meta key alongside; parse from preset field
-    '{}',
-    {}
-  );
 
   // Name/description stored encoded in key as "preset_<id>__<name>__<desc>"
   const parts = row.key.split('__');
@@ -195,7 +180,7 @@ export async function getCustomPresets(): Promise<ThemePreset[]> {
     where: { key: { startsWith: 'preset_custom_' } },
     orderBy: { createdAt: 'asc' },
   });
-  return rows.map((r) => presetRowToThemePreset(r as unknown as CustomPresetRow));
+  return rows.map((r) => presetRowToThemePreset(r));
 }
 
 export async function getThemePresets(): Promise<ThemePreset[]> {
@@ -214,8 +199,8 @@ export async function getThemePresets(): Promise<ThemePreset[]> {
 
   const baseOverridesById = new Map(
     baseOverrideRows.map((r) => [
-      (r as unknown as CustomPresetRow).preset,
-      presetRowToThemePreset(r as unknown as CustomPresetRow),
+      r.preset,
+      presetRowToThemePreset(r),
     ])
   );
 
@@ -252,7 +237,7 @@ export async function createCustomPreset(input: {
     },
   });
 
-  return presetRowToThemePreset(row as unknown as CustomPresetRow);
+  return presetRowToThemePreset(row);
 }
 
 export async function updateCustomPreset(
@@ -279,7 +264,7 @@ export async function updateCustomPreset(
   let currentOverrides: ThemePayload['overrides'];
 
   if (existing) {
-    const currentPreset = presetRowToThemePreset(existing as unknown as CustomPresetRow);
+    const currentPreset = presetRowToThemePreset(existing);
     currentName = currentPreset.name;
     currentDescription = currentPreset.description;
     currentTokens = currentPreset.theme.tokens;
@@ -300,7 +285,7 @@ export async function updateCustomPreset(
   const newDescription = data.description ?? currentDescription;
   const newKey = buildCustomPresetKey(id, newName, newDescription);
 
-  let row: CustomPresetRow;
+  let row: ThemeSettings;
 
   if (existing) {
     row = await prisma.themeSettings.update({
@@ -310,7 +295,7 @@ export async function updateCustomPreset(
         ...(data.tokens ? { tokensJson: JSON.stringify(data.tokens) } : {}),
         ...(data.overrides ? { overridesJson: JSON.stringify(data.overrides) } : {}),
       },
-    }) as unknown as CustomPresetRow;
+    });
   } else {
     // First edit of a base preset — create an override row in the DB
     row = await prisma.themeSettings.create({
@@ -320,7 +305,7 @@ export async function updateCustomPreset(
         tokensJson: JSON.stringify(data.tokens ?? currentTokens),
         overridesJson: JSON.stringify(data.overrides ?? currentOverrides),
       },
-    }) as unknown as CustomPresetRow;
+    });
   }
 
   return presetRowToThemePreset(row);

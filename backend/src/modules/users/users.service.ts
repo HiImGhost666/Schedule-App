@@ -5,6 +5,7 @@ import { hashPassword } from '../../utils/bcrypt';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
+import { BRANCH_CODES } from '../branches/branches.constants';
 import {
   buildUsersWhere,
   createUserRecord,
@@ -25,20 +26,22 @@ import {
 } from './domain/user.factory';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
-import { USER_DEPARTMENTS, type UserDepartment } from './users.constants';
+import { USER_DEPARTMENTS, USER_ROLES, USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserRole, type UserStatus, type UserDepartment } from './users.constants';
+import { type UserCsvRow } from '../../utils/csv';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['admin', 'manager', 'viewer']).optional(),
-  status: z.enum(['active', 'disabled', 'locked']).optional(),
+  role: z.enum(USER_ROLES).optional(),
+  status: z.enum(USER_STATUSES).optional(),
   department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().url().optional(),
-  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+  employeeId: z.string().optional().nullable(),
   forcePasswordChange: z.boolean().optional(),
 });
 
@@ -47,10 +50,11 @@ const updateUserInputSchema = z.object({
   email: z.string().email().optional(),
   department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().optional(),
-  islandCalendar: z.enum(['tenerife', 'las_palmas', 'none']).optional(),
+
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+  employeeId: z.string().optional().nullable(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserInputSchema>;
@@ -95,7 +99,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
   }
 
   const passwordHash = await hashPassword(parsed.data.password);
-  const { password: _password, branchId: createBranchId, forcePasswordChange, ...userData } = parsed.data;
+  const { password: _password, branchId: createBranchId, employeeId, forcePasswordChange, ...userData } = parsed.data;
 
   const user = await executeInTransaction(async (tx) => {
     const user = await createUserRecord({
@@ -106,11 +110,11 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext) {
       passwordHash,
       role: parsed.data.role ?? 'viewer',
       status: parsed.data.status ?? 'active',
-      islandCalendar: parsed.data.islandCalendar ?? 'none',
       forcePasswordChange: forcePasswordChange ?? false,
       ...(createBranchId
         ? { branch: { connect: { id: createBranchId } } }
         : {}),
+      employeeId: employeeId || null,
     }, tx);
 
     if (actor?.id) {
@@ -192,10 +196,10 @@ export async function updateUser(userId: string, data: {
   email?: string;
   department?: UserDepartment;
   avatarUrl?: string;
-  islandCalendar?: 'tenerife' | 'las_palmas' | 'none';
   companyPhone?: string;
   auxiliaryPhone?: string;
   branchId?: string | null;
+  employeeId?: string | null;
 }, actor: ActorContext) {
   const parsed = updateUserInputSchema.safeParse(data);
   if (!parsed.success) {
@@ -226,7 +230,7 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-    const { branchId: updateBranchId, ...updateData } = parsed.data;
+    const { branchId: updateBranchId, employeeId, ...updateData } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -234,6 +238,7 @@ export async function updateUser(userId: string, data: {
         ...updateData,
         companyPhone: normalizedCompanyPhone,
         auxiliaryPhone: normalizedAuxiliaryPhone,
+        employeeId: employeeId !== undefined ? employeeId : undefined,
         ...(parsed.data.email ? { email: normalizeEmail(parsed.data.email) } : {}),
         ...(updateBranchId === undefined
           ? {}
@@ -281,7 +286,7 @@ export async function changeUserStatus(userId: string, status: 'active' | 'disab
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes cambiar tu propio estado');
 
-  const updateData: Record<string, unknown> = { status };
+  const updateData: Parameters<typeof updateUserRecord>[1] = { status };
   if (status === 'active') {
     updateData.failedAttempts = 0;
     updateData.lockedUntil = null;
@@ -445,4 +450,156 @@ export async function getUserSchedules(userId: string, from?: string, to?: strin
   }
 
   return listUserSchedules(userId, fromDate, toDate);
+}
+
+export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
+  if (!rows.length) {
+    throw createAppError('BAD_REQUEST', 'El CSV no contiene filas para importar');
+  }
+
+  const allowedBranchCodes: Set<string> = new Set(Object.values(BRANCH_CODES));
+  const branches = await prisma.branch.findMany({ select: { id: true, code: true, name: true } });
+  const rejectedRows: Array<UserCsvRow & { reason: string }> = [];
+  let created = 0;
+  let updated = 0;
+  let unchanged = 0;
+
+  for (const row of rows) {
+    try {
+      const employeeId = row.employeeId?.trim() || null;
+      const email = normalizeEmail(row.email);
+      const name = row.name.trim();
+
+      if (!name) throw new Error('El nombre es obligatorio');
+      if (!email) throw new Error('El email es obligatorio');
+
+      const role = row.role.trim();
+      const status = row.status.trim();
+      const department = row.department.trim().toLowerCase();
+      const branchSearch = row.branchId?.trim();
+      const companyPhone = row.companyPhone.trim() || undefined;
+      const auxiliaryPhone = row.auxiliaryPhone.trim() || undefined;
+
+      if (role && !(USER_ROLES as readonly string[]).includes(role)) throw new Error(`Rol inválido: ${role}`);
+      if (status && !(USER_STATUSES as readonly string[]).includes(status)) throw new Error(`Estado inválido: ${status}`);
+      if (department && !(USER_DEPARTMENTS as readonly string[]).includes(department)) throw new Error(`Departamento inválido: ${department}`);
+
+      let resolvedBranchId: string | null = null;
+      if (branchSearch) {
+        const normalizedBranchSearch = branchSearch.toUpperCase();
+        const b = allowedBranchCodes.has(normalizedBranchSearch)
+          ? branches.find((branch) => branch.code.toUpperCase() === normalizedBranchSearch)
+          : branches.find((branch) => branch.name.toLowerCase().includes(branchSearch.toLowerCase()));
+
+        if (!b) {
+          throw new Error(`Sucursal inválida: ${branchSearch}. Valores válidos: TFN, GC o nombre de sede`);
+        }
+
+        resolvedBranchId = b?.id || null;
+      }
+
+      const userRole = (role || undefined) as UserRole | undefined;
+      const userStatus = (status || undefined) as UserStatus | undefined;
+      const userDept = (department || undefined) as UserDepartment | undefined;
+
+      let existing = null;
+      if (employeeId) {
+        existing = await prisma.user.findUnique({ where: { employeeId } });
+      }
+      if (!existing && email) {
+        existing = await findUserByEmailOrUsername(email);
+      }
+
+      if (!existing) {
+        await createUser({
+          employeeId,
+          name,
+          email,
+          password: CSV_IMPORT_DEFAULT_PASSWORD.toLowerCase(),
+          role: userRole,
+          status: userStatus,
+          department: userDept,
+          branchId: resolvedBranchId,
+          companyPhone,
+          auxiliaryPhone,
+          forcePasswordChange: true
+        }, actor);
+        created++;
+        continue;
+      }
+
+      let changed = false;
+      const updatePayload: any = {};
+
+      if (employeeId && employeeId !== existing.employeeId) {
+        updatePayload.employeeId = employeeId;
+        changed = true;
+      }
+
+      if (email !== existing.email) {
+        updatePayload.email = email;
+        changed = true;
+      }
+
+      if (name !== existing.name) {
+        updatePayload.name = name;
+        changed = true;
+      }
+      
+      const existingDepartment = existing.department || undefined;
+      if (userDept && userDept !== existingDepartment) {
+        updatePayload.department = userDept;
+        changed = true;
+      }
+
+      const existingCompanyPhone = existing.companyPhone || undefined;
+      if (companyPhone && companyPhone !== existingCompanyPhone) {
+        updatePayload.companyPhone = companyPhone;
+        changed = true;
+      }
+
+      const existingAuxiliaryPhone = existing.auxiliaryPhone || undefined;
+      if (auxiliaryPhone && auxiliaryPhone !== existingAuxiliaryPhone) {
+        updatePayload.auxiliaryPhone = auxiliaryPhone;
+        changed = true;
+      }
+
+      if (resolvedBranchId !== (existing.branchId || null)) {
+        updatePayload.branchId = resolvedBranchId;
+        changed = true;
+      }
+
+      if (changed) {
+        await updateUser(existing.id, updatePayload, actor);
+      }
+
+      if (userRole && userRole !== existing.role) {
+        await changeUserRole(existing.id, userRole, actor);
+        changed = true;
+      }
+
+      if (userStatus && userStatus !== existing.status) {
+        await changeUserStatus(existing.id, userStatus, actor);
+        changed = true;
+      }
+
+      if (changed) updated++;
+      else unchanged++;
+
+    } catch (err: any) {
+      rejectedRows.push({
+        ...row,
+        reason: err.message || 'Error desconocido'
+      });
+    }
+  }
+
+  return {
+    total: rows.length,
+    created,
+    updated,
+    unchanged,
+    failed: rejectedRows.length,
+    rejectedRows
+  };
 }
