@@ -515,7 +515,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
           employeeId,
           name,
           email,
-          password: CSV_IMPORT_DEFAULT_PASSWORD.toLowerCase(),
+          password: CSV_IMPORT_DEFAULT_PASSWORD,
           role: userRole,
           status: userStatus,
           department: userDept,

@@ -38,7 +38,7 @@ services:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
     ports:
-      - "3001:3001"
+      - "13001:13001"
     depends_on:
       db:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
              npx ts-node prisma/seed.ts &&
              npm run dev"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:13001/api/health"]
       interval: 15s
       timeout: 10s
       retries: 3
