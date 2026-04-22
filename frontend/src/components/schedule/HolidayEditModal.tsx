@@ -3,13 +3,13 @@ import { CalendarDays, Save, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import type { BranchHoliday } from '@/types';
+import type { BranchHoliday, CalendarBranchHoliday } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 interface HolidayEditModalProps {
   open: boolean;
-  holiday: BranchHoliday | null;
+  holiday: CalendarBranchHoliday | null;
   branchName?: string;
   onClose: () => void;
 }
@@ -23,6 +23,10 @@ const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   company: 'Empresa',
 };
 
+function isGroupedHoliday(holiday: CalendarBranchHoliday): holiday is Extract<CalendarBranchHoliday, { holidayIds: string[] }> {
+  return 'holidayIds' in holiday;
+}
+
 export function HolidayEditModal({ open, holiday, branchName, onClose }: HolidayEditModalProps) {
   const qc = useQueryClient();
   const [name, setName] = useState(() => holiday?.name ?? '');
@@ -31,9 +35,21 @@ export function HolidayEditModal({ open, holiday, branchName, onClose }: Holiday
 
   const canSave = useMemo(() => Boolean(name.trim()) && Boolean(date), [name, date]);
 
+  const groupedHoliday = holiday && isGroupedHoliday(holiday) ? holiday : null;
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!holiday) return;
+      if (groupedHoliday) {
+        await api.patch('/branches/all/holidays/bulk', {
+          holidayIds: groupedHoliday.holidayIds,
+          name: name.trim(),
+          date,
+          type,
+        });
+        return;
+      }
+
       await api.patch(`/branches/${holiday.branchId}/holidays/${holiday.id}`, {
         name: name.trim(),
         date,
@@ -60,6 +76,11 @@ export function HolidayEditModal({ open, holiday, branchName, onClose }: Holiday
           <div>
             <h3 className="text-base font-semibold text-theme-primary">Editar festivo</h3>
             {branchName && <p className="text-xs text-theme-muted mt-0.5">{branchName}</p>}
+            {groupedHoliday && (
+              <p className="text-[11px] text-theme-muted mt-0.5">
+                Se aplicará a {groupedHoliday.holidayIds.length} sucursales.
+              </p>
+            )}
           </div>
           <button
             type="button"

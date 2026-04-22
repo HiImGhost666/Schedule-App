@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { TransactionClient } from '../../common/transactions/transaction.utils';
 
 type BranchWhere = Prisma.Args<typeof prisma.branch, 'findMany'>['where'];
 type BranchCreateData = Prisma.Args<typeof prisma.branch, 'create'>['data'];
@@ -93,4 +94,37 @@ export function updateBranchHolidayRecord(holidayId: string, data: BranchHoliday
 
 export function deleteBranchHolidayRecord(holidayId: string) {
   return prisma.branchHoliday.delete({ where: { id: holidayId } });
+}
+
+export function findBranchHolidaysByIds(holidayIds: string[], tx?: TransactionClient) {
+  const db = tx ?? prisma;
+  return db.branchHoliday.findMany({
+    where: { id: { in: holidayIds } },
+    include: {
+      branch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+    },
+  });
+}
+
+export function updateBranchHolidaysByIds(
+  holidayIds: string[],
+  data: BranchHolidayUpdateData,
+  tx: TransactionClient,
+) {
+  return tx.branchHoliday.updateMany({
+    where: { id: { in: holidayIds } },
+    data,
+  });
+}
+
+export function deleteBranchHolidaysByIds(holidayIds: string[], tx: TransactionClient) {
+  return tx.branchHoliday.deleteMany({
+    where: { id: { in: holidayIds } },
+  });
 }

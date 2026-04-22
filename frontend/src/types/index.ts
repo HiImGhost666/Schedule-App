@@ -126,6 +126,30 @@ export interface BranchHoliday {
   };
 }
 
+export interface GroupedBranchHoliday {
+  id: string;
+  branchId: 'all';
+  date: string;
+  originalDate?: string | null;
+  name: string;
+  type: BranchHoliday['type'];
+  scope: BranchHoliday['scope'];
+  isPartial: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  branch: null;
+  holidayIds: string[];
+  branches: Array<{
+    id: string;
+    name: string;
+    code: string;
+  }>;
+  sharedCount: number;
+}
+
+export type CalendarBranchHoliday = BranchHoliday | GroupedBranchHoliday;
+
 export interface WeekSchedulesResponse {
   year: number;
   week: number;

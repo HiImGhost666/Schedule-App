@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { AlertTriangle, CalendarDays, Clock3, MapPin, Pencil, Tag, Trash2, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { SCHEDULE_TYPES, type BranchHoliday, type Schedule } from '@/types';
+import { SCHEDULE_TYPES, type BranchHoliday, type CalendarBranchHoliday, type Schedule } from '@/types';
 
 export interface PopoverAnchor {
   x: number;
@@ -17,7 +17,7 @@ export type CalendarDetailItem =
     }
   | {
       kind: 'holiday';
-      holiday: BranchHoliday;
+      holiday: CalendarBranchHoliday;
       branchName?: string;
     };
 
@@ -66,6 +66,10 @@ function formatHolidayDate(dateIso: string) {
   const date = new Date(dateIso);
   if (Number.isNaN(date.getTime())) return dateIso.slice(0, 10);
   return format(date, "EEEE, dd 'de' MMMM", { locale: es });
+}
+
+function isGroupedHoliday(holiday: CalendarBranchHoliday): holiday is Extract<CalendarBranchHoliday, { holidayIds: string[] }> {
+  return 'holidayIds' in holiday;
 }
 
 function getInitialStyle(anchor: PopoverAnchor | null, mobile: boolean): CSSProperties {
@@ -255,6 +259,13 @@ export function CalendarDetailPopover({
               <div className="calendar-popover-row">
                 <MapPin className="h-4 w-4" />
                 <span>{item.branchName}</span>
+              </div>
+            )}
+
+            {isGroupedHoliday(item.holiday) && (
+              <div className="calendar-popover-row">
+                <Users className="h-4 w-4" />
+                <span>{`Compartido en ${item.holiday.sharedCount} sucursales`}</span>
               </div>
             )}
 

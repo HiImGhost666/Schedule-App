@@ -143,7 +143,9 @@ describe('SchedulePage smoke', () => {
     await waitFor(() => {
       expect(getMock).toHaveBeenCalledWith(
         '/branches/all/holidays',
-        expect.objectContaining({ params: expect.any(Object) }),
+        expect.objectContaining({
+          params: expect.objectContaining({ groupShared: true }),
+        }),
       );
     });
   });
@@ -286,7 +288,7 @@ describe('SchedulePage smoke', () => {
     });
   });
 
-  it('no añade sufijo de branch a festivos compartidos en vista general', async () => {
+  it('agrupa festivos compartidos en vista general y evita duplicados', async () => {
     authState.user = { id: 'admin-1', role: 'admin' };
 
     getMock.mockImplementation((url: string) => {
@@ -299,12 +301,23 @@ describe('SchedulePage smoke', () => {
             success: true,
             data: [
               { 
-                id: 'h-1', name: 'Año Nuevo', date: '2026-01-01T00:00:00Z', type: 'nacional', isPartial: false,
-                branch: { id: 'b-1', name: 'Madrid', code: 'MAD01' }
-              },
-              { 
-                id: 'h-2', name: 'Año Nuevo', date: '2026-01-01T00:00:00Z', type: 'nacional', isPartial: false,
-                branch: { id: 'b-2', name: 'Barcelona', code: 'BCN02' }
+                id: 'shared-2026-01-01-ano-nuevo',
+                branchId: 'all',
+                name: 'Año Nuevo',
+                date: '2026-01-01T00:00:00Z',
+                type: 'nacional',
+                scope: 'national',
+                isPartial: false,
+                isActive: true,
+                createdAt: '2025-01-01T00:00:00Z',
+                updatedAt: '2025-01-01T00:00:00Z',
+                branch: null,
+                holidayIds: ['h-1', 'h-2'],
+                branches: [
+                  { id: 'b-1', name: 'Madrid', code: 'MAD01' },
+                  { id: 'b-2', name: 'Barcelona', code: 'BCN02' },
+                ],
+                sharedCount: 2,
               }
             ],
           },
@@ -318,12 +331,10 @@ describe('SchedulePage smoke', () => {
     await waitFor(() => {
       const calendar = screen.getByTestId('mock-calendar');
       const events = JSON.parse(calendar.getAttribute('data-events') || '[]');
-      
-      const holiday1 = (events as CalendarEvent[]).find((e) => e.id === 'holiday-h-1');
-      const holiday2 = (events as CalendarEvent[]).find((e) => e.id === 'holiday-h-2');
-      
-      expect(holiday1.title).toBe('Año Nuevo');
-      expect(holiday2.title).toBe('Año Nuevo');
+
+      const holidayEvents = (events as CalendarEvent[]).filter((e) => e.extendedProps?.isHoliday);
+      expect(holidayEvents).toHaveLength(1);
+      expect(holidayEvents[0].title).toBe('Año Nuevo');
     });
   });
 });

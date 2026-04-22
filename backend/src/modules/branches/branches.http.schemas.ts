@@ -33,6 +33,7 @@ export const listBranchHolidaysQuerySchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   includeInactive: z.coerce.boolean().optional().default(false),
+  groupShared: z.coerce.boolean().optional().default(false),
 });
 
 const holidayTypeSchema = z.enum(HOLIDAY_TYPES);
@@ -48,3 +49,25 @@ export const createBranchHolidayBodySchema = z.object({
 });
 
 export const updateBranchHolidayBodySchema = createBranchHolidayBodySchema.partial();
+
+const bulkHolidayIdsSchema = z.array(z.string().min(1)).min(1, 'Debes indicar al menos un festivo');
+
+export const bulkUpdateBranchHolidayBodySchema = z.object({
+  holidayIds: bulkHolidayIdsSchema,
+  name: z.string().min(2).max(120).optional(),
+  date: z.coerce.date().optional(),
+  type: holidayTypeSchema.optional(),
+  scope: holidayScopeSchema.optional(),
+  isPartial: z.boolean().optional(),
+}).refine(
+  (data) => data.name !== undefined
+    || data.date !== undefined
+    || data.type !== undefined
+    || data.scope !== undefined
+    || data.isPartial !== undefined,
+  { message: 'Debes indicar al menos un campo para actualizar' },
+);
+
+export const bulkDeleteBranchHolidayBodySchema = z.object({
+  holidayIds: bulkHolidayIdsSchema,
+});

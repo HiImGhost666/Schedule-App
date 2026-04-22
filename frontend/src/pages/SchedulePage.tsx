@@ -23,7 +23,7 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Branch, BranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem } from '@/types';
+import type { Branch, BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem } from '@/types';
 import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -114,6 +114,10 @@ function addOneDay(dateIso: string) {
   const nextMonth = String(date.getMonth() + 1).padStart(2, '0');
   const nextDay = String(date.getDate()).padStart(2, '0');
   return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function isGroupedHoliday(holiday: CalendarBranchHoliday): holiday is Extract<CalendarBranchHoliday, { holidayIds: string[] }> {
+  return 'holidayIds' in holiday;
 }
 
 /* ─── month-view event pill ─────────────────────────────────────── */
@@ -314,7 +318,7 @@ export function SchedulePage() {
   const [detailItem, setDetailItem] = useState<CalendarDetailItem | null>(null);
   const [detailAnchor, setDetailAnchor] = useState<PopoverAnchor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CalendarDetailItem | null>(null);
-  const [holidayEditTarget, setHolidayEditTarget] = useState<BranchHoliday | null>(null);
+  const [holidayEditTarget, setHolidayEditTarget] = useState<CalendarBranchHoliday | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
@@ -396,7 +400,7 @@ export function SchedulePage() {
     enabled: isAdmin || Boolean(effectiveActiveBranchId),
   });
 
-  const { data: branchHolidays } = useQuery<{ data: BranchHoliday[] }>({
+  const { data: branchHolidays } = useQuery<{ data: CalendarBranchHoliday[] }>({
     queryKey: [
       'branch-holidays-calendar',
       effectiveActiveBranchId || 'all',
@@ -409,6 +413,7 @@ export function SchedulePage() {
           params: {
             from: dateRange.from.toISOString(),
             to: dateRange.to.toISOString(),
+            ...(effectiveActiveBranchId ? {} : { groupShared: true }),
           },
         })
         .then((r) => r.data),
@@ -441,7 +446,12 @@ export function SchedulePage() {
   });
 
   const deleteHolidayMutation = useMutation({
-    mutationFn: (holiday: BranchHoliday) => api.delete(`/branches/${holiday.branchId}/holidays/${holiday.id}`),
+    mutationFn: (holiday: CalendarBranchHoliday) => {
+      if (isGroupedHoliday(holiday)) {
+        return api.delete('/branches/all/holidays/bulk', { data: { holidayIds: holiday.holidayIds } });
+      }
+      return api.delete(`/branches/${holiday.branchId}/holidays/${holiday.id}`);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['branch-holidays'] });
       qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
@@ -530,29 +540,20 @@ export function SchedulePage() {
 
   const holidayInteractiveEvents = useMemo(() => {
     const holidays = branchHolidays?.data ?? [];
-    
-    // Contar ocurrencias de (fecha, nombre) para detectar compartidos
-    const occurrenceCount: Record<string, number> = {};
-    holidays.forEach(h => {
-      const dateStr = toLocalDateOnly(h.date);
-      const key = `${dateStr}_${h.name}`;
-      occurrenceCount[key] = (occurrenceCount[key] || 0) + 1;
-    });
+    const isGeneralView = !effectiveActiveBranchId;
 
     return holidays.map((holiday) => {
-      const isGeneralView = !effectiveActiveBranchId;
       const dateStr = toLocalDateOnly(holiday.date);
-      const key = `${dateStr}_${holiday.name}`;
-      const isShared = occurrenceCount[key] > 1;
-      
+      const grouped = isGroupedHoliday(holiday);
+      const sharedCount = grouped ? holiday.sharedCount : 1;
+      const firstBranchName = grouped ? holiday.branches[0]?.name : holiday.branch?.name;
+
       let displayTitle = holiday.name;
-      
-      // Si estamos en vista general y NO es compartido, añadimos la sede
-      if (isGeneralView && !isShared && holiday.branch?.name) {
-        displayTitle = `${holiday.name} (${holiday.branch.name})`;
+
+      if (isGeneralView && sharedCount === 1 && firstBranchName) {
+        displayTitle = `${holiday.name} (${firstBranchName})`;
       }
 
-      // Si es parcial, añadir un indicador
       if (holiday.isPartial) {
         displayTitle = `🌓 ${displayTitle}`;
       }
@@ -570,6 +571,8 @@ export function SchedulePage() {
           isHoliday: true,
           holiday,
           holidayType: holiday.type,
+          isGroupedHoliday: grouped,
+          sharedCount,
         },
       };
     });
@@ -610,13 +613,15 @@ export function SchedulePage() {
     const y = pageRect ? clientY - pageRect.top : clientY;
 
     if (info.event.extendedProps.isHoliday) {
-      const holiday = info.event.extendedProps.holiday as BranchHoliday | undefined;
+      const holiday = info.event.extendedProps.holiday as CalendarBranchHoliday | undefined;
       if (!holiday) return;
 
       setDetailItem({
         kind: 'holiday',
         holiday,
-        branchName: branchNameById[holiday.branchId],
+        branchName: isGroupedHoliday(holiday)
+          ? holiday.branches.map((branch) => branch.name).join(', ')
+          : branchNameById[holiday.branchId],
       });
       setDetailAnchor({ x, y });
       if (scheduleId) {
