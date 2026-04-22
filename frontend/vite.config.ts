@@ -9,7 +9,7 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: 15173,
     proxy: {
       // [CAMBIO PRODUCCIÓN]: Si no usas Docker o cambias el nombre del servicio,
       // actualiza "http://backend:13001" por la IP o nombre de host de tu backend.
