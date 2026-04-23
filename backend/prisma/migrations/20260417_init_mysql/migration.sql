@@ -27,6 +27,9 @@ CREATE TABLE `users` (
     UNIQUE INDEX `users_email_key`(`email`),
     UNIQUE INDEX `users_derived_username_key`(`derived_username`),
     UNIQUE INDEX `users_employee_id_key`(`employee_id`),
+    INDEX `users_status_role_idx`(`status`, `role`),
+    INDEX `users_role_idx`(`role`),
+    INDEX `users_status_idx`(`status`),
     INDEX `users_branch_id_idx`(`branch_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -56,6 +59,7 @@ CREATE TABLE `branches` (
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `branches_code_key`(`code`),
+    INDEX `branches_is_active_idx`(`is_active`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -74,6 +78,7 @@ CREATE TABLE `branch_holidays` (
     `updated_at` DATETIME(3) NOT NULL,
 
     INDEX `branch_holidays_branch_id_date_idx`(`branch_id`, `date`),
+    INDEX `branch_holidays_branch_id_is_active_idx`(`branch_id`, `is_active`),
     UNIQUE INDEX `branch_holidays_branch_id_date_name_key`(`branch_id`, `date`, `name`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -90,6 +95,8 @@ CREATE TABLE `refresh_tokens` (
     `user_agent` VARCHAR(191) NULL,
 
     UNIQUE INDEX `refresh_tokens_token_key`(`token`),
+    INDEX `refresh_tokens_expires_at_idx`(`expires_at`),
+    INDEX `refresh_tokens_user_id_revoked_at_idx`(`user_id`, `revoked_at`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -112,7 +119,10 @@ CREATE TABLE `schedules` (
     `updated_at` DATETIME(3) NOT NULL,
 
     INDEX `schedules_start_datetime_end_datetime_idx`(`start_datetime`, `end_datetime`),
+    INDEX `schedules_branch_id_start_datetime_end_datetime_idx`(`branch_id`, `start_datetime`, `end_datetime`),
     INDEX `schedules_branch_id_idx`(`branch_id`),
+    INDEX `schedules_type_idx`(`type`),
+    INDEX `schedules_is_last_minute_idx`(`is_last_minute`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -139,6 +149,11 @@ CREATE TABLE `webhook_configs` (
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
+    INDEX `webhook_configs_enabled_idx`(`enabled`),
+    INDEX `webhook_configs_enabled_notify_modifications_idx`(`enabled`, `notify_modifications`),
+    INDEX `webhook_configs_enabled_notify_last_minute_idx`(`enabled`, `notify_last_minute`),
+    INDEX `webhook_configs_enabled_friday_reminder_enabled_idx`(`enabled`, `friday_reminder_enabled`),
+    INDEX `webhook_configs_enabled_monday_vacation_reminder_enabled_idx`(`enabled`, `monday_vacation_reminder_enabled`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -155,6 +170,9 @@ CREATE TABLE `notification_logs` (
     `error_message` VARCHAR(191) NULL,
     `schedule_id` VARCHAR(191) NULL,
 
+    INDEX `notification_logs_status_idx`(`status`),
+    INDEX `notification_logs_status_sent_at_idx`(`status`, `sent_at`),
+    INDEX `notification_logs_type_idx`(`type`),
     INDEX `notification_logs_sent_at_idx`(`sent_at`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -169,8 +187,15 @@ CREATE TABLE `audit_logs` (
     `details_json` TEXT NULL,
     `ip_address` VARCHAR(191) NULL,
     `user_agent` VARCHAR(191) NULL,
+    `rolled_back_at` DATETIME(3) NULL,
+    `rolled_back_by_user_id` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
+    INDEX `audit_logs_updated_at_idx`(`updated_at`),
+    INDEX `audit_logs_action_idx`(`action`),
+    INDEX `audit_logs_entity_type_entity_id_idx`(`entity_type`, `entity_id`),
+    INDEX `audit_logs_user_id_created_at_idx`(`user_id`, `created_at`),
     INDEX `audit_logs_created_at_idx`(`created_at`),
     INDEX `audit_logs_user_id_idx`(`user_id`),
     PRIMARY KEY (`id`)
@@ -188,6 +213,7 @@ CREATE TABLE `theme_settings` (
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `theme_settings_key_key`(`key`),
+    INDEX `theme_settings_preset_idx`(`preset`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -220,3 +246,6 @@ ALTER TABLE `notification_logs` ADD CONSTRAINT `notification_logs_sent_by_user_i
 
 -- AddForeignKey
 ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_rolled_back_by_user_id_fkey` FOREIGN KEY (`rolled_back_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

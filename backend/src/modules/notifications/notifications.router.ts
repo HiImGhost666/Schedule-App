@@ -10,6 +10,10 @@ import { buildAnnouncementCard } from './notifications.templates';
 
 const router = Router();
 
+const getParam = (value: string | string[] | undefined): string | undefined => (
+  Array.isArray(value) ? value[0] : value
+);
+
 router.get('/logs', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
@@ -38,7 +42,10 @@ router.get('/logs', authMiddleware, requireRole('admin'), async (req: AuthReques
 
 router.post('/resend/:logId', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   try {
-    const result = await resendNotification(req.params.logId, req.user!.id);
+    const logId = getParam(req.params.logId);
+    if (!logId) return sendError(res, 'logId invalido', 400);
+
+    const result = await resendNotification(logId, req.user!.id);
     return sendSuccess(res, result, 'Notificación reenviada');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al reenviar';

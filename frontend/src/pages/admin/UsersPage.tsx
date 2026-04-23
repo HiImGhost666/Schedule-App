@@ -164,6 +164,8 @@ export function UsersPage() {
     placeholderData: keepPreviousData,
   });
 
+  const totalPages = data?.pagination?.totalPages ?? 1;
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/users/${id}/status`, { status }),
@@ -190,16 +192,20 @@ export function UsersPage() {
     mutationFn: async () => {
       const allUsers: User[] = [];
       let currentPage = 1;
-      let totalPages = 1;
 
-      do {
+      while (true) {
         const response = await api.get<{ data: User[]; pagination: { totalPages: number } }>('/users', {
           params: { page: currentPage, limit: 100 },
         });
         allUsers.push(...response.data.data);
-        totalPages = response.data.pagination.totalPages;
+        const totalPages = response.data.pagination.totalPages;
+
+        if (currentPage >= totalPages) {
+          break;
+        }
+
         currentPage += 1;
-      } while (currentPage <= totalPages);
+      }
 
       const rows = allUsers.map((user) => ({
         employeeId: user.employeeId ?? '',
@@ -547,9 +553,12 @@ export function UsersPage() {
             {/* Pagination */}
             {data?.pagination && data.pagination.totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-navy-100">
-                <p className="text-xs text-navy-400">
-                  {((page - 1) * 15) + 1}–{Math.min(page * 15, data.pagination.total)} de {data.pagination.total}
-                </p>
+                <div className="flex flex-col">
+                  <p className="text-xs text-navy-400">
+                    {((page - 1) * 15) + 1}–{Math.min(page * 15, data.pagination.total)} de {data.pagination.total}
+                  </p>
+                  <p className="text-[10px] text-navy-300">Pagina {page} de {totalPages}</p>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-40">
                     Anterior
