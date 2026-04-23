@@ -22,13 +22,30 @@ function getToken() {
 }
 
 function createSocketInstance(token: string) {
-  return io(import.meta.env.VITE_API_URL || '/', {
+  const instance = io(import.meta.env.VITE_API_URL || '/', {
     path: '/socket.io',
     transports: ['websocket'],
     withCredentials: true,
     autoConnect: false,
     auth: { token },
   });
+
+  instance.on('connect', () => {
+    console.log('[Realtime] Connected successfully');
+  });
+
+  instance.on('connect_error', (err) => {
+    console.error('[Realtime] Connection error:', err.message);
+    if (err.message === 'AUTH_INVALID_TOKEN' || err.message === 'AUTH_MISSING_TOKEN') {
+      console.warn('[Realtime] Authentication failed, please check if your session is valid');
+    }
+  });
+
+  instance.on('disconnect', (reason) => {
+    console.log('[Realtime] Disconnected:', reason);
+  });
+
+  return instance;
 }
 
 export function connectRealtime() {
@@ -38,7 +55,17 @@ export function connectRealtime() {
   if (!socket) {
     socket = createSocketInstance(token);
   } else {
-    socket.auth = { token };
+    // If token changed, we must update it and reconnect
+    const currentToken = (socket.auth as any)?.token;
+    if (currentToken !== token) {
+      console.log('[Realtime] Token changed, reconnecting...');
+      socket.auth = { token };
+      if (socket.connected) {
+        socket.disconnect().connect();
+      } else {
+        socket.connect();
+      }
+    }
   }
 
   if (!socket.connected) {
@@ -56,6 +83,7 @@ export function reconnectRealtimeWithFreshToken() {
     return;
   }
 
+  console.log('[Realtime] Manual reconnection requested with fresh token');
   socket.auth = { token };
   if (socket.connected) socket.disconnect();
   socket.connect();
