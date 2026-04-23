@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:22.12.0-slim AS deps
+FROM node:22.13.0-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
