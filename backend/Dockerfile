@@ -15,5 +15,5 @@ RUN npm test -- --ci --runInBand
 # Stage 3: Runner
 FROM test AS runner
 WORKDIR /app
-EXPOSE 3001
+EXPOSE 13001
 CMD ["npm", "run", "dev"]
