@@ -7,7 +7,7 @@ import api from '@/config/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
-import logoIA from '@/assets/Logotipo_IA.png';
+import logoIA from '@/assets/Logotipo_IA.webp';
 import { AlertTriangle, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

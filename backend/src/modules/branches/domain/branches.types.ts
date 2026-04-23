@@ -17,6 +17,7 @@ export type BranchInput = {
   region?: string;
   countryCode?: string;
   timezone?: string;
+  isActive?: boolean;
 };
 
 export type BranchHolidayInput = {

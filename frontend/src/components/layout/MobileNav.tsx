@@ -39,8 +39,11 @@ export function MobileNav() {
             onClick={() => setMenuOpen(false)}
           />
           <div
+            id="mobile-nav-extras"
             className="md:hidden fixed bottom-16 left-0 right-0 z-30 mx-3 mb-1 rounded-2xl border border-navy-100 shadow-xl overflow-hidden"
             style={{ backgroundColor: "var(--theme-surface)" }}
+            role="region"
+            aria-label="Accesos de administración y cuenta"
           >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-theme-muted px-4 pt-3 pb-1">
               {isAdminOrManager ? "Administración" : "Cuenta"}
@@ -133,14 +136,19 @@ export function MobileNav() {
           </NavLink>
 
           <button
+            type="button"
             onClick={() => setMenuOpen((v) => !v)}
             className={cn(
               "flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors",
               menuOpen ? "text-gold-500" : "text-navy-300",
             )}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-extras"
+            aria-label={menuOpen ? "Cerrar menú de administración" : "Abrir menú de administración y cuenta"}
           >
             <MoreHorizontal
               className={cn("h-5 w-5", menuOpen && "text-gold-500")}
+              aria-hidden
             />
             <span>Más</span>
           </button>

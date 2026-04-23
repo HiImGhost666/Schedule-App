@@ -8,9 +8,9 @@ import { useUIStore } from '@/store/uiStore';
 import { cn, getInitials, getAvatarColor } from '@/lib/utils';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
-import LogoClaro from '@/assets/Logo_Claro.png';
-import LogoOscuro from '@/assets/Logo_Oscuro.png';
-import LogotipoIA from '@/assets/Logotipo_IA.png';
+import LogoClaroSidebar from '@/assets/Logo_Claro.webp';
+import LogoOscuroSidebar from '@/assets/Logo_Oscuro.webp';
+import LogotipoIA from '@/assets/Logotipo_IA.webp';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -44,7 +44,8 @@ export function Sidebar() {
 
   const isAdmin = user?.role === 'admin';
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
-  const expandedLogo = activeTheme.overrides.sidebar.logoVariant === 'logo_oscuro' ? LogoOscuro : LogoClaro;
+  const expandedLogo =
+    activeTheme.overrides.sidebar.logoVariant === 'logo_oscuro' ? LogoOscuroSidebar : LogoClaroSidebar;
 
   return (
     <aside
@@ -69,6 +70,9 @@ export function Sidebar() {
           <img
             src={LogotipoIA}
             alt="Logo"
+            width={36}
+            height={36}
+            decoding="async"
             className="h-9 w-9 object-contain select-none rounded"
             draggable={false}
           />
@@ -77,6 +81,9 @@ export function Sidebar() {
           <img
             src={expandedLogo}
             alt="Logo Laberit"
+            width={420}
+            height={141}
+            fetchPriority="high"
             className="h-16 w-full max-w-[210px] object-contain select-none"
             draggable={false}
           />
@@ -178,6 +185,7 @@ export function Sidebar() {
         </NavLink>
 
         <button
+          type="button"
           onClick={handleLogout}
           className={cn(
             'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-sidebar hover:bg-navy-700 hover:text-white transition-all',
@@ -185,18 +193,24 @@ export function Sidebar() {
           )}
           title={sidebarCollapsed ? 'Cerrar Sesión' : undefined}
         >
-          <LogOut className="h-4 w-4 flex-shrink-0" />
+          <LogOut className="h-4 w-4 flex-shrink-0" aria-hidden />
           {!sidebarCollapsed && <span>Cerrar Sesión</span>}
         </button>
       </div>
 
       {/* Collapse toggle */}
       <button
+        type="button"
         onClick={toggleSidebar}
         className="absolute -right-3 top-1/2 -translate-y-1/2 bg-navy-600 text-white rounded-full p-1 shadow-lg transition-colors z-10"
         style={{ backgroundColor: 'var(--theme-sidebar-active-bg)' }}
+        aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
       >
-        {sidebarCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        {sidebarCollapsed ? (
+          <ChevronRight className="h-3 w-3" aria-hidden />
+        ) : (
+          <ChevronLeft className="h-3 w-3" aria-hidden />
+        )}
       </button>
     </aside>
   );

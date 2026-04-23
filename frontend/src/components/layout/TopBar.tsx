@@ -21,8 +21,12 @@ export function TopBar({ title }: TopBarProps) {
         {title && <h1 className="text-base font-semibold hidden md:block">{title}</h1>}
 
       <div className="flex items-center gap-2">
-        <button className="p-1.5 rounded-lg hover:bg-navy-50 text-theme-muted relative">
-          <Bell className="h-5 w-5" />
+        <button
+          type="button"
+          className="p-1.5 rounded-lg hover:bg-navy-50 text-theme-muted relative"
+          aria-label="Notificaciones (próximamente)"
+        >
+          <Bell className="h-5 w-5" aria-hidden />
         </button>
         <div className="flex items-center gap-2 px-2">
           <div className="text-right hidden sm:block">
