@@ -4,8 +4,10 @@ import { X, Mail, Phone, CalendarDays, ShieldAlert, Clock3, Activity } from 'luc
 import api from '@/config/api';
 import { useAuthStore } from '@/store/authStore';
 import { type Schedule, type User, ROLE_LABELS, STATUS_LABELS } from '@/types';
-import { getInitials, getAvatarColor, formatDate, formatDateTime, formatRelative } from '@/lib/utils';
+import { cn, getInitials, getAvatarColor, formatDate, formatDateTime, formatRelative } from '@/lib/utils';
 import { resolvePasswordChangeState } from '@/lib/passwordPolicy';
+import { isDarkThemePreset } from '@/config/theme';
+import { useUIStore } from '@/store/uiStore';
 
 interface UserProfileModalProps {
     open: boolean;
@@ -31,6 +33,7 @@ type ProfileTab = 'general' | 'schedules' | 'security';
 export function UserProfileModal({ open, onClose, user }: UserProfileModalProps) {
     const [activeTab, setActiveTab] = useState<ProfileTab>('general');
     const currentUser = useAuthStore((s) => s.user);
+    const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
     const canLoadPrivateData = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
     const { data: detailedUser, isLoading: loadingUserDetail } = useQuery({
@@ -289,17 +292,74 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                                                     <p className="text-[10px] uppercase tracking-[0.15em] text-navy-500">Semana</p>
                                                     <p className="text-xl font-black text-navy-800 mt-1">{metrics.weekCount}</p>
                                                 </div>
-                                                <div className="rounded-2xl bg-gold-50 border border-gold-100 px-3 py-3">
-                                                    <p className="text-[10px] uppercase tracking-[0.15em] text-gold-700">Mes</p>
-                                                    <p className="text-xl font-black text-gold-800 mt-1">{metrics.monthCount}</p>
+                                                <div
+                                                    className={cn(
+                                                        'rounded-2xl border px-3 py-3',
+                                                        isDark ? 'bg-navy-50 border-navy-100' : 'bg-gold-50 border-gold-100',
+                                                    )}
+                                                >
+                                                    <p
+                                                        className={cn(
+                                                            'text-[10px] uppercase tracking-[0.15em]',
+                                                            isDark ? 'text-navy-500' : 'text-gold-700',
+                                                        )}
+                                                    >
+                                                        Mes
+                                                    </p>
+                                                    <p
+                                                        className={cn(
+                                                            'text-xl font-black mt-1',
+                                                            isDark ? 'text-navy-800' : 'text-gold-800',
+                                                        )}
+                                                    >
+                                                        {metrics.monthCount}
+                                                    </p>
                                                 </div>
-                                                <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-3 py-3">
-                                                    <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-700">Horas 7d</p>
-                                                    <p className="text-xl font-black text-emerald-800 mt-1">{metrics.hours7d.toFixed(1)}h</p>
+                                                <div
+                                                    className={cn(
+                                                        'rounded-2xl border px-3 py-3',
+                                                        isDark ? 'bg-navy-50 border-navy-100' : 'bg-emerald-50 border-emerald-100',
+                                                    )}
+                                                >
+                                                    <p
+                                                        className={cn(
+                                                            'text-[10px] uppercase tracking-[0.15em]',
+                                                            isDark ? 'text-navy-500' : 'text-emerald-700',
+                                                        )}
+                                                    >
+                                                        Horas 7d
+                                                    </p>
+                                                    <p
+                                                        className={cn(
+                                                            'text-xl font-black mt-1',
+                                                            isDark ? 'text-navy-800' : 'text-emerald-800',
+                                                        )}
+                                                    >
+                                                        {metrics.hours7d.toFixed(1)}h
+                                                    </p>
                                                 </div>
-                                                <div className="rounded-2xl bg-cyan-50 border border-cyan-100 px-3 py-3">
-                                                    <p className="text-[10px] uppercase tracking-[0.15em] text-cyan-700">Horas 30d</p>
-                                                    <p className="text-xl font-black text-cyan-800 mt-1">{metrics.hours30d.toFixed(1)}h</p>
+                                                <div
+                                                    className={cn(
+                                                        'rounded-2xl border px-3 py-3',
+                                                        isDark ? 'bg-navy-50 border-navy-100' : 'bg-cyan-50 border-cyan-100',
+                                                    )}
+                                                >
+                                                    <p
+                                                        className={cn(
+                                                            'text-[10px] uppercase tracking-[0.15em]',
+                                                            isDark ? 'text-navy-500' : 'text-cyan-700',
+                                                        )}
+                                                    >
+                                                        Horas 30d
+                                                    </p>
+                                                    <p
+                                                        className={cn(
+                                                            'text-xl font-black mt-1',
+                                                            isDark ? 'text-navy-800' : 'text-cyan-800',
+                                                        )}
+                                                    >
+                                                        {metrics.hours30d.toFixed(1)}h
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
@@ -310,7 +370,9 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                             {activeTab === 'security' && (
                                 <div className="animate-fade-in rounded-3xl border border-theme-color bg-gradient-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
                                     <div className="flex items-center gap-2 mb-4">
-                                        <ShieldAlert className="h-4 w-4 text-red-500" />
+                                        <ShieldAlert
+                                            className={cn('h-4 w-4', isDark ? 'text-navy-500' : 'text-red-500')}
+                                        />
                                         <p className="text-base font-bold text-theme-primary">Seguridad y soporte</p>
                                     </div>
                                     {loadingUserDetail && canLoadPrivateData ? (
@@ -325,9 +387,28 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                                                 <p className="text-[11px] uppercase tracking-[0.16em] font-bold text-theme-muted">Intentos fallidos</p>
                                                 <span className="text-base font-semibold text-theme-primary">{typeof failedAttempts === 'number' ? failedAttempts : 0}</span>
                                             </div>
-                                            <div className="flex items-center justify-between rounded-2xl px-3 py-2.5 bg-red-50 border border-red-100">
-                                                <p className="text-[11px] uppercase tracking-[0.16em] font-bold text-red-600">Cambio de contraseña forzado</p>
-                                                <span className="text-base font-black text-red-700">{forcedPasswordLabel}</span>
+                                            <div
+                                                className={cn(
+                                                    'flex items-center justify-between rounded-2xl px-3 py-2.5 border',
+                                                    isDark ? 'bg-navy-50 border-navy-100' : 'bg-red-50 border border-red-100',
+                                                )}
+                                            >
+                                                <p
+                                                    className={cn(
+                                                        'text-[11px] uppercase tracking-[0.16em] font-bold',
+                                                        isDark ? 'text-navy-700' : 'text-red-600',
+                                                    )}
+                                                >
+                                                    Cambio de contraseña forzado
+                                                </p>
+                                                <span
+                                                    className={cn(
+                                                        'text-base font-black',
+                                                        isDark ? 'text-navy-800' : 'text-red-700',
+                                                    )}
+                                                >
+                                                    {forcedPasswordLabel}
+                                                </span>
                                             </div>
                                         </div>
                                     )}

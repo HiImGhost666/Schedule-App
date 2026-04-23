@@ -7,7 +7,9 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
-import { formatDateTime, formatRelative } from '@/lib/utils';
+import { cn, formatDateTime, formatRelative } from '@/lib/utils';
+import { isDarkThemePreset } from '@/config/theme';
+import { useUIStore } from '@/store/uiStore';
 import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment } from '@/types';
 import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -102,6 +104,14 @@ export function DashboardPage() {
 
   const lastMinuteCount = weekSchedules?.filter((s) => s.isLastMinute).length || 0;
 
+  const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
+  const statCornerLinkClass = cn(
+    'absolute bottom-4 right-4 p-1.5 rounded-lg transition-all z-20',
+    isDark
+      ? 'bg-navy-100/30 hover:bg-navy-100/50 text-navy-300 border border-navy-200/30 shadow-none'
+      : 'bg-white/90 hover:bg-white text-green-600 shadow-sm border border-green-200',
+  );
+
   return (
     <div className="space-y-7 animate-fade-in">
       {/* Header: altura mínima evita CLS al cargar la webfont */}
@@ -127,7 +137,7 @@ export function DashboardPage() {
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } }); }}
-            className="absolute bottom-4 right-4 p-1.5 rounded-lg bg-white/90 hover:bg-white text-navy-600 transition-all z-20 shadow-sm border border-navy-200"
+            className={statCornerLinkClass}
             title="Ver en calendario (Vista semanal)"
             aria-label="Ver en calendario (Vista semanal)"
           >
@@ -143,6 +153,15 @@ export function DashboardPage() {
             color="gold"
             className="h-full"
           />
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } }); }}
+            className={statCornerLinkClass}
+            title="Abrir calendario (Vista semanal)"
+            aria-label="Abrir calendario, vista semanal"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+          </button>
         </div>
 
         {(user?.role === 'admin' || user?.role === 'manager') && (
@@ -157,7 +176,7 @@ export function DashboardPage() {
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/admin/users', { state: { status: 'active' } }); }}
-              className="absolute bottom-4 right-4 p-1.5 rounded-lg bg-white/90 hover:bg-white text-green-600 transition-all z-20 shadow-sm border border-green-200"
+              className={statCornerLinkClass}
               title="Ver gestión de usuarios"
               aria-label="Ver gestión de usuarios"
             >
