@@ -6,7 +6,9 @@ import type { NotificationLog } from '@/types';
 import { NOTIFICATION_TYPE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
+import { isDarkThemePreset } from '@/config/theme';
+import { useUIStore } from '@/store/uiStore';
 import toast from 'react-hot-toast';
 
 function StatusIcon({ status }: { status: string }) {
@@ -18,6 +20,8 @@ function StatusIcon({ status }: { status: string }) {
 export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [announcement, setAnnouncement] = useState('');
+  const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
+  const isDark = isDarkThemePreset(activeTheme);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['notifications', page],
@@ -62,7 +66,9 @@ export function NotificationsPage() {
         {/* Vacation summary */}
         <div className="card p-7">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-green-50 rounded-lg"><Umbrella className="h-4 w-4 text-green-600" /></div>
+            <div className={cn('p-2 rounded-lg', isDark ? 'bg-navy-50' : 'bg-green-50')}>
+              <Umbrella className={cn('h-4 w-4', isDark ? 'text-navy-700' : 'text-green-600')} />
+            </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Vacaciones de la Semana</p>
               <p className="text-xs text-theme-muted">Automático cada lunes a las 8:30h</p>
@@ -81,7 +87,9 @@ export function NotificationsPage() {
         {/* Friday summary */}
         <div className="card p-7">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gold-50 rounded-lg"><Calendar className="h-4 w-4 text-gold-600" /></div>
+            <div className={cn('p-2 rounded-lg', isDark ? 'bg-navy-50' : 'bg-gold-50')}>
+              <Calendar className={cn('h-4 w-4', isDark ? 'text-navy-700' : 'text-gold-600')} />
+            </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Resumen Semanal</p>
               <p className="text-xs text-theme-muted">Enviar planificación de la semana siguiente</p>
@@ -100,7 +108,9 @@ export function NotificationsPage() {
         {/* Manual announcement */}
         <div className="card p-7">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-navy-50 rounded-lg"><Send className="h-4 w-4 text-navy-500" /></div>
+            <div className="p-2 bg-navy-50 rounded-lg">
+              <Send className={cn('h-4 w-4', isDark ? 'text-navy-700' : 'text-navy-500')} />
+            </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Anuncio Manual</p>
               <p className="text-xs text-theme-muted">Enviar mensaje personalizado a todos los webhooks</p>

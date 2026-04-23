@@ -17,8 +17,12 @@ vi.mock('@/store/authStore', () => ({
 }));
 
 vi.mock('@/store/uiStore', () => ({
-  useUIStore: (selector: (state: { sidebarCollapsed: boolean }) => unknown) =>
-    selector({ sidebarCollapsed: false }),
+  useUIStore: (selector: (state: { sidebarCollapsed: boolean; themeConfig: { preset: string }; themeDraft: null }) => unknown) =>
+    selector({
+      sidebarCollapsed: false,
+      themeConfig: { preset: 'light' },
+      themeDraft: null,
+    }),
 }));
 
 vi.mock('@/config/api', () => ({

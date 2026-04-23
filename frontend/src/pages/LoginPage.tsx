@@ -80,7 +80,7 @@ export function LoginPage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(217,230,242,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(217,230,242,0.04)_1px,transparent_1px)] bg-[size:38px_38px]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center p-4 sm:p-6 lg:p-10">
+      <main className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center p-4 sm:p-6 lg:p-10">
         <div className="grid w-full overflow-hidden rounded-3xl border border-white/20 bg-white/[0.03] shadow-[0_24px_72px_rgba(6,14,24,0.55)] backdrop-blur-sm lg:grid-cols-[1.15fr_0.85fr]">
           <section className="relative border-b border-white/10 p-7 text-white sm:p-9 lg:border-b-0 lg:border-r">
             <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[36px] border-b border-l border-white/10 bg-white/5" />
@@ -196,7 +196,7 @@ export function LoginPage() {
                       id="login-password"
                       type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
-                      className="input-field !pl-9 !pr-11"
+                      className="input-field !pl-9 !pr-14"
                       autoComplete="current-password"
                       aria-invalid={Boolean(errors.password)}
                       aria-describedby={errors.password ? 'login-password-error' : undefined}
@@ -204,7 +204,7 @@ export function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-navy-300 transition-colors hover:text-navy-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-300"
+                      className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-navy-500 transition-colors hover:text-navy-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400"
                       aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -241,7 +241,7 @@ export function LoginPage() {
             </div>
           </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

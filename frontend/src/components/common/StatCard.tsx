@@ -1,5 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isDarkThemePreset } from '@/config/theme';
+import { useUIStore } from '@/store/uiStore';
 
 interface StatCardProps {
   title: string;
@@ -18,7 +20,10 @@ const colorMap = {
 };
 
 export function StatCard({ title, value, icon: Icon, trend, color = 'navy', className }: StatCardProps) {
-  const c = colorMap[color];
+  const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
+  const isDark = isDarkThemePreset(activeTheme);
+  const useNeutralIcon = isDark && color !== 'navy';
+  const c = useNeutralIcon ? colorMap.navy : colorMap[color];
   return (
     <div className={cn('card p-4 md:p-7 flex items-center gap-3.5 md:gap-5 hover:shadow-md transition-shadow', className)}>
       {/* Icon — smaller on mobile */}
@@ -34,7 +39,13 @@ export function StatCard({ title, value, icon: Icon, trend, color = 'navy', clas
         <p className="text-xl md:text-2xl font-bold text-navy-800 mt-0.5 md:mt-1">{value}</p>
         {trend && (
           <p className="text-xs text-navy-400 mt-0.5">
-            <span className={trend.value >= 0 ? 'text-emerald-600' : 'text-red-500'}>
+            <span
+              className={
+                trend.value >= 0
+                  ? (isDark ? 'text-navy-500' : 'text-emerald-600')
+                  : (isDark ? 'text-red-400' : 'text-red-500')
+              }
+            >
               {trend.value >= 0 ? '+' : ''}{trend.value}
             </span>{' '}
             {trend.label}

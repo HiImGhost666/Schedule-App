@@ -741,6 +741,167 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* FullCalendar + calendario: preset "dark" (lectura y coherencia con el resto de la UI) */
+html[data-theme-preset="dark"] .fc-google-like .fc {
+  --fc-border-color: var(--theme-border-color);
+  --fc-page-bg-color: var(--theme-surface);
+  --fc-neutral-bg-color: var(--theme-surface);
+  --fc-list-event-hover-bg-color: var(--theme-surface-muted);
+  --fc-button-text-color: var(--theme-text-primary);
+  --fc-button-bg-color: var(--theme-surface);
+  --fc-button-border-color: var(--theme-border-color);
+  --fc-button-hover-bg-color: var(--theme-surface-muted);
+  --fc-button-hover-border-color: var(--theme-border-color);
+  --fc-button-active-bg-color: var(--theme-surface-muted);
+  --fc-button-active-border-color: var(--theme-border-color);
+  --fc-button-active-color: var(--theme-text-primary);
+  --fc-today-bg-color: color-mix(in srgb, var(--theme-calendar-today) 18%, transparent);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-toolbar-title {
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-theme-standard td,
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-theme-standard th {
+  border-color: var(--theme-border-color);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-scrollgrid {
+  border-color: var(--theme-border-color);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-daygrid-day,
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-timegrid-col {
+  background: var(--theme-surface);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-col-header-cell {
+  background: var(--theme-surface-muted);
+  border-color: var(--theme-border-color);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-col-header-cell-cushion {
+  color: var(--theme-text-primary);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-daygrid-day-number {
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-day-today .fc-daygrid-day-number {
+  color: #f8fafc;
+  background: var(--theme-calendar-today);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-timegrid-slot-label-cushion {
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-timegrid-now-indicator-line {
+  border-color: var(--theme-calendar-now-indicator, #f87171);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-timegrid-now-indicator-arrow {
+  border-top-color: var(--theme-calendar-now-indicator, #f87171);
+  border-bottom-color: var(--theme-calendar-now-indicator, #f87171);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-daygrid-more-link {
+  color: var(--theme-text-primary);
+  background: color-mix(in srgb, var(--theme-surface) 60%, var(--theme-surface-muted) 40%);
+}
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-daygrid-more-link:hover {
+  background: var(--theme-surface-muted);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-list-event:hover td {
+  background: var(--theme-surface-muted);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-list-day-cushion {
+  background: var(--theme-surface-muted) !important;
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-list-event td {
+  border-color: var(--theme-border-color);
+}
+
+html[data-theme-preset="dark"] .google-list-event-title {
+  color: var(--theme-text-primary);
+}
+
+html[data-theme-preset="dark"] .google-list-event-time {
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .google-list-event-urgent {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.45);
+}
+
+html[data-theme-preset="dark"] .google-holiday-event {
+  background: var(--theme-surface-muted) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme-border-color) 80%, transparent);
+}
+
+html[data-theme-preset="dark"] .google-month-event-time {
+  color: rgba(248, 250, 252, 0.88);
+  opacity: 1;
+}
+
+html[data-theme-preset="dark"] .google-month-event-flag {
+  background: rgba(15, 23, 42, 0.5);
+  color: #f8fafc;
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-popover {
+  background: var(--theme-surface) !important;
+  border-color: var(--theme-border-color) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+html[data-theme-preset="dark"] .fc-google-like .fc .fc-popover-header {
+  background: var(--theme-surface) !important;
+  color: var(--theme-text-primary);
+  border-color: var(--theme-border-color);
+}
+
+html[data-theme-preset="dark"] .calendar-popover {
+  background: var(--theme-surface);
+  border-color: var(--theme-border-color);
+  color: var(--theme-text-primary);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme-preset="dark"] .calendar-popover-title {
+  color: var(--theme-text-primary);
+}
+
+html[data-theme-preset="dark"] .calendar-popover-row {
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .calendar-popover-icon-btn {
+  color: var(--theme-text-muted);
+}
+html[data-theme-preset="dark"] .calendar-popover-icon-btn:hover {
+  background: var(--theme-surface-muted);
+  color: var(--theme-text-primary);
+}
+
+html[data-theme-preset="dark"] .calendar-popover-note,
+html[data-theme-preset="dark"] .calendar-popover-info {
+  background: var(--theme-surface-muted);
+  color: var(--theme-text-muted);
+}
+
+html[data-theme-preset="dark"] .calendar-popover-info svg,
+html[data-theme-preset="dark"] .calendar-popover-row svg {
+  color: var(--theme-text-muted);
+}
+
 /* Scrollbar in calendar */
 .fc .fc-scroller::-webkit-scrollbar { width: 4px; height: 4px; }
 .fc .fc-scroller::-webkit-scrollbar-thumb { background: var(--color-navy-200); border-radius: 2px; }

@@ -107,9 +107,11 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Suspense fallback={null}>
-        <QueryInvalidationBridge />
-      </Suspense>
+      {isAuthenticated ? (
+        <Suspense fallback={null}>
+          <QueryInvalidationBridge />
+        </Suspense>
+      ) : null}
       <BrowserRouter>
         <Suspense
           fallback={

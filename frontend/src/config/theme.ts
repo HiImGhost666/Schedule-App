@@ -130,10 +130,16 @@ export function applyThemeToDocument(theme: ThemeConfig) {
   root.style.setProperty('--theme-toast-success-secondary', theme.overrides.toasts.successSecondary);
   root.style.setProperty('--theme-toast-error-bg', theme.overrides.toasts.errorBackground);
   root.style.setProperty('--theme-toast-error-text', theme.overrides.toasts.errorText);
+
+  root.setAttribute('data-theme-preset', theme.preset);
 }
 
 export function readCssVariable(name: string, fallback: string) {
   if (typeof document === 'undefined') return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
+}
+
+export function isDarkThemePreset(theme: Pick<ThemeConfig, 'preset'>): boolean {
+  return theme.preset === 'dark';
 }
