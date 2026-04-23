@@ -33,7 +33,11 @@ type ProfileTab = 'general' | 'schedules' | 'security';
 export function UserProfileModal({ open, onClose, user }: UserProfileModalProps) {
     const [activeTab, setActiveTab] = useState<ProfileTab>('general');
     const currentUser = useAuthStore((s) => s.user);
-    const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
+    const isDark = isDarkThemePreset(
+      useUIStore(
+        (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+      ),
+    );
     const canLoadPrivateData = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
     const { data: detailedUser, isLoading: loadingUserDetail } = useQuery({

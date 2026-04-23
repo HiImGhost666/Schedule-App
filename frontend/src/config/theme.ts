@@ -140,6 +140,8 @@ export function readCssVariable(name: string, fallback: string) {
   return value || fallback;
 }
 
-export function isDarkThemePreset(theme: Pick<ThemeConfig, 'preset'>): boolean {
-  return theme.preset === 'dark';
+export function isDarkThemePreset(
+  theme: Pick<ThemeConfig, 'preset'> | null | undefined,
+): boolean {
+  return theme?.preset === 'dark';
 }
