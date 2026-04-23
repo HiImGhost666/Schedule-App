@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:wght@400;500;600;700;800&display=swap');
+﻿/* Tipografía Wix Madefor: cargada desde index.html (no bloqueante) para no retrasar Tailwind ni FCP */
 @import "tailwindcss";
 
 @theme {
@@ -750,4 +750,3 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 ::-webkit-scrollbar-track { background: var(--color-navy-50); }
 ::-webkit-scrollbar-thumb { background: var(--color-navy-200); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-navy-400); }
-

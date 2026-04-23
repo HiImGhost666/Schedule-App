@@ -4,7 +4,7 @@ import { Eye, EyeOff, Lock, Mail, Users, Clock3, CheckCircle2 } from 'lucide-rea
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import logoIA from '@/assets/Logotipo_IA.png';
+import logoIA from '@/assets/Logotipo_IA.webp';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
@@ -89,6 +89,10 @@ export function LoginPage() {
               <img
                 src={logoIA}
                 alt="Logotipo IA"
+                width={48}
+                height={48}
+                decoding="async"
+                fetchPriority="high"
                 className="h-12 w-12 object-contain"
               />
               <div>
