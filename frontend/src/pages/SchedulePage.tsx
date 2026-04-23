@@ -28,6 +28,7 @@ import { SCHEDULE_TYPES } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
+import { isDarkThemePreset } from '@/config/theme';
 
 const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   nacional: 'Nacional',
@@ -192,11 +193,13 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 }
 
 function HolidayEventContent({ info }: { info: EventContentArg }) {
+  const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
   const holidayType = info.event.extendedProps.holidayType as BranchHoliday['type'] | undefined;
   const color = holidayType ? HOLIDAY_COLORS[holidayType] : '#5f6368';
+  const labelColor = isDark ? '#e8eef4' : color;
 
   return (
-    <div className="google-holiday-event" style={{ borderColor: color, color }}>
+    <div className="google-holiday-event" style={{ borderColor: color, color: labelColor }}>
       <span className="google-holiday-event-dot" style={{ backgroundColor: color }} />
       <span className="google-holiday-event-title">{info.event.title}</span>
     </div>
@@ -303,6 +306,7 @@ export function SchedulePage() {
   const navState = location.state as { initialView?: string; initialDate?: string } | null;
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
+  const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
@@ -533,10 +537,13 @@ export function SchedulePage() {
       end: addOneDay(toLocalDateOnly(holiday.date)),
       allDay: true,
       display: 'background' as const,
-      backgroundColor: HOLIDAY_COLORS[holiday.type] + '33',
+      backgroundColor: isDark
+        ? HOLIDAY_COLORS[holiday.type] + '3d'
+        : HOLIDAY_COLORS[holiday.type] + '33',
+      textColor: isDark ? '#e8eef4' : '#1e2b3a',
       extendedProps: { isHolidayBackground: true, holidayType: holiday.type },
     }));
-  }, [branchHolidays?.data]);
+  }, [branchHolidays?.data, isDark]);
 
   const holidayInteractiveEvents = useMemo(() => {
     const holidays = branchHolidays?.data ?? [];
@@ -558,15 +565,16 @@ export function SchedulePage() {
         displayTitle = `🌓 ${displayTitle}`;
       }
 
+      const c = HOLIDAY_COLORS[holiday.type];
       return {
         id: `holiday-${holiday.id}`,
         title: displayTitle,
         start: dateStr,
         end: addOneDay(dateStr),
         allDay: true,
-        backgroundColor: '#ffffff',
-        borderColor: HOLIDAY_COLORS[holiday.type],
-        textColor: HOLIDAY_COLORS[holiday.type],
+        backgroundColor: isDark ? `color-mix(in srgb, ${c} 32%, #0f172a 68%)` : '#ffffff',
+        borderColor: c,
+        textColor: isDark ? '#e8eef4' : c,
         extendedProps: {
           isHoliday: true,
           holiday,
@@ -576,7 +584,7 @@ export function SchedulePage() {
         },
       };
     });
-  }, [branchHolidays?.data, effectiveActiveBranchId]);
+  }, [branchHolidays?.data, effectiveActiveBranchId, isDark]);
 
   /* type counts for legend badges */
   const typeCounts: Record<string, number> = {};

@@ -17,10 +17,10 @@ export default defineConfig({
     proxy: {
       // [CAMBIO PRODUCCIÓN]: Si no usas Docker o cambias el nombre del servicio,
       // actualiza "http://backend:13001" por la IP o nombre de host de tu backend.
-      '/api': { target: 'http://backend:13001', changeOrigin: true },
-      '/uploads': { target: 'http://backend:13001', changeOrigin: true },
+      '/api': { target: 'http://backend:3001', changeOrigin: true },
+      '/uploads': { target: 'http://backend:3001', changeOrigin: true },
       '/socket.io': {
-        target: 'http://backend:13001',
+        target: 'http://backend:3001',
         ws: true,
         changeOrigin: true,
       },
