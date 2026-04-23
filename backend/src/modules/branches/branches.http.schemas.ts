@@ -26,7 +26,9 @@ export const createBranchBodySchema = z.object({
   timezone: z.string().min(3).max(50).optional(),
 });
 
-export const updateBranchBodySchema = createBranchBodySchema.partial();
+export const updateBranchBodySchema = createBranchBodySchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
 
 export const listBranchHolidaysQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100).optional(),
