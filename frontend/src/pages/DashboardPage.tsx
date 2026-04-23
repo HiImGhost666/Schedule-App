@@ -106,11 +106,29 @@ export function DashboardPage() {
 
   const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
   const statCornerLinkClass = cn(
-    'absolute bottom-4 right-4 p-1.5 rounded-lg transition-all z-20',
+    'absolute bottom-4 right-4 p-1.5 rounded-lg transition-all duration-200 z-20 cursor-pointer transform group-hover:-translate-y-1 group-hover:scale-105 group-hover:shadow-md',
     isDark
       ? 'bg-navy-100/30 hover:bg-navy-100/50 text-navy-300 border border-navy-200/30 shadow-none'
       : 'bg-white/90 hover:bg-white text-green-600 shadow-sm border border-green-200',
   );
+
+  const navigateToScheduleWeek = () => {
+    navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } });
+  };
+
+  const navigateToActiveUsers = () => {
+    navigate('/admin/users', { state: { status: 'active' } });
+  };
+
+  const handleCardKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+    onActivate: () => void,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onActivate();
+    }
+  };
 
   return (
     <div className="space-y-7 animate-fade-in">
@@ -126,13 +144,20 @@ export function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="relative group flex flex-col h-full">
+        <div
+          className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
+          role="button"
+          tabIndex={0}
+          aria-label="Ver turnos de esta semana en calendario"
+          onClick={navigateToScheduleWeek}
+          onKeyDown={(event) => handleCardKeyDown(event, navigateToScheduleWeek)}
+        >
           <StatCard
             title="Turnos de esta semana"
             value={loadingSchedules ? '—' : (weekSchedules?.length || 0)}
             icon={Calendar}
             color="navy"
-            className="h-full"
+            className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
           />
           <button
             type="button"
@@ -145,13 +170,20 @@ export function DashboardPage() {
           </button>
         </div>
 
-        <div className="relative group flex flex-col h-full">
+        <div
+          className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
+          role="button"
+          tabIndex={0}
+          aria-label="Ver mis turnos en calendario"
+          onClick={navigateToScheduleWeek}
+          onKeyDown={(event) => handleCardKeyDown(event, navigateToScheduleWeek)}
+        >
           <StatCard
             title="Mis turnos"
             value={loadingSchedules ? '—' : mySchedules.length}
             icon={Shield}
             color="gold"
-            className="h-full"
+            className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
           />
           <button
             type="button"
@@ -165,13 +197,20 @@ export function DashboardPage() {
         </div>
 
         {(user?.role === 'admin' || user?.role === 'manager') && (
-          <div className="relative group flex flex-col h-full">
+          <div
+            className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
+            role="button"
+            tabIndex={0}
+            aria-label="Ver gestión de usuarios activos"
+            onClick={navigateToActiveUsers}
+            onKeyDown={(event) => handleCardKeyDown(event, navigateToActiveUsers)}
+          >
             <StatCard
               title="Usuarios activos"
               value={loadingUsers ? '—' : (usersData || 0)}
               icon={Users}
               color="green"
-              className="h-full"
+              className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
             />
             <button
               type="button"
