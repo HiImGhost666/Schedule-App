@@ -104,8 +104,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-7 animate-fade-in">
-      {/* Header */}
-      <div>
+      {/* Header: altura mínima evita CLS al cargar la webfont */}
+      <div className="min-h-[3.5rem]">
         <h1 className="text-2xl font-bold text-theme-primary">
           Bienvenido, {user?.name?.split(' ')[0]} 👋
         </h1>
@@ -129,8 +129,9 @@ export function DashboardPage() {
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } }); }}
             className="absolute bottom-4 right-4 p-1.5 rounded-lg bg-white/90 hover:bg-white text-navy-600 transition-all z-20 shadow-sm border border-navy-200"
             title="Ver en calendario (Vista semanal)"
+            aria-label="Ver en calendario (Vista semanal)"
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink className="h-4 w-4" aria-hidden />
           </button>
         </div>
 
@@ -158,8 +159,9 @@ export function DashboardPage() {
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/admin/users', { state: { status: 'active' } }); }}
               className="absolute bottom-4 right-4 p-1.5 rounded-lg bg-white/90 hover:bg-white text-green-600 transition-all z-20 shadow-sm border border-green-200"
               title="Ver gestión de usuarios"
+              aria-label="Ver gestión de usuarios"
             >
-              <ExternalLink className="h-4 w-4" />
+              <ExternalLink className="h-4 w-4" aria-hidden />
             </button>
           </div>
         )}
@@ -255,7 +257,7 @@ export function DashboardPage() {
 
         {/* Activity log */}
         {user?.role === 'admin' && (
-          <div className="card p-7">
+          <div className="card p-7 min-h-[220px]">
             <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-gold-500" />
               Actividad Reciente

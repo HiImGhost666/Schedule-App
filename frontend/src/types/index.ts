@@ -193,9 +193,6 @@ export interface AuditLog {
   detailsJson?: unknown;
   ipAddress?: string;
   createdAt: string;
-  updatedAt: string;
-  rolledBackAt?: string | null;
-  rolledBackBy?: { id: string; name: string } | null;
   user?: { id: string; name: string; email: string } | null;
 }
 
@@ -309,8 +306,9 @@ export interface ThemePreset {
 export const SCHEDULE_TYPES = [
   { value: 'guardia', label: 'Guardia', color: '#2563eb' }, // blue
   { value: 'ausencia', label: 'Ausencia', color: '#64748b' }, // slate
-  { value: 'vacaciones', label: 'Vacaciones', color: '#65a30d' }, // lime
-  { value: 'formacion', label: 'Formación', color: '#0891b2' }, // cyan
+  // Tonos ligeramente más oscuros: texto blanco 12px cumple contrast ratio 4.5:1
+  { value: 'vacaciones', label: 'Vacaciones', color: '#3f6212' }, // lime-800
+  { value: 'formacion', label: 'Formación', color: '#0e7490' }, // cyan-700
   { value: 'otro', label: 'Otro', color: '#4b5563' }, // gray
   { value: 'excepcion', label: 'Excepción', color: '#dc2626' }, // red
 ];
