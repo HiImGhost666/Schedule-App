@@ -35,21 +35,10 @@ export async function listBranchesController(req: AuthRequest, res: Response) {
   }
 
   try {
-    const isAdmin = req.user!.role === 'admin';
     const branches = await listBranches({
-      includeInactive: isAdmin ? parsed.data.includeInactive : true,
+      includeInactive: parsed.data.includeInactive,
     });
-
-    if (isAdmin) {
-      return sendSuccess(res, branches);
-    }
-
-    if (!req.user!.branchId) {
-      return sendSuccess(res, []);
-    }
-
-    const scoped = branches.filter((branch) => branch.id === req.user!.branchId);
-    return sendSuccess(res, scoped);
+    return sendSuccess(res, branches);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
@@ -142,22 +131,6 @@ export async function listBranchHolidaysController(req: AuthRequest, res: Respon
   const parsedQuery = listBranchHolidaysQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
     return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
-  }
-
-  const isAdmin = req.user!.role === 'admin';
-  if (!isAdmin) {
-    if (!req.user!.branchId) {
-      return sendError(res, 'No tienes una sucursal asignada', 403, null, 'FORBIDDEN');
-    }
-    if (req.user!.branchId !== parsedParams.data.branchId) {
-      return sendError(res, 'No tienes permisos para consultar festivos de otra sucursal', 403, null, 'FORBIDDEN');
-    }
-  } else {
-    // Para administradores, permitimos 'all' o cualquier branch específica
-    if (parsedParams.data.branchId !== 'all') {
-      // Si no es 'all', el validador de params ya se encargó de que sea un string, 
-      // y el service se encargará de asegurar que exista.
-    }
   }
 
   try {

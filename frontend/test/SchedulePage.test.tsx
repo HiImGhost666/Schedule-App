@@ -154,7 +154,7 @@ describe('SchedulePage smoke', () => {
     });
   });
 
-  it('viewer con sucursal asignada usa branchId efectivo en schedules y festivos', async () => {
+  it('viewer con sucursal asignada usa vista global sin branchId forzado', async () => {
     authState.user = { id: 'viewer-1', role: 'viewer', branchId: 'b-1' };
 
     getMock.mockImplementation((url: string) => {
@@ -194,18 +194,17 @@ describe('SchedulePage smoke', () => {
     await waitFor(() => {
       const scheduleCall = getScheduleCall();
       expect(scheduleCall).toBeTruthy();
-      expect(scheduleCall?.[1]).toEqual(
-        expect.objectContaining({ params: expect.objectContaining({ branchId: 'b-1' }) }),
-      );
+      expect(scheduleCall?.[1]).toEqual(expect.objectContaining({ params: expect.any(Object) }));
+      expect((scheduleCall?.[1] as { params?: Record<string, unknown> } | undefined)?.params?.branchId).toBeUndefined();
     });
 
     expect(getMock).toHaveBeenCalledWith(
-      '/branches/b-1/holidays',
-      expect.objectContaining({ params: expect.any(Object) }),
+      '/branches/all/holidays',
+      expect.objectContaining({ params: expect.objectContaining({ groupShared: true }) }),
     );
   });
 
-  it('viewer sin sucursal asignada y sin sucursales no dispara schedules y muestra aviso', async () => {
+  it('viewer sin sucursal asignada y sin sucursales consulta vista global', async () => {
     authState.user = { id: 'viewer-2', role: 'viewer' };
 
     getMock.mockImplementation((url: string) => {
@@ -227,14 +226,12 @@ describe('SchedulePage smoke', () => {
 
     renderPage();
 
-    expect(await screen.findByText('No tienes una sucursal asignada. Contacta con un administrador.')).toBeInTheDocument();
-
     await waitFor(() => {
       expect(getMock).toHaveBeenCalledWith('/branches', { params: { includeInactive: true } });
     });
 
-    expect(getMock.mock.calls.some((call) => call[0] === '/schedules')).toBe(false);
-    expect(getMock.mock.calls.some((call) => String(call[0]).includes('/holidays'))).toBe(false);
+    expect(getMock.mock.calls.some((call) => call[0] === '/schedules')).toBe(true);
+    expect(getMock.mock.calls.some((call) => call[0] === '/branches/all/holidays')).toBe(true);
   });
   
   it('combina turnos y festivos en el calendario', async () => {
