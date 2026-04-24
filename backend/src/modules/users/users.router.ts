@@ -80,6 +80,6 @@ router.post('/:id/force-password-change', authMiddleware, requireRole('admin'), 
 router.delete('/:id', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => deleteUserController(req, res));
 
 // Get user schedules
-router.get('/:id/schedules', authMiddleware, requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => listUserSchedulesController(req, res));
+router.get('/:id/schedules', authMiddleware, requireRole('admin', 'manager', 'viewer'), (req: AuthRequest, res: Response) => listUserSchedulesController(req, res));
 
 export default router;
