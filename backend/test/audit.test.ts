@@ -17,7 +17,7 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
 }));
 
 import * as auditRepo from '../src/modules/audit/audit.repository';
-import { rollbackAudit, getAuditLogById } from '../src/modules/audit/audit.service';
+import { rollbackAudit, getAuditLogById, listAuditLogs } from '../src/modules/audit/audit.service';
 import { IRREVERSIBLE_ACTIONS } from '../src/modules/audit/domain/audit.types';
 import * as usersRepo from '../src/modules/users/users.repository';
 
@@ -157,5 +157,40 @@ describe('getAuditLogById', () => {
     // detailsJson debe venir como objeto, no como string crudo
     expect(typeof result.detailsJson).toBe('object');
     expect((result.detailsJson as any).before).toBeDefined();
+  });
+});
+
+describe('listAuditLogs', () => {
+  beforeEach(() => {
+    mockAuditRepo.findAuditLogs.mockResolvedValue({ logs: [], total: 0 } as any);
+  });
+
+  it('usa orden por defecto updatedAt desc cuando no se envía sort', async () => {
+    await listAuditLogs({ page: 1, limit: 20 });
+
+    expect(mockAuditRepo.findAuditLogs).toHaveBeenCalledWith(
+      expect.any(Object),
+      1,
+      20,
+      'updatedAt',
+      'desc',
+    );
+  });
+
+  it('propaga sortBy/sortOrder hacia repositorio', async () => {
+    await listAuditLogs({
+      page: 3,
+      limit: 15,
+      sortBy: 'action',
+      sortOrder: 'asc',
+    });
+
+    expect(mockAuditRepo.findAuditLogs).toHaveBeenCalledWith(
+      expect.any(Object),
+      3,
+      15,
+      'action',
+      'asc',
+    );
   });
 });

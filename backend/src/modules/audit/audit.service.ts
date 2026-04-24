@@ -4,6 +4,7 @@ import * as auditRepository from './audit.repository';
 import * as scheduleRepository from '../schedules/schedules.repository';
 import * as userRepository from '../users/users.repository';
 import { AppError } from '../../common/errors/app-error';
+import type { AuditSortBy, SortOrder } from './audit.repository';
 import { executeInTransaction, TransactionClient } from '../../common/transactions/transaction.utils';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
@@ -134,6 +135,8 @@ export async function listAuditLogs(params: {
   from?: Date;
   to?: Date;
   reversible?: 'true' | 'false';
+  sortBy?: AuditSortBy;
+  sortOrder?: SortOrder;
 }) {
   const auditWhere: auditRepository.AuditLogWhere = {};
   if (params.userId) auditWhere.userId = params.userId;
@@ -158,7 +161,13 @@ export async function listAuditLogs(params: {
     auditWhere.action = actionFilter;
   }
 
-  const { logs, total } = await auditRepository.findAuditLogs(auditWhere, params.page, params.limit);
+  const { logs, total } = await auditRepository.findAuditLogs(
+    auditWhere,
+    params.page,
+    params.limit,
+    params.sortBy ?? 'updatedAt',
+    params.sortOrder ?? 'desc',
+  );
 
   return {
     logs: logs.map(log => ({
@@ -215,6 +224,7 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
     if (!entityId) throw new AppError('INTERNAL_ERROR', 500, 'El log no tiene un entityId asociado');
 
     let rollbackResult;
+    let rollbackMetadata: Record<string, unknown> | undefined;
 
     // Lógica por tipo de entidad y acción
     if (entityType === 'Schedule') {
@@ -283,6 +293,12 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
       } else if (details?.before) {
         const beforeState = details.before as Prisma.WebhookConfigGetPayload<{}>;
         const { id, createdAt, updatedAt, ...data } = beforeState;
+        rollbackMetadata = {
+          snapshotId: id,
+          snapshotCreatedAt: createdAt,
+          snapshotUpdatedAt: updatedAt,
+        };
+
         rollbackResult = await tx.webhookConfig.upsert({
           where: { id: entityId },
           create: { ...beforeState, id: entityId },
@@ -303,6 +319,25 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
         rolledBackByUserId: actorId,
       },
     });
+
+    await logAuditOrThrow(
+      {
+        userId: actorId,
+        action: 'ROLLBACK_PERFORMED',
+        entityType,
+        entityId,
+        ipAddress,
+        detailsJson: {
+          before: null,
+          after: {
+            rolledBackLogId: logId,
+            rolledBackAction: action,
+            rollbackMetadata,
+          },
+        },
+      },
+      tx
+    );
 
     return rollbackResult;
   });

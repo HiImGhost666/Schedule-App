@@ -3,19 +3,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import {
   ClipboardList,
-  Search,
   ChevronRight,
   RotateCcw,
   X,
   ShieldCheck,
   RefreshCw,
   Lock,
+  ArrowUpDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
 import type { AuditLog, PaginatedResponse } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
 import { formatDateTime } from '@/lib/utils';
 import { ActivityDetail } from '@/components/audit/ActivityDetail';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -49,11 +50,36 @@ const IRREVERSIBLE_ACTIONS = [
 ];
 
 type TabType = 'reversible' | 'irreversible';
+type AuditSortBy = 'updatedAt' | 'createdAt' | 'action' | 'entityType';
+type SortOrder = 'asc' | 'desc';
+type AuditFilterKey = 'action' | 'entityType';
 type AuditListResponse = PaginatedResponse<AuditLog>;
 type AuditDetails = {
   before?: unknown;
   after?: unknown;
 };
+
+const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
+  {
+    key: 'action',
+    type: 'text',
+    id: 'audit-search',
+    placeholder: 'Filtrar por acción...',
+    className: 'min-w-56',
+  },
+  {
+    key: 'entityType',
+    type: 'select',
+    id: 'audit-entity-type',
+    className: 'w-44',
+    options: [
+      { value: '', label: 'Todos los tipos' },
+      { value: 'User', label: 'Usuario' },
+      { value: 'Schedule', label: 'Turno' },
+      { value: 'WebhookConfig', label: 'Webhook' },
+    ],
+  },
+];
 
 function toSnapshotValue(value: unknown): string | Record<string, unknown> | null {
   if (value === null || value === undefined) return null;
@@ -114,6 +140,9 @@ function AuditTable({
   isLoading,
   page,
   onPageChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
   selectedLogId,
   onSelectLog,
   emptyDescription,
@@ -122,10 +151,29 @@ function AuditTable({
   isLoading: boolean;
   page: number;
   onPageChange: (p: number) => void;
+  sortBy: AuditSortBy;
+  sortOrder: SortOrder;
+  onSortChange: (field: AuditSortBy) => void;
   selectedLogId: string | null;
   onSelectLog: (id: string) => void;
   emptyDescription: string;
 }) {
+  const renderSortLabel = (field: AuditSortBy, label: string) => {
+    const isActive = sortBy === field;
+    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
+
+    return (
+      <button
+        type="button"
+        onClick={() => onSortChange(field)}
+        className="inline-flex items-center gap-1 hover:text-navy-600"
+      >
+        <span>{label}</span>
+        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
+      </button>
+    );
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
   }
@@ -145,11 +193,11 @@ function AuditTable({
         <table className="w-full">
           <thead>
             <tr className="bg-navy-50 border-b border-navy-100">
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Acción</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('action', 'Acción')}</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">Usuario</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Nombre</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">Tipo</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">Fecha</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">{renderSortLabel('entityType', 'Tipo')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('createdAt', 'Fecha')}</th>
               <th className="px-5 py-3.5" />
             </tr>
           </thead>
@@ -210,25 +258,54 @@ export function AuditLogPage() {
   const navState = location.state as { selectedLogId?: string; activeTab?: TabType } | null;
 
   const [activeTab, setActiveTab] = useState<TabType>(navState?.activeTab || 'reversible');
-  const [search, setSearch] = useState('');
-  const [entityType, setEntityType] = useState('');
+  const [filters, setFilters] = useState<Record<AuditFilterKey, string>>({
+    action: '',
+    entityType: '',
+  });
+  const [sortBy, setSortBy] = useState<AuditSortBy>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageRev, setPageRev] = useState(1);
   const [pageIrr, setPageIrr] = useState(1);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(navState?.selectedLogId || null);
   const queryClient = useQueryClient();
 
-  const commonParams = { limit: 20, action: search || undefined, entityType: entityType || undefined };
+  const commonParams = {
+    limit: 20,
+    action: filters.action || undefined,
+    entityType: filters.entityType || undefined,
+    sortBy,
+    sortOrder,
+  };
+
+  const handleFilterChange = (key: AuditFilterKey, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPageRev(1);
+    setPageIrr(1);
+  };
+
+  const handleSortChange = (field: AuditSortBy) => {
+    setPageRev(1);
+    setPageIrr(1);
+
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortBy(field);
+    setSortOrder(field === 'createdAt' || field === 'updatedAt' ? 'desc' : 'asc');
+  };
 
   // Query para acciones REVERTIBLES
   const { data: dataRev, isLoading: loadingRev } = useQuery({
-    queryKey: ['audit', 'reversible', pageRev, search, entityType],
+    queryKey: ['audit', 'reversible', pageRev, filters.action, filters.entityType, sortBy, sortOrder],
     queryFn: () =>
       api.get('/audit', { params: { ...commonParams, page: pageRev, reversible: 'true' } }).then((r) => r.data),
   });
 
   // Query para acciones IRREVERSIBLES
   const { data: dataIrr, isLoading: loadingIrr } = useQuery({
-    queryKey: ['audit', 'irreversible', pageIrr, search, entityType],
+    queryKey: ['audit', 'irreversible', pageIrr, filters.action, filters.entityType, sortBy, sortOrder],
     queryFn: () =>
       api.get('/audit', { params: { ...commonParams, page: pageIrr, reversible: 'false' } }).then((r) => r.data),
   });
@@ -307,30 +384,12 @@ export function AuditLogPage() {
       </div>
 
       {/* Filters */}
-      <div className="card p-4 flex flex-wrap gap-4">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300" />
-          <input
-            id="audit-search"
-            type="text"
-            placeholder="Filtrar por acción..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPageRev(1); setPageIrr(1); }}
-            className="input-field with-icon text-sm"
-          />
-        </div>
-        <select
-          id="audit-entity-type"
-          value={entityType}
-          onChange={(e) => { setEntityType(e.target.value); setPageRev(1); setPageIrr(1); }}
-          className="input-field text-sm w-44"
-        >
-          <option value="">Todos los tipos</option>
-          <option value="User">Usuario</option>
-          <option value="Schedule">Turno</option>
-          <option value="WebhookConfig">Webhook</option>
-        </select>
-      </div>
+      <FilterTable
+        fields={AUDIT_FILTER_FIELDS}
+        values={filters}
+        onChange={handleFilterChange}
+        className="p-4 gap-4"
+      />
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-navy-100">
@@ -380,6 +439,9 @@ export function AuditLogPage() {
               isLoading={loadingRev}
               page={pageRev}
               onPageChange={setPageRev}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
               selectedLogId={selectedLogId}
               onSelectLog={handleSelectLog}
               emptyDescription="No se encontraron acciones de datos con los filtros actuales."
@@ -391,6 +453,9 @@ export function AuditLogPage() {
               isLoading={loadingIrr}
               page={pageIrr}
               onPageChange={setPageIrr}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
               selectedLogId={selectedLogId}
               onSelectLog={handleSelectLog}
               emptyDescription="No se encontraron eventos de seguridad con los filtros actuales."

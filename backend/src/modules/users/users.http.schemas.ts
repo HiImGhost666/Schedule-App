@@ -5,6 +5,9 @@ export const userIdParamsSchema = z.object({
   id: z.string().min(1),
 });
 
+export const usersSortBySchema = z.enum(['createdAt', 'name', 'email', 'role', 'status', 'lastLoginAt']);
+export const sortOrderSchema = z.enum(['asc', 'desc']);
+
 export const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
@@ -12,6 +15,8 @@ export const listUsersQuerySchema = z.object({
   email: z.string().email().optional(),
   role: z.enum(USER_ROLES).optional(),
   status: z.enum(USER_STATUSES).optional(),
+  sortBy: usersSortBySchema.optional().default('createdAt'),
+  sortOrder: sortOrderSchema.optional().default('desc'),
 });
 
 export const createUserBodySchema = z.object({

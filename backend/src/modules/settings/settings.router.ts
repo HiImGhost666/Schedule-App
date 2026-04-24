@@ -20,6 +20,10 @@ import { isBasePreset } from './theme.presets';
 
 const router = Router();
 
+const getParam = (value: string | string[] | undefined): string | undefined => (
+  Array.isArray(value) ? value[0] : value
+);
+
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color invalido: usa formato #RRGGBB');
 
 const themeTokensSchema = z.object({
@@ -190,7 +194,8 @@ router.post('/theme/presets', authMiddleware, requireRole('admin'), async (req: 
 });
 
 router.patch('/theme/presets/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+  const id = getParam(req.params.id);
+  if (!id) return sendError(res, 'ID de preset invalido', 400);
 
   const parsed = updateCustomPresetSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -225,7 +230,8 @@ router.patch('/theme/presets/:id', authMiddleware, requireRole('admin'), async (
 });
 
 router.delete('/theme/presets/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+  const id = getParam(req.params.id);
+  if (!id) return sendError(res, 'ID de preset invalido', 400);
 
   if (isBasePreset(id)) {
     return sendError(res, 'No se puede eliminar un preset base', 403, null, 'FORBIDDEN');

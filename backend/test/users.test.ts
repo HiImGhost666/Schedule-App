@@ -34,6 +34,7 @@ import {
   resetUserPassword,
   forceUserPasswordChange,
   deleteUser,
+  getUsersList,
 } from '../src/modules/users/users.service';
 
 const mockRepo = usersRepo as jest.Mocked<typeof usersRepo>;
@@ -313,6 +314,41 @@ describe('forceUserPasswordChange', () => {
         passwordChangePolicy: 'required',
       }),
       expect.anything()
+    );
+  });
+});
+
+describe('getUsersList', () => {
+  beforeEach(() => {
+    mockRepo.listUsers.mockResolvedValue([[], 0] as any);
+  });
+
+  it('usa orden por defecto createdAt desc cuando no se envía sort', async () => {
+    await getUsersList({ page: 1, limit: 20 });
+
+    expect(mockRepo.listUsers).toHaveBeenCalledWith(
+      undefined,
+      1,
+      20,
+      'createdAt',
+      'desc',
+    );
+  });
+
+  it('propaga sortBy/sortOrder hacia el repositorio', async () => {
+    await getUsersList({
+      page: 2,
+      limit: 10,
+      sortBy: 'name',
+      sortOrder: 'asc',
+    });
+
+    expect(mockRepo.listUsers).toHaveBeenCalledWith(
+      undefined,
+      2,
+      10,
+      'name',
+      'asc',
     );
   });
 });

@@ -44,3 +44,7 @@ backend/prisma/.docker/
 
 # Ignore local DOC folder
 schedule-app-doc/
+
+# Test coverage
+coverage/
+*.lcov

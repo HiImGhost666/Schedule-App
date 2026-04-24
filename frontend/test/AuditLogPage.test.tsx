@@ -141,4 +141,83 @@ describe('AuditLogPage', () => {
       expect(toast.success).toHaveBeenCalledWith('Cambio revertido correctamente');
     });
   });
+
+  it('envia sortBy y sortOrder al ordenar por accion', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/audit') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                id: 'a-2',
+                action: 'CREATE_USER',
+                entityType: 'User',
+                entityId: 'u-2',
+                createdAt: '2026-04-20T08:00:00.000Z',
+                detailsJson: { before: null, after: { name: 'New User' } },
+                user: { id: 'admin-1', name: 'Admin', email: 'admin@test.dev' },
+              },
+            ],
+            pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+          },
+        });
+      }
+
+      return Promise.resolve({ data: { success: true, data: null } });
+    });
+
+    renderPage();
+
+    await screen.findByText('CREATE USER');
+    await userEvent.click(screen.getByRole('button', { name: 'Acción' }));
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith('/audit', expect.objectContaining({
+        params: expect.objectContaining({
+          sortBy: 'action',
+          sortOrder: 'asc',
+        }),
+      }));
+    });
+  });
+
+  it('envia filtros configurados al backend al cambiar tipo de entidad', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/audit') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                id: 'a-3',
+                action: 'UPDATE_SCHEDULE',
+                entityType: 'Schedule',
+                entityId: 's-1',
+                createdAt: '2026-04-20T08:00:00.000Z',
+                detailsJson: { before: { id: 's-1' }, after: { id: 's-1' } },
+                user: { id: 'admin-1', name: 'Admin', email: 'admin@test.dev' },
+              },
+            ],
+            pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+          },
+        });
+      }
+
+      return Promise.resolve({ data: { success: true, data: null } });
+    });
+
+    renderPage();
+
+    await screen.findByText('UPDATE SCHEDULE');
+    await userEvent.selectOptions(screen.getByDisplayValue('Todos los tipos'), 'Schedule');
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith('/audit', expect.objectContaining({
+        params: expect.objectContaining({
+          entityType: 'Schedule',
+        }),
+      }));
+    });
+  });
 });

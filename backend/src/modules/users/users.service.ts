@@ -19,6 +19,8 @@ import {
   listUserSchedules,
   listUsers,
   reserveNextEmployeeId,
+  type SortOrder,
+  type UsersSortBy,
   updateUserRecord,
 } from './users.repository';
 import {
@@ -319,10 +321,25 @@ export async function findUserByEmailOrUsername(identifier: string) {
  * @description Obtiene una lista paginada de usuarios filtrada en la base por nombre, rol o estado.
  * @param params
  */
-export async function getUsersList(params: { page: number; limit: number; search?: string; email?: string; role?: string; status?: string }) {
+export async function getUsersList(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  sortBy?: UsersSortBy;
+  sortOrder?: SortOrder;
+}) {
   const normalizedEmail = params.email ? normalizeEmail(params.email) : undefined;
   const where = buildUsersWhere(params.search, params.role, params.status, normalizedEmail);
-  const [users, total] = await listUsers(where, params.page, params.limit);
+  const [users, total] = await listUsers(
+    where,
+    params.page,
+    params.limit,
+    params.sortBy ?? 'createdAt',
+    params.sortOrder ?? 'desc',
+  );
   return { users, total };
 }
 

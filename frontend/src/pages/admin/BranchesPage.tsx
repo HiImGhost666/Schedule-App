@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Save, X, Plus, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -30,6 +30,8 @@ export function BranchesPage() {
   const [branchToActivate, setBranchToActivate] = useState<Branch | null>(null);
   const [branchToDisable, setBranchToDisable] = useState<Branch | null>(null);
   const [branchToHardDelete, setBranchToHardDelete] = useState<Branch | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'code'>('name');
 
   const { data: branches, isLoading: branchesLoading } = useQuery<{ data: Branch[] }>({
     queryKey: ['branches', showInactiveBranches],
@@ -44,6 +46,22 @@ export function BranchesPage() {
     selectedBranchId,
     fallbackStrategy: 'first',
   });
+
+  const filteredAndSortedBranches = useMemo(() => {
+    const branchList = branches?.data ?? [];
+
+    const filtered = searchTerm
+      ? branchList.filter(
+          (branch) =>
+            branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            branch.code.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+      : branchList;
+
+    return [...filtered].sort((a, b) => {
+      return a[sortBy].localeCompare(b[sortBy], 'es', { sensitivity: 'base' });
+    });
+  }, [branches?.data, searchTerm, sortBy]);
 
   const selectedBranch = branches?.data?.find((branch) => branch.id === effectiveSelectedBranchId) ?? null;
 
@@ -220,9 +238,34 @@ export function BranchesPage() {
                 <p className="text-[11px] text-theme-muted">{branches?.data?.length ?? 0} sucursales</p>
               </div>
 
-              <div className="space-y-2 max-h-[28rem] overflow-y-auto mt-2 pr-1">
+              <div className="p-2 space-y-2 border-b border-theme-color">
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o código..."
+                  className="input-field text-sm w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <div className="flex items-center gap-2 text-xs px-1">
+                  <span className="text-theme-muted shrink-0">Ordenar por:</span>
+                  <button
+                    onClick={() => setSortBy('name')}
+                    className={`px-2 py-0.5 rounded-md transition-colors text-xs ${sortBy === 'name' ? 'bg-theme-primary text-white font-semibold' : 'bg-theme-surface-muted hover:bg-theme-surface-hover'}`}
+                  >
+                    Nombre
+                  </button>
+                  <button
+                    onClick={() => setSortBy('code')}
+                    className={`px-2 py-0.5 rounded-md transition-colors text-xs ${sortBy === 'code' ? 'bg-theme-primary text-white font-semibold' : 'bg-theme-surface-muted hover:bg-theme-surface-hover'}`}
+                  >
+                    Código
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[25rem] overflow-y-auto mt-2 pr-1">
                 {hasBranches ? (
-                  (branches?.data ?? []).map((branch) => {
+                  filteredAndSortedBranches.map((branch) => {
                     const active = !isCreatingBranch && effectiveSelectedBranchId === branch.id;
                     return (
                       <button

@@ -273,4 +273,73 @@ describe('UsersPage', () => {
       expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('Faltan columnas obligatorias'));
     });
   });
+
+  it('envia sortBy y sortOrder al cambiar orden desde cabecera', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        success: true,
+        data: [
+          {
+            id: 'u-3',
+            name: 'Ana Viewer',
+            email: 'ana@test.dev',
+            role: 'viewer',
+            status: 'active',
+            department: 'seguridad',
+            branch: null,
+            lastLoginAt: null,
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
+      },
+    });
+
+    renderPage();
+
+    await screen.findByText('Ana Viewer');
+    await userEvent.click(screen.getByRole('button', { name: 'Usuario' }));
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith('/users', expect.objectContaining({
+        params: expect.objectContaining({
+          sortBy: 'name',
+          sortOrder: 'asc',
+        }),
+      }));
+    });
+  });
+
+  it('envia filtros configurados al backend al cambiar rol', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        success: true,
+        data: [
+          {
+            id: 'u-4',
+            name: 'Luis Admin',
+            email: 'luis@test.dev',
+            role: 'admin',
+            status: 'active',
+            department: 'administración',
+            branch: null,
+            lastLoginAt: null,
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
+      },
+    });
+
+    renderPage();
+
+    await screen.findByText('Luis Admin');
+    await userEvent.selectOptions(screen.getByDisplayValue('Todos los roles'), 'manager');
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith('/users', expect.objectContaining({
+        params: expect.objectContaining({
+          role: 'manager',
+        }),
+      }));
+    });
+  });
 });
