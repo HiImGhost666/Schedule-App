@@ -7,7 +7,7 @@ export const userIdParamsSchema = z.object({
 
 export const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  limit: z.coerce.number().int().positive().max(500).optional().default(20),
   search: z.string().optional(),
   email: z.string().email().optional(),
   role: z.enum(USER_ROLES).optional(),
