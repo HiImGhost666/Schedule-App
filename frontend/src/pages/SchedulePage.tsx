@@ -374,6 +374,7 @@ export function SchedulePage() {
     () => availableBranches.find((branch) => branch.id === effectiveActiveBranchId) ?? availableBranches[0],
     [availableBranches, effectiveActiveBranchId],
   );
+  const shouldUseBranchDropdown = isAdmin && (availableBranches.length + 1 > 3);
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: [
@@ -832,36 +833,31 @@ export function SchedulePage() {
               </div>
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
                 {isAdmin ? (
-                  <>
-                    <button
-                      onClick={() => setActiveBranchId('')}
-                      className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
-                      style={
-                        !effectiveActiveBranchId
-                          ? {
-                            backgroundColor: 'var(--theme-sidebar-active-bg)',
-                            color: 'var(--theme-sidebar-active-text)',
-                            borderColor: 'var(--theme-sidebar-active-bg)',
-                          }
-                          : {
-                            backgroundColor: 'var(--theme-surface)',
-                            color: 'var(--theme-text-muted)',
-                            borderColor: 'var(--theme-border-color)',
-                          }
-                      }
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate">Todas las sucursales</span>
-                      </div>
-                    </button>
-
-                    {availableBranches.map((branch) => (
+                  shouldUseBranchDropdown ? (
+                    <div className="w-full space-y-1">
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
+                        Selección de sucursal
+                      </label>
+                      <select
+                        value={activeBranchId}
+                        onChange={(event) => setActiveBranchId(event.target.value)}
+                        className="input-field text-sm w-full"
+                      >
+                        <option value="">Todas las sucursales</option>
+                        {availableBranches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {`${branch.name} (${branch.code})${branch.isActive ? '' : ' - Inactiva'}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <>
                       <button
-                        key={branch.id}
-                        onClick={() => setActiveBranchId(branch.id)}
+                        onClick={() => setActiveBranchId('')}
                         className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
                         style={
-                          effectiveActiveBranchId === branch.id
+                          !effectiveActiveBranchId
                             ? {
                               backgroundColor: 'var(--theme-sidebar-active-bg)',
                               color: 'var(--theme-sidebar-active-text)',
@@ -875,14 +871,39 @@ export function SchedulePage() {
                         }
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate">{branch.name}</span>
-                          {!branch.isActive && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
-                          )}
+                          <span className="truncate">Todas las sucursales</span>
                         </div>
                       </button>
-                    ))}
-                  </>
+
+                      {availableBranches.map((branch) => (
+                        <button
+                          key={branch.id}
+                          onClick={() => setActiveBranchId(branch.id)}
+                          className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
+                          style={
+                            effectiveActiveBranchId === branch.id
+                              ? {
+                                backgroundColor: 'var(--theme-sidebar-active-bg)',
+                                color: 'var(--theme-sidebar-active-text)',
+                                borderColor: 'var(--theme-sidebar-active-bg)',
+                              }
+                              : {
+                                backgroundColor: 'var(--theme-surface)',
+                                color: 'var(--theme-text-muted)',
+                                borderColor: 'var(--theme-border-color)',
+                              }
+                          }
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate">{branch.name}</span>
+                            {!branch.isActive && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )
                 ) : selectedBranch ? (
                   <div
                     className="w-full text-left px-3 py-2 rounded-lg border"
