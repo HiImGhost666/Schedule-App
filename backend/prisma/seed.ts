@@ -8,7 +8,7 @@ import { env } from '../src/config/env';
 import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
 
 // Configuración de Entorno
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const prisma = new PrismaClient();
 
 // ============================================================================

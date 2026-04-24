@@ -213,6 +213,10 @@ input, select, textarea {
   outline: none;
 }
 .input-field:focus { border-color: var(--theme-text-muted); box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1); }
+
+html[data-theme-preset="dark"] .input-field:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-text-muted) 24%, transparent);
+}
 .input-field[aria-invalid='true'] { border-color: #fca5a5; }
 .input-field[aria-invalid='true']:focus { border-color: #b91c1c; box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12); }
 .input-field::placeholder { color: var(--theme-text-muted); }

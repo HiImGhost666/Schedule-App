@@ -26,5 +26,13 @@ export const NOTIFICATION_STATUS = {
   PENDING: 'pending',
 } as const;
 
-export const MAX_FAILED_ATTEMPTS = 5;
-export const LOCKOUT_MINUTES = 15;
+/** Intentos fallidos de login (sin acierto) antes del primer bloqueo temporal */
+export const LOGIN_LOCKOUT_FIRST_ATTEMPTS = 5;
+export const LOGIN_LOCKOUT_FIRST_MINUTES = 5;
+
+/** Segundo umbral: bloqueo más largo */
+export const LOGIN_LOCKOUT_SECOND_ATTEMPTS = 10;
+export const LOGIN_LOCKOUT_SECOND_MINUTES = 30;
+
+/** Tercer umbral: cuenta deshabilitada (requiere administrador) */
+export const LOGIN_LOCKOUT_DISABLE_ATTEMPTS = 15;

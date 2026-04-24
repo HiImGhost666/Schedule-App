@@ -10,6 +10,9 @@ import api from '@/config/api';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { cn } from '@/lib/utils';
+import { getEffectiveDisplayTheme, useUIStore } from '@/store/uiStore';
+import { isDarkThemePreset } from '@/config/theme';
 
 const loginSchema = z.object({
   identifier: z
@@ -31,6 +34,8 @@ export function LoginPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const displayTheme = useUIStore((s) => getEffectiveDisplayTheme(s));
+  const isDarkLogin = isDarkThemePreset(displayTheme);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -96,7 +101,7 @@ export function LoginPage() {
                 className="h-12 w-12 object-contain"
               />
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-navy-200">Portal Corporativo</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-white/65">Portal Corporativo</p>
                 <h1 className="text-lg font-semibold">Sistema de Guardias</h1>
               </div>
             </div>
@@ -105,7 +110,7 @@ export function LoginPage() {
               <p className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
                 Coordinación operativa con estándar empresarial.
               </p>
-              <p className="mt-4 text-sm leading-relaxed text-navy-100/95">
+              <p className="mt-4 text-sm leading-relaxed text-slate-200/95">
                 Gestiona turnos, auditoría y notificaciones en una plataforma unificada para equipos críticos.
               </p>
             </div>
@@ -113,59 +118,70 @@ export function LoginPage() {
             <div className="mt-10 grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div className="flex items-start gap-3">
-                  <Users className="mt-0.5 h-4 w-4 text-gold-200" />
+                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-gold-200" />
                   <div>
-                    <p className="text-sm font-semibold">Colaboración de Equipos</p>
-                    <p className="mt-1 text-xs text-navy-100/90">Roles y permisos claros para operaciones seguras.</p>
+                    <p className="text-sm font-semibold text-white">Colaboración de Equipos</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-200/90">
+                      Roles y permisos claros para operaciones seguras.
+                    </p>
                   </div>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div className="flex items-start gap-3">
-                  <Clock3 className="mt-0.5 h-4 w-4 text-gold-200" />
+                  <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-gold-200" />
                   <div>
-                    <p className="text-sm font-semibold">Cobertura 24/7</p>
-                    <p className="mt-1 text-xs text-navy-100/90">Asignaciones semanales con respuesta rápida a cambios.</p>
+                    <p className="text-sm font-semibold text-white">Cobertura 24/7</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-200/90">
+                      Asignaciones semanales con respuesta rápida a cambios.
+                    </p>
                   </div>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#B4B5DF]" />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
                   <div>
-                    <p className="text-sm font-semibold">Trazabilidad Completa</p>
-                    <p className="mt-1 text-xs text-navy-100/90">Registro de actividad y reportes para control interno.</p>
+                    <p className="text-sm font-semibold text-white">Trazabilidad Completa</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-200/90">
+                      Registro de actividad y reportes para control interno.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <p className="mt-10 text-xs text-navy-200/90">© {new Date().getFullYear()} Lãberit | Sistema de Guardias</p>
+            <p className="mt-10 text-xs text-white/55">© {new Date().getFullYear()} Laberit | Sistema de Guardias</p>
           </section>
 
-          <section className="bg-white p-7 sm:p-9">
+          <section className="border-t border-theme-color bg-theme-surface p-7 sm:p-9 lg:border-l lg:border-t-0">
             <div className="mx-auto max-w-md">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-500">Acceso Seguro</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-navy-800">Iniciar Sesión</h2>
-              <p className="mt-2 text-sm text-navy-400">Ingresa tus credenciales corporativas para continuar.</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-theme-primary">Iniciar Sesión</h2>
+              <p className="mt-2 text-sm text-theme-muted">Ingresa tus credenciales corporativas para continuar.</p>
 
               {authError && (
                 <div
                   role="alert"
                   aria-live="polite"
-                  className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3"
+                  className={cn(
+                    'mt-5 rounded-xl border px-3.5 py-3',
+                    isDarkLogin
+                      ? 'border-red-500/35 bg-red-950/40 text-red-100'
+                      : 'border-red-200 bg-red-50 text-red-800',
+                  )}
                 >
-                  <p className="text-sm font-medium text-red-700">{authError}</p>
+                  <p className="text-sm font-medium">{authError}</p>
                 </div>
               )}
 
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
                 <div>
-                  <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-navy-600">
+                  <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-theme-primary">
                     Correo o usuario
                   </label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
+                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-muted" />
                     <input
                       {...register('identifier', { onChange: clearAuthError })}
                       id="login-identifier"
@@ -186,11 +202,11 @@ export function LoginPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-navy-600">
+                  <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-theme-primary">
                     Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" />
+                    <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-muted" />
                     <input
                       {...register('password', { onChange: clearAuthError })}
                       id="login-password"
@@ -204,7 +220,7 @@ export function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-navy-500 transition-colors hover:text-navy-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400"
+                      className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-theme-muted transition-colors hover:text-theme-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/80"
                       aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -220,7 +236,7 @@ export function LoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-[9px] bg-gold-500 px-4 pt-3 pb-4 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold-600 disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-[9px] bg-gold-500 px-4 pt-3 pb-4 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold-600 disabled:opacity-60 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--theme-surface)]"
                 >
                   {isSubmitting ? (
                     <>
@@ -233,8 +249,8 @@ export function LoginPage() {
                 </button>
               </form>
 
-              <div className="mt-6 rounded-xl border border-navy-100 bg-navy-50 px-4 py-3">
-                <p className="text-xs leading-relaxed text-navy-500">
+              <div className="mt-6 rounded-xl border border-theme-color bg-theme-surface-muted px-4 py-3">
+                <p className="text-xs leading-relaxed text-theme-muted">
                   Acceso restringido a personal autorizado. Si no puedes ingresar, contacta al administrador.
                 </p>
               </div>

@@ -49,11 +49,16 @@ interface ColorFieldProps {
 }
 
 function ColorField({ label, value, onChange }: ColorFieldProps) {
+  // 1. Estado local para lo que el usuario escribe (permite borrar y escribir)
   const [hexInput, setHexInput] = useState(value);
-
-  useEffect(() => {
+  
+  // 2. Sincronización inteligente: Si la prop 'value' cambia desde fuera (ej: cambias de preset),
+  // actualizamos el input local. Esto es más eficiente que useEffect en React 19.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
     setHexInput(value);
-  }, [value]);
+    setPrevValue(value);
+  }
 
   const isValidHex = (v: string) => /^#[0-9A-Fa-f]{6}$/.test(v);
 
@@ -61,6 +66,8 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
     let v = raw;
     if (v.length > 0 && !v.startsWith('#')) v = '#' + v;
     setHexInput(v);
+    
+    // Solo notificamos al padre si el color es válido y completo
     if (isValidHex(v)) {
       onChange(v.toUpperCase());
     }
@@ -68,6 +75,7 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
 
   const handleHexBlur = () => {
     if (!isValidHex(hexInput)) {
+      // Si al salir el campo es inválido, revertimos al último valor real
       setHexInput(value);
     } else {
       setHexInput(hexInput.toUpperCase());
@@ -76,8 +84,8 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
 
   const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value.toUpperCase();
-    onChange(newVal);
-    setHexInput(newVal);
+    setHexInput(newVal); // Actualizamos localmente
+    onChange(newVal);    // Notificamos al padre
   };
 
   const hexInvalid = hexInput.length > 1 && !isValidHex(hexInput);
@@ -90,7 +98,6 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
     >
       <span className="text-xs text-theme-muted font-medium truncate flex-1 min-w-0">{label}</span>
       <div className="flex items-center gap-1.5 shrink-0">
-        {/* Color swatch / native picker */}
         <div className="relative">
           <div
             className="h-7 w-7 rounded border border-theme-color cursor-pointer shrink-0 overflow-hidden"
@@ -113,7 +120,7 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
           maxLength={7}
           placeholder="#000000"
           spellCheck={false}
-          className={`w-20.5 text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary disabled:cursor-not-allowed focus:outline-none transition-colors uppercase ${
+          className={`w-20.5 text-xs font-mono px-2 py-1.5 rounded border bg-theme-surface text-theme-primary transition-colors uppercase ${
             hexInvalid
               ? "border-red-400 focus:border-red-500"
               : "border-theme-color focus:border-theme-text-muted"

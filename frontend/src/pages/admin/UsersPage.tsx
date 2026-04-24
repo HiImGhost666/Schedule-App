@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Plus, Search, MoreVertical, Edit, Eye, Lock, Unlock, Trash2, Key, Shield, Upload, Download } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Eye, Lock, Unlock, Trash2, Key, Shield, Upload, Download, ArrowUpDown } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import api from '@/config/api';
@@ -10,6 +10,7 @@ import { formatRelative } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import toast from 'react-hot-toast';
@@ -27,6 +28,38 @@ const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
+type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
+type SortOrder = 'asc' | 'desc';
+type UsersFilterKey = 'search' | 'role' | 'status';
+
+const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
+  {
+    key: 'search',
+    type: 'text',
+    placeholder: 'Buscar por nombre o email...',
+    className: 'min-w-56',
+  },
+  {
+    key: 'role',
+    type: 'select',
+    options: [
+      { value: '', label: 'Todos los roles' },
+      { value: 'admin', label: 'Administrador' },
+      { value: 'manager', label: 'Responsable' },
+      { value: 'viewer', label: 'Usuario' },
+    ],
+  },
+  {
+    key: 'status',
+    type: 'select',
+    options: [
+      { value: '', label: 'Todos los estados' },
+      { value: 'active', label: 'Activo' },
+      { value: 'disabled', label: 'Deshabilitado' },
+      { value: 'locked', label: 'Bloqueado' },
+    ],
+  },
+];
 
 function escapeCsvValue(value: string): string {
   if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
@@ -147,9 +180,13 @@ export function UsersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navState = location.state as { status?: string } | null;
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState(navState?.status || '');
+  const [filters, setFilters] = useState<Record<UsersFilterKey, string>>({
+    search: '',
+    role: '',
+    status: navState?.status || '',
+  });
+  const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [page, setPage] = useState(1);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -175,12 +212,56 @@ export function UsersPage() {
   }, [menuOpenId]);
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
-    queryKey: ['users', page, search, roleFilter, statusFilter],
+    queryKey: ['users', page, filters.search, filters.role, filters.status, sortBy, sortOrder],
     queryFn: () =>
-      api.get('/users', { params: { page, limit: 15, search: search || undefined, role: roleFilter || undefined, status: statusFilter || undefined } })
+      api.get('/users', {
+        params: {
+          page,
+          limit: 15,
+          search: filters.search || undefined,
+          role: filters.role || undefined,
+          status: filters.status || undefined,
+          sortBy,
+          sortOrder,
+        },
+      })
         .then((r) => r.data),
     placeholderData: keepPreviousData,
   });
+
+  const handleFilterChange = (key: UsersFilterKey, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
+  const handleSortChange = (field: UsersSortBy) => {
+    setPage(1);
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortBy(field);
+    setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
+  };
+
+  const renderSortLabel = (field: UsersSortBy, label: string) => {
+    const isActive = sortBy === field;
+    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleSortChange(field)}
+        className="inline-flex items-center gap-1 hover:text-navy-600"
+      >
+        <span>{label}</span>
+        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
+      </button>
+    );
+  };
+
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -208,16 +289,20 @@ export function UsersPage() {
     mutationFn: async () => {
       const allUsers: User[] = [];
       let currentPage = 1;
-      let totalPages = 1;
 
-      do {
+      while (true) {
         const response = await api.get<{ data: User[]; pagination: { totalPages: number } }>('/users', {
           params: { page: currentPage, limit: 100 },
         });
         allUsers.push(...response.data.data);
-        totalPages = response.data.pagination.totalPages;
+        const totalPages = response.data.pagination.totalPages;
+
+        if (currentPage >= totalPages) {
+          break;
+        }
+
         currentPage += 1;
-      } while (currentPage <= totalPages);
+      }
 
       const rows = allUsers.map((user) => ({
         employeeId: user.employeeId ?? '',
@@ -464,30 +549,11 @@ export function UsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="card px-4 py-3 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o email..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="input-field with-icon text-sm"
-          />
-        </div>
-        <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }} className="input-field text-sm w-40">
-          <option value="">Todos los roles</option>
-          <option value="admin">Administrador</option>
-          <option value="manager">Responsable</option>
-          <option value="viewer">Usuario</option>
-        </select>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="input-field text-sm w-40">
-          <option value="">Todos los estados</option>
-          <option value="active">Activo</option>
-          <option value="disabled">Deshabilitado</option>
-          <option value="locked">Bloqueado</option>
-        </select>
-      </div>
+      <FilterTable
+        fields={USERS_FILTER_FIELDS}
+        values={filters}
+        onChange={handleFilterChange}
+      />
 
       {/* Table */}
       <div className="card overflow-visible">
@@ -502,12 +568,12 @@ export function UsersPage() {
                 <thead>
                   <tr className="bg-navy-50 border-b border-navy-100">
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Usuario</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('name', 'Usuario')}</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Sucursal</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Rol</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">Estado</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Último acceso</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('role', 'Rol')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('status', 'Estado')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('lastLoginAt', 'Último acceso')}</th>
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
@@ -553,9 +619,12 @@ export function UsersPage() {
             {/* Pagination */}
             {data?.pagination && data.pagination.totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-navy-100">
-                <p className="text-xs text-navy-400">
-                  {((page - 1) * 15) + 1}–{Math.min(page * 15, data.pagination.total)} de {data.pagination.total}
-                </p>
+                <div className="flex flex-col">
+                  <p className="text-xs text-navy-400">
+                    {((page - 1) * 15) + 1}–{Math.min(page * 15, data.pagination.total)} de {data.pagination.total}
+                  </p>
+                  <p className="text-[10px] text-navy-300">Pagina {page} de {totalPages}</p>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-navy-600 hover:bg-navy-50 disabled:opacity-40">
                     Anterior

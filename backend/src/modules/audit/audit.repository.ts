@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 
 export type AuditLogWhere = Prisma.Args<typeof prisma.auditLog, 'findMany'>['where'];
 type AuditLogCreateData = Prisma.Args<typeof prisma.auditLog, 'create'>['data'];
+export type AuditSortBy = 'updatedAt' | 'createdAt' | 'action' | 'entityType';
+export type SortOrder = 'asc' | 'desc';
 
 function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
@@ -16,7 +18,9 @@ export async function createAuditLog(data: AuditLogCreateData, tx?: TransactionC
 export async function findAuditLogs(
   where: AuditLogWhere,
   page: number,
-  limit: number
+  limit: number,
+  sortBy: AuditSortBy = 'updatedAt',
+  sortOrder: SortOrder = 'desc'
 ) {
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
@@ -25,7 +29,7 @@ export async function findAuditLogs(
         user: { select: { id: true, name: true, email: true } },
         rolledBackBy: { select: { id: true, name: true } },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
     }),

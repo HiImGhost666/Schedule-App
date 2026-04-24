@@ -7,6 +7,8 @@ type UserWhere = NonNullable<Parameters<typeof prisma.user.findMany>[0]>['where'
 type UserCreateData = NonNullable<Parameters<typeof prisma.user.create>[0]>['data'];
 type UserUpdateData = NonNullable<Parameters<typeof prisma.user.update>[0]>['data'];
 type IdentityConflict = { id: string; email: string } | null;
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
+export type SortOrder = 'asc' | 'desc';
 
 function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
@@ -107,12 +109,18 @@ export function updateUserRecord(id: string, data: UserUpdateData, tx?: Transact
   });
 }
 
-export function listUsers(where: UserWhere, page: number, limit: number) {
+export function listUsers(
+  where: UserWhere,
+  page: number,
+  limit: number,
+  sortBy: UsersSortBy = 'createdAt',
+  sortOrder: SortOrder = 'desc'
+) {
   return Promise.all([
     prisma.user.findMany({
       where,
       select: USER_RESPONSE_SELECT,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
     }),

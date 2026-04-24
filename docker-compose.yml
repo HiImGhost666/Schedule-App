@@ -56,7 +56,7 @@ services:
              echo 'Waiting for database...';
              sleep 2;
              done &&
-             npx ts-node prisma/seed.ts &&
+             npx prisma db seed &&
              npm run dev"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:13001/api/health"]
