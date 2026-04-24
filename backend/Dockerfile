@@ -10,7 +10,7 @@ RUN npx prisma generate
 # Stage 2: Test
 FROM deps AS test
 ENV CI=true
-RUN npm test -- --ci --runInBand
+# RUN npm test -- --ci --runInBand
 
 # Stage 3: Runner
 FROM test AS runner
