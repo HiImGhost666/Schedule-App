@@ -236,7 +236,10 @@ export function UsersPage() {
       label: 'Departamento',
       options: [
         { value: '', label: 'Todos los departamentos' },
-        ...DEPARTMENT_VALUES.map((d) => ({ value: d, label: d })),
+        { value: 'seguridad', label: 'Seguridad' },
+        { value: 'mantenimiento', label: 'Mantenimiento' },
+        { value: 'operaciones', label: 'Operaciones' },
+        { value: 'administración', label: 'Administración' },
       ],
     },
     {
@@ -304,13 +307,14 @@ export function UsersPage() {
 
   const handleSortChange = (field: UsersSortBy) => {
     setPage(1);
-    if (sortBy === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-
-    setSortBy(field);
-    setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
+    setSortBy((prevSortBy) => {
+      if (prevSortBy === field) {
+        setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+        return prevSortBy;
+      }
+      setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
+      return field;
+    });
   };
 
   const renderSortLabel = (field: UsersSortBy, label: string) => {

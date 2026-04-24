@@ -654,22 +654,26 @@ export function AuditLogPage() {
 
   // Cargar usuarios según sucursal y departamento seleccionados
   useEffect(() => {
-    const params: Record<string, string | number> = { limit: 200 };
+    if (!filters.branchId && !filters.userDepartment) {
+      return;
+    }
+
+    const params: Record<string, string | number> = { limit: 100 };
     if (filters.branchId) params.branchId = filters.branchId;
     if (filters.userDepartment) params.department = filters.userDepartment;
 
-    if (filters.branchId || filters.userDepartment) {
-      api.get('/users', { params })
-        .then((r) => {
-          const users = r.data?.data ?? [];
-          setAvailableUsers(users.map((u: { id: string; name: string }) => ({ id: u.id, name: u.name })));
-        })
-        .catch(() => setAvailableUsers([]));
-    } else {
-      setAvailableUsers([]);
-    }
-    // Limpiar userId si cambia la sucursal o el departamento
-    setFilters((prev) => ({ ...prev, userId: '' }));
+    let cancelled = false;
+    api.get('/users', { params })
+      .then((r) => {
+        if (cancelled) return;
+        const users = r.data?.data ?? [];
+        setAvailableUsers(users.map((u: { id: string; name: string }) => ({ id: u.id, name: u.name })));
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableUsers([]);
+      });
+
+    return () => { cancelled = true; };
   }, [filters.branchId, filters.userDepartment]);
 
   const commonParams = {
@@ -679,8 +683,8 @@ export function AuditLogPage() {
     userId: filters.userId || undefined,
     userDepartment: filters.userDepartment || undefined,
     branchId: filters.branchId || undefined,
-    from: filters.from || undefined,
-    to: filters.to || undefined,
+    from: filters.from ? `${filters.from}T00:00:00.000Z` : undefined,
+    to: filters.to ? `${filters.to}T23:59:59.999Z` : undefined,
     sortBy,
     sortOrder,
   };
