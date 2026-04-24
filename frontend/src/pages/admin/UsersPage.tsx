@@ -1,7 +1,8 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Plus, MoreVertical, Edit, Eye, Lock, Unlock, Trash2, Key, Shield, Upload, Download, ArrowUpDown } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import api from '@/config/api';
 import type { Branch, User } from '@/types';
 import { ROLE_LABELS, STATUS_LABELS } from '@/types';
@@ -188,10 +189,27 @@ export function UsersPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [page, setPage] = useState(1);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [formUser, setFormUser] = useState<User | null | false>(false);
   const [resetUser, setResetUser] = useState<User | null>(null);
   const [detailUser, setDetailUser] = useState<User | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: string; user: User } | null>(null);
+
+  useEffect(() => {
+    if (!menuOpenId) return;
+
+    const closeMenu = () => {
+      setMenuOpenId(null);
+      setMenuPosition(null);
+    };
+
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu);
+    return () => {
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('resize', closeMenu);
+    };
+  }, [menuOpenId]);
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
     queryKey: ['users', page, filters.search, filters.role, filters.status, sortBy, sortOrder],
@@ -341,6 +359,33 @@ export function UsersPage() {
     fileInputRef.current?.click();
   };
 
+  const handleMenuToggle = (userId: string, event: MouseEvent<HTMLButtonElement>) => {
+    if (menuOpenId === userId) {
+      setMenuOpenId(null);
+      setMenuPosition(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 192; // w-48
+    const menuHeight = isAdmin ? 260 : 48;
+    const viewportPadding = 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < (menuHeight + viewportPadding);
+
+    const top = openUp
+      ? Math.max(viewportPadding, rect.top - menuHeight - 4)
+      : Math.min(window.innerHeight - menuHeight - viewportPadding, rect.bottom + 4);
+
+    const left = Math.min(
+      window.innerWidth - menuWidth - viewportPadding,
+      Math.max(viewportPadding, rect.right - menuWidth),
+    );
+
+    setMenuOpenId(userId);
+    setMenuPosition({ top, left });
+  };
+
   const validateCsvRow = (row: UserCsvRow, index: number, branchesCatalog: Branch[]): string | null => {
     if (!row.name?.trim()) return `Fila ${index + 2}: El nombre es obligatorio`;
     if (!row.email?.trim() || !row.email.includes('@')) return `Fila ${index + 2}: Email inválido`;
@@ -454,6 +499,8 @@ export function UsersPage() {
     return <span className={cls[status as keyof typeof cls] || 'badge-status-disabled'}>{STATUS_LABELS[status]}</span>;
   };
 
+  const openMenuUser = data?.data?.find((user) => user.id === menuOpenId) ?? null;
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -509,14 +556,14 @@ export function UsersPage() {
       />
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-visible">
         {isLoading ? (
           <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
         ) : !data?.data?.length ? (
           <EmptyState icon={Shield} title="Sin usuarios" description="No se encontraron usuarios con los filtros aplicados" />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full">
                 <thead>
                   <tr className="bg-navy-50 border-b border-navy-100">
@@ -531,9 +578,7 @@ export function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-navy-100">
-                  {data.data.map((u: User, idx: number) => {
-                    const shouldOpenUp = idx >= data.data.length - 3;
-
+                  {data.data.map((u: User) => {
                     return (
                     <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
                       <td className="px-5 py-3 text-xs font-mono text-navy-400 hidden xl:table-cell">{u.employeeId || '—'}</td>
@@ -559,50 +604,11 @@ export function UsersPage() {
                       </td>
                       <td className="px-5 py-3 relative">
                         <button
-                          onClick={() => setMenuOpenId(menuOpenId === u.id ? null : u.id)}
+                          onClick={(event) => handleMenuToggle(u.id, event)}
                           className="p-1 rounded hover:bg-theme-surface-muted text-theme-muted"
                         >
                           <MoreVertical className="h-4 w-4" />
                         </button>
-                        {menuOpenId === u.id && (
-                          <div className={`absolute right-4 ${shouldOpenUp ? 'bottom-8' : 'top-8'} card rounded-xl shadow-xl border border-theme-color z-20 w-48 py-1 animate-slide-down`}>
-                            <button onClick={() => { setDetailUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
-                              <Eye className="h-3.5 w-3.5" />Ver detalle
-                            </button>
-                            {isAdmin && (
-                              <>
-                                <button onClick={() => { setFormUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary">
-                                  <Edit className="h-3.5 w-3.5" />Editar
-                                </button>
-                                <button onClick={() => { setResetUser(u); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary">
-                                  <Key className="h-3.5 w-3.5" />Resetear contraseña
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    forcePasswordChangeMutation.mutate(u.id);
-                                    setMenuOpenId(null);
-                                  }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-theme-surface-muted text-theme-primary"
-                                >
-                                  <Shield className="h-3.5 w-3.5" />Forzar cambio de contraseña
-                                </button>
-                                {u.status === 'active' ? (
-                                  <button onClick={() => { setConfirmAction({ type: 'lock', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-amber-50 text-amber-700">
-                                    <Lock className="h-3.5 w-3.5" />Bloquear
-                                  </button>
-                                ) : (
-                                  <button onClick={() => { statusMutation.mutate({ id: u.id, status: 'active' }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-green-50 text-green-700">
-                                    <Unlock className="h-3.5 w-3.5" />Activar
-                                  </button>
-                                )}
-                                <hr className="border-navy-100 my-1" />
-                                <button onClick={() => { setConfirmAction({ type: 'delete', user: u }); setMenuOpenId(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-red-50 text-red-600">
-                                  <Trash2 className="h-3.5 w-3.5" />Eliminar
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -632,6 +638,51 @@ export function UsersPage() {
           </>
         )}
       </div>
+
+      {openMenuUser && menuPosition && createPortal(
+        <div
+          className="fixed card rounded-xl shadow-xl border border-theme-color z-50 w-48 py-1 animate-slide-down"
+          style={{ top: menuPosition.top, left: menuPosition.left }}
+        >
+          <button onClick={() => { setDetailUser(openMenuUser); setMenuOpenId(null); setMenuPosition(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-navy-50 text-navy-700">
+            <Eye className="h-3.5 w-3.5" />Ver detalle
+          </button>
+          {isAdmin && (
+            <>
+              <button onClick={() => { setFormUser(openMenuUser); setMenuOpenId(null); setMenuPosition(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-theme-primary hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                <Edit className="h-3.5 w-3.5" />Editar
+              </button>
+              <button onClick={() => { setResetUser(openMenuUser); setMenuOpenId(null); setMenuPosition(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-theme-primary hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
+                <Key className="h-3.5 w-3.5" />Resetear contraseña
+              </button>
+              <button
+                onClick={() => {
+                  forcePasswordChangeMutation.mutate(openMenuUser.id);
+                  setMenuOpenId(null);
+                  setMenuPosition(null);
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-theme-primary hover:bg-sky-50 hover:text-sky-700 transition-colors"
+              >
+                <Shield className="h-3.5 w-3.5" />Forzar cambio de contraseña
+              </button>
+              {openMenuUser.status === 'active' ? (
+                <button onClick={() => { setConfirmAction({ type: 'lock', user: openMenuUser }); setMenuOpenId(null); setMenuPosition(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-amber-50 text-amber-700">
+                  <Lock className="h-3.5 w-3.5" />Bloquear
+                </button>
+              ) : (
+                <button onClick={() => { statusMutation.mutate({ id: openMenuUser.id, status: 'active' }); setMenuOpenId(null); setMenuPosition(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-green-700 hover:bg-green-50 hover:text-green-800 transition-colors">
+                  <Unlock className="h-3.5 w-3.5" />Activar
+                </button>
+              )}
+              <hr className="border-navy-100 my-1" />
+              <button onClick={() => { setConfirmAction({ type: 'delete', user: openMenuUser }); setMenuOpenId(null); setMenuPosition(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-red-50 text-red-600">
+                <Trash2 className="h-3.5 w-3.5" />Eliminar
+              </button>
+            </>
+          )}
+        </div>,
+        document.body,
+      )}
 
       {/* Modals */}
       {isAdmin && formUser !== false && (
@@ -675,7 +726,7 @@ export function UsersPage() {
       />
 
       {/* Click outside to close menu */}
-      {menuOpenId && <div className="fixed inset-0 z-10" onClick={() => setMenuOpenId(null)} />}
+      {menuOpenId && <div className="fixed inset-0 z-40" onClick={() => { setMenuOpenId(null); setMenuPosition(null); }} />}
     </div>
   );
 }

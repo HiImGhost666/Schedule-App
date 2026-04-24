@@ -30,7 +30,9 @@ services:
       - schedule-network
     environment:
       - DATABASE_URL=mysql://root:root_pass@db:3306/schedule_db
+      - PORT=13001
       - NODE_ENV=development
+      - CORS_ORIGIN=http://localhost:15173
       - CHOKIDAR_USEPOLLING=true
     env_file:
       - ./backend/.env

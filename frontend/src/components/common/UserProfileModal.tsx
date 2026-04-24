@@ -33,7 +33,11 @@ type ProfileTab = 'general' | 'schedules' | 'security';
 export function UserProfileModal({ open, onClose, user }: UserProfileModalProps) {
     const [activeTab, setActiveTab] = useState<ProfileTab>('general');
     const currentUser = useAuthStore((s) => s.user);
-    const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
+    const isDark = isDarkThemePreset(
+      useUIStore(
+        (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+      ),
+    );
     const canLoadPrivateData = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
     const { data: detailedUser, isLoading: loadingUserDetail } = useQuery({
@@ -124,6 +128,11 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
             hours30d,
         };
     }, [schedules]);
+
+    const assignedSchedules = useMemo(
+        () => [...schedules].sort((a, b) => new Date(a.startDatetime).getTime() - new Date(b.startDatetime).getTime()),
+        [schedules],
+    );
 
     const profileUser = detailedUser ?? user;
 
@@ -278,7 +287,7 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                                     {loadingSchedules && canLoadPrivateData ? (
                                         <p className="text-xs text-theme-muted">Cargando actividad...</p>
                                     ) : (
-                                        <div className="space-y-4">
+                                        <div className="space-y-5">
                                             <div className="pl-4 border-l-4 border-navy-300">
                                                 <p className="text-[11px] uppercase tracking-[0.16em] font-bold text-theme-muted">Próxima guardia</p>
                                                 <p className="mt-1 text-base font-semibold text-theme-primary">{metrics.nextShift ? formatDateTime(metrics.nextShift.startDatetime) : 'Sin próximas guardias'}</p>
@@ -361,6 +370,49 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                                                         {metrics.hours30d.toFixed(1)}h
                                                     </p>
                                                 </div>
+                                            </div>
+
+                                            <div className="rounded-2xl border border-theme-color bg-white/80 p-4 md:p-5">
+                                                <div className="flex items-center justify-between gap-3 mb-4">
+                                                    <div>
+                                                        <p className="text-[11px] uppercase tracking-[0.16em] font-bold text-theme-muted">Eventos asignados</p>
+                                                        <p className="text-sm text-theme-muted mt-1">{assignedSchedules.length} turno{assignedSchedules.length === 1 ? '' : 's'} vinculados a este usuario</p>
+                                                    </div>
+                                                </div>
+
+                                                {assignedSchedules.length === 0 ? (
+                                                    <p className="text-sm text-theme-muted">No hay eventos asignados para este usuario.</p>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {assignedSchedules.map((schedule) => (
+                                                            <div
+                                                                key={schedule.id}
+                                                                className="flex items-start gap-3 rounded-2xl border border-theme-color/80 bg-theme-surface-muted/40 px-4 py-3"
+                                                            >
+                                                                <div
+                                                                    className="mt-1 h-3 w-3 rounded-full flex-shrink-0"
+                                                                    style={{ backgroundColor: schedule.color || '#1e3a5f' }}
+                                                                />
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <p className="text-sm font-semibold text-theme-primary">{schedule.title}</p>
+                                                                        {schedule.isLastMinute && (
+                                                                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">
+                                                                                Urgente
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="mt-1 text-xs text-theme-muted">
+                                                                        {formatDateTime(schedule.startDatetime)} — {formatDateTime(schedule.endDatetime)}
+                                                                    </p>
+                                                                    <p className="mt-1 text-xs text-theme-muted">
+                                                                        {schedule.location || schedule.notes || 'Sin ubicación ni notas adicionales'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}
