@@ -94,23 +94,23 @@ function escapeCsv(v: string): string {
 
 const AUDIT_CSV_HEADERS = ['Fecha', 'Acción', 'Usuario', 'Email', 'Tipo Entidad', 'ID Entidad', 'IP', 'Revertido'] as const;
 
-function auditLogToCsvRow(log: AuditLog): string {
-  const cols = [
-    formatDateTime(log.createdAt),
-    log.action.replace(/_/g, ' '),
-    log.user?.name ?? 'Sistema',
-    log.user?.email ?? '',
-    log.entityType ?? '',
-    log.entityId ?? '',
-    log.ipAddress ?? '',
-    log.rolledBackAt ? 'Sí' : 'No',
-  ];
-  return cols.map(escapeCsv).join(',');
+function auditLogToCsvRow(log: AuditLog, headers: string[]): string {
+  const data: Record<string, string> = {
+    'Fecha': formatDateTime(log.createdAt),
+    'Acción': log.action.replace(/_/g, ' '),
+    'Usuario': log.user?.name ?? 'Sistema',
+    'Email': log.user?.email ?? '',
+    'Tipo Entidad': log.entityType ?? '',
+    'ID Entidad': log.entityId ?? '',
+    'IP': log.ipAddress ?? '',
+    'Revertido': log.rolledBackAt ? 'Sí' : 'No',
+  };
+  return headers.map(h => escapeCsv(data[h] ?? '')).join(',');
 }
 
-function buildAuditCsv(logs: AuditLog[]): string {
-  const header = AUDIT_CSV_HEADERS.join(',');
-  const rows = logs.map(auditLogToCsvRow);
+function buildAuditCsv(logs: AuditLog[], headers: string[]): string {
+  const header = headers.join(',');
+  const rows = logs.map(log => auditLogToCsvRow(log, headers));
   return [header, ...rows].join('\n');
 }
 
@@ -133,9 +133,21 @@ function ExportModal({ onClose }: { onClose: () => void }) {
   const [exportType, setExportType] = useState<ExportType>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([...AUDIT_CSV_HEADERS]);
   const [isExporting, setIsExporting] = useState(false);
 
+  const { data: usersList } = useQuery({
+    queryKey: ['users-list-export'],
+    queryFn: () => api.get<{ data: { id: string; name: string; email: string }[] }>('/users', { params: { limit: 100, sortBy: 'name', sortOrder: 'asc' } }).then((r) => r.data.data),
+  });
+
   const handleExport = async () => {
+    if (selectedColumns.length === 0) {
+      toast.error('Selecciona al menos una columna');
+      return;
+    }
+
     setIsExporting(true);
     try {
       const allLogs: AuditLog[] = [];
@@ -158,6 +170,7 @@ function ExportModal({ onClose }: { onClose: () => void }) {
           };
           if (dateFrom) params.dateFrom = `${dateFrom}T00:00:00.000Z`;
           if (dateTo)   params.dateTo   = `${dateTo}T23:59:59.999Z`;
+          if (selectedUserId) params.userId = selectedUserId;
 
           const res = await api.get<{ data: AuditLog[]; pagination: { totalPages: number } }>('/audit', { params });
           allLogs.push(...res.data.data);
@@ -176,7 +189,7 @@ function ExportModal({ onClose }: { onClose: () => void }) {
 
       const date = new Date().toISOString().slice(0, 10);
       const suffix = exportType === 'all' ? 'completo' : exportType === 'reversible' ? 'acciones' : 'eventos';
-      downloadCsv(`auditoria-${suffix}-${date}.csv`, buildAuditCsv(allLogs));
+      downloadCsv(`auditoria-${suffix}-${date}.csv`, buildAuditCsv(allLogs, selectedColumns));
       toast.success(`CSV exportado (${allLogs.length} registros)`);
       onClose();
     } catch (err: unknown) {
@@ -216,7 +229,7 @@ function ExportModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-slide-up">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-slide-up max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-navy-100">
           <div className="flex items-center gap-3">
@@ -276,6 +289,21 @@ function ExportModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
+          {/* Filtro de Usuario */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider">Usuario (Opcional)</p>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full text-xs border border-navy-200 rounded-lg px-3 py-2 text-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-300 bg-white"
+            >
+              <option value="">Todos los usuarios</option>
+              {usersList?.map((u) => (
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+              ))}
+            </select>
+          </div>
+
           {/* Rango de fechas */}
           <div className="space-y-2">
             <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -314,11 +342,31 @@ function ExportModal({ onClose }: { onClose: () => void }) {
 
           {/* Columns info */}
           <div className="bg-navy-50 rounded-xl px-4 py-3">
-            <p className="text-[11px] font-semibold text-navy-500 mb-1.5">Columnas incluidas</p>
+            <p className="text-[11px] font-semibold text-navy-500 mb-1.5">Columnas incluidas (haz clic para alternar)</p>
             <div className="flex flex-wrap gap-1.5">
-              {AUDIT_CSV_HEADERS.map((h) => (
-                <span key={h} className="text-[10px] bg-white border border-navy-100 text-navy-500 px-2 py-0.5 rounded-full">{h}</span>
-              ))}
+              {AUDIT_CSV_HEADERS.map((h) => {
+                const isSelected = selectedColumns.includes(h);
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => {
+                      setSelectedColumns(prev => 
+                        prev.includes(h) 
+                          ? prev.filter(c => c !== h) 
+                          : [...AUDIT_CSV_HEADERS].filter(c => prev.includes(c) || c === h)
+                      );
+                    }}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                      isSelected 
+                        ? 'bg-navy-600 border-navy-600 text-white' 
+                        : 'bg-white border-navy-200 text-navy-400 hover:border-navy-400 hover:text-navy-600'
+                    }`}
+                  >
+                    {h}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
