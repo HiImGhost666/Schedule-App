@@ -100,10 +100,19 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [pendingPayload, setPendingPayload] = useState<(ShiftForm & { assigneeIds: string[] }) | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
+  const [asideBranchFilter, setAsideBranchFilter] = useState('');
+  const [asideDeptFilter, setAsideDeptFilter] = useState('');
+  const [asideSearchFilter, setAsideSearchFilter] = useState('');
 
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
-    queryFn: () => api.get<{ data: User[] }>('/users?limit=100&status=active').then((r) => r.data.data),
+    queryFn: () => api.get<{ data: User[] }>('/users?limit=500&status=active').then((r) => r.data.data),
+    enabled: open && canEdit,
+  });
+
+  const { data: branches } = useQuery({
+    queryKey: ['branches', 'shift-modal'],
+    queryFn: () => api.get('/branches').then((r) => r.data?.data ?? []),
     enabled: open && canEdit,
   });
 
@@ -352,10 +361,25 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     );
   };
 
+  const filteredUsers = useMemo(() => {
+    let result = availableAssignees;
+    if (asideBranchFilter) {
+      result = result.filter((u) => u.branchId === asideBranchFilter);
+    }
+    if (asideDeptFilter) {
+      result = result.filter((u) => (u.department ?? '').toLowerCase() === asideDeptFilter);
+    }
+    if (asideSearchFilter) {
+      const q = asideSearchFilter.toLowerCase();
+      result = result.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    }
+    return result;
+  }, [availableAssignees, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
+
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const assigneesContent = (
     <>
-      {availableAssignees.map((u) => (
+      {filteredUsers.map((u) => (
         <label
           key={u.id}
           className="flex items-center gap-3 px-3 py-2.5 hover:bg-theme-surface-muted cursor-pointer border-b border-theme-color last:border-0"
@@ -599,11 +623,59 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
             {canEdit && users && (
               <aside className="hidden lg:flex min-h-0 border-l border-theme-color bg-theme-surface-muted/20 flex-col">
-                <div className="px-5 py-4 border-b border-theme-color bg-theme-surface">
+                <div className="px-5 py-4 border-b border-theme-color bg-theme-surface space-y-3">
                   <p className="text-sm font-medium text-theme-muted">
                     <Users className="inline h-3.5 w-3.5 mr-1" />Personal asignado *
                     <span className="ml-1 text-xs text-theme-muted">({selectedUsers.length} seleccionados)</span>
                   </p>
+                  {/* Filtros */}
+                  {isAllBranchesMode && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={asideBranchFilter}
+                        onChange={(e) => setAsideBranchFilter(e.target.value)}
+                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                      >
+                        <option value="">Todas las sucursales</option>
+                        {(branches ?? []).map((b: { id: string; name: string }) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={asideDeptFilter}
+                        onChange={(e) => setAsideDeptFilter(e.target.value)}
+                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                      >
+                        <option value="">Todos los dptos.</option>
+                        <option value="seguridad">Seguridad</option>
+                        <option value="mantenimiento">Mantenimiento</option>
+                        <option value="operaciones">Operaciones</option>
+                        <option value="administración">Administración</option>
+                      </select>
+                    </div>
+                  )}
+                  {!isAllBranchesMode && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={asideDeptFilter}
+                        onChange={(e) => setAsideDeptFilter(e.target.value)}
+                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300 col-span-2"
+                      >
+                        <option value="">Todos los departamentos</option>
+                        <option value="seguridad">Seguridad</option>
+                        <option value="mantenimiento">Mantenimiento</option>
+                        <option value="operaciones">Operaciones</option>
+                        <option value="administración">Administración</option>
+                      </select>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={asideSearchFilter}
+                    onChange={(e) => setAsideSearchFilter(e.target.value)}
+                    placeholder="Buscar por nombre o email..."
+                    className="w-full text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                  />
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto">
                   {assigneesContent}
