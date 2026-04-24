@@ -505,14 +505,16 @@ function AuditTable({
     const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
 
     return (
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         onClick={() => onSortChange(field)}
-        className="inline-flex items-center gap-1 hover:text-navy-600"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
       >
         <span>{label}</span>
         {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </button>
+      </span>
     );
   };
 

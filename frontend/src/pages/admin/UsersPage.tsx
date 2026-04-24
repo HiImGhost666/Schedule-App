@@ -46,7 +46,6 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
     label: 'ID Empleado',
     placeholder: 'ID empleado...',
     className: 'min-w-36',
-    searchable: false,
   },
   {
     key: 'role',
@@ -300,14 +299,16 @@ export function UsersPage() {
     const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
 
     return (
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         onClick={() => handleSortChange(field)}
-        className="inline-flex items-center gap-1 hover:text-navy-600"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
       >
         <span>{label}</span>
         {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </button>
+      </span>
     );
   };
 
