@@ -1,6 +1,13 @@
 import { comparePassword } from '../../utils/bcrypt';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
-import { MAX_FAILED_ATTEMPTS, LOCKOUT_MINUTES, USER_STATUS } from '../../config/constants';
+import {
+  LOGIN_LOCKOUT_DISABLE_ATTEMPTS,
+  LOGIN_LOCKOUT_FIRST_ATTEMPTS,
+  LOGIN_LOCKOUT_FIRST_MINUTES,
+  LOGIN_LOCKOUT_SECOND_ATTEMPTS,
+  LOGIN_LOCKOUT_SECOND_MINUTES,
+  USER_STATUS,
+} from '../../config/constants';
 import { addMinutes, isAfter } from 'date-fns';
 import crypto from 'crypto';
 import { findUserByEmailOrUsername } from '../users/users.service';
@@ -38,8 +45,8 @@ export async function login(identifier: string, password: string, ipAddress?: st
 
   if (user.status === USER_STATUS.LOCKED && user.lockedUntil) {
     if (isAfter(new Date(), user.lockedUntil)) {
-      // Unlock expired lockout
-      await updateUserById(user.id, { status: USER_STATUS.ACTIVE, failedAttempts: 0, lockedUntil: null });
+      // Fin del bloqueo temporal: se puede volver a intentar; los intentos fallidos se mantienen hasta un login correcto.
+      await updateUserById(user.id, { status: USER_STATUS.ACTIVE, lockedUntil: null });
     } else {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
       throw createAppError('UNAUTHORIZED', `Cuenta bloqueada. Inténtalo de nuevo en ${minutesLeft} minuto(s)`);
@@ -52,9 +59,18 @@ export async function login(identifier: string, password: string, ipAddress?: st
     const newAttempts = user.failedAttempts + 1;
     const updates: Parameters<typeof updateUserById>[1] = { failedAttempts: newAttempts };
 
-    if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+    if (newAttempts >= LOGIN_LOCKOUT_DISABLE_ATTEMPTS) {
+      updates.status = USER_STATUS.DISABLED;
+      updates.lockedUntil = null;
+      await updateUserById(user.id, updates);
+      throw createAppError('UNAUTHORIZED', 'Cuenta deshabilitada. Contacta con el administrador');
+    }
+    if (newAttempts === LOGIN_LOCKOUT_SECOND_ATTEMPTS) {
       updates.status = USER_STATUS.LOCKED;
-      updates.lockedUntil = addMinutes(new Date(), LOCKOUT_MINUTES);
+      updates.lockedUntil = addMinutes(new Date(), LOGIN_LOCKOUT_SECOND_MINUTES);
+    } else if (newAttempts === LOGIN_LOCKOUT_FIRST_ATTEMPTS) {
+      updates.status = USER_STATUS.LOCKED;
+      updates.lockedUntil = addMinutes(new Date(), LOGIN_LOCKOUT_FIRST_MINUTES);
     }
 
     await updateUserById(user.id, updates);

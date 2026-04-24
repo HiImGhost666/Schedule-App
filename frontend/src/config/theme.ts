@@ -66,10 +66,25 @@ export const DEFAULT_THEME: ThemeConfig = {
   },
 };
 
+/**
+ * Escala "navy" usada también en fondos (login, cabeceras, hover del sidebar).
+ * No debe reutilizar textPrimary: en preset oscuro el texto es claro y bg-navy-900 quedaría invertido.
+ */
+function navyChromeColors(theme: ThemeConfig): { navy700: string; navy800: string; navy900: string } {
+  const sidebar = theme.overrides.sidebar.background;
+  const surface = theme.tokens.surface;
+  return {
+    navy900: sidebar,
+    navy800: sidebar,
+    navy700: `color-mix(in srgb, ${sidebar} 74%, ${surface} 26%)`,
+  };
+}
+
 export function applyThemeToDocument(theme: ThemeConfig) {
   if (typeof document === 'undefined') return;
 
   const root = document.documentElement;
+  const { navy700, navy800, navy900 } = navyChromeColors(theme);
 
   root.style.setProperty('--color-navy-50', theme.tokens.pageBackground);
   root.style.setProperty('--color-navy-100', theme.tokens.surfaceMuted);
@@ -78,9 +93,9 @@ export function applyThemeToDocument(theme: ThemeConfig) {
   root.style.setProperty('--color-navy-400', theme.tokens.textMuted);
   root.style.setProperty('--color-navy-500', theme.tokens.brandPrimary);
   root.style.setProperty('--color-navy-600', theme.tokens.brandPrimaryHover);
-  root.style.setProperty('--color-navy-700', theme.tokens.textPrimary);
-  root.style.setProperty('--color-navy-800', theme.overrides.sidebar.background);
-  root.style.setProperty('--color-navy-900', theme.tokens.textPrimary);
+  root.style.setProperty('--color-navy-700', navy700);
+  root.style.setProperty('--color-navy-800', navy800);
+  root.style.setProperty('--color-navy-900', navy900);
 
   root.style.setProperty('--color-gold-300', theme.tokens.brandSecondary);
   root.style.setProperty('--color-gold-400', theme.tokens.brandSecondary);

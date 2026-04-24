@@ -21,7 +21,14 @@ import * as usersRepo from '../src/modules/users/users.repository';
 import * as authRepo from '../src/modules/auth/auth.repository';
 import * as bcryptUtils from '../src/utils/bcrypt';
 import { changePassword, getMe, login } from '../src/modules/auth/auth.service';
-import { USER_STATUS, MAX_FAILED_ATTEMPTS } from '../src/config/constants';
+import {
+  USER_STATUS,
+  LOGIN_LOCKOUT_FIRST_ATTEMPTS,
+  LOGIN_LOCKOUT_FIRST_MINUTES,
+  LOGIN_LOCKOUT_SECOND_ATTEMPTS,
+  LOGIN_LOCKOUT_SECOND_MINUTES,
+  LOGIN_LOCKOUT_DISABLE_ATTEMPTS,
+} from '../src/config/constants';
 
 const mockUsersRepo = usersRepo as jest.Mocked<typeof usersRepo>;
 const mockAuthRepo = authRepo as jest.Mocked<typeof authRepo>;
@@ -93,21 +100,98 @@ describe('login - Seguridad y Valores Límite', () => {
     );
   });
 
-  // ── Caso: Valor límite — al llegar a MAX_FAILED_ATTEMPTS se activa LOCKED ───
-  it(`bloquea la cuenta al alcanzar exactamente ${MAX_FAILED_ATTEMPTS} intentos fallidos`, async () => {
-    // El usuario ya tiene MAX-1 intentos → este será el decisivo
+  // ── Caso: 5º intento fallido → bloqueo 5 minutos ───────────────────────────
+  it(`bloquea la cuenta 5 min al alcanzar exactamente ${LOGIN_LOCKOUT_FIRST_ATTEMPTS} intentos fallidos`, async () => {
     mockUsersRepo.findUserByEmail.mockResolvedValue(
-      buildUser({ failedAttempts: MAX_FAILED_ATTEMPTS - 1 }) as any
+      buildUser({ failedAttempts: LOGIN_LOCKOUT_FIRST_ATTEMPTS - 1 }) as any
     );
     mockBcrypt.comparePassword.mockResolvedValue(false as never);
 
     await expect(login('user@test.com', 'WrongPass!', '127.0.0.1'))
       .rejects.toThrow('Credenciales incorrectas');
 
+    const lockPatch = mockAuthRepo.updateUserById.mock.calls[0][1];
+    expect(lockPatch).toEqual(
+      expect.objectContaining({
+        status: USER_STATUS.LOCKED,
+        failedAttempts: LOGIN_LOCKOUT_FIRST_ATTEMPTS,
+      })
+    );
+    const until = lockPatch.lockedUntil as Date;
+    const deltaMin = (until.getTime() - Date.now()) / 60000;
+    expect(deltaMin).toBeGreaterThan(LOGIN_LOCKOUT_FIRST_MINUTES - 0.5);
+    expect(deltaMin).toBeLessThan(LOGIN_LOCKOUT_FIRST_MINUTES + 1);
+  });
+
+  // ── Caso: 10º intento fallido → bloqueo 30 minutos ──────────────────────────
+  it(`bloquea la cuenta 30 min al alcanzar exactamente ${LOGIN_LOCKOUT_SECOND_ATTEMPTS} intentos fallidos`, async () => {
+    mockUsersRepo.findUserByEmail.mockResolvedValue(
+      buildUser({ failedAttempts: LOGIN_LOCKOUT_SECOND_ATTEMPTS - 1 }) as any
+    );
+    mockBcrypt.comparePassword.mockResolvedValue(false as never);
+
+    await expect(login('user@test.com', 'WrongPass!', '127.0.0.1'))
+      .rejects.toThrow('Credenciales incorrectas');
+
+    const lockPatch = mockAuthRepo.updateUserById.mock.calls[0][1];
+    expect(lockPatch).toEqual(
+      expect.objectContaining({
+        status: USER_STATUS.LOCKED,
+        failedAttempts: LOGIN_LOCKOUT_SECOND_ATTEMPTS,
+      })
+    );
+    const until = lockPatch.lockedUntil as Date;
+    const deltaMin = (until.getTime() - Date.now()) / 60000;
+    expect(deltaMin).toBeGreaterThan(LOGIN_LOCKOUT_SECOND_MINUTES - 0.5);
+    expect(deltaMin).toBeLessThan(LOGIN_LOCKOUT_SECOND_MINUTES + 1);
+  });
+
+  // ── Caso: 15º intento fallido → cuenta deshabilitada ────────────────────────
+  it(`deshabilita la cuenta al alcanzar ${LOGIN_LOCKOUT_DISABLE_ATTEMPTS} intentos fallidos`, async () => {
+    mockUsersRepo.findUserByEmail.mockResolvedValue(
+      buildUser({ failedAttempts: LOGIN_LOCKOUT_DISABLE_ATTEMPTS - 1 }) as any
+    );
+    mockBcrypt.comparePassword.mockResolvedValue(false as never);
+
+    await expect(login('user@test.com', 'WrongPass!', '127.0.0.1'))
+      .rejects.toThrow('Cuenta deshabilitada. Contacta con el administrador');
+
     expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
       'user-1',
-      expect.objectContaining({ status: USER_STATUS.LOCKED })
+      expect.objectContaining({
+        status: USER_STATUS.DISABLED,
+        failedAttempts: LOGIN_LOCKOUT_DISABLE_ATTEMPTS,
+        lockedUntil: null,
+      })
     );
+  });
+
+  // ── Caso: bloqueo expirado → no reinicia intentos; 6º fallo no vuelve a bloquear
+  it('al expirar bloqueo mantiene failedAttempts y el 6º fallo no aplica nuevo lock', async () => {
+    const pastDate = new Date(Date.now() - 60_000);
+    mockUsersRepo.findUserByEmail.mockResolvedValue(
+      buildUser({
+        status: USER_STATUS.LOCKED,
+        lockedUntil: pastDate,
+        failedAttempts: LOGIN_LOCKOUT_FIRST_ATTEMPTS,
+      }) as any
+    );
+    mockBcrypt.comparePassword.mockResolvedValue(false as never);
+
+    await expect(login('user@test.com', 'WrongPass!', '127.0.0.1'))
+      .rejects.toThrow('Credenciales incorrectas');
+
+    expect(mockAuthRepo.updateUserById).toHaveBeenNthCalledWith(
+      1,
+      'user-1',
+      expect.objectContaining({ status: USER_STATUS.ACTIVE, lockedUntil: null })
+    );
+    expect(mockAuthRepo.updateUserById).toHaveBeenNthCalledWith(
+      2,
+      'user-1',
+      expect.objectContaining({ failedAttempts: 6 })
+    );
+    expect(mockAuthRepo.updateUserById.mock.calls[1][1]).not.toHaveProperty('status');
   });
 
   // ── Caso: Login exitoso — resetea intentos fallidos ─────────────────────────
