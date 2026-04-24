@@ -92,13 +92,6 @@ const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
     options: [], // se rellena dinámicamente
   },
   {
-    key: 'userId',
-    type: 'select',
-    label: 'Usuario',
-    className: 'w-48',
-    options: [], // se rellena dinámicamente
-  },
-  {
     key: 'userDepartment',
     type: 'select',
     label: 'Departamento',
@@ -109,6 +102,13 @@ const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
       { value: 'operaciones', label: 'Operaciones' },
       { value: 'administración', label: 'Administración' },
     ],
+  },
+  {
+    key: 'userId',
+    type: 'select',
+    label: 'Usuario',
+    className: 'w-48',
+    options: [], // se rellena dinámicamente
   },
   {
     key: 'from',
