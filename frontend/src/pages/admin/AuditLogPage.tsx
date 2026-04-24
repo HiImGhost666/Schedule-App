@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import {
@@ -10,10 +10,11 @@ import {
   RefreshCw,
   Lock,
   ArrowUpDown,
+  Building2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import type { AuditLog, PaginatedResponse } from '@/types';
+import type { AuditLog, PaginatedResponse, Branch } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
@@ -50,14 +51,16 @@ const IRREVERSIBLE_ACTIONS = [
 ];
 
 type TabType = 'reversible' | 'irreversible';
-type AuditSortBy = 'updatedAt' | 'createdAt' | 'action' | 'entityType';
+type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
 type SortOrder = 'asc' | 'desc';
-type AuditFilterKey = 'action' | 'entityType';
+type AuditFilterKey = 'action' | 'entityType' | 'userDepartment' | 'userId' | 'from' | 'to' | 'branchId';
 type AuditListResponse = PaginatedResponse<AuditLog>;
 type AuditDetails = {
   before?: unknown;
   after?: unknown;
 };
+
+const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
 
 const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
@@ -78,6 +81,27 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
       { value: 'Schedule', label: 'Turno' },
       { value: 'WebhookConfig', label: 'Webhook' },
     ],
+  },
+  {
+    key: 'userDepartment',
+    type: 'select',
+    options: [
+      { value: '', label: 'Todos los departamentos' },
+      { value: 'seguridad', label: 'Seguridad' },
+      { value: 'mantenimiento', label: 'Mantenimiento' },
+      { value: 'operaciones', label: 'Operaciones' },
+      { value: 'administración', label: 'Administración' },
+    ],
+  },
+  {
+    key: 'from',
+    type: 'date',
+    className: 'w-44',
+  },
+  {
+    key: 'to',
+    type: 'date',
+    className: 'w-44',
   },
 ];
 
@@ -194,8 +218,9 @@ function AuditTable({
           <thead>
             <tr className="bg-navy-50 border-b border-navy-100">
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('action', 'Acción')}</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">Usuario</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Nombre</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">{renderSortLabel('userName', 'Usuario')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">{renderSortLabel('userDepartment', 'Departamento')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Recurso</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">{renderSortLabel('entityType', 'Tipo')}</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('createdAt', 'Fecha')}</th>
               <th className="px-5 py-3.5" />
@@ -215,6 +240,13 @@ function AuditTable({
                   </span>
                 </td>
                 <td className="px-5 py-4 text-sm text-navy-600 hidden md:table-cell">{log.user?.name || 'Sistema'}</td>
+                <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">
+                  {log.user?.department ? (
+                    <span className="capitalize">{log.user.department}</span>
+                  ) : (
+                    <span className="text-navy-300">-</span>
+                  )}
+                </td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">{getLogDisplayName(log)}</td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden xl:table-cell">{getLogType(log)}</td>
                 <td className="px-5 py-4 text-xs text-navy-400">{formatDateTime(log.createdAt)}</td>
@@ -260,19 +292,61 @@ export function AuditLogPage() {
   const [activeTab, setActiveTab] = useState<TabType>(navState?.activeTab || 'reversible');
   const [filters, setFilters] = useState<Record<AuditFilterKey, string>>({
     action: '',
+    userId: '',
     entityType: '',
+    userDepartment: '',
+    from: '',
+    to: '',
+    branchId: '',
   });
-  const [sortBy, setSortBy] = useState<AuditSortBy>('updatedAt');
+  const [availableBranches, setAvailableBranches] = useState<Branch[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const [sortBy, setSortBy] = useState<AuditSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageRev, setPageRev] = useState(1);
   const [pageIrr, setPageIrr] = useState(1);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(navState?.selectedLogId || null);
   const queryClient = useQueryClient();
 
+  // Cargar sucursales al montar el componente
+  useEffect(() => {
+    api.get('/branches')
+      .then((r) => {
+        const branches = r.data?.data ?? [];
+        setAvailableBranches(branches);
+      })
+      .catch(() => setAvailableBranches([]));
+  }, []);
+
+  // Cargar usuarios según sucursal y departamento seleccionados
+  useEffect(() => {
+    const params: Record<string, string | number> = { limit: 200 };
+    if (filters.branchId) params.branchId = filters.branchId;
+    if (filters.userDepartment) params.department = filters.userDepartment;
+
+    if (filters.branchId || filters.userDepartment) {
+      api.get('/users', { params })
+        .then((r) => {
+          const users = r.data?.data ?? [];
+          setAvailableUsers(users.map((u: { id: string; name: string }) => ({ id: u.id, name: u.name })));
+        })
+        .catch(() => setAvailableUsers([]));
+    } else {
+      setAvailableUsers([]);
+    }
+    // Limpiar userId si cambia la sucursal o el departamento
+    setFilters((prev) => ({ ...prev, userId: '' }));
+  }, [filters.branchId, filters.userDepartment]);
+
   const commonParams = {
     limit: 20,
     action: filters.action || undefined,
     entityType: filters.entityType || undefined,
+    userId: filters.userId || undefined,
+    userDepartment: filters.userDepartment || undefined,
+    branchId: filters.branchId || undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
     sortBy,
     sortOrder,
   };
@@ -293,19 +367,19 @@ export function AuditLogPage() {
     }
 
     setSortBy(field);
-    setSortOrder(field === 'createdAt' || field === 'updatedAt' ? 'desc' : 'asc');
+    setSortOrder(field === 'createdAt' ? 'desc' : 'asc');
   };
 
   // Query para acciones REVERTIBLES
   const { data: dataRev, isLoading: loadingRev } = useQuery({
-    queryKey: ['audit', 'reversible', pageRev, filters.action, filters.entityType, sortBy, sortOrder],
+    queryKey: ['audit', 'reversible', pageRev, filters.action, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
     queryFn: () =>
       api.get('/audit', { params: { ...commonParams, page: pageRev, reversible: 'true' } }).then((r) => r.data),
   });
 
   // Query para acciones IRREVERSIBLES
   const { data: dataIrr, isLoading: loadingIrr } = useQuery({
-    queryKey: ['audit', 'irreversible', pageIrr, filters.action, filters.entityType, sortBy, sortOrder],
+    queryKey: ['audit', 'irreversible', pageIrr, filters.action, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
     queryFn: () =>
       api.get('/audit', { params: { ...commonParams, page: pageIrr, reversible: 'false' } }).then((r) => r.data),
   });
@@ -384,12 +458,49 @@ export function AuditLogPage() {
       </div>
 
       {/* Filters */}
-      <FilterTable
-        fields={AUDIT_FILTER_FIELDS}
-        values={filters}
-        onChange={handleFilterChange}
-        className="p-4 gap-4"
-      />
+      <div className="card px-4 py-3 flex flex-wrap gap-3">
+        <FilterTable
+          fields={AUDIT_FILTER_FIELDS}
+          values={filters}
+          onChange={handleFilterChange}
+          className="!p-0 !gap-3 !border-0 !shadow-none"
+        />
+        {/* Select de sucursal (filtro primario) */}
+        <div className="flex items-center gap-1.5">
+          <Building2 className="h-4 w-4 text-navy-300 shrink-0" />
+          <select
+            id="audit-branch-select"
+            value={filters.branchId}
+            onChange={(e) => handleFilterChange('branchId', e.target.value)}
+            className="input-field text-sm w-44"
+          >
+            <option value="">Todas las sucursales</option>
+            {availableBranches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {/* Select dinámico de usuarios según sucursal y departamento */}
+        <select
+          id="audit-user-select"
+          value={filters.userId}
+          onChange={(e) => handleFilterChange('userId', e.target.value)}
+          className="input-field text-sm w-48"
+        >
+          <option value="">
+            {filters.branchId || filters.userDepartment
+              ? 'Todos los usuarios'
+              : 'Selecciona sucursal o departamento'}
+          </option>
+          {availableUsers.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-navy-100">

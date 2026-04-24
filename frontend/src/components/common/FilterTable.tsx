@@ -8,7 +8,7 @@ export type FilterOption = {
 
 export type FilterFieldConfig<TFilterKey extends string> = {
   key: TFilterKey;
-  type: 'text' | 'select';
+  type: 'text' | 'select' | 'date';
   placeholder?: string;
   options?: FilterOption[];
   className?: string;
@@ -51,6 +51,19 @@ export function FilterTable<TFilterKey extends string>({
                 className={cn('input-field text-sm', showSearchIcon && 'with-icon')}
               />
             </div>
+          );
+        }
+
+        if (field.type === 'date') {
+          return (
+            <input
+              key={field.key}
+              id={field.id ?? String(field.key)}
+              type="date"
+              value={values[field.key] ?? ''}
+              onChange={(e) => onChange(field.key, e.target.value)}
+              className={cn('input-field text-sm w-44', field.className)}
+            />
           );
         }
 

@@ -30,7 +30,7 @@ type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
 type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
 type SortOrder = 'asc' | 'desc';
-type UsersFilterKey = 'search' | 'role' | 'status';
+type UsersFilterKey = 'search' | 'role' | 'status' | 'department' | 'employeeId' | 'branchId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
 
 const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
   {
@@ -38,6 +38,13 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
     type: 'text',
     placeholder: 'Buscar por nombre o email...',
     className: 'min-w-56',
+  },
+  {
+    key: 'employeeId',
+    type: 'text',
+    placeholder: 'ID empleado...',
+    className: 'min-w-36',
+    searchable: false,
   },
   {
     key: 'role',
@@ -58,6 +65,37 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
       { value: 'disabled', label: 'Deshabilitado' },
       { value: 'locked', label: 'Bloqueado' },
     ],
+  },
+  {
+    key: 'department',
+    type: 'select',
+    options: [
+      { value: '', label: 'Todos los departamentos' },
+      { value: 'seguridad', label: 'Seguridad' },
+      { value: 'mantenimiento', label: 'Mantenimiento' },
+      { value: 'operaciones', label: 'Operaciones' },
+      { value: 'administración', label: 'Administración' },
+    ],
+  },
+  {
+    key: 'lastLoginFrom',
+    type: 'date',
+    className: 'w-44',
+  },
+  {
+    key: 'lastLoginTo',
+    type: 'date',
+    className: 'w-44',
+  },
+  {
+    key: 'createdFrom',
+    type: 'date',
+    className: 'w-44',
+  },
+  {
+    key: 'createdTo',
+    type: 'date',
+    className: 'w-44',
   },
 ];
 
@@ -184,6 +222,13 @@ export function UsersPage() {
     search: '',
     role: '',
     status: navState?.status || '',
+    department: '',
+    employeeId: '',
+    branchId: '',
+    lastLoginFrom: '',
+    lastLoginTo: '',
+    createdFrom: '',
+    createdTo: '',
   });
   const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -212,7 +257,7 @@ export function UsersPage() {
   }, [menuOpenId]);
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
-    queryKey: ['users', page, filters.search, filters.role, filters.status, sortBy, sortOrder],
+    queryKey: ['users', page, filters, sortBy, sortOrder],
     queryFn: () =>
       api.get('/users', {
         params: {
@@ -221,6 +266,13 @@ export function UsersPage() {
           search: filters.search || undefined,
           role: filters.role || undefined,
           status: filters.status || undefined,
+          department: filters.department || undefined,
+          employeeId: filters.employeeId || undefined,
+          branchId: filters.branchId || undefined,
+          lastLoginFrom: filters.lastLoginFrom || undefined,
+          lastLoginTo: filters.lastLoginTo || undefined,
+          createdFrom: filters.createdFrom || undefined,
+          createdTo: filters.createdTo || undefined,
           sortBy,
           sortOrder,
         },

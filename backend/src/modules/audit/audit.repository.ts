@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 
 export type AuditLogWhere = Prisma.Args<typeof prisma.auditLog, 'findMany'>['where'];
 type AuditLogCreateData = Prisma.Args<typeof prisma.auditLog, 'create'>['data'];
-export type AuditSortBy = 'updatedAt' | 'createdAt' | 'action' | 'entityType';
+export type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
 export type SortOrder = 'asc' | 'desc';
 
 function getDb(tx?: TransactionClient) {
@@ -19,17 +19,23 @@ export async function findAuditLogs(
   where: AuditLogWhere,
   page: number,
   limit: number,
-  sortBy: AuditSortBy = 'updatedAt',
+  sortBy: AuditSortBy = 'createdAt',
   sortOrder: SortOrder = 'desc'
 ) {
+  // Construir orderBy dinámicamente: los campos de relación usan sintaxis anidada
+  const relationSortFields: AuditSortBy[] = ['userName', 'userDepartment'];
+  const orderBy = relationSortFields.includes(sortBy)
+    ? { user: { [sortBy === 'userName' ? 'name' : 'department']: sortOrder } }
+    : { [sortBy]: sortOrder };
+
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, department: true } },
         rolledBackBy: { select: { id: true, name: true } },
       },
-      orderBy: { [sortBy]: sortOrder },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     }),
@@ -42,9 +48,9 @@ export async function findAuditLogs(
 export async function findAuditLogById(id: string) {
   return prisma.auditLog.findUnique({
     where: { id },
-    include: {
-      user: { select: { id: true, name: true, email: true } },
-      rolledBackBy: { select: { id: true, name: true } },
-    },
+      include: {
+        user: { select: { id: true, name: true, email: true, department: true } },
+        rolledBackBy: { select: { id: true, name: true } },
+      },
   });
 }
