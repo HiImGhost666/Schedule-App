@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Lock,
   ArrowUpDown,
-  Building2,
   Download,
   FileDown,
   Calendar,
@@ -63,7 +62,7 @@ type AuditDetails = {
   after?: unknown;
 };
 
-const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
+const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'action',
     type: 'text',
@@ -84,6 +83,20 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
       { value: 'Schedule', label: 'Turno' },
       { value: 'WebhookConfig', label: 'Webhook' },
     ],
+  },
+  {
+    key: 'branchId',
+    type: 'select',
+    label: 'Sucursal',
+    className: 'w-44',
+    options: [], // se rellena dinámicamente
+  },
+  {
+    key: 'userId',
+    type: 'select',
+    label: 'Usuario',
+    className: 'w-48',
+    options: [], // se rellena dinámicamente
   },
   {
     key: 'userDepartment',
@@ -789,48 +802,38 @@ export function AuditLogPage() {
       </div>
 
       {/* Filters */}
-      <div className="card px-4 py-3 flex flex-wrap gap-3">
+      <div className="card px-4 py-3">
         <FilterTable
-          fields={AUDIT_FILTER_FIELDS}
+          fields={AUDIT_FILTER_FIELDS_BASE.map((field) => {
+            if (field.key === 'branchId') {
+              return {
+                ...field,
+                options: [
+                  { value: '', label: 'Todas las sucursales' },
+                  ...availableBranches.map((b) => ({ value: b.id, label: b.name })),
+                ],
+              };
+            }
+            if (field.key === 'userId') {
+              return {
+                ...field,
+                options: [
+                  {
+                    value: '',
+                    label: filters.branchId || filters.userDepartment
+                      ? 'Todos los usuarios'
+                      : 'Selecciona sucursal o departamento',
+                  },
+                  ...availableUsers.map((u) => ({ value: u.id, label: u.name })),
+                ],
+              };
+            }
+            return field;
+          })}
           values={filters}
           onChange={handleFilterChange}
           className="!p-0 !gap-3 !border-0 !shadow-none"
         />
-        {/* Select de sucursal (filtro primario) */}
-        <div className="flex items-center gap-1.5">
-          <Building2 className="h-4 w-4 text-navy-300 shrink-0" />
-          <select
-            id="audit-branch-select"
-            value={filters.branchId}
-            onChange={(e) => handleFilterChange('branchId', e.target.value)}
-            className="input-field text-sm w-44"
-          >
-            <option value="">Todas las sucursales</option>
-            {availableBranches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {/* Select dinámico de usuarios según sucursal y departamento */}
-        <select
-          id="audit-user-select"
-          value={filters.userId}
-          onChange={(e) => handleFilterChange('userId', e.target.value)}
-          className="input-field text-sm w-48"
-        >
-          <option value="">
-            {filters.branchId || filters.userDepartment
-              ? 'Todos los usuarios'
-              : 'Selecciona sucursal o departamento'}
-          </option>
-          {availableUsers.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Tabs */}

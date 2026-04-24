@@ -30,70 +30,7 @@ type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
 type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
 type SortOrder = 'asc' | 'desc';
-type UsersFilterKey = 'search' | 'role' | 'status' | 'department' | 'employeeId' | 'branchId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
-
-const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
-  {
-    key: 'search',
-    type: 'text',
-    label: 'Buscar',
-    placeholder: 'Nombre o email...',
-    className: 'min-w-56',
-  },
-  {
-    key: 'employeeId',
-    type: 'text',
-    label: 'ID Empleado',
-    placeholder: 'ID empleado...',
-    className: 'min-w-36',
-  },
-  {
-    key: 'role',
-    type: 'select',
-    label: 'Rol',
-    options: [
-      { value: '', label: 'Todos los roles' },
-      { value: 'admin', label: 'Administrador' },
-      { value: 'manager', label: 'Responsable' },
-      { value: 'viewer', label: 'Usuario' },
-    ],
-  },
-  {
-    key: 'status',
-    type: 'select',
-    label: 'Estado',
-    options: [
-      { value: '', label: 'Todos los estados' },
-      { value: 'active', label: 'Activo' },
-      { value: 'disabled', label: 'Deshabilitado' },
-      { value: 'locked', label: 'Bloqueado' },
-    ],
-  },
-  {
-    key: 'lastLoginFrom',
-    type: 'date',
-    label: 'Último login desde',
-    className: 'w-36',
-  },
-  {
-    key: 'lastLoginTo',
-    type: 'date',
-    label: 'Último login hasta',
-    className: 'w-36',
-  },
-  {
-    key: 'createdFrom',
-    type: 'date',
-    label: 'Creado desde',
-    className: 'w-36',
-  },
-  {
-    key: 'createdTo',
-    type: 'date',
-    label: 'Creado hasta',
-    className: 'w-36',
-  },
-];
+type UsersFilterKey = 'search' | 'role' | 'status' | 'department' | 'branchId' | 'employeeId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
 
 function escapeCsvValue(value: string): string {
   if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
@@ -253,7 +190,89 @@ export function UsersPage() {
     };
   }, [menuOpenId]);
 
+  const { data: branchesData } = useQuery<{ data: Branch[] }>({
+    queryKey: ['branches', 'users-page'],
+    queryFn: () => api.get('/branches').then((r) => r.data),
+  });
+
+  const branchOptions = [
+    { value: '', label: 'Todas las sucursales' },
+    ...(branchesData?.data ?? []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
+  ];
+
+  const USERS_FILTER_FIELDS_DYNAMIC: Array<FilterFieldConfig<UsersFilterKey>> = [
+    {
+      key: 'search',
+      type: 'text',
+      label: 'Buscar',
+      placeholder: 'Nombre o email...',
+      className: 'min-w-56',
+    },
+    {
+      key: 'role',
+      type: 'select',
+      label: 'Rol',
+      options: [
+        { value: '', label: 'Todos los roles' },
+        { value: 'admin', label: 'Administrador' },
+        { value: 'manager', label: 'Responsable' },
+        { value: 'viewer', label: 'Usuario' },
+      ],
+    },
+    {
+      key: 'status',
+      type: 'select',
+      label: 'Estado',
+      options: [
+        { value: '', label: 'Todos los estados' },
+        { value: 'active', label: 'Activo' },
+        { value: 'disabled', label: 'Deshabilitado' },
+        { value: 'locked', label: 'Bloqueado' },
+      ],
+    },
+    {
+      key: 'department',
+      type: 'select',
+      label: 'Departamento',
+      options: [
+        { value: '', label: 'Todos los departamentos' },
+        ...DEPARTMENT_VALUES.map((d) => ({ value: d, label: d })),
+      ],
+    },
+    {
+      key: 'branchId',
+      type: 'select',
+      label: 'Sucursal',
+      options: branchOptions,
+    },
+    {
+      key: 'lastLoginFrom',
+      type: 'date',
+      label: 'Último login desde',
+      className: 'w-36',
+    },
+    {
+      key: 'lastLoginTo',
+      type: 'date',
+      label: 'Último login hasta',
+      className: 'w-36',
+    },
+    {
+      key: 'createdFrom',
+      type: 'date',
+      label: 'Creado desde',
+      className: 'w-36',
+    },
+    {
+      key: 'createdTo',
+      type: 'date',
+      label: 'Creado hasta',
+      className: 'w-36',
+    },
+  ];
+
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
+
     queryKey: ['users', page, limit, filters, sortBy, sortOrder],
     queryFn: () =>
       api.get('/users', {
@@ -601,7 +620,7 @@ export function UsersPage() {
 
       {/* Filters */}
       <FilterTable
-        fields={USERS_FILTER_FIELDS}
+        fields={USERS_FILTER_FIELDS_DYNAMIC}
         values={filters}
         onChange={handleFilterChange}
       />
