@@ -1,5 +1,5 @@
-import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 export type FilterOption = {
   value: string;
@@ -8,12 +8,12 @@ export type FilterOption = {
 
 export type FilterFieldConfig<TFilterKey extends string> = {
   key: TFilterKey;
-  type: 'text' | 'select';
+  type: 'text' | 'select' | 'date';
+  label?: string;
   placeholder?: string;
   options?: FilterOption[];
   className?: string;
   id?: string;
-  searchable?: boolean;
 };
 
 type FilterTableProps<TFilterKey extends string> = {
@@ -29,38 +29,54 @@ export function FilterTable<TFilterKey extends string>({
   onChange,
   className,
 }: FilterTableProps<TFilterKey>) {
-  return (
-    <div className={cn('card px-4 py-3 flex flex-wrap gap-3', className)}>
-      {fields.map((field) => {
-        if (field.type === 'text') {
-          const showSearchIcon = field.searchable ?? true;
-          return (
-            <div
-              key={field.key}
-              className={cn(showSearchIcon ? 'relative flex-1 min-w-48' : 'flex-1 min-w-48', field.className)}
-            >
-              {showSearchIcon && (
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300" />
-              )}
-              <input
-                id={field.id ?? String(field.key)}
-                type="text"
-                placeholder={field.placeholder}
-                value={values[field.key] ?? ''}
-                onChange={(e) => onChange(field.key, e.target.value)}
-                className={cn('input-field text-sm', showSearchIcon && 'with-icon')}
-              />
-            </div>
-          );
-        }
+  const [showDateFilters, setShowDateFilters] = useState(false);
 
-        return (
+  const nonDateFields = fields.filter((f) => f.type !== 'date');
+  const dateFields = fields.filter((f) => f.type === 'date');
+
+  const renderField = (field: FilterFieldConfig<TFilterKey>) => {
+    if (field.type === 'text') {
+      return (
+        <div
+          key={field.key}
+          className={cn(field.className ?? 'min-w-44')}
+        >
+          {field.label && (
+            <label
+              htmlFor={field.id ?? String(field.key)}
+              className="block text-[11px] font-semibold text-navy-400 uppercase tracking-wider mb-1"
+            >
+              {field.label}
+            </label>
+          )}
+          <input
+            id={field.id ?? String(field.key)}
+            type="text"
+            placeholder={field.placeholder}
+            value={values[field.key] ?? ''}
+            onChange={(e) => onChange(field.key, e.target.value)}
+            className="input-field text-sm"
+          />
+        </div>
+      );
+    }
+
+    if (field.type === 'select') {
+      return (
+        <div key={field.key} className={cn(field.className ?? 'w-40')}>
+          {field.label && (
+            <label
+              htmlFor={field.id ?? String(field.key)}
+              className="block text-[11px] font-semibold text-navy-400 uppercase tracking-wider mb-1"
+            >
+              {field.label}
+            </label>
+          )}
           <select
-            key={field.key}
             id={field.id ?? String(field.key)}
             value={values[field.key] ?? ''}
             onChange={(e) => onChange(field.key, e.target.value)}
-            className={cn('input-field text-sm w-40', field.className)}
+            className="input-field text-sm w-full"
           >
             {(field.options ?? []).map((option) => (
               <option key={`${field.key}-${option.value}`} value={option.value}>
@@ -68,8 +84,53 @@ export function FilterTable<TFilterKey extends string>({
               </option>
             ))}
           </select>
-        );
-      })}
+        </div>
+      );
+    }
+
+    // type === 'date'
+    return (
+      <div key={field.key} className={cn(field.className ?? 'w-36')}>
+        {field.label && (
+          <label
+            htmlFor={field.id ?? String(field.key)}
+            className="block text-[11px] font-semibold text-navy-400 uppercase tracking-wider mb-1"
+          >
+            {field.label}
+          </label>
+        )}
+        <input
+          id={field.id ?? String(field.key)}
+          type="date"
+          value={values[field.key] ?? ''}
+          onChange={(e) => onChange(field.key, e.target.value)}
+          className="input-field text-sm w-full"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div className={cn('flex flex-wrap items-end gap-3', className)}>
+      {/* Non-date fields in exact order */}
+      {nonDateFields.map(renderField)}
+
+      {/* Toggle button for date filters */}
+      {dateFields.length > 0 && (
+        <div className="flex items-end">
+          <button
+            type="button"
+            onClick={() => setShowDateFilters((prev) => !prev)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-navy-500 hover:text-navy-700 hover:bg-navy-50 rounded-lg border border-navy-200 transition-colors"
+          >
+            <span className="font-mono text-xs">{showDateFilters ? '-' : '+'}</span>
+            <span>{showDateFilters ? 'Ocultar filtros de fecha' : 'más filtros'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Date filters (hidden by default) */}
+      {showDateFilters && dateFields.map(renderField)}
     </div>
   );
 }

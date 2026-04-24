@@ -125,16 +125,19 @@ export async function logAudit(params: AuditParams, tx?: TransactionClient) {
   }
 }
 
-/** Paginador del historial que soporta filtros complejos (fechas, entidad, actor y flag reversible/irreversible). */
+/** Paginador del historial que soporta filtros complejos (fechas, entidad, actor, departamento, sucursal y flag reversible/irreversible). */
 export async function listAuditLogs(params: {
   page: number;
   limit: number;
   userId?: string;
+  userName?: string;
   action?: string;
   entityType?: string;
   from?: Date;
   to?: Date;
   reversible?: 'true' | 'false';
+  userDepartment?: string;
+  branchId?: string;
   sortBy?: AuditSortBy;
   sortOrder?: SortOrder;
 }) {
@@ -148,6 +151,18 @@ export async function listAuditLogs(params: {
       ...(params.from && { gte: params.from }),
       ...(params.to && { lte: params.to }),
     };
+  }
+  // Filtro por nombre del usuario que realizó la acción (búsqueda parcial)
+  if (params.userName) {
+    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), name: { contains: params.userName } };
+  }
+  // Filtro por departamento del usuario que realizó la acción
+  if (params.userDepartment) {
+    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), department: params.userDepartment };
+  }
+  // Filtro por sucursal del usuario que realizó la acción
+  if (params.branchId) {
+    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), branchId: params.branchId };
   }
   // Filtros de pestaña: reversible vs irreversible
   if (params.reversible === 'true') {
@@ -165,7 +180,7 @@ export async function listAuditLogs(params: {
     auditWhere,
     params.page,
     params.limit,
-    params.sortBy ?? 'updatedAt',
+    params.sortBy ?? 'createdAt',
     params.sortOrder ?? 'desc',
   );
 

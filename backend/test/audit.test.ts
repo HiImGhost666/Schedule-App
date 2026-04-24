@@ -165,14 +165,14 @@ describe('listAuditLogs', () => {
     mockAuditRepo.findAuditLogs.mockResolvedValue({ logs: [], total: 0 } as any);
   });
 
-  it('usa orden por defecto updatedAt desc cuando no se envía sort', async () => {
+  it('usa orden por defecto createdAt desc cuando no se envía sort', async () => {
     await listAuditLogs({ page: 1, limit: 20 });
 
     expect(mockAuditRepo.findAuditLogs).toHaveBeenCalledWith(
       expect.any(Object),
       1,
       20,
-      'updatedAt',
+      'createdAt',
       'desc',
     );
   });

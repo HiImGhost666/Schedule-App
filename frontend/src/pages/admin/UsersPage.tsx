@@ -30,36 +30,7 @@ type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
 type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
 type SortOrder = 'asc' | 'desc';
-type UsersFilterKey = 'search' | 'role' | 'status';
-
-const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
-  {
-    key: 'search',
-    type: 'text',
-    placeholder: 'Buscar por nombre o email...',
-    className: 'min-w-56',
-  },
-  {
-    key: 'role',
-    type: 'select',
-    options: [
-      { value: '', label: 'Todos los roles' },
-      { value: 'admin', label: 'Administrador' },
-      { value: 'manager', label: 'Responsable' },
-      { value: 'viewer', label: 'Usuario' },
-    ],
-  },
-  {
-    key: 'status',
-    type: 'select',
-    options: [
-      { value: '', label: 'Todos los estados' },
-      { value: 'active', label: 'Activo' },
-      { value: 'disabled', label: 'Deshabilitado' },
-      { value: 'locked', label: 'Bloqueado' },
-    ],
-  },
-];
+type UsersFilterKey = 'search' | 'role' | 'status' | 'department' | 'branchId' | 'employeeId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
 
 function escapeCsvValue(value: string): string {
   if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
@@ -184,6 +155,13 @@ export function UsersPage() {
     search: '',
     role: '',
     status: navState?.status || '',
+    department: '',
+    employeeId: '',
+    branchId: '',
+    lastLoginFrom: '',
+    lastLoginTo: '',
+    createdFrom: '',
+    createdTo: '',
   });
   const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -212,8 +190,93 @@ export function UsersPage() {
     };
   }, [menuOpenId]);
 
+  const { data: branchesData } = useQuery<{ data: Branch[] }>({
+    queryKey: ['branches', 'users-page'],
+    queryFn: () => api.get('/branches').then((r) => r.data),
+  });
+
+  const branchOptions = [
+    { value: '', label: 'Todas las sucursales' },
+    ...(branchesData?.data ?? []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
+  ];
+
+  const USERS_FILTER_FIELDS_DYNAMIC: Array<FilterFieldConfig<UsersFilterKey>> = [
+    {
+      key: 'search',
+      type: 'text',
+      label: 'Buscar',
+      placeholder: 'Nombre o email...',
+      className: 'min-w-56',
+    },
+    {
+      key: 'role',
+      type: 'select',
+      label: 'Rol',
+      options: [
+        { value: '', label: 'Todos los roles' },
+        { value: 'admin', label: 'Administrador' },
+        { value: 'manager', label: 'Responsable' },
+        { value: 'viewer', label: 'Usuario' },
+      ],
+    },
+    {
+      key: 'status',
+      type: 'select',
+      label: 'Estado',
+      options: [
+        { value: '', label: 'Todos los estados' },
+        { value: 'active', label: 'Activo' },
+        { value: 'disabled', label: 'Deshabilitado' },
+        { value: 'locked', label: 'Bloqueado' },
+      ],
+    },
+    {
+      key: 'department',
+      type: 'select',
+      label: 'Departamento',
+      options: [
+        { value: '', label: 'Todos los departamentos' },
+        { value: 'seguridad', label: 'Seguridad' },
+        { value: 'mantenimiento', label: 'Mantenimiento' },
+        { value: 'operaciones', label: 'Operaciones' },
+        { value: 'administración', label: 'Administración' },
+      ],
+    },
+    {
+      key: 'branchId',
+      type: 'select',
+      label: 'Sucursal',
+      options: branchOptions,
+    },
+    {
+      key: 'lastLoginFrom',
+      type: 'date',
+      label: 'Último login desde',
+      className: 'w-36',
+    },
+    {
+      key: 'lastLoginTo',
+      type: 'date',
+      label: 'Último login hasta',
+      className: 'w-36',
+    },
+    {
+      key: 'createdFrom',
+      type: 'date',
+      label: 'Creado desde',
+      className: 'w-36',
+    },
+    {
+      key: 'createdTo',
+      type: 'date',
+      label: 'Creado hasta',
+      className: 'w-36',
+    },
+  ];
+
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
-    queryKey: ['users', page, limit, filters.search, filters.role, filters.status, sortBy, sortOrder],
+
+    queryKey: ['users', page, limit, filters, sortBy, sortOrder],
     queryFn: () =>
       api.get('/users', {
         params: {
@@ -222,6 +285,13 @@ export function UsersPage() {
           search: filters.search || undefined,
           role: filters.role || undefined,
           status: filters.status || undefined,
+          department: filters.department || undefined,
+          employeeId: filters.employeeId || undefined,
+          branchId: filters.branchId || undefined,
+          lastLoginFrom: filters.lastLoginFrom || undefined,
+          lastLoginTo: filters.lastLoginTo || undefined,
+          createdFrom: filters.createdFrom || undefined,
+          createdTo: filters.createdTo || undefined,
           sortBy,
           sortOrder,
         },
@@ -237,13 +307,14 @@ export function UsersPage() {
 
   const handleSortChange = (field: UsersSortBy) => {
     setPage(1);
-    if (sortBy === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-
-    setSortBy(field);
-    setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
+    setSortBy((prevSortBy) => {
+      if (prevSortBy === field) {
+        setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+        return prevSortBy;
+      }
+      setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
+      return field;
+    });
   };
 
   const renderSortLabel = (field: UsersSortBy, label: string) => {
@@ -251,14 +322,16 @@ export function UsersPage() {
     const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
 
     return (
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         onClick={() => handleSortChange(field)}
-        className="inline-flex items-center gap-1 hover:text-navy-600"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
       >
         <span>{label}</span>
         {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </button>
+      </span>
     );
   };
 
@@ -551,7 +624,7 @@ export function UsersPage() {
 
       {/* Filters */}
       <FilterTable
-        fields={USERS_FILTER_FIELDS}
+        fields={USERS_FILTER_FIELDS_DYNAMIC}
         values={filters}
         onChange={handleFilterChange}
       />

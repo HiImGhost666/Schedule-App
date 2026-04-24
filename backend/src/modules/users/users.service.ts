@@ -328,11 +328,36 @@ export async function getUsersList(params: {
   email?: string;
   role?: string;
   status?: string;
+  department?: string;
+  employeeId?: string;
+  branchId?: string;
+  lastLoginFrom?: string;
+  lastLoginTo?: string;
+  createdFrom?: string;
+  createdTo?: string;
   sortBy?: UsersSortBy;
   sortOrder?: SortOrder;
 }) {
   const normalizedEmail = params.email ? normalizeEmail(params.email) : undefined;
-  const where = buildUsersWhere(params.search, params.role, params.status, normalizedEmail);
+
+  const lastLoginFrom = params.lastLoginFrom ? new Date(params.lastLoginFrom) : undefined;
+  const lastLoginTo = params.lastLoginTo ? new Date(params.lastLoginTo) : undefined;
+  const createdFrom = params.createdFrom ? new Date(params.createdFrom) : undefined;
+  const createdTo = params.createdTo ? new Date(params.createdTo) : undefined;
+
+  const where = buildUsersWhere({
+    search: params.search,
+    role: params.role,
+    status: params.status,
+    email: normalizedEmail,
+    department: params.department,
+    employeeId: params.employeeId,
+    branchId: params.branchId,
+    lastLoginFrom,
+    lastLoginTo,
+    createdFrom,
+    createdTo,
+  });
   const [users, total] = await listUsers(
     where,
     params.page,

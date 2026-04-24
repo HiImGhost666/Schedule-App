@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import {
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import type { AuditLog, PaginatedResponse } from '@/types';
+import type { AuditLog, PaginatedResponse, Branch } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
@@ -53,19 +53,20 @@ const IRREVERSIBLE_ACTIONS = [
 ];
 
 type TabType = 'reversible' | 'irreversible';
-type AuditSortBy = 'updatedAt' | 'createdAt' | 'action' | 'entityType';
+type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
 type SortOrder = 'asc' | 'desc';
-type AuditFilterKey = 'action' | 'entityType';
+type AuditFilterKey = 'action' | 'entityType' | 'userDepartment' | 'userId' | 'from' | 'to' | 'branchId';
 type AuditListResponse = PaginatedResponse<AuditLog>;
 type AuditDetails = {
   before?: unknown;
   after?: unknown;
 };
 
-const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
+const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'action',
     type: 'text',
+    label: 'Acción',
     id: 'audit-search',
     placeholder: 'Filtrar por acción...',
     className: 'min-w-56',
@@ -73,6 +74,7 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'entityType',
     type: 'select',
+    label: 'Tipo entidad',
     id: 'audit-entity-type',
     className: 'w-44',
     options: [
@@ -81,6 +83,44 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
       { value: 'Schedule', label: 'Turno' },
       { value: 'WebhookConfig', label: 'Webhook' },
     ],
+  },
+  {
+    key: 'branchId',
+    type: 'select',
+    label: 'Sucursal',
+    className: 'w-44',
+    options: [], // se rellena dinámicamente
+  },
+  {
+    key: 'userDepartment',
+    type: 'select',
+    label: 'Departamento',
+    options: [
+      { value: '', label: 'Todos los departamentos' },
+      { value: 'seguridad', label: 'Seguridad' },
+      { value: 'mantenimiento', label: 'Mantenimiento' },
+      { value: 'operaciones', label: 'Operaciones' },
+      { value: 'administración', label: 'Administración' },
+    ],
+  },
+  {
+    key: 'userId',
+    type: 'select',
+    label: 'Usuario',
+    className: 'w-48',
+    options: [], // se rellena dinámicamente
+  },
+  {
+    key: 'from',
+    type: 'date',
+    label: 'Fecha desde',
+    className: 'w-36',
+  },
+  {
+    key: 'to',
+    type: 'date',
+    label: 'Fecha hasta',
+    className: 'w-36',
   },
 ];
 
@@ -478,14 +518,16 @@ function AuditTable({
     const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
 
     return (
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         onClick={() => onSortChange(field)}
-        className="inline-flex items-center gap-1 hover:text-navy-600"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
       >
         <span>{label}</span>
         {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </button>
+      </span>
     );
   };
 
@@ -509,8 +551,9 @@ function AuditTable({
           <thead>
             <tr className="bg-navy-50 border-b border-navy-100">
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('action', 'Acción')}</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">Usuario</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Nombre</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">{renderSortLabel('userName', 'Usuario')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">{renderSortLabel('userDepartment', 'Departamento')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Recurso</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">{renderSortLabel('entityType', 'Tipo')}</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('createdAt', 'Fecha')}</th>
               <th className="px-5 py-3.5" />
@@ -530,6 +573,13 @@ function AuditTable({
                   </span>
                 </td>
                 <td className="px-5 py-4 text-sm text-navy-600 hidden md:table-cell">{log.user?.name || 'Sistema'}</td>
+                <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">
+                  {log.user?.department ? (
+                    <span className="capitalize">{log.user.department}</span>
+                  ) : (
+                    <span className="text-navy-300">-</span>
+                  )}
+                </td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">{getLogDisplayName(log)}</td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden xl:table-cell">{getLogType(log)}</td>
                 <td className="px-5 py-4 text-xs text-navy-400">{formatDateTime(log.createdAt)}</td>
@@ -575,9 +625,16 @@ export function AuditLogPage() {
   const [activeTab, setActiveTab] = useState<TabType>(navState?.activeTab || 'reversible');
   const [filters, setFilters] = useState<Record<AuditFilterKey, string>>({
     action: '',
+    userId: '',
     entityType: '',
+    userDepartment: '',
+    from: '',
+    to: '',
+    branchId: '',
   });
-  const [sortBy, setSortBy] = useState<AuditSortBy>('updatedAt');
+  const [availableBranches, setAvailableBranches] = useState<Branch[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const [sortBy, setSortBy] = useState<AuditSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageRev, setPageRev] = useState(1);
   const [pageIrr, setPageIrr] = useState(1);
@@ -585,10 +642,49 @@ export function AuditLogPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const queryClient = useQueryClient();
 
+  // Cargar sucursales al montar el componente
+  useEffect(() => {
+    api.get('/branches')
+      .then((r) => {
+        const branches = r.data?.data ?? [];
+        setAvailableBranches(branches);
+      })
+      .catch(() => setAvailableBranches([]));
+  }, []);
+
+  // Cargar usuarios según sucursal y departamento seleccionados
+  useEffect(() => {
+    if (!filters.branchId && !filters.userDepartment) {
+      return;
+    }
+
+    const params: Record<string, string | number> = { limit: 100 };
+    if (filters.branchId) params.branchId = filters.branchId;
+    if (filters.userDepartment) params.department = filters.userDepartment;
+
+    let cancelled = false;
+    api.get('/users', { params })
+      .then((r) => {
+        if (cancelled) return;
+        const users = r.data?.data ?? [];
+        setAvailableUsers(users.map((u: { id: string; name: string }) => ({ id: u.id, name: u.name })));
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableUsers([]);
+      });
+
+    return () => { cancelled = true; };
+  }, [filters.branchId, filters.userDepartment]);
+
   const commonParams = {
     limit: 20,
     action: filters.action || undefined,
     entityType: filters.entityType || undefined,
+    userId: filters.userId || undefined,
+    userDepartment: filters.userDepartment || undefined,
+    branchId: filters.branchId || undefined,
+    from: filters.from ? `${filters.from}T00:00:00.000Z` : undefined,
+    to: filters.to ? `${filters.to}T23:59:59.999Z` : undefined,
     sortBy,
     sortOrder,
   };
@@ -609,19 +705,19 @@ export function AuditLogPage() {
     }
 
     setSortBy(field);
-    setSortOrder(field === 'createdAt' || field === 'updatedAt' ? 'desc' : 'asc');
+    setSortOrder(field === 'createdAt' ? 'desc' : 'asc');
   };
 
   // Query para acciones REVERTIBLES
   const { data: dataRev, isLoading: loadingRev } = useQuery({
-    queryKey: ['audit', 'reversible', pageRev, filters.action, filters.entityType, sortBy, sortOrder],
+    queryKey: ['audit', 'reversible', pageRev, filters.action, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
     queryFn: () =>
       api.get('/audit', { params: { ...commonParams, page: pageRev, reversible: 'true' } }).then((r) => r.data),
   });
 
   // Query para acciones IRREVERSIBLES
   const { data: dataIrr, isLoading: loadingIrr } = useQuery({
-    queryKey: ['audit', 'irreversible', pageIrr, filters.action, filters.entityType, sortBy, sortOrder],
+    queryKey: ['audit', 'irreversible', pageIrr, filters.action, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
     queryFn: () =>
       api.get('/audit', { params: { ...commonParams, page: pageIrr, reversible: 'false' } }).then((r) => r.data),
   });
@@ -710,12 +806,39 @@ export function AuditLogPage() {
       </div>
 
       {/* Filters */}
-      <FilterTable
-        fields={AUDIT_FILTER_FIELDS}
-        values={filters}
-        onChange={handleFilterChange}
-        className="p-4 gap-4"
-      />
+      <div className="card px-4 py-3">
+        <FilterTable
+          fields={AUDIT_FILTER_FIELDS_BASE.map((field) => {
+            if (field.key === 'branchId') {
+              return {
+                ...field,
+                options: [
+                  { value: '', label: 'Todas las sucursales' },
+                  ...availableBranches.map((b) => ({ value: b.id, label: b.name })),
+                ],
+              };
+            }
+            if (field.key === 'userId') {
+              return {
+                ...field,
+                options: [
+                  {
+                    value: '',
+                    label: filters.branchId || filters.userDepartment
+                      ? 'Todos los usuarios'
+                      : 'Selecciona sucursal o departamento',
+                  },
+                  ...availableUsers.map((u) => ({ value: u.id, label: u.name })),
+                ],
+              };
+            }
+            return field;
+          })}
+          values={filters}
+          onChange={handleFilterChange}
+          className="!p-0 !gap-3 !border-0 !shadow-none"
+        />
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-navy-100">

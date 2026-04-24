@@ -168,16 +168,43 @@ export function listUserSchedules(userId: string, from?: Date, to?: Date) {
   });
 }
 
-export function buildUsersWhere(search?: string, role?: string, status?: string, email?: string): UserWhere {
+export function buildUsersWhere(params: {
+  search?: string;
+  role?: string;
+  status?: string;
+  email?: string;
+  department?: string;
+  employeeId?: string;
+  branchId?: string;
+  lastLoginFrom?: Date;
+  lastLoginTo?: Date;
+  createdFrom?: Date;
+  createdTo?: Date;
+}): UserWhere {
   const where: UserWhere = {
     NOT: { email: { startsWith: 'deleted_' } },
   };
-  if (search) {
-    where.OR = [{ name: { contains: search } }, { email: { contains: search } }];
+  if (params.search) {
+    where.OR = [{ name: { contains: params.search } }, { email: { contains: params.search } }];
   }
-  if (email) where.email = email;
-  if (role) where.role = role;
-  if (status) where.status = status;
+  if (params.email) where.email = params.email;
+  if (params.role) where.role = params.role;
+  if (params.status) where.status = params.status;
+  if (params.department) where.department = params.department;
+  if (params.employeeId) where.employeeId = { contains: params.employeeId };
+  if (params.branchId) where.branchId = params.branchId;
+  if (params.lastLoginFrom || params.lastLoginTo) {
+    where.lastLoginAt = {
+      ...(params.lastLoginFrom && { gte: params.lastLoginFrom }),
+      ...(params.lastLoginTo && { lte: params.lastLoginTo }),
+    };
+  }
+  if (params.createdFrom || params.createdTo) {
+    where.createdAt = {
+      ...(params.createdFrom && { gte: params.createdFrom }),
+      ...(params.createdTo && { lte: params.createdTo }),
+    };
+  }
   return where;
 }
 

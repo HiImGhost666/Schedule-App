@@ -193,9 +193,10 @@ export interface AuditLog {
   detailsJson?: unknown;
   ipAddress?: string;
   createdAt: string;
+  updatedAt: string;
   rolledBackAt?: string | null;
   rolledBackBy?: { id: string; name: string } | null;
-  user?: { id: string; name: string; email: string } | null;
+  user?: { id: string; name: string; email: string; department?: string | null } | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -340,9 +341,6 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   test: 'Prueba',
 };
 
-// Security login lockout (sync with backend/src/config/constants.ts)
-export const LOGIN_LOCKOUT_FIRST_ATTEMPTS = 5;
-export const LOGIN_LOCKOUT_FIRST_MINUTES = 5;
-export const LOGIN_LOCKOUT_SECOND_ATTEMPTS = 10;
-export const LOGIN_LOCKOUT_SECOND_MINUTES = 30;
-export const LOGIN_LOCKOUT_DISABLE_ATTEMPTS = 15;
+// Security Constants (Sync with backend/src/config/constants.ts)
+export const MAX_FAILED_ATTEMPTS = 5;
+export const LOCKOUT_MINUTES = 15;
