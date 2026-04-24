@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler.middleware';
 import authRouter from './modules/auth/auth.router';
@@ -42,36 +41,10 @@ app.use(cors({
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  statusCode: 400,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: 'Demasiadas solicitudes. Inténtalo más tarde.',
-    code: 'BAD_REQUEST',
-  },
-});
-app.use(limiter);
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  statusCode: 401,
-  message: {
-    success: false,
-    error: 'Demasiados intentos de login. Inténtalo más tarde.',
-    code: 'UNAUTHORIZED',
-  },
-});
-
 app.get('/api/health', (_req, res) => {
   return sendSuccess(res, { status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/schedules', schedulesRouter);

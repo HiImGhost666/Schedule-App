@@ -193,7 +193,10 @@ export interface AuditLog {
   detailsJson?: unknown;
   ipAddress?: string;
   createdAt: string;
-  user?: { id: string; name: string; email: string } | null;
+  updatedAt: string;
+  rolledBackAt?: string | null;
+  rolledBackBy?: { id: string; name: string } | null;
+  user?: { id: string; name: string; email: string; department?: string | null } | null;
 }
 
 export interface PaginatedResponse<T> {

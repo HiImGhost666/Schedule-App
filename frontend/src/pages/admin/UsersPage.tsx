@@ -36,12 +36,14 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
   {
     key: 'search',
     type: 'text',
-    placeholder: 'Buscar por nombre o email...',
+    label: 'Buscar',
+    placeholder: 'Nombre o email...',
     className: 'min-w-56',
   },
   {
     key: 'employeeId',
     type: 'text',
+    label: 'ID Empleado',
     placeholder: 'ID empleado...',
     className: 'min-w-36',
     searchable: false,
@@ -49,6 +51,7 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
   {
     key: 'role',
     type: 'select',
+    label: 'Rol',
     options: [
       { value: '', label: 'Todos los roles' },
       { value: 'admin', label: 'Administrador' },
@@ -59,6 +62,7 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
   {
     key: 'status',
     type: 'select',
+    label: 'Estado',
     options: [
       { value: '', label: 'Todos los estados' },
       { value: 'active', label: 'Activo' },
@@ -67,35 +71,28 @@ const USERS_FILTER_FIELDS: Array<FilterFieldConfig<UsersFilterKey>> = [
     ],
   },
   {
-    key: 'department',
-    type: 'select',
-    options: [
-      { value: '', label: 'Todos los departamentos' },
-      { value: 'seguridad', label: 'Seguridad' },
-      { value: 'mantenimiento', label: 'Mantenimiento' },
-      { value: 'operaciones', label: 'Operaciones' },
-      { value: 'administración', label: 'Administración' },
-    ],
-  },
-  {
     key: 'lastLoginFrom',
     type: 'date',
-    className: 'w-44',
+    label: 'Último login desde',
+    className: 'w-36',
   },
   {
     key: 'lastLoginTo',
     type: 'date',
-    className: 'w-44',
+    label: 'Último login hasta',
+    className: 'w-36',
   },
   {
     key: 'createdFrom',
     type: 'date',
-    className: 'w-44',
+    label: 'Creado desde',
+    className: 'w-36',
   },
   {
     key: 'createdTo',
     type: 'date',
-    className: 'w-44',
+    label: 'Creado hasta',
+    className: 'w-36',
   },
 ];
 

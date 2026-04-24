@@ -63,12 +63,11 @@ type AuditDetails = {
   after?: unknown;
 };
 
-const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
-
 const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'action',
     type: 'text',
+    label: 'Acción',
     id: 'audit-search',
     placeholder: 'Filtrar por acción...',
     className: 'min-w-56',
@@ -76,6 +75,7 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'entityType',
     type: 'select',
+    label: 'Tipo entidad',
     id: 'audit-entity-type',
     className: 'w-44',
     options: [
@@ -88,6 +88,7 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'userDepartment',
     type: 'select',
+    label: 'Departamento',
     options: [
       { value: '', label: 'Todos los departamentos' },
       { value: 'seguridad', label: 'Seguridad' },
@@ -99,12 +100,14 @@ const AUDIT_FILTER_FIELDS: Array<FilterFieldConfig<AuditFilterKey>> = [
   {
     key: 'from',
     type: 'date',
-    className: 'w-44',
+    label: 'Fecha desde',
+    className: 'w-36',
   },
   {
     key: 'to',
     type: 'date',
-    className: 'w-44',
+    label: 'Fecha hasta',
+    className: 'w-36',
   },
 ];
 
