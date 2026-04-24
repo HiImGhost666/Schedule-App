@@ -37,13 +37,20 @@ const defaultTheme: ThemeConfig = structuredClone(DEFAULT_THEME);
 const uiStoreState = {
   themeConfig: defaultTheme,
   themeDraft: null as ThemeConfig | null,
+  themePresetHoverPreview: null as ThemeConfig | null,
   setThemeConfig: vi.fn(),
   setThemeDraft: vi.fn(),
+  setThemePresetHoverPreview: vi.fn(),
   resetDraft: vi.fn(),
 };
 
 vi.mock('@/store/uiStore', () => ({
   useUIStore: () => uiStoreState,
+  getEffectiveDisplayTheme: (s: {
+    themeConfig: ThemeConfig;
+    themeDraft: ThemeConfig | null;
+    themePresetHoverPreview: ThemeConfig | null;
+  }) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
 }));
 
 function makePreset(id: string, name: string): { id: string; name: string; description: string; theme: ThemeConfig } {
@@ -107,6 +114,7 @@ describe('ThemeManagerPage', () => {
     uiStoreState.themeDraft = { ...defaultTheme, preset: 'light' };
     uiStoreState.setThemeConfig.mockReset();
     uiStoreState.setThemeDraft.mockReset();
+    uiStoreState.setThemePresetHoverPreview.mockReset();
     uiStoreState.resetDraft.mockReset();
 
     setupApiMocks();

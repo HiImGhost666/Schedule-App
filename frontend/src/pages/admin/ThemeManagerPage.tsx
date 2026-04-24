@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
+  ChevronDown,
   Palette,
   Plus,
   RotateCcw,
@@ -13,11 +14,10 @@ import {
   UploadCloud,
   FileImage,
 } from "lucide-react";
-import { useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import api from "@/config/api";
-import { DEFAULT_THEME, applyThemeToDocument } from "@/config/theme";
-import { useUIStore } from "@/store/uiStore";
+import { DEFAULT_THEME } from "@/config/theme";
+import { getEffectiveDisplayTheme, useUIStore } from "@/store/uiStore";
 import type { ThemeConfig, ThemeLogoVariant, ThemePreset } from "@/types";
 import LogoClaro from "@/assets/Logo_Claro.webp";
 import LogoOscuro from "@/assets/Logo_Oscuro.webp";
@@ -158,6 +158,10 @@ function isBasePreset(id: string) {
 
 function isPersistedCustomPreset(id: string) {
   return id.startsWith("custom_");
+}
+
+function presetToTheme(p: { id: string; theme: ThemeConfig }): ThemeConfig {
+  return cloneTheme({ ...p.theme, preset: p.id as ThemeConfig["preset"] });
 }
 
 // ─── Create Preset Modal ──────────────────────────────────────────────────────
@@ -338,14 +342,40 @@ function RenamePresetModal({ preset, onClose, onRenamed }: RenamePresetModalProp
 
 export function ThemeManagerPage() {
   const qc = useQueryClient();
-  const { themeConfig, themeDraft, setThemeConfig, setThemeDraft, resetDraft } = useUIStore();
+  const { themeConfig, themeDraft, themePresetHoverPreview, setThemeConfig, setThemeDraft, setThemePresetHoverPreview, resetDraft } =
+    useUIStore();
   const [selectedPresetId, setSelectedPresetId] = useState<string>(
     themeDraft?.preset || themeConfig?.preset || ""
   );
+  const [presetMenuOpen, setPresetMenuOpen] = useState(false);
+  const presetPickerRef = useRef<HTMLDivElement>(null);
+  const presetListId = useId();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renamePreset, setRenamePreset] = useState<ExtendedThemePreset | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<ExtendedThemePreset | null>(null);
+
+  useEffect(() => {
+    if (!presetMenuOpen) return;
+    const close = (e: PointerEvent) => {
+      if (presetPickerRef.current && !presetPickerRef.current.contains(e.target as Node)) {
+        setPresetMenuOpen(false);
+        setThemePresetHoverPreview(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPresetMenuOpen(false);
+        setThemePresetHoverPreview(null);
+      }
+    };
+    document.addEventListener("pointerdown", close, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [presetMenuOpen, setThemePresetHoverPreview]);
 
   // ── Site branding state ────────────────────────────────────────
   const [siteTitleDraft, setSiteTitleDraft] = useState<string | null>(null);
@@ -377,8 +407,7 @@ export function ThemeManagerPage() {
     onSuccess: (res) => {
       const url = res.data.data.faviconUrl;
       setSiteFaviconUrlDraft(url);
-      applyFavicon(url, { cacheBust: true });
-      toast.success('Favicon subido correctamente');
+      toast.success('Favicon subido. Pulsa «Guardar identidad» para aplicarlo en el sitio y en la pestaña del navegador.');
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Error al subir el favicon'));
@@ -424,7 +453,7 @@ export function ThemeManagerPage() {
     },
   });
 
-  const activeTheme = themeDraft || themeConfig || DEFAULT_THEME;
+  const activeTheme = getEffectiveDisplayTheme({ themeConfig, themeDraft, themePresetHoverPreview });
 
   const { data: presetsRaw = [] } = useQuery({
     queryKey: ["theme-presets"],
@@ -518,8 +547,8 @@ export function ThemeManagerPage() {
       if (deleteConfirm?.id === selectedPresetId) {
         const fallback = themeConfig || DEFAULT_THEME;
         setSelectedPresetId(fallback.preset);
+        setThemePresetHoverPreview(null);
         setThemeDraft(null);
-        applyThemeToDocument(fallback);
       }
       setDeleteConfirm(null);
       toast.success("Preset eliminado");
@@ -539,20 +568,6 @@ export function ThemeManagerPage() {
     }
     target[path[path.length - 1]] = value;
     setThemeDraft(draft);
-  };
-
-  const applyPreset = (presetId: string) => {
-    const preset = presets.find((p) => p.id === presetId);
-    if (!preset) return;
-    setSelectedPresetId(presetId);
-    const nextTheme = cloneTheme({
-      ...preset.theme,
-      preset: preset.id as ThemeConfig["preset"],
-    });
-    setThemeDraft(nextTheme);
-    setThemeConfig(nextTheme);
-    applyThemeToDocument(nextTheme);
-    toast.success("Tema aplicado");
   };
 
   const setLogoVariant = (logoVariant: ThemeLogoVariant) => {
@@ -646,38 +661,111 @@ export function ThemeManagerPage() {
         <div className="lg:col-span-2 card p-5 space-y-5">
           {/* Preset selector */}
           <div>
-            <label className="block text-sm font-medium text-theme-muted mb-2">Preset</label>
+            <label className="block text-sm font-medium text-theme-muted mb-2" id={presetListId + "-label"}>
+              Preset
+            </label>
             <div className="flex gap-2">
-              <select
-                value={selectedPresetId}
-                onChange={(e) => setSelectedPresetId(e.target.value)}
-                className="input-field text-sm flex-1"
+              <div
+                ref={presetPickerRef}
+                className="relative min-w-0 flex-1"
+                onPointerLeave={(e) => {
+                  if (e.relatedTarget && presetPickerRef.current?.contains(e.relatedTarget as Node)) return;
+                  setThemePresetHoverPreview(null);
+                }}
               >
-                <optgroup label="Presets Base">
-                  {presets
-                    .filter((p) => isBasePreset(p.id))
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                </optgroup>
-                <optgroup label="Presets Personalizados">
-                  {presets
-                    .filter((p) => !isBasePreset(p.id))
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                </optgroup>
-              </select>
-              <button
-                onClick={() => applyPreset(selectedPresetId)}
-                className="btn-primary text-sm px-4 flex items-center gap-2 whitespace-nowrap"
-              >
-                <Palette className="h-4 w-4" />
-                Aplicar
-              </button>
+                <button
+                  type="button"
+                  className="input-field flex w-full min-w-0 items-center justify-between gap-2 text-left text-sm"
+                  aria-haspopup="listbox"
+                  aria-expanded={presetMenuOpen}
+                  aria-controls={presetMenuOpen ? presetListId : undefined}
+                  aria-labelledby={presetListId + "-label"}
+                  onClick={() => setPresetMenuOpen((o) => !o)}
+                >
+                  <span className="truncate">
+                    {presets.find((p) => p.id === selectedPresetId)?.name || "Elegir preset"}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 opacity-60 transition-transform ${presetMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {presetMenuOpen && (
+                  <ul
+                    id={presetListId}
+                    role="listbox"
+                    className="absolute z-50 mt-1 max-h-60 w-full list-none space-y-0.5 overflow-y-auto rounded-lg border p-1 shadow-md"
+                    style={{ borderColor: "var(--theme-border-color)", backgroundColor: "var(--theme-surface)" }}
+                  >
+                    <li className="pointer-events-none px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+                      Presets base
+                    </li>
+                    {presets
+                      .filter((p) => isBasePreset(p.id))
+                      .map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={p.id === selectedPresetId}
+                            onPointerEnter={() => setThemePresetHoverPreview(presetToTheme(p))}
+                            onClick={() => {
+                              setSelectedPresetId(p.id);
+                              setThemePresetHoverPreview(null);
+                              setPresetMenuOpen(false);
+                            }}
+                            className={`w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm ${
+                              p.id === selectedPresetId
+                                ? "font-semibold"
+                                : "text-theme-primary"
+                            }`}
+                            style={
+                              p.id === selectedPresetId
+                                ? { backgroundColor: "var(--theme-surface-muted)" }
+                                : { backgroundColor: "transparent" }
+                            }
+                          >
+                            {p.name}
+                          </button>
+                        </li>
+                      ))}
+                    <li className="pointer-events-none px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+                      Presets personalizados
+                    </li>
+                    {presets
+                      .filter((p) => !isBasePreset(p.id))
+                      .map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={p.id === selectedPresetId}
+                            onPointerEnter={() => setThemePresetHoverPreview(presetToTheme(p))}
+                            onClick={() => {
+                              setSelectedPresetId(p.id);
+                              setThemePresetHoverPreview(null);
+                              setPresetMenuOpen(false);
+                            }}
+                            className={`w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm ${
+                              p.id === selectedPresetId
+                                ? "font-semibold"
+                                : "text-theme-primary"
+                            }`}
+                            style={
+                              p.id === selectedPresetId
+                                ? { backgroundColor: "var(--theme-surface-muted)" }
+                                : { backgroundColor: "transparent" }
+                            }
+                          >
+                            {p.name}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="btn-ghost text-sm px-3 flex items-center gap-2 whitespace-nowrap border border-theme-color"
+                className="btn-ghost flex shrink-0 items-center gap-2 whitespace-nowrap border border-theme-color px-3 text-sm"
                 title="Crear nuevo preset personalizado basado en el tema actual"
               >
                 <Plus className="h-4 w-4" />
@@ -686,6 +774,11 @@ export function ThemeManagerPage() {
             </div>
             <p className="text-xs text-theme-muted mt-2">
               {presets.find((p) => p.id === selectedPresetId)?.description || "Preset editable"}
+            </p>
+            <p className="text-[11px] text-theme-muted mt-1.5">
+              Pasa el cursor o elige un preset para previsualizar. Pulsa <span className="font-medium">Guardar</span> en la
+              esquina superior para publicar el tema en toda la aplicación. Si sales de esta pantalla sin guardar, se
+              deshace la vista previa.
             </p>
           </div>
 

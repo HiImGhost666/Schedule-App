@@ -104,7 +104,11 @@ export function DashboardPage() {
 
   const lastMinuteCount = weekSchedules?.filter((s) => s.isLastMinute).length || 0;
 
-  const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
+  const isDark = isDarkThemePreset(
+    useUIStore(
+      (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+    ),
+  );
   const statCornerLinkClass = cn(
     'absolute bottom-4 right-4 p-1.5 rounded-lg transition-all duration-200 z-20 cursor-pointer transform group-hover:-translate-y-1 group-hover:scale-105 group-hover:shadow-md',
     isDark

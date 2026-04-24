@@ -20,7 +20,9 @@ const colorMap = {
 };
 
 export function StatCard({ title, value, icon: Icon, trend, color = 'navy', className }: StatCardProps) {
-  const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
+  const activeTheme = useUIStore(
+    (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+  );
   const isDark = isDarkThemePreset(activeTheme);
   const useNeutralIcon = isDark && color !== 'navy';
   const c = useNeutralIcon ? colorMap.navy : colorMap[color];
