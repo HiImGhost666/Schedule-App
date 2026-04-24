@@ -193,7 +193,11 @@ function ListEventContent({ info }: { info: EventContentArg }) {
 }
 
 function HolidayEventContent({ info }: { info: EventContentArg }) {
-  const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
+  const isDark = isDarkThemePreset(
+    useUIStore(
+      (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+    ),
+  );
   const holidayType = info.event.extendedProps.holidayType as BranchHoliday['type'] | undefined;
   const color = holidayType ? HOLIDAY_COLORS[holidayType] : '#5f6368';
   const labelColor = isDark ? '#e8eef4' : color;
@@ -306,7 +310,11 @@ export function SchedulePage() {
   const navState = location.state as { initialView?: string; initialDate?: string } | null;
   const { scheduleId } = useParams<{ scheduleId?: string }>();
   const user = useAuthStore((s) => s.user);
-  const isDark = isDarkThemePreset(useUIStore((s) => s.themeDraft || s.themeConfig));
+  const isDark = isDarkThemePreset(
+    useUIStore(
+      (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+    ),
+  );
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isAdmin = user?.role === 'admin';
   const canEdit = user?.role === 'admin' || user?.role === 'manager';

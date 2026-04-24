@@ -29,9 +29,9 @@ const adminItems = [
 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
-  const { sidebarCollapsed, toggleSidebar, themeConfig, themeDraft } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, themeConfig, themeDraft, themePresetHoverPreview } = useUIStore();
   const navigate = useNavigate();
-  const activeTheme = themeDraft || themeConfig;
+  const activeTheme = themePresetHoverPreview ?? themeDraft ?? themeConfig;
 
   const handleLogout = async () => {
     try {

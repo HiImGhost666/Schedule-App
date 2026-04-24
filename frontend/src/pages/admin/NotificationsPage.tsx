@@ -20,7 +20,9 @@ function StatusIcon({ status }: { status: string }) {
 export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [announcement, setAnnouncement] = useState('');
-  const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
+  const activeTheme = useUIStore(
+    (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
+  );
   const isDark = isDarkThemePreset(activeTheme);
 
   const { data, isLoading, refetch } = useQuery({

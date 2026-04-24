@@ -5,11 +5,15 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { useUIStore } from '@/store/uiStore';
 
-// Mockear applyThemeToDocument para evitar manipulación del DOM real
-vi.mock('@/config/theme', () => ({
-  DEFAULT_THEME: { primary: '#1e3a5f', mode: 'dark' },
-  applyThemeToDocument: vi.fn(),
-}));
+// Mockear applyThemeToDocument para evitar manipulación del DOM real; resto de theme real.
+const applyThemeToDocument = vi.fn();
+vi.mock('@/config/theme', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@/config/theme')>();
+  return {
+    ...m,
+    applyThemeToDocument: (...a: Parameters<typeof m.applyThemeToDocument>) => applyThemeToDocument(...a),
+  };
+});
 
 const mockTheme = {
   ...useUIStore.getState().themeConfig,
@@ -24,6 +28,7 @@ beforeEach(() => {
   useUIStore.setState({
     sidebarCollapsed: false,
     themeDraft: null,
+    themePresetHoverPreview: null,
   });
 });
 

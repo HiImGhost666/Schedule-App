@@ -1,5 +1,5 @@
 import { useEffect, useRef, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { queryClient } from '@/config/queryClient';
@@ -8,7 +8,7 @@ import { ProtectedRoute, RoleGuard } from '@/components/auth/ProtectedRoute';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useAuthStore } from '@/store/authStore';
-import { useUIStore } from '@/store/uiStore';
+import { getEffectiveDisplayTheme, useUIStore } from '@/store/uiStore';
 import type { ThemeConfig } from '@/types';
 import { applyFavicon } from '@/lib/favicon';
 
@@ -32,6 +32,24 @@ const ThemeManagerPage = lazy(() =>
 const BranchesPage = lazy(() => import('@/pages/admin/BranchesPage').then((m) => ({ default: m.BranchesPage })));
 const HolidaysPage = lazy(() => import('@/pages/admin/HolidaysPage').then((m) => ({ default: m.HolidaysPage })));
 
+const THEME_MANAGER_PATH = '/admin/theme';
+
+/** Quitar previsualización de tema (borrador + hover) al navegar fuera de Apariencia. */
+function ClearThemeManagerPreviewOnRouteChange() {
+  const location = useLocation();
+  const prev = useRef(location.pathname);
+  const { setThemeDraft, setThemePresetHoverPreview } = useUIStore();
+
+  useEffect(() => {
+    if (prev.current === THEME_MANAGER_PATH && location.pathname !== THEME_MANAGER_PATH) {
+      setThemePresetHoverPreview(null);
+      setThemeDraft(null);
+    }
+    prev.current = location.pathname;
+  }, [location.pathname, setThemeDraft, setThemePresetHoverPreview]);
+  return null;
+}
+
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -40,7 +58,7 @@ function App() {
   const setTokens = useAuthStore((s) => s.setTokens);
   const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
   const logout = useAuthStore((s) => s.logout);
-  const activeTheme = useUIStore((s) => s.themeDraft || s.themeConfig);
+  const activeTheme = useUIStore((s) => getEffectiveDisplayTheme(s));
   const setThemeConfig = useUIStore((s) => s.setThemeConfig);
   const authBootstrappedRef = useRef(false);
 
@@ -113,6 +131,7 @@ function App() {
         </Suspense>
       ) : null}
       <BrowserRouter>
+        <ClearThemeManagerPreviewOnRouteChange />
         <Suspense
           fallback={
             <div className="min-h-screen flex items-center justify-center bg-navy-50">
