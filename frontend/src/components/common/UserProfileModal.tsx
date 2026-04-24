@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Mail, Phone, CalendarDays, ShieldAlert, Clock3, Activity } from 'lucide-react';
 import api from '@/config/api';
@@ -39,6 +39,14 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
       ),
     );
     const canLoadPrivateData = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+        const canLoadSchedules = Boolean(currentUser);
+    const canViewSecurityTab = canLoadPrivateData;
+
+    useEffect(() => {
+        if (!canViewSecurityTab && activeTab === 'security') {
+            setActiveTab('general');
+        }
+    }, [activeTab, canViewSecurityTab]);
 
     const { data: detailedUser, isLoading: loadingUserDetail } = useQuery({
         queryKey: ['user-profile-modal-detail', user?.id],
@@ -50,7 +58,7 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
     const { data: schedules = [], isLoading: loadingSchedules } = useQuery({
         queryKey: ['user-profile-modal-schedules', user?.id],
         queryFn: () => api.get<{ data: Schedule[] }>(`/users/${user!.id}/schedules`).then((r) => r.data.data),
-        enabled: open && canLoadPrivateData && Boolean(user?.id),
+        enabled: open && canLoadSchedules && Boolean(user?.id),
         retry: false,
     });
 
@@ -222,9 +230,11 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                             <button type="button" onClick={() => setActiveTab('schedules')} className={tabButtonClass('schedules')}>
                                 Guardias
                             </button>
-                            <button type="button" onClick={() => setActiveTab('security')} className={tabButtonClass('security')}>
-                                Seguridad
-                            </button>
+                            {canViewSecurityTab && (
+                                <button type="button" onClick={() => setActiveTab('security')} className={tabButtonClass('security')}>
+                                    Seguridad
+                                </button>
+                            )}
                         </div>
 
                         <div className="mt-4 flex-1 min-h-0 overflow-y-auto pr-1">
@@ -284,7 +294,7 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                                         <Activity className="h-4 w-4 text-navy-600" />
                                         <p className="text-base font-bold text-theme-primary">Actividad de guardias</p>
                                     </div>
-                                    {loadingSchedules && canLoadPrivateData ? (
+                                    {loadingSchedules && canLoadSchedules ? (
                                         <p className="text-xs text-theme-muted">Cargando actividad...</p>
                                     ) : (
                                         <div className="space-y-5">
@@ -419,7 +429,7 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
                                 </div>
                             )}
 
-                            {activeTab === 'security' && (
+                            {canViewSecurityTab && activeTab === 'security' && (
                                 <div className="animate-fade-in rounded-3xl border border-theme-color bg-gradient-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
                                     <div className="flex items-center gap-2 mb-4">
                                         <ShieldAlert

@@ -72,13 +72,13 @@ export function ForceChangePassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-navy-50 p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden animate-fade-in border border-navy-100">
+    <div className="min-h-screen flex items-center justify-center bg-theme-surface-muted p-4">
+      <div className="w-full max-w-md bg-theme-surface rounded-3xl shadow-xl overflow-hidden animate-fade-in border border-theme-color">
         <div className="bg-navy-900 p-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-navy-800 to-navy-900" />
           <img src={logoIA} alt="Logo" className="h-16 w-16 mx-auto mb-4 relative z-10" />
           <h2 className="text-xl font-bold text-white relative z-10">Cambio Obligatorio</h2>
-          <p className="text-sm text-navy-200 mt-2 relative z-10">
+          <p className="text-sm text-slate-200/95 mt-2 relative z-10">
             Hola {user?.name}, para tu seguridad es necesario cambiar la contraseña.
           </p>
         </div>
@@ -93,7 +93,7 @@ export function ForceChangePassword() {
 
           <form onSubmit={handleSubmit((d) => changePwMutation.mutate(d))} className="space-y-4 text-left">
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-1">Contraseña actual</label>
+              <label className="block text-sm font-medium text-theme-primary mb-1">Contraseña actual</label>
               <input 
                 {...register('currentPassword')} 
                 type="password" 
@@ -104,7 +104,7 @@ export function ForceChangePassword() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-1">Nueva contraseña</label>
+              <label className="block text-sm font-medium text-theme-primary mb-1">Nueva contraseña</label>
               <input 
                 {...register('newPassword')} 
                 type="password" 
@@ -114,7 +114,7 @@ export function ForceChangePassword() {
               {errors.newPassword && <p className="text-xs text-red-500 mt-1">{errors.newPassword.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-navy-600 mb-1">Confirmar nueva contraseña</label>
+              <label className="block text-sm font-medium text-theme-primary mb-1">Confirmar nueva contraseña</label>
               <input 
                 {...register('confirmPassword')} 
                 type="password" 
@@ -135,7 +135,7 @@ export function ForceChangePassword() {
           </form>
 
           <div className="mt-6 text-center">
-            <button onClick={handleLogout} className="text-sm text-navy-400 hover:text-navy-600 font-medium flex items-center justify-center gap-2 mx-auto">
+            <button onClick={handleLogout} className="text-sm text-theme-muted hover:text-theme-primary font-medium flex items-center justify-center gap-2 mx-auto">
               <LogOut className="h-4 w-4" /> Cerrar sesión
             </button>
           </div>

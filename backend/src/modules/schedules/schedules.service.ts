@@ -79,14 +79,11 @@ export function listSchedulesForActor(
   if (params.type) where.type = params.type;
   if (params.userId) where.assignments = { some: { userId: params.userId } };
 
-  if (actor.role === 'admin') {
-    if (params.branchId) where.branchId = params.branchId;
-  } else {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    where.branchId = actor.branchId;
+  const canViewAllBranches = actor.role === 'admin' || actor.role === 'manager' || actor.role === 'viewer';
+  if (!canViewAllBranches) {
+    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
+  if (params.branchId) where.branchId = params.branchId;
 
   return findSchedules(where);
 }
@@ -151,15 +148,11 @@ export async function listWeekSchedulesForActor(
   branchId: string | undefined,
   actor: Pick<Actor, 'role' | 'branchId'>,
 ) {
-  if (actor.role === 'admin') {
-    return listWeekSchedules(year, week, branchId);
+  const canViewAllBranches = actor.role === 'admin' || actor.role === 'manager' || actor.role === 'viewer';
+  if (!canViewAllBranches) {
+    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
-
-  if (!actor.branchId) {
-    throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-  }
-
-  return listWeekSchedules(year, week, actor.branchId);
+  return listWeekSchedules(year, week, branchId);
 }
 
 /** Evita empalmes validando que la constelación de asignados esté libre en la brecha dt_ini a dt_fin. */
@@ -235,14 +228,9 @@ export async function getScheduleById(scheduleId: string) {
 export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'role' | 'branchId'>) {
   const schedule = await getScheduleById(scheduleId);
 
-  if (actor.role !== 'admin') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-
-    if (schedule.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes permisos para acceder a esta guardia');
-    }
+  const canViewAllBranches = actor.role === 'admin' || actor.role === 'manager' || actor.role === 'viewer';
+  if (!canViewAllBranches) {
+    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar guardias');
   }
 
   return schedule;

@@ -54,6 +54,20 @@ function getTypeInfo(type: string) {
   return SCHEDULE_TYPES.find((t) => t.value === type) ?? SCHEDULE_TYPES[0];
 }
 
+function computePopoverAnchorFromEventEl(
+  eventEl: HTMLElement,
+  pageContainerEl: HTMLElement | null,
+): PopoverAnchor {
+  const rect = eventEl.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  const pageRect = pageContainerEl?.getBoundingClientRect();
+  return {
+    x: pageRect ? clientX - pageRect.left : clientX,
+    y: pageRect ? clientY - pageRect.top : clientY,
+  };
+}
+
 function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
   return {
     id: item.id,
@@ -317,6 +331,7 @@ export function SchedulePage() {
   );
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isAdmin = user?.role === 'admin';
+  const canViewAllBranches = Boolean(user);
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
@@ -351,17 +366,16 @@ export function SchedulePage() {
   const weekRefDate = dateRange.from;
   const isoWeekYear = getISOWeekYear(weekRefDate);
   const isoWeek = getISOWeek(weekRefDate);
-  const assignedBranchId = user?.branchId ?? '';
 
   const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'schedule-page', user?.id, user?.role, assignedBranchId],
+    queryKey: ['branches', 'schedule-page', user?.id, user?.role],
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
   const effectiveActiveBranchId = getEffectiveBranchId({
     branches: branches?.data,
-    selectedBranchId: isAdmin ? activeBranchId : undefined,
-    assignedBranchId: isAdmin ? undefined : assignedBranchId,
+    selectedBranchId: canViewAllBranches ? activeBranchId : undefined,
+    assignedBranchId: undefined,
     fallbackStrategy: 'none',
   });
 
@@ -370,11 +384,7 @@ export function SchedulePage() {
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
     [availableBranches],
   );
-  const selectedBranch = useMemo(
-    () => availableBranches.find((branch) => branch.id === effectiveActiveBranchId) ?? availableBranches[0],
-    [availableBranches, effectiveActiveBranchId],
-  );
-  const shouldUseBranchDropdown = isAdmin && (availableBranches.length + 1 > 3);
+  const shouldUseBranchDropdown = canViewAllBranches && (availableBranches.length + 1 > 3);
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: [
@@ -410,7 +420,7 @@ export function SchedulePage() {
         })
         .then((r) => r.data.data);
     },
-    enabled: isAdmin || Boolean(effectiveActiveBranchId),
+    enabled: canViewAllBranches || Boolean(effectiveActiveBranchId),
   });
 
   const { data: branchHolidays } = useQuery<{ data: CalendarBranchHoliday[] }>({
@@ -430,7 +440,7 @@ export function SchedulePage() {
           },
         })
         .then((r) => r.data),
-    enabled: isAdmin || Boolean(effectiveActiveBranchId),
+    enabled: canViewAllBranches || Boolean(effectiveActiveBranchId),
   });
 
   const { data: scheduleDetail } = useQuery({
@@ -487,18 +497,66 @@ export function SchedulePage() {
       return;
     }
     if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
-    const openDetailTimer = window.setTimeout(() => {
-      if (detailScheduleId === scheduleDetail.id) return;
-      setDetailItem({
-        kind: 'schedule',
-        schedule: scheduleDetail,
-        branchName: scheduleDetail.branchId ? branchNameById[scheduleDetail.branchId] : undefined,
-      });
-      setDetailAnchor(null);
-    }, 0);
 
-    return () => window.clearTimeout(openDetailTimer);
-  }, [scheduleId, scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
+    /* Clic en el calendario: mismo turno y ancla ya definida; no tocar */
+    if (detailScheduleId === scheduleDetail.id && detailAnchor) {
+      return;
+    }
+
+    const branchName = scheduleDetail.branchId ? branchNameById[scheduleDetail.branchId] : undefined;
+    const detailPayload: CalendarDetailItem = {
+      kind: 'schedule',
+      schedule: scheduleDetail,
+      branchName,
+    };
+
+    if (detailScheduleId !== scheduleDetail.id) {
+      setDetailItem(detailPayload);
+      setDetailAnchor(null);
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 72;
+
+    const tryPosition = () => {
+      if (cancelled) return;
+
+      const container = calendarContainerRef.current;
+      const pageEl = pageContainerRef.current;
+      const el = container?.querySelector(`[data-schedule-id="${scheduleDetail.id}"]`);
+
+      if (el instanceof HTMLElement && pageEl) {
+        setDetailAnchor(computePopoverAnchorFromEventEl(el, pageEl));
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(tryPosition);
+      } else {
+        setDetailAnchor(null);
+      }
+    };
+
+    requestAnimationFrame(tryPosition);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    scheduleId,
+    scheduleDetail,
+    detailScheduleId,
+    detailAnchor,
+    branchNameById,
+    modalOpen,
+    deleteTarget,
+    holidayEditTarget,
+    profileModalOpen,
+    schedules,
+    isLoading,
+    hiddenTypes,
+  ]);
 
   const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
     if (!shouldUseWeekEndpoint) return endIso;
@@ -832,7 +890,7 @@ export function SchedulePage() {
                 Sucursal y festivos
               </div>
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
-                {isAdmin ? (
+                {canViewAllBranches ? (
                   shouldUseBranchDropdown ? (
                     <div className="w-full space-y-1">
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
@@ -904,22 +962,6 @@ export function SchedulePage() {
                       ))}
                     </>
                   )
-                ) : selectedBranch ? (
-                  <div
-                    className="w-full text-left px-3 py-2 rounded-lg border"
-                    style={{
-                      backgroundColor: 'var(--theme-sidebar-active-bg)',
-                      color: 'var(--theme-sidebar-active-text)',
-                      borderColor: 'var(--theme-sidebar-active-bg)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate">{selectedBranch.name}</span>
-                      {!selectedBranch.isActive && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
-                      )}
-                    </div>
-                  </div>
                 ) : (
                   <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
                     No tienes una sucursal asignada. Contacta con un administrador.
@@ -974,6 +1016,16 @@ export function SchedulePage() {
                 weekends
                 select={handleDateSelect}
                 eventClick={handleEventClick}
+                eventDidMount={(info) => {
+                  if (info.event.extendedProps.isHolidayBackground) return;
+                  if (info.event.extendedProps.isHoliday) return;
+                  info.el.setAttribute('data-schedule-id', info.event.id);
+                }}
+                eventWillUnmount={(info) => {
+                  if (info.event.extendedProps.isHolidayBackground) return;
+                  if (info.event.extendedProps.isHoliday) return;
+                  info.el.removeAttribute('data-schedule-id');
+                }}
                 eventClassNames={(arg) => {
                   if (arg.event.extendedProps.isHolidayBackground) return ['fc-holiday-background-event'];
                   if (arg.event.extendedProps.isHoliday) return ['fc-holiday-event'];
