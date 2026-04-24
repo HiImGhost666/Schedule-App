@@ -54,6 +54,20 @@ function getTypeInfo(type: string) {
   return SCHEDULE_TYPES.find((t) => t.value === type) ?? SCHEDULE_TYPES[0];
 }
 
+function computePopoverAnchorFromEventEl(
+  eventEl: HTMLElement,
+  pageContainerEl: HTMLElement | null,
+): PopoverAnchor {
+  const rect = eventEl.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  const pageRect = pageContainerEl?.getBoundingClientRect();
+  return {
+    x: pageRect ? clientX - pageRect.left : clientX,
+    y: pageRect ? clientY - pageRect.top : clientY,
+  };
+}
+
 function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
   return {
     id: item.id,
@@ -486,18 +500,66 @@ export function SchedulePage() {
       return;
     }
     if (modalOpen || Boolean(deleteTarget) || Boolean(holidayEditTarget) || profileModalOpen) return;
-    const openDetailTimer = window.setTimeout(() => {
-      if (detailScheduleId === scheduleDetail.id) return;
-      setDetailItem({
-        kind: 'schedule',
-        schedule: scheduleDetail,
-        branchName: scheduleDetail.branchId ? branchNameById[scheduleDetail.branchId] : undefined,
-      });
-      setDetailAnchor(null);
-    }, 0);
 
-    return () => window.clearTimeout(openDetailTimer);
-  }, [scheduleId, scheduleDetail, detailScheduleId, branchNameById, modalOpen, deleteTarget, holidayEditTarget, profileModalOpen]);
+    /* Clic en el calendario: mismo turno y ancla ya definida; no tocar */
+    if (detailScheduleId === scheduleDetail.id && detailAnchor) {
+      return;
+    }
+
+    const branchName = scheduleDetail.branchId ? branchNameById[scheduleDetail.branchId] : undefined;
+    const detailPayload: CalendarDetailItem = {
+      kind: 'schedule',
+      schedule: scheduleDetail,
+      branchName,
+    };
+
+    if (detailScheduleId !== scheduleDetail.id) {
+      setDetailItem(detailPayload);
+      setDetailAnchor(null);
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 72;
+
+    const tryPosition = () => {
+      if (cancelled) return;
+
+      const container = calendarContainerRef.current;
+      const pageEl = pageContainerRef.current;
+      const el = container?.querySelector(`[data-schedule-id="${scheduleDetail.id}"]`);
+
+      if (el instanceof HTMLElement && pageEl) {
+        setDetailAnchor(computePopoverAnchorFromEventEl(el, pageEl));
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(tryPosition);
+      } else {
+        setDetailAnchor(null);
+      }
+    };
+
+    requestAnimationFrame(tryPosition);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    scheduleId,
+    scheduleDetail,
+    detailScheduleId,
+    detailAnchor,
+    branchNameById,
+    modalOpen,
+    deleteTarget,
+    holidayEditTarget,
+    profileModalOpen,
+    schedules,
+    isLoading,
+    hiddenTypes,
+  ]);
 
   const normalizeWeekDayEnd = useCallback((startIso: string, endIso: string) => {
     if (!shouldUseWeekEndpoint) return endIso;
@@ -953,6 +1015,16 @@ export function SchedulePage() {
                 weekends
                 select={handleDateSelect}
                 eventClick={handleEventClick}
+                eventDidMount={(info) => {
+                  if (info.event.extendedProps.isHolidayBackground) return;
+                  if (info.event.extendedProps.isHoliday) return;
+                  info.el.setAttribute('data-schedule-id', info.event.id);
+                }}
+                eventWillUnmount={(info) => {
+                  if (info.event.extendedProps.isHolidayBackground) return;
+                  if (info.event.extendedProps.isHoliday) return;
+                  info.el.removeAttribute('data-schedule-id');
+                }}
                 eventClassNames={(arg) => {
                   if (arg.event.extendedProps.isHolidayBackground) return ['fc-holiday-background-event'];
                   if (arg.event.extendedProps.isHoliday) return ['fc-holiday-event'];

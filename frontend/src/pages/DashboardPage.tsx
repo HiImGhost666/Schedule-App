@@ -228,7 +228,28 @@ export function DashboardPage() {
               {weekSchedules?.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center gap-3 px-5 py-4 rounded-xl border border-navy-100 hover:border-navy-200 hover:shadow-sm transition-all"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    navigate(`/schedule/${s.id}`, {
+                      state: {
+                        initialView: 'dayGridMonth',
+                        initialDate: s.startDatetime,
+                      },
+                    })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/schedule/${s.id}`, {
+                        state: {
+                          initialView: 'dayGridMonth',
+                          initialDate: s.startDatetime,
+                        },
+                      });
+                    }
+                  }}
+                  className="flex items-center gap-3 px-5 py-4 rounded-xl border border-navy-100 hover:border-navy-200 hover:shadow-sm transition-all cursor-pointer text-left w-full"
                 >
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
