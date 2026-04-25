@@ -1,4 +1,4 @@
-import { Building2, Plus } from 'lucide-react';
+import { Building2, Plus, ArrowUpDown } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Branch } from '@/types';
 
@@ -36,9 +36,23 @@ export function BranchList({
         <div className="flex items-center gap-2 text-xs px-1">
           <span className="text-theme-muted shrink-0">Ordenar por:</span>
           <button onClick={() => onSortChange('name')}
-            className={`px-2 py-0.5 rounded-md transition-colors text-xs ${sortBy === 'name' ? 'bg-theme-primary text-white font-semibold' : 'bg-theme-surface-muted hover:bg-theme-surface-hover'}`}>Nombre</button>
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors text-xs font-medium ${
+              sortBy === 'name'
+                ? 'bg-theme-primary text-white shadow-sm ring-1 ring-theme-primary/50'
+                : 'bg-theme-surface-muted text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary'
+            }`}>
+            {sortBy === 'name' && <ArrowUpDown className="h-3 w-3" />}
+            Nombre
+          </button>
           <button onClick={() => onSortChange('code')}
-            className={`px-2 py-0.5 rounded-md transition-colors text-xs ${sortBy === 'code' ? 'bg-theme-primary text-white font-semibold' : 'bg-theme-surface-muted hover:bg-theme-surface-hover'}`}>Código</button>
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors text-xs font-medium ${
+              sortBy === 'code'
+                ? 'bg-theme-primary text-white shadow-sm ring-1 ring-theme-primary/50'
+                : 'bg-theme-surface-muted text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary'
+            }`}>
+            {sortBy === 'code' && <ArrowUpDown className="h-3 w-3" />}
+            Código
+          </button>
         </div>
       </div>
 
