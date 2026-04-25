@@ -346,6 +346,6 @@ export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
 
 // ── Shared sort types ──────────────────────────────────────────────
-export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt' | 'department' | 'branch';
 export type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
 export type SortOrder = 'asc' | 'desc';

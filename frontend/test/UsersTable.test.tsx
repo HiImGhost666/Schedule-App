@@ -67,7 +67,7 @@ describe('UsersTable', () => {
     expect(screen.getAllByText('Deshabilitado').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('llama a onSortChange al hacer clic en cabecera ordenable', async () => {
+  it('llama a onSortChange al hacer clic en cabecera Usuario', async () => {
     const onSortChange = vi.fn();
     render(
       <UsersTable
@@ -85,6 +85,48 @@ describe('UsersTable', () => {
     if (nameHeader) {
       await userEvent.click(nameHeader);
       expect(onSortChange).toHaveBeenCalledWith('name');
+    }
+  });
+
+  it('llama a onSortChange al hacer clic en cabecera Departamento', async () => {
+    const onSortChange = vi.fn();
+    render(
+      <UsersTable
+        data={mockUsers}
+        sortBy="createdAt"
+        sortOrder="desc"
+        onSortChange={onSortChange}
+        onMenuToggle={vi.fn()}
+      />,
+    );
+
+    const headers = screen.getAllByRole('button');
+    const deptHeader = headers.find((h) => h.textContent?.includes('Departamento'));
+    expect(deptHeader).toBeDefined();
+    if (deptHeader) {
+      await userEvent.click(deptHeader);
+      expect(onSortChange).toHaveBeenCalledWith('department');
+    }
+  });
+
+  it('llama a onSortChange al hacer clic en cabecera Sucursal', async () => {
+    const onSortChange = vi.fn();
+    render(
+      <UsersTable
+        data={mockUsers}
+        sortBy="createdAt"
+        sortOrder="desc"
+        onSortChange={onSortChange}
+        onMenuToggle={vi.fn()}
+      />,
+    );
+
+    const headers = screen.getAllByRole('button');
+    const branchHeader = headers.find((h) => h.textContent?.includes('Sucursal'));
+    expect(branchHeader).toBeDefined();
+    if (branchHeader) {
+      await userEvent.click(branchHeader);
+      expect(onSortChange).toHaveBeenCalledWith('branch');
     }
   });
 

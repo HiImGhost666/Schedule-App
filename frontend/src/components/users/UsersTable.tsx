@@ -22,30 +22,6 @@ function normalizeDepartment(value: string): string | undefined {
   return matched ?? undefined;
 }
 
-function renderSortLabel(
-  field: UsersSortBy,
-  label: string,
-  sortBy: UsersSortBy,
-  sortOrder: SortOrder,
-  onSortChange: (field: UsersSortBy) => void,
-) {
-  const isActive = sortBy === field;
-  const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
-
-  return (
-    <span
-      role="button"
-      tabIndex={0}
-      onClick={() => onSortChange(field)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSortChange(field); }}
-      className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
-    >
-      <span>{label}</span>
-      {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-    </span>
-  );
-}
-
 function roleBadge(role: string) {
   const cls = { admin: 'badge-role-admin', manager: 'badge-role-manager', viewer: 'badge-role-viewer' };
   return <span className={cls[role as keyof typeof cls] || 'badge-role-viewer'}>{ROLE_LABELS[role]}</span>;
@@ -57,6 +33,24 @@ function statusBadge(status: string) {
 }
 
 export function UsersTable({ data, sortBy, sortOrder, onSortChange, onMenuToggle }: UsersTableProps) {
+  const renderSortLabel = (field: UsersSortBy, label: string) => {
+    const isActive = sortBy === field;
+    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
+
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => onSortChange(field)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
+      >
+        <span>{label}</span>
+        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
+      </span>
+    );
+  };
+
   return (
     <div className="overflow-x-auto overflow-y-visible">
       <table className="w-full">
@@ -64,18 +58,22 @@ export function UsersTable({ data, sortBy, sortOrder, onSortChange, onMenuToggle
           <tr className="bg-navy-50 border-b border-navy-100">
             <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
-              {renderSortLabel('name', 'Usuario', sortBy, sortOrder, onSortChange)}
+              {renderSortLabel('name', 'Usuario')}
             </th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Sucursal</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
-              {renderSortLabel('role', 'Rol', sortBy, sortOrder, onSortChange)}
-            </th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
-              {renderSortLabel('status', 'Estado', sortBy, sortOrder, onSortChange)}
+            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">
+              {renderSortLabel('department', 'Departamento')}
             </th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">
-              {renderSortLabel('lastLoginAt', 'Último acceso', sortBy, sortOrder, onSortChange)}
+              {renderSortLabel('branch', 'Sucursal')}
+            </th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
+              {renderSortLabel('role', 'Rol')}
+            </th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
+              {renderSortLabel('status', 'Estado')}
+            </th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">
+              {renderSortLabel('lastLoginAt', 'Último acceso')}
             </th>
             <th className="px-5 py-3" />
           </tr>
