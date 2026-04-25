@@ -36,11 +36,26 @@ Este sistema está diseñado para que un PC actúe como **Servidor** y el resto 
 
 ## 🔐 Credenciales por Defecto
 
-| Email | Contraseña | Rol |
+| Email | Contraseña | Rol | Notas |
+| :--- | :--- | :--- | :--- |
+| **admin@company.com** | `AdminPass123!` | Administrador | Acceso total al sistema |
+| **manager@company.com** | `Manager123!` | Responsable | Departamento: operaciones |
+| **carlos@company.com** | `User123!` | Visualizador | Departamento: seguridad. **Debe cambiar la contraseña al iniciar sesión** |
+| **ana@company.com** | `User123!` | Visualizador | Departamento: seguridad |
+| **pedro@company.com** | `User123!` | Responsable | Departamento: mantenimiento (Sucursal Las Palmas) |
+| **laura@company.com** | `User123!` | Visualizador | Departamento: seguridad (Sucursal Las Palmas) |
+
+> [!TIP]
+> El usuario `carlos@company.com` tiene marcado el cambio obligatorio de contraseña (`forcePasswordChange`), ideal para probar el flujo de restablecimiento tras el seed.
+
+---
+
+## 🏢 Sucursales Predefinidas
+
+| Código | Nombre | Ciudad |
 | :--- | :--- | :--- |
-| **admin@company.com** | `AdminPass123!` | Administrador |
-| **manager@company.com** | `Manager123!` | Responsable |
-| **carlos@company.com** | `User123!` | Usuario |
+| **TFN** | Lãberit Tenerife | Santa Cruz de Tenerife |
+| **GC** | Lãberit Las Palmas | Las Palmas de Gran Canaria |
 
 ---
 
