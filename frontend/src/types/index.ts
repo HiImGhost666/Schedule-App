@@ -344,3 +344,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
 // Security Constants (Sync with backend/src/config/constants.ts)
 export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
+
+// ── Shared sort types ──────────────────────────────────────────────
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt';
+export type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
+export type SortOrder = 'asc' | 'desc';

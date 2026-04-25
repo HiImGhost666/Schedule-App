@@ -5,9 +5,11 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
-import type { EventClickArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
+import type { EventClickArg, DateSelectArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
-import { Plus, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { ScheduleSidebar } from '@/components/schedule/ScheduleSidebar';
+import { EventContent } from '@/components/schedule/CalendarEventContent';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
@@ -29,15 +31,6 @@ import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
 import { isDarkThemePreset } from '@/config/theme';
-
-const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
-  nacional: 'Nacional',
-  autonomica: 'Autonómica',
-  local: 'Local',
-  mejora: 'Mejora convenio',
-  regional: 'Regional',
-  company: 'Empresa',
-};
 
 const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
   nacional: '#dc2626',
@@ -103,13 +96,6 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
   };
 }
 
-function hexToRgb(hex: string) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r}, ${g}, ${b}`;
-}
-
 function toLocalDateOnly(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value.slice(0, 10);
@@ -133,186 +119,6 @@ function addOneDay(dateIso: string) {
 
 function isGroupedHoliday(holiday: CalendarBranchHoliday): holiday is Extract<CalendarBranchHoliday, { holidayIds: string[] }> {
   return 'holidayIds' in holiday;
-}
-
-/* ─── month-view event pill ─────────────────────────────────────── */
-
-function MonthEventContent({ info }: { info: EventContentArg }) {
-  const { event } = info;
-  return (
-    <div className="google-month-event">
-      {event.start && <span className="google-month-event-time">{format(event.start, 'HH:mm')}</span>}
-      <span className="google-month-event-title">{event.title}</span>
-      {event.extendedProps.isLastMinute && (
-        <span className="google-month-event-flag">!</span>
-      )}
-    </div>
-  );
-}
-
-/* ─── week/day-view event card ──────────────────────────────────── */
-
-function TimeGridEventContent({ info }: { info: EventContentArg }) {
-  const { event } = info;
-  const schedule = event.extendedProps.schedule as Schedule | undefined;
-  const timeText =
-    schedule?.startDatetime && schedule?.endDatetime
-      ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
-      : info.timeText;
-  const assigneeText =
-    schedule?.assignments
-      ?.map((assignment) => assignment.user.name.split(' ')[0])
-      .slice(0, 2)
-      .join(', ') ?? '';
-
-  return (
-    <div className="google-timegrid-event">
-      <div className="google-timegrid-event-title">
-        {event.extendedProps.isLastMinute ? '!' : ''} {event.title}
-      </div>
-      <div className="google-timegrid-event-time">{timeText}</div>
-      {assigneeText && <div className="google-timegrid-event-meta">{assigneeText}</div>}
-    </div>
-  );
-}
-
-/* ─── list-view event row ───────────────────────────────────────── */
-
-function ListEventContent({ info }: { info: EventContentArg }) {
-  const { event } = info;
-  const schedule = event.extendedProps.schedule as Schedule;
-  const timeText =
-    schedule?.startDatetime && schedule?.endDatetime
-      ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
-      : info.timeText;
-  const typeInfo = getTypeInfo(schedule?.type ?? '');
-
-  return (
-    <div className="google-list-event">
-      <span
-        className="google-list-event-dot"
-        style={{ backgroundColor: typeInfo.color }}
-      />
-
-      <div className="google-list-event-main">
-        <span className="google-list-event-title">{event.title}</span>
-        <span className="google-list-event-time">{timeText}</span>
-      </div>
-
-      {event.extendedProps.isLastMinute && (
-        <span className="google-list-event-urgent">Urgente</span>
-      )}
-    </div>
-  );
-}
-
-function HolidayEventContent({ info }: { info: EventContentArg }) {
-  const isDark = isDarkThemePreset(
-    useUIStore(
-      (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
-    ),
-  );
-  const holidayType = info.event.extendedProps.holidayType as BranchHoliday['type'] | undefined;
-  const color = holidayType ? HOLIDAY_COLORS[holidayType] : '#5f6368';
-  const labelColor = isDark ? '#e8eef4' : color;
-
-  return (
-    <div className="google-holiday-event" style={{ borderColor: color, color: labelColor }}>
-      <span className="google-holiday-event-dot" style={{ backgroundColor: color }} />
-      <span className="google-holiday-event-title">{info.event.title}</span>
-    </div>
-  );
-}
-
-/* ─── unified event content dispatcher ─────────────────────────── */
-
-function EventContent({
-  info,
-}: {
-  info: EventContentArg;
-}) {
-  if (info.event.extendedProps.isHoliday) return <HolidayEventContent info={info} />;
-  const viewType = info.view.type;
-  if (viewType.startsWith('timeGrid')) return <TimeGridEventContent info={info} />;
-  if (viewType.startsWith('list')) return <ListEventContent info={info} />;
-  return <MonthEventContent info={info} />;
-}
-
-/* ─── interactive type legend ───────────────────────────────────── */
-
-interface LegendProps {
-  hidden: Set<string>;
-  onToggle: (v: string) => void;
-  counts: Record<string, number>;
-}
-
-function TypeLegend({ hidden, onToggle, counts }: LegendProps) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <div className="px-5 py-4">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
-          Tipos de turno
-        </span>
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="text-theme-muted hover:text-theme-primary transition-colors"
-        >
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-
-      {expanded && (
-        <div className="flex flex-wrap gap-2">
-          {SCHEDULE_TYPES.map(({ value, label, color }) => {
-            const active = !hidden.has(value);
-            const count = counts[value] ?? 0;
-            return (
-              <button
-                key={value}
-                onClick={() => onToggle(value)}
-                title={count > 0 ? `${count} evento${count > 1 ? 's' : ''}` : 'Sin eventos'}
-                className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium border transition-all duration-150 whitespace-nowrap"
-                style={
-                  active
-                    ? {
-                      backgroundColor: color,
-                      borderColor: color,
-                      color: '#fff',
-                      boxShadow: `0 1px 4px rgba(${hexToRgb(color)}, 0.4)`,
-                    }
-                    : {
-                      backgroundColor: 'transparent',
-                      borderColor: '#d0d7de',
-                      color: '#5f6368',
-                    }
-                }
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0 flex-none"
-                  style={{ backgroundColor: active ? 'rgba(255,255,255,0.6)' : color }}
-                />
-                <span className="leading-none">{label}</span>
-                {count > 0 && (
-                  <span
-                    className="rounded-full px-1 text-[10px] font-bold leading-none py-0.5"
-                    style={
-                      active
-                        ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
-                        : { backgroundColor: color, color: '#fff' }
-                    }
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /* ─── main page ─────────────────────────────────────────────────── */
@@ -384,8 +190,6 @@ export function SchedulePage() {
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
     [availableBranches],
   );
-  const shouldUseBranchDropdown = canViewAllBranches && (availableBranches.length + 1 > 3);
-
   const { data: schedules, isLoading } = useQuery({
     queryKey: [
       'schedules',
@@ -501,18 +305,6 @@ export function SchedulePage() {
     /* Clic en el calendario: mismo turno y ancla ya definida; no tocar */
     if (detailScheduleId === scheduleDetail.id && detailAnchor) {
       return;
-    }
-
-    const branchName = scheduleDetail.branchId ? branchNameById[scheduleDetail.branchId] : undefined;
-    const detailPayload: CalendarDetailItem = {
-      kind: 'schedule',
-      schedule: scheduleDetail,
-      branchName,
-    };
-
-    if (detailScheduleId !== scheduleDetail.id) {
-      setDetailItem(detailPayload);
-      setDetailAnchor(null);
     }
 
     let cancelled = false;
@@ -883,112 +675,17 @@ export function SchedulePage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="border-b border-theme-color lg:border-b-0 lg:border-r">
-            <div className="px-5 py-4 border-b border-theme-color">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-theme-muted uppercase tracking-wider">
-                <CalendarDays className="h-3.5 w-3.5" />
-                Sucursal y festivos
-              </div>
-              <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
-                {canViewAllBranches ? (
-                  shouldUseBranchDropdown ? (
-                    <div className="w-full space-y-1">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
-                        Selección de sucursal
-                      </label>
-                      <select
-                        value={activeBranchId}
-                        onChange={(event) => setActiveBranchId(event.target.value)}
-                        className="input-field text-sm w-full"
-                      >
-                        <option value="">Todas las sucursales</option>
-                        {availableBranches.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {`${branch.name} (${branch.code})${branch.isActive ? '' : ' - Inactiva'}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setActiveBranchId('')}
-                        className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
-                        style={
-                          !effectiveActiveBranchId
-                            ? {
-                              backgroundColor: 'var(--theme-sidebar-active-bg)',
-                              color: 'var(--theme-sidebar-active-text)',
-                              borderColor: 'var(--theme-sidebar-active-bg)',
-                            }
-                            : {
-                              backgroundColor: 'var(--theme-surface)',
-                              color: 'var(--theme-text-muted)',
-                              borderColor: 'var(--theme-border-color)',
-                            }
-                        }
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate">Todas las sucursales</span>
-                        </div>
-                      </button>
-
-                      {availableBranches.map((branch) => (
-                        <button
-                          key={branch.id}
-                          onClick={() => setActiveBranchId(branch.id)}
-                          className="w-full text-left px-3 py-2 rounded-lg border transition-colors"
-                          style={
-                            effectiveActiveBranchId === branch.id
-                              ? {
-                                backgroundColor: 'var(--theme-sidebar-active-bg)',
-                                color: 'var(--theme-sidebar-active-text)',
-                                borderColor: 'var(--theme-sidebar-active-bg)',
-                              }
-                              : {
-                                backgroundColor: 'var(--theme-surface)',
-                                color: 'var(--theme-text-muted)',
-                                borderColor: 'var(--theme-border-color)',
-                              }
-                          }
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="truncate">{branch.name}</span>
-                            {!branch.isActive && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500 text-white">Inactiva</span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </>
-                  )
-                ) : (
-                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                    No tienes una sucursal asignada. Contacta con un administrador.
-                  </p>
-                )}
-              </div>
-
-              {effectiveActiveBranchId && (
-                <div className="mt-3 pt-3 border-t border-theme-color flex flex-col gap-1.5">
-                  {(Object.keys(HOLIDAY_TYPE_LABELS) as BranchHoliday['type'][]).map((type) => (
-                    <span key={type} className="flex items-center gap-1.5 text-[10px] text-theme-muted">
-                      <span
-                        className="inline-block w-2.5 h-2.5 rounded-sm opacity-70"
-                        style={{ backgroundColor: HOLIDAY_COLORS[type] }}
-                      />
-                      <span className="text-theme-muted">
-                        {HOLIDAY_TYPE_LABELS[type]}
-                        {holidayTypeCounts[type] ? ` (${holidayTypeCounts[type]})` : ''}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <TypeLegend hidden={hiddenTypes} onToggle={toggleType} counts={typeCounts} />
-          </aside>
+          <ScheduleSidebar
+            branches={availableBranches}
+            activeBranchId={activeBranchId}
+            effectiveActiveBranchId={effectiveActiveBranchId}
+            canViewAllBranches={canViewAllBranches}
+            onBranchChange={setActiveBranchId}
+            hiddenTypes={hiddenTypes}
+            onToggleType={toggleType}
+            typeCounts={typeCounts}
+            holidayTypeCounts={holidayTypeCounts}
+          />
 
           {/* Calendar */}
           <div className="p-6">

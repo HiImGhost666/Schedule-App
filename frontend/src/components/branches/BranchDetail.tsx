@@ -1,0 +1,69 @@
+import { Pencil } from 'lucide-react';
+import type { Branch } from '@/types';
+
+interface BranchDetailProps {
+  branch: Branch;
+  onEdit: () => void;
+  onDisable: () => void;
+  onActivate: () => void;
+  onHardDelete: () => void;
+  isDisabling: boolean;
+  isActivating: boolean;
+  isDeleting: boolean;
+}
+
+export function BranchDetail({
+  branch, onEdit, onDisable, onActivate, onHardDelete,
+  isDisabling, isActivating, isDeleting,
+}: BranchDetailProps) {
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-theme-muted">Sucursal seleccionada</p>
+          <h3 className="text-base font-semibold text-theme-primary">{branch.name}</h3>
+          <p className="text-xs text-theme-muted">{branch.code}</p>
+        </div>
+        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+          branch.isActive
+            ? 'border border-theme-color bg-theme-surface text-theme-primary'
+            : 'bg-amber-500/15 text-amber-600'
+        }`}>{branch.isActive ? 'Activa' : 'Inactiva'}</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <InfoBox label="Nombre" value={branch.name} />
+        <InfoBox label="Código" value={branch.code} />
+        <InfoBox label="Ciudad" value={branch.city || 'Sin ciudad'} />
+        <InfoBox label="Región" value={branch.region || 'Sin región'} />
+        <InfoBox label="Dirección" value={branch.address || 'Sin dirección'} className="md:col-span-2" />
+        <InfoBox label="País" value={branch.countryCode} />
+        <InfoBox label="Zona horaria" value={branch.timezone} />
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+        {branch.isActive ? (
+          <button type="button" onClick={onDisable} disabled={isDisabling}
+            className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Desactivar</button>
+        ) : (
+          <button type="button" onClick={onActivate} disabled={isActivating}
+            className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Activar</button>
+        )}
+        <button type="button" onClick={onHardDelete} disabled={isDeleting}
+          className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Eliminar definitivamente</button>
+        <button type="button" onClick={onEdit} className="btn-ghost text-sm inline-flex items-center gap-1.5">
+          <Pencil className="h-4 w-4" />Editar sucursal
+        </button>
+      </div>
+    </>
+  );
+}
+
+function InfoBox({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 ${className ?? ''}`}>
+      <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">{label}</p>
+      <p className="text-sm text-theme-primary mt-1">{value}</p>
+    </div>
+  );
+}
