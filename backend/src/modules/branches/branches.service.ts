@@ -275,10 +275,17 @@ export async function createBranchHoliday(branchId: string, data: BranchHolidayI
       entityType: 'BranchHoliday',
       entityId: holiday.id,
       detailsJson: {
-        branchId,
-        date: holiday.date.toISOString(),
-        name: holiday.name,
-        type: holiday.type,
+        before: null,
+        after: {
+          id: holiday.id,
+          branchId,
+          date: holiday.date.toISOString(),
+          name: holiday.name,
+          type: holiday.type,
+          scope: holiday.scope,
+          isPartial: holiday.isPartial,
+          isActive: holiday.isActive,
+        },
       },
       ipAddress: actor.ipAddress,
     });
@@ -318,7 +325,30 @@ export async function updateBranchHoliday(
       action: 'UPDATE_BRANCH_HOLIDAY',
       entityType: 'BranchHoliday',
       entityId: holidayId,
-      detailsJson: data,
+      detailsJson: {
+        before: {
+          id: existing.id,
+          branchId: existing.branchId,
+          date: existing.date.toISOString(),
+          originalDate: existing.originalDate?.toISOString() ?? null,
+          name: existing.name,
+          type: existing.type,
+          scope: existing.scope,
+          isPartial: existing.isPartial,
+          isActive: existing.isActive,
+        },
+        after: {
+          id: updated.id,
+          branchId: updated.branchId,
+          date: updated.date.toISOString(),
+          originalDate: updated.originalDate?.toISOString() ?? null,
+          name: updated.name,
+          type: updated.type,
+          scope: updated.scope,
+          isPartial: updated.isPartial,
+          isActive: updated.isActive,
+        },
+      },
       ipAddress: actor.ipAddress,
     });
 
@@ -344,7 +374,20 @@ export async function deleteBranchHoliday(branchId: string, holidayId: string, a
     action: 'DELETE_BRANCH_HOLIDAY',
     entityType: 'BranchHoliday',
     entityId: holidayId,
-    detailsJson: { branchId, date: existing.date.toISOString(), name: existing.name },
+    detailsJson: {
+      before: {
+        id: existing.id,
+        branchId: existing.branchId,
+        date: existing.date.toISOString(),
+        originalDate: existing.originalDate?.toISOString() ?? null,
+        name: existing.name,
+        type: existing.type,
+        scope: existing.scope,
+        isPartial: existing.isPartial,
+        isActive: existing.isActive,
+      },
+      after: null,
+    },
     ipAddress: actor.ipAddress,
   });
 }

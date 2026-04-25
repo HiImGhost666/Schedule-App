@@ -320,6 +320,38 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
           update: data,
         });
       }
+    } else if (entityType === 'BranchHoliday') {
+      if (action === 'CREATE_BRANCH_HOLIDAY') {
+        // Revertir creación: eliminar el festivo
+        rollbackResult = await tx.branchHoliday.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        // UPDATE_BRANCH_HOLIDAY o DELETE_BRANCH_HOLIDAY: restaurar desde snapshot "before"
+        const beforeState = details.before as Record<string, unknown>;
+
+        rollbackResult = await tx.branchHoliday.upsert({
+          where: { id: entityId },
+          create: {
+            id: entityId,
+            branchId: beforeState.branchId as string,
+            date: new Date(beforeState.date as string),
+            ...(beforeState.originalDate ? { originalDate: new Date(beforeState.originalDate as string) } : {}),
+            name: beforeState.name as string,
+            type: beforeState.type as any,
+            scope: beforeState.scope as string,
+            isPartial: beforeState.isPartial as boolean,
+            isActive: beforeState.isActive as boolean,
+          },
+          update: {
+            date: new Date(beforeState.date as string),
+            ...(beforeState.originalDate ? { originalDate: new Date(beforeState.originalDate as string) } : {}),
+            name: beforeState.name as string,
+            type: beforeState.type as any,
+            scope: beforeState.scope as string,
+            isPartial: beforeState.isPartial as boolean,
+            isActive: beforeState.isActive as boolean,
+          },
+        });
+      }
     } else {
       throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);
     }
