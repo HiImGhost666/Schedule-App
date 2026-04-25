@@ -705,8 +705,7 @@ export function SchedulePage() {
                 events={[...scheduleEvents, ...holidayInteractiveEvents, ...holidayBackgroundEvents]}
                 selectable={canEdit}
                 selectMirror
-                dayMaxEvents
-                dayMaxEventRows
+                dayMaxEvents={4}
                 moreLinkClick="popover"
                 navLinks
                 stickyHeaderDates
