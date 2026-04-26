@@ -246,18 +246,34 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
       if (action === 'CREATE_SCHEDULE') {
         await scheduleRepository.deleteSchedule(entityId, tx);
       } else if (details?.before && (action === 'UPDATE_SCHEDULE' || action === 'DELETE_SCHEDULE')) {
-        const beforeState = details.before as (Prisma.ScheduleGetPayload<{}> & { assigneeIds: string[] });
-        const { assigneeIds, ...data } = beforeState;
-        // Restaurar base
+        const beforeState = details.before as Record<string, unknown>;
+        const { assigneeIds, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, assignments, branch, createdBy, ...rawScalars } = beforeState;
+        // Convertir tipos: los snapshots vienen como JSON (strings, no Date)
+        const upsertData: Record<string, unknown> = {
+          title: rawScalars.title,
+          description: rawScalars.description ?? null,
+          startDatetime: new Date(rawScalars.startDatetime as string),
+          endDatetime: new Date(rawScalars.endDatetime as string),
+          type: rawScalars.type,
+          color: rawScalars.color,
+          location: rawScalars.location ?? null,
+          notes: rawScalars.notes ?? null,
+          isLastMinute: Boolean(rawScalars.isLastMinute),
+          hoursPerDay: typeof rawScalars.hoursPerDay === 'number' ? rawScalars.hoursPerDay : Number(rawScalars.hoursPerDay ?? 8),
+          branchId: rawScalars.branchId ?? null,
+          createdById: rawScalars.createdById as string,
+        };
         rollbackResult = await tx.schedule.upsert({
           where: { id: entityId },
-          create: { ...data, id: entityId },
-          update: data,
+          create: { ...upsertData, id: entityId } as any,
+          update: upsertData as any,
         });
+
         // Restaurar asignaciones
-        if (assigneeIds) {
-          await scheduleRepository.replaceAssignments(entityId, assigneeIds, tx);
+        if (assigneeIds && Array.isArray(assigneeIds)) {
+          await scheduleRepository.replaceAssignments(entityId, assigneeIds as string[], tx);
         }
+
 
         // Emitir evento de tiempo real para que Calendario se actualice
         publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_UPDATED, {
