@@ -1,15 +1,17 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, ChevronLeft, ChevronRight, Filter, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Building2, CalendarDays, ChevronLeft, ChevronRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { HolidayCreateModal } from '@/components/branches/HolidayCreateModal';
+import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
-import type { Branch, BranchHoliday } from '@/types';
+import type { Branch, BranchHoliday, GroupedBranchHoliday } from '@/types';
 
 type HolidayType = BranchHoliday['type'];
 
@@ -41,21 +43,23 @@ const HOLIDAY_TYPE_FILTERS: Array<{ value: 'all' | HolidayType; label: string }>
   { value: 'company', label: 'Empresa' },
 ];
 
-const emptyHolidayForm = {
-  date: '',
-  name: '',
-  type: 'local' as HolidayType,
-};
+type DisplayHoliday = BranchHoliday | GroupedBranchHoliday;
+
+function isGrouped(h: DisplayHoliday): h is GroupedBranchHoliday {
+  return 'branches' in h && Array.isArray((h as GroupedBranchHoliday).branches);
+}
 
 export function HolidaysPage() {
   const qc = useQueryClient();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
   const [holidayTypeFilter, setHolidayTypeFilter] = useState<'all' | HolidayType>('all');
-  const [holidayForm, setHolidayForm] = useState(emptyHolidayForm);
-  const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
-  const [holidayToDelete, setHolidayToDelete] = useState<BranchHoliday | null>(null);
-  const holidayDateInputRef = useRef<HTMLInputElement>(null);
+  const [holidayToDelete, setHolidayToDelete] = useState<DisplayHoliday | null>(null);
+  const [holidayToEdit, setHolidayToEdit] = useState<DisplayHoliday | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [branchesModal, setBranchesModal] = useState<GroupedBranchHoliday | null>(null);
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'type'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: branches, isLoading: branchesLoading } = useQuery<{ data: Branch[] }>({
     queryKey: ['branches', 'holidays-page'],
@@ -67,53 +71,73 @@ export function HolidaysPage() {
 
   const branchList = branches?.data ?? [];
   const hasBranches = branchList.length > 0;
+  const showAllBranches = selectedBranchId === 'all';
 
-  const effectiveSelectedBranchId = getEffectiveBranchId({
-    branches: branchList,
-    selectedBranchId,
-    fallbackStrategy: 'active-or-first',
-  });
+  const effectiveSelectedBranchId = showAllBranches
+    ? 'all'
+    : getEffectiveBranchId({
+        branches: branchList,
+        selectedBranchId,
+        fallbackStrategy: 'active-or-first',
+      });
 
-  const selectedBranch = branches?.data.find((branch) => branch.id === effectiveSelectedBranchId);
+  const selectedBranch = showAllBranches ? null : branches?.data.find((branch) => branch.id === effectiveSelectedBranchId);
 
-  const { data: holidays, isLoading: holidaysLoading } = useQuery<{ data: BranchHoliday[] }>({
+  const { data: holidays, isLoading: holidaysLoading } = useQuery<{ data: DisplayHoliday[] }>({
     queryKey: ['branch-holidays', effectiveSelectedBranchId, holidayYear],
-    queryFn: () =>
-      api
-        .get(`/branches/${effectiveSelectedBranchId}/holidays`, { params: { year: holidayYear } })
-        .then((r) => r.data),
+    queryFn: () => {
+      const params: Record<string, unknown> = { year: holidayYear };
+      if (showAllBranches) {
+        params.groupShared = true;
+      }
+      return api
+        .get(`/branches/${effectiveSelectedBranchId}/holidays`, { params })
+        .then((r) => r.data);
+    },
     enabled: Boolean(effectiveSelectedBranchId),
   });
 
+  const handleSortChange = (field: 'date' | 'name' | 'type') => {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(field);
+    setSortOrder('asc');
+  };
+
+  const renderSortLabel = (field: 'date' | 'name' | 'type', label: string) => {
+    const isActive = sortBy === field;
+    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => handleSortChange(field)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
+      >
+        <span>{label}</span>
+        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
+      </span>
+    );
+  };
+
   const filteredHolidays = useMemo(() => {
     const source = holidays?.data ?? [];
-    if (holidayTypeFilter === 'all') return source;
-    return source.filter((holiday) => holiday.type === holidayTypeFilter);
-  }, [holidays?.data, holidayTypeFilter]);
-
-  const createHolidayMutation = useMutation({
-    mutationFn: () => api.post(`/branches/${effectiveSelectedBranchId}/holidays`, holidayForm),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['branch-holidays'] });
-      qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
-      toast.success('Festivo creado');
-      setHolidayForm(emptyHolidayForm);
-      setEditingHolidayId(null);
-    },
-    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo crear el festivo')),
-  });
-
-  const updateHolidayMutation = useMutation({
-    mutationFn: (holidayId: string) => api.patch(`/branches/${effectiveSelectedBranchId}/holidays/${holidayId}`, holidayForm),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['branch-holidays'] });
-      qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
-      toast.success('Festivo actualizado');
-      setHolidayForm(emptyHolidayForm);
-      setEditingHolidayId(null);
-    },
-    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo actualizar el festivo')),
-  });
+    let filtered = holidayTypeFilter === 'all' ? source : source.filter((h) => h.type === holidayTypeFilter);
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'date') {
+        cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+      } else if (sortBy === 'name') {
+        cmp = a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+      } else if (sortBy === 'type') {
+        cmp = a.type.localeCompare(b.type, 'es');
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+  }, [holidays?.data, holidayTypeFilter, sortBy, sortOrder]);
 
   const deleteHolidayMutation = useMutation({
     mutationFn: (holidayId: string) => api.delete(`/branches/${effectiveSelectedBranchId}/holidays/${holidayId}`),
@@ -126,144 +150,28 @@ export function HolidaysPage() {
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo eliminar el festivo')),
   });
 
-  const holidaySaving = createHolidayMutation.isPending || updateHolidayMutation.isPending;
-
-  const onEditHoliday = (holiday: BranchHoliday) => {
-    setEditingHolidayId(holiday.id);
-    setHolidayForm({
-      date: holiday.date.slice(0, 10),
-      name: holiday.name,
-      type: holiday.type,
-    });
-  };
-
-  const onSaveHoliday = () => {
-    if (!effectiveSelectedBranchId) {
-      toast.error('Selecciona una sucursal');
-      return;
-    }
-    if (!holidayForm.date || !holidayForm.name.trim()) {
-      toast.error('Fecha y nombre son obligatorios');
-      return;
-    }
-
-    if (editingHolidayId) {
-      updateHolidayMutation.mutate(editingHolidayId);
-    } else {
-      createHolidayMutation.mutate();
-    }
-  };
-
-  const openHolidayDatePicker = () => {
-    const input = holidayDateInputRef.current;
-    if (!input) return;
-
-    const pickerCapableInput = input as HTMLInputElement & { showPicker?: () => void };
-    if (typeof pickerCapableInput.showPicker === 'function') {
-      pickerCapableInput.showPicker();
-      return;
-    }
-
-    input.focus();
-  };
-
   return (
     <div className="space-y-5 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-theme-primary">Festivos</h1>
-        <p className="text-sm text-theme-muted mt-0.5">
-          Configura festivos por sucursal de forma independiente
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-theme-primary">Festivos</h1>
+          <p className="text-sm text-theme-muted mt-0.5">
+            Configura festivos por sucursal de forma independiente
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="btn-primary text-sm flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Nuevo festivo
+        </button>
       </div>
 
       <section className="card p-4 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-theme-muted">
-              Sucursal
-            </label>
-            {branchesLoading ? (
-              <div className="flex items-center gap-2 text-sm text-theme-muted"><LoadingSpinner size="sm" />Cargando sucursales…</div>
-            ) : !hasBranches ? (
-              <p className="text-sm text-theme-muted">No hay sucursales disponibles</p>
-            ) : (
-              <select
-                value={effectiveSelectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                className="input-field text-sm min-w-72"
-              >
-                {(branches?.data ?? []).map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name} ({branch.code}){branch.isActive ? '' : ' · inactiva'}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="w-full lg:w-auto flex-1 lg:flex-none border border-theme-color rounded-xl p-3 bg-theme-surface-muted/40 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-theme-muted">Año</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setHolidayYear((prev) => Math.max(2000, prev - 1))}
-                  className="p-1.5 rounded-lg border border-theme-color text-theme-muted hover:text-theme-primary hover:bg-theme-surface"
-                  title="Año anterior"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                <input
-                  type="number"
-                  min={2000}
-                  max={2100}
-                  value={holidayYear}
-                  onChange={(e) => setHolidayYear(Number(e.target.value) || new Date().getFullYear())}
-                  className="input-field text-sm w-24 text-center"
-                />
-                <button
-                  type="button"
-                  onClick={() => setHolidayYear((prev) => Math.min(2100, prev + 1))}
-                  className="p-1.5 rounded-lg border border-theme-color text-theme-muted hover:text-theme-primary hover:bg-theme-surface"
-                  title="Año siguiente"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-theme-muted flex items-center gap-1.5">
-                <Filter className="h-3.5 w-3.5" />Tipo de festivo
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {HOLIDAY_TYPE_FILTERS.map((option) => {
-                  const active = holidayTypeFilter === option.value;
-                  const tone = option.value === 'all' ? '#475569' : HOLIDAY_TYPE_COLORS[option.value as HolidayType];
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setHolidayTypeFilter(option.value)}
-                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors"
-                      style={
-                        active
-                          ? { backgroundColor: tone, borderColor: tone, color: '#fff' }
-                          : { backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border-color)', color: 'var(--theme-text-muted)' }
-                      }
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
         {!hasBranches ? (
           <EmptyState icon={CalendarDays} title="Sin sucursales" description="Crea una sucursal para poder configurar festivos" />
-        ) : !selectedBranch ? (
+        ) : !effectiveSelectedBranchId ? (
           <EmptyState icon={CalendarDays} title="Selecciona una sucursal" description="Elige una sucursal para gestionar sus festivos" />
         ) : (
           <>
@@ -273,61 +181,95 @@ export function HolidaysPage() {
               </p>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-              <div className="relative">
-                <input
-                  ref={holidayDateInputRef}
-                  type="date"
-                  className="input-field text-sm pr-10"
-                  value={holidayForm.date}
-                  onChange={(e) => setHolidayForm((prev) => ({ ...prev, date: e.target.value }))}
-                />
-                <button
-                  type="button"
-                  onClick={openHolidayDatePicker}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted"
-                  title="Abrir calendario"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                </button>
+            {/* Fila de filtros: dos columnas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Columna izquierda: selector sucursal */}
+              <div className="border border-theme-color rounded-xl p-3 bg-theme-surface-muted/40 space-y-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-theme-muted flex items-center gap-1.5">
+                  <Filter className="h-3.5 w-3.5" />Filtros
+                </span>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-theme-muted">
+                    Sucursal
+                  </label>
+                  {branchesLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-theme-muted"><LoadingSpinner size="sm" />Cargando sucursales…</div>
+                  ) : (
+                    <select
+                      value={effectiveSelectedBranchId}
+                      onChange={(e) => setSelectedBranchId(e.target.value)}
+                      className="input-field text-sm w-full"
+                    >
+                      <option value="all">Todas las sucursales</option>
+                      {(branches?.data ?? []).map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name} ({branch.code}){branch.isActive ? '' : ' · inactiva'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
-              <input
-                className="input-field text-sm md:col-span-2"
-                placeholder="Nombre del festivo"
-                value={holidayForm.name}
-                onChange={(e) => setHolidayForm((prev) => ({ ...prev, name: e.target.value }))}
-              />
-              <select
-                className="input-field text-sm"
-                value={holidayForm.type}
-                onChange={(e) => setHolidayForm((prev) => ({ ...prev, type: e.target.value as HolidayType }))}
-              >
-                {Object.entries(HOLIDAY_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={onSaveHoliday}
-                disabled={holidaySaving}
-                className="btn-primary text-sm flex items-center gap-2 disabled:opacity-60"
-              >
-                {holidaySaving ? <LoadingSpinner size="sm" className="border-white border-t-white/30" /> : <Plus className="h-4 w-4" />}
-                {editingHolidayId ? 'Guardar cambios' : 'Añadir festivo'}
-              </button>
-              {editingHolidayId && (
-                <button
-                  onClick={() => {
-                    setEditingHolidayId(null);
-                    setHolidayForm(emptyHolidayForm);
-                  }}
-                  className="btn-ghost text-sm"
-                >
-                  Cancelar
-                </button>
-              )}
+              {/* Columna derecha: filtros año + tipo */}
+              <div className="border border-theme-color rounded-xl p-3 bg-theme-surface-muted/40 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-theme-muted">Año</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setHolidayYear((prev) => Math.max(2000, prev - 1))}
+                      className="p-1.5 rounded-lg border border-theme-color text-theme-muted hover:text-theme-primary hover:bg-theme-surface"
+                      title="Año anterior"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <input
+                      type="number"
+                      min={2000}
+                      max={2100}
+                      value={holidayYear}
+                      onChange={(e) => setHolidayYear(Number(e.target.value) || new Date().getFullYear())}
+                      className="input-field text-sm w-24 text-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setHolidayYear((prev) => Math.min(2100, prev + 1))}
+                      className="p-1.5 rounded-lg border border-theme-color text-theme-muted hover:text-theme-primary hover:bg-theme-surface"
+                      title="Año siguiente"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-theme-muted flex items-center gap-1.5">
+                    <Filter className="h-3.5 w-3.5" />Tipo de festivo
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {HOLIDAY_TYPE_FILTERS.map((option) => {
+                      const active = holidayTypeFilter === option.value;
+                      const tone = option.value === 'all' ? '#475569' : HOLIDAY_TYPE_COLORS[option.value as HolidayType];
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setHolidayTypeFilter(option.value)}
+                          className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors"
+                          style={
+                            active
+                              ? { backgroundColor: tone, borderColor: tone, color: '#fff' }
+                              : { backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border-color)', color: 'var(--theme-text-muted)' }
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {holidaysLoading ? (
@@ -341,9 +283,12 @@ export function HolidaysPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-theme-surface-muted border-b border-theme-color">
-                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">Fecha</th>
-                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">Nombre</th>
-                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">Tipo</th>
+                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">{renderSortLabel('date', 'Fecha')}</th>
+                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">{renderSortLabel('name', 'Nombre')}</th>
+                      {showAllBranches && (
+                        <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">Sucursal</th>
+                      )}
+                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">{renderSortLabel('type', 'Tipo')}</th>
                       <th className="px-4 py-2.5" />
                     </tr>
                   </thead>
@@ -354,6 +299,29 @@ export function HolidaysPage() {
                           {format(new Date(holiday.date), 'dd/MM/yyyy')}
                         </td>
                         <td className="px-4 py-2.5 text-sm text-theme-primary">{holiday.name}</td>
+                        {showAllBranches && (
+                          <td className="px-4 py-2.5">
+                            {isGrouped(holiday) ? (
+                              holiday.branches.length === 1 ? (
+                                <span className="text-xs text-theme-muted">
+                                  {holiday.branches[0].name} ({holiday.branches[0].code})
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => setBranchesModal(holiday)}
+                                  className="inline-flex items-center gap-1 text-xs font-medium text-navy-600 bg-navy-50 hover:bg-navy-100 rounded-full px-2 py-0.5 transition-colors"
+                                >
+                                  <Building2 className="h-3 w-3" />
+                                  {holiday.sharedCount} sucursales
+                                </button>
+                              )
+                            ) : (
+                              <span className="text-xs text-theme-muted">
+                                {(holiday as BranchHoliday).branch?.name ?? '—'}
+                              </span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-4 py-2.5">
                           <span
                             className="text-[10px] px-2 py-0.5 rounded-full text-white font-semibold"
@@ -365,7 +333,7 @@ export function HolidaysPage() {
                         <td className="px-4 py-2.5">
                           <div className="flex justify-end gap-2">
                             <button
-                              onClick={() => onEditHoliday(holiday)}
+                              onClick={() => setHolidayToEdit(holiday)}
                               className="p-1.5 rounded-lg hover:bg-theme-surface-muted text-theme-muted hover:text-theme-primary"
                               title="Editar"
                             >
@@ -389,6 +357,53 @@ export function HolidaysPage() {
           </>
         )}
       </section>
+
+      {/* Modal de sucursales para festivos compartidos */}
+      {branchesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in" onClick={() => setBranchesModal(null)}>
+          <div className="card rounded-2xl shadow-2xl w-full max-w-sm animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-theme-color">
+              <div>
+                <h3 className="text-base font-semibold text-theme-primary">{branchesModal.name}</h3>
+                <p className="text-xs text-theme-muted mt-0.5">
+                  {format(new Date(branchesModal.date), 'dd/MM/yyyy')} · {HOLIDAY_TYPE_LABELS[branchesModal.type]}
+                </p>
+              </div>
+              <button onClick={() => setBranchesModal(null)} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-theme-muted">
+                Sucursales ({branchesModal.sharedCount})
+              </p>
+              {branchesModal.branches.map((b) => (
+                <div key={b.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-surface-muted/60">
+                  <Building2 className="h-4 w-4 text-theme-muted shrink-0" />
+                  <span className="text-sm text-theme-primary">{b.name}</span>
+                  <span className="text-xs text-theme-muted">({b.code})</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end px-5 py-3 border-t border-theme-color">
+              <button onClick={() => setBranchesModal(null)} className="btn-ghost text-sm">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <HolidayCreateModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        defaultBranchId={showAllBranches ? undefined : effectiveSelectedBranchId}
+      />
+
+      <HolidayEditModal
+        open={!!holidayToEdit}
+        holiday={holidayToEdit}
+        branchName={showAllBranches ? undefined : selectedBranch?.name}
+        onClose={() => setHolidayToEdit(null)}
+      />
 
       <ConfirmDialog
         open={!!holidayToDelete}

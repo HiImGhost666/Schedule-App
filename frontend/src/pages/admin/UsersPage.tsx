@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Upload, Download, Shield } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
@@ -201,7 +201,6 @@ export function UsersPage() {
           sortBy, sortOrder,
         },
       }).then((r) => r.data),
-    placeholderData: keepPreviousData,
   });
 
   const handleFilterChange = (key: UsersFilterKey, value: string) => {
@@ -211,14 +210,12 @@ export function UsersPage() {
 
   const handleSortChange = (field: UsersSortBy) => {
     setPage(1);
-    setSortBy((prevSortBy) => {
-      if (prevSortBy === field) {
-        setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-        return prevSortBy;
-      }
-      setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
-      return field;
-    });
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(field);
+    setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
   };
 
   const statusMutation = useMutation({
