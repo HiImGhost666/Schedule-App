@@ -37,7 +37,9 @@ const scheduleCreateInputSchema = z.object({
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
+  confirmed: z.boolean().optional().default(false),
 });
+
 
 const scheduleUpdateInputSchema = scheduleCreateInputSchema.partial().extend({
   reason: z.string().optional(),
@@ -192,10 +194,12 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
   }
 }
 
-/** Verifica que no se asigne trabajo en días festivos (excepto excepciones como 'otro' o 'excepcion'). */
-async function ensureNoHolidayOverlap(branchId: string, startDt: Date, endDt: Date, type: string) {
+/** Verifica que no se asigne trabajo en días festivos (excepto excepciones como 'otro' o 'excepcion').
+ *  Si `confirmed` es `true`, se salta la validación permitiendo crear tareas en festivos (ej. horas extra). */
+async function ensureNoHolidayOverlap(branchId: string, startDt: Date, endDt: Date, type: string, confirmed = false) {
   const exceptions = ['vacaciones', 'ausencia', 'otro', 'excepcion'];
   if (exceptions.includes(type)) return;
+  if (confirmed) return;
 
   const holidays = await prisma.branchHoliday.findMany({
     where: {
@@ -204,8 +208,6 @@ async function ensureNoHolidayOverlap(branchId: string, startDt: Date, endDt: Da
         gte: new Date(startDt.getFullYear(), startDt.getMonth(), startDt.getDate()),
         lte: new Date(endDt.getFullYear(), endDt.getMonth(), endDt.getDate()),
       },
-      // Solo bloqueamos si NO es un festivo parcial (o bloqueamos todo si el usuario quiere "nada de trabajo")
-      // El usuario dijo "no se pueda poner trabajo", así que bloqueamos incluso si es parcial por ahora.
     },
   });
 
@@ -214,6 +216,7 @@ async function ensureNoHolidayOverlap(branchId: string, startDt: Date, endDt: Da
     throw createAppError('BAD_REQUEST', `No se puede asignar trabajo en días festivos: ${names}`);
   }
 }
+
 
 /**
  * @description Retorna una guardia unitaria identificada con su ID; revienta (404) si es irreconocible.
@@ -250,13 +253,14 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   const endDt = new Date(parsed.data.endDatetime);
   ensureValidScheduleRange(startDt, endDt);
 
-  const { assigneeIds, reason, branchId, ...scheduleData } = parsed.data;
+  const { assigneeIds, reason, branchId, confirmed, ...scheduleData } = parsed.data;
   const targetBranchId = branchId ?? actor.branchId ?? undefined;
 
   if (targetBranchId) {
     await ensureActiveBranch(targetBranchId);
-    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, parsed.data.type);
+    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, parsed.data.type, confirmed);
   }
+
 
   if (actor.role !== 'admin') {
     if (!actor.branchId) {
@@ -334,7 +338,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const existing = await findScheduleById(scheduleId);
   if (!existing) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  const { assigneeIds, reason, branchId, ...updateData } = parsed.data;
+  const { assigneeIds, reason, branchId, confirmed, ...updateData } = parsed.data;
   const nextBranchId = branchId ?? existing.branchId;
   if (nextBranchId) await ensureActiveBranch(nextBranchId);
 
@@ -358,8 +362,9 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const isLastMinute = isLastMinuteSchedule(startDt);
 
   if (nextBranchId) {
-    await ensureNoHolidayOverlap(nextBranchId, startDt, endDt, parsed.data.type ?? existing.type);
+    await ensureNoHolidayOverlap(nextBranchId, startDt, endDt, parsed.data.type ?? existing.type, confirmed);
   }
+
 
   await ensureNoOverlaps(assigneeIds || existing.assignments.map(a => a.userId), startDt, endDt, scheduleId);
 

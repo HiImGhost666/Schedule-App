@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Trash2, Clock, MapPin, FileText, Users, Info, AlertTriangle } from 'lucide-react';
+import { X, Trash2, Clock, MapPin, FileText, Users, Info, AlertTriangle, CalendarDays } from 'lucide-react';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
 import { SCHEDULE_TYPES, type BranchHoliday, type Schedule, type User } from '@/types';
@@ -344,11 +345,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
   const confirmDespiteHolidays = () => {
     if (!pendingPayload) return;
-    if (schedule) updateMutation.mutate(pendingPayload);
-    else createMutation.mutate(pendingPayload);
+    const payloadWithConfirmation = { ...pendingPayload, confirmed: true };
+    if (schedule) updateMutation.mutate(payloadWithConfirmation);
+    else createMutation.mutate(payloadWithConfirmation);
     setHolidayConflicts([]);
     setPendingPayload(null);
   };
+
 
   const cancelConflictDialog = () => {
     setHolidayConflicts([]);
@@ -499,17 +502,24 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                 <label className="block text-sm font-medium text-navy-600 mb-1">
                   <Clock className="inline h-3.5 w-3.5 mr-1" />Inicio *
                 </label>
-                <input {...register('startDatetime')} type="datetime-local" className="input-field text-sm" disabled={!canEdit} />
+                <div className="relative">
+                  <input {...register('startDatetime')} type="datetime-local" className="input-field text-sm pr-9" disabled={!canEdit} />
+                  <CalendarDays className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted pointer-events-none" />
+                </div>
                 {errors.startDatetime && <p className="text-xs text-red-500 mt-1">{errors.startDatetime.message}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-theme-muted mb-1">
                   <Clock className="inline h-3.5 w-3.5 mr-1" />Fin *
                 </label>
-                <input {...register('endDatetime')} type="datetime-local" className="input-field text-sm" disabled={!canEdit} />
+                <div className="relative">
+                  <input {...register('endDatetime')} type="datetime-local" className="input-field text-sm pr-9" disabled={!canEdit} />
+                  <CalendarDays className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted pointer-events-none" />
+                </div>
                 {errors.endDatetime && <p className="text-xs text-red-500 mt-1">{errors.endDatetime.message}</p>}
               </div>
             </div>
+
 
             {/* Hours per day */}
             <div>

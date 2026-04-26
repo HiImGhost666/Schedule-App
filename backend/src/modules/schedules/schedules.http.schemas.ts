@@ -35,7 +35,9 @@ export const createScheduleBodySchema = z.object({
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   reason: z.string().optional(),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
+  confirmed: z.boolean().optional().default(false),
 });
+
 
 export const updateScheduleBodySchema = createScheduleBodySchema.partial().extend({
   reason: z.string().optional(),

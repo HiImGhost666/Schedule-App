@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAudit } from '../audit/audit.service';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import { findSchedules } from '../schedules/schedules.repository';
 import {
   countActiveBranches,
   countSchedulesByBranch,
@@ -22,6 +23,7 @@ import {
   updateBranchHolidayRecord,
   updateBranchRecord,
 } from './branches.repository';
+
 import { ensureDateRange, normalizeBranchCode, normalizeHolidayDate, resolveHolidayScope } from './domain/branches.rules';
 import {
   BranchActor,
@@ -290,7 +292,41 @@ export async function createBranchHoliday(branchId: string, data: BranchHolidayI
       ipAddress: actor.ipAddress,
     });
 
-    return holiday;
+    // Verificar si hay schedules existentes en la fecha del feriado
+    const holidayDate = normalizeHolidayDate(data.date);
+    const dayStart = new Date(holidayDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(holidayDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const conflictingSchedules = await findSchedules({
+      branchId,
+      AND: [
+        { startDatetime: { lte: dayEnd } },
+        { endDatetime: { gte: dayStart } },
+      ],
+    });
+
+    const result: Record<string, unknown> & { holiday: typeof holiday; warning?: string; conflictingSchedules?: unknown[] } = {
+      holiday,
+    };
+
+    if (conflictingSchedules.length > 0) {
+      result.warning = `Existen ${conflictingSchedules.length} turno(s) programado(s) en esta fecha que podrían verse afectados`;
+      result.conflictingSchedules = conflictingSchedules.map((s) => ({
+        id: s.id,
+        title: s.title,
+        startDatetime: s.startDatetime,
+        endDatetime: s.endDatetime,
+        type: s.type,
+        assignees: s.assignments.map((a) => ({
+          id: a.user.id,
+          name: a.user.name,
+        })),
+      }));
+    }
+
+    return result;
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw createAppError('CONFLICT', 'Ya existe un festivo con esa fecha y nombre en esta sucursal');
@@ -298,6 +334,7 @@ export async function createBranchHoliday(branchId: string, data: BranchHolidayI
     throw error;
   }
 }
+
 
 export async function updateBranchHoliday(
   branchId: string,

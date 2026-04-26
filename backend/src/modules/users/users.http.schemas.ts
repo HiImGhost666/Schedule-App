@@ -19,7 +19,10 @@ export const listUsersQuerySchema = z.object({
   lastLoginTo: z.string().optional(),
   createdFrom: z.string().optional(),
   createdTo: z.string().optional(),
+  sortBy: z.enum(['createdAt', 'name', 'email', 'role', 'status', 'lastLoginAt', 'department', 'branch']).optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
+
 
 export const createUserBodySchema = z.object({
   employeeId: z.string().optional().nullable(),
