@@ -84,14 +84,31 @@ function getInitialStyle(anchor: PopoverAnchor | null, mobile: boolean): CSSProp
   }
 
   const gap = 12;
+  const popoverWidth = 340;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+  // Calcular left: primero a la derecha del ancla, si se sale, a la izquierda
+  let left = anchor.x + gap;
+  if (left + popoverWidth + gap > viewportWidth) {
+    left = Math.max(gap, anchor.x - popoverWidth - gap);
+  }
+
+  // Calcular top: si se sale por abajo, mostrar arriba del ancla
+  const estimatedHeight = 400;
+  let top = anchor.y + gap;
+  if (top + estimatedHeight + gap > viewportHeight) {
+    top = Math.max(16, anchor.y - estimatedHeight - gap);
+  }
 
   return {
     position: 'absolute',
-    left: Math.max(gap, anchor.x + gap),
-    top: Math.max(16, anchor.y + gap),
-    width: 340,
+    left,
+    top,
+    width: popoverWidth,
   };
 }
+
 
 function ActionButton({
   title,
