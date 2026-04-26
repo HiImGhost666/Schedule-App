@@ -1,4 +1,4 @@
-import { Building2, Plus, ArrowUpDown } from 'lucide-react';
+import { Building2, Plus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { Branch } from '@/types';
 
@@ -8,20 +8,24 @@ interface BranchListProps {
   isCreatingBranch: boolean;
   searchTerm: string;
   sortBy: 'name' | 'code';
+  sortOrder: 'asc' | 'desc';
   onSearchChange: (value: string) => void;
-  onSortChange: (sort: 'name' | 'code') => void;
+  onSortChange: (sort: 'name' | 'code', order: 'asc' | 'desc') => void;
   onSelectBranch: (branch: Branch) => void;
   onNewBranch: () => void;
 }
 
 export function BranchList({
   branches, selectedBranchId, isCreatingBranch,
-  searchTerm, sortBy,
+  searchTerm, sortBy, sortOrder,
   onSearchChange, onSortChange, onSelectBranch, onNewBranch,
 }: BranchListProps) {
   const filteredAndSorted = branches
     .filter((b) => !searchTerm || b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.code.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => a[sortBy].localeCompare(b[sortBy], 'es', { sensitivity: 'base' }));
+    .sort((a, b) => {
+      const cmp = a[sortBy].localeCompare(b[sortBy], 'es', { sensitivity: 'base' });
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
 
   return (
     <aside className="rounded-xl border border-theme-color bg-theme-surface p-2.5 sm:p-3">
@@ -35,22 +39,26 @@ export function BranchList({
           value={searchTerm} onChange={(e) => onSearchChange(e.target.value)} />
         <div className="flex items-center gap-2 text-xs px-1">
           <span className="text-theme-muted shrink-0">Ordenar por:</span>
-          <button onClick={() => onSortChange('name')}
+          <button onClick={() => onSortChange('name', sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')}
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors text-xs font-medium ${
               sortBy === 'name'
-                ? 'bg-theme-primary text-white shadow-sm ring-1 ring-theme-primary/50'
+                ? 'bg-navy-700 text-white shadow-sm ring-1 ring-navy-700/50'
                 : 'bg-theme-surface-muted text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary'
             }`}>
-            {sortBy === 'name' && <ArrowUpDown className="h-3 w-3" />}
+            {sortBy === 'name' ? (
+              sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            ) : <ArrowUpDown className="h-3 w-3" />}
             Nombre
           </button>
-          <button onClick={() => onSortChange('code')}
+          <button onClick={() => onSortChange('code', sortBy === 'code' && sortOrder === 'asc' ? 'desc' : 'asc')}
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors text-xs font-medium ${
               sortBy === 'code'
-                ? 'bg-theme-primary text-white shadow-sm ring-1 ring-theme-primary/50'
+                ? 'bg-navy-700 text-white shadow-sm ring-1 ring-navy-700/50'
                 : 'bg-theme-surface-muted text-theme-muted hover:bg-theme-surface-hover hover:text-theme-primary'
             }`}>
-            {sortBy === 'code' && <ArrowUpDown className="h-3 w-3" />}
+            {sortBy === 'code' ? (
+              sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            ) : <ArrowUpDown className="h-3 w-3" />}
             Código
           </button>
         </div>

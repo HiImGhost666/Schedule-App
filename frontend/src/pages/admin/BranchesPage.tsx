@@ -27,6 +27,7 @@ export function BranchesPage() {
   const [branchToHardDelete, setBranchToHardDelete] = useState<Branch | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'code'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: branches, isLoading: branchesLoading } = useQuery<{ data: Branch[] }>({
     queryKey: ['branches', showInactiveBranches],
@@ -86,6 +87,11 @@ export function BranchesPage() {
   const branchSaving = createBranchMutation.isPending || updateBranchMutation.isPending;
   const hasBranches = Boolean(branches?.data?.length);
 
+  const handleSortChange = (field: 'name' | 'code', order: 'asc' | 'desc') => {
+    setSortBy(field);
+    setSortOrder(order);
+  };
+
   const onSelectBranch = (branch: Branch) => { setSelectedBranchId(branch.id); setIsCreatingBranch(false); setEditingBranchId(null); };
   const startNewBranch = () => { setSelectedBranchId(''); setIsCreatingBranch(true); setEditingBranchId(null); setBranchForm(emptyBranchForm); };
   const cancelNewBranch = () => { setIsCreatingBranch(false); setEditingBranchId(null); setBranchForm(emptyBranchForm); };
@@ -137,8 +143,9 @@ export function BranchesPage() {
               isCreatingBranch={isCreatingBranch}
               searchTerm={searchTerm}
               sortBy={sortBy}
+              sortOrder={sortOrder}
               onSearchChange={setSearchTerm}
-              onSortChange={setSortBy}
+              onSortChange={handleSortChange}
               onSelectBranch={onSelectBranch}
               onNewBranch={startNewBranch}
             />
