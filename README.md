@@ -204,4 +204,146 @@ Para más detalles sobre el funcionamiento interno, consulte la carpeta `/schedu
 
 ---
 
+---
+
+## 📋 Acciones por página y rol
+
+A continuación se detallan todas las acciones disponibles en cada página de la aplicación, organizadas por rol de usuario.
+
+### 🔐 Panel de Login (`/login`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Iniciar sesión con email/username y contraseña | ✅ | ✅ | ✅ |
+| Cambiar contraseña obligatoria al primer inicio | ✅ | ✅ | ✅ |
+
+### 📊 Dashboard (`/dashboard`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver calendario semanal con turnos | ✅ | ✅ | ✅ |
+| Ver leyenda de tipos de turno (colores) | ✅ | ✅ | ✅ |
+| Ver resumen de turnos de la semana | ✅ | ✅ | ✅ |
+| Ver notificaciones recientes | ✅ | ✅ | ✅ |
+| Ver actividad de auditoría reciente | ✅ | ✅ | ❌ |
+| Navegar entre semanas (anterior/siguiente) | ✅ | ✅ | ✅ |
+| Ir a la semana actual | ✅ | ✅ | ✅ |
+| Filtrar por sucursal | ✅ | ✅ | ✅ |
+
+### 📅 Calendario de Turnos (`/schedules`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver calendario mensual con todos los turnos | ✅ | ✅ | ✅ |
+| Ver detalle de un turno al hacer clic (popover) | ✅ | ✅ | ✅ |
+| Crear nuevo turno (guardia, ausencia, vacaciones, etc.) | ✅ | ✅ | ❌ |
+| Editar turno existente | ✅ | ✅ | ❌ |
+| Eliminar turno | ✅ | ✅ | ❌ |
+| Asignar personal al turno desde listado filtrable | ✅ | ✅ | ❌ |
+| Ver previsualización de horas totales del turno | ✅ | ✅ | ❌ |
+| Confirmar creación en día festivo (modal de advertencia) | ✅ | ✅ | ❌ |
+| Filtrar por sucursal | ✅ | ✅ | ✅ |
+| Ver festivos del mes en el calendario | ✅ | ✅ | ✅ |
+
+**Tipos de turno disponibles:** Guardia, Ausencia, Vacaciones, Formación, Otro, Excepción
+
+### 👥 Gestión de Usuarios (`/admin/users`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver listado completo de usuarios | ✅ | ✅ | ❌ |
+| Buscar usuarios por nombre o email | ✅ | ✅ | ❌ |
+| Filtrar por rol, estado, departamento, sucursal | ✅ | ✅ | ❌ |
+| Ordenar por cualquier columna (nombre, depto., sucursal, rol, etc.) | ✅ | ✅ | ❌ |
+| Ver detalle de perfil de usuario | ✅ | ✅ | ❌ |
+| Crear nuevo usuario | ✅ | ❌ | ❌ |
+| Editar usuario (nombre, email, departamento, sucursal) | ✅ | ❌ | ❌ |
+| Cambiar rol de usuario | ✅ | ❌ | ❌ |
+| Cambiar estado (activar/desactivar/bloquear) | ✅ | ❌ | ❌ |
+| Forzar cambio de contraseña | ✅ | ❌ | ❌ |
+| Resetear contraseña | ✅ | ❌ | ❌ |
+| Eliminar usuario (soft-delete) | ✅ | ❌ | ❌ |
+| Importar usuarios desde CSV | ✅ | ❌ | ❌ |
+| Exportar usuarios a CSV | ✅ | ❌ | ❌ |
+| Descargar plantilla CSV | ✅ | ❌ | ❌ |
+
+### 🏢 Gestión de Sucursales (`/admin/branches`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver listado de sucursales | ✅ | ✅ | ✅ |
+| Ordenar sucursales por nombre, código o estado | ✅ | ✅ | ✅ |
+| Crear nueva sucursal | ✅ | ❌ | ❌ |
+| Editar sucursal (nombre, código, dirección, etc.) | ✅ | ❌ | ❌ |
+| Activar/desactivar sucursal | ✅ | ❌ | ❌ |
+| Eliminar sucursal definitivamente (si no tiene turnos) | ✅ | ❌ | ❌ |
+
+### 🎉 Gestión de Festivos (`/admin/holidays`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver calendario de festivos por sucursal | ✅ | ✅ | ✅ |
+| Ver vista global "Todas las sucursales" con festivos agrupados | ✅ | ✅ | ✅ |
+| Filtrar por año y tipo de festivo | ✅ | ✅ | ✅ |
+| Ordenar por fecha, nombre o tipo | ✅ | ✅ | ✅ |
+| Ver detalle de sucursales en festivos compartidos | ✅ | ✅ | ✅ |
+| Crear nuevo festivo (con advertencia si hay turnos en esa fecha) | ✅ | ❌ | ❌ |
+| Editar festivo existente | ✅ | ❌ | ❌ |
+| Eliminar festivo (individual o agrupado) | ✅ | ❌ | ❌ |
+
+**Tipos de festivo:** Nacional, Autonómica, Regional, Local, Mejora, Empresa
+
+### 📋 Auditoría (`/admin/audit`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver historial completo de auditoría | ✅ | ❌ | ❌ |
+| Filtrar por acción, entidad, usuario, departamento, sucursal | ✅ | ❌ | ❌ |
+| Filtrar por rango de fechas | ✅ | ❌ | ❌ |
+| Ver pestaña "Reversibles" / "Irreversibles" | ✅ | ❌ | ❌ |
+| Ver detalle de un registro (snapshots before/after) | ✅ | ❌ | ❌ |
+| **Revertir (rollback) una acción** | ✅ | ❌ | ❌ |
+
+**Acciones revertibles:** CREATE_SCHEDULE, UPDATE_SCHEDULE, DELETE_SCHEDULE, CREATE_USER, UPDATE_USER, DELETE_USER, USER_STATUS_CHANGE, USER_ROLE_CHANGE, CREATE_BRANCH_HOLIDAY, UPDATE_BRANCH_HOLIDAY, DELETE_BRANCH_HOLIDAY, CREATE_WEBHOOK, UPDATE_WEBHOOK, DELETE_WEBHOOK
+
+### 🔔 Notificaciones (`/admin/notifications`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver historial de notificaciones enviadas | ✅ | ✅ | ❌ |
+| Ver detalles de cada notificación | ✅ | ✅ | ❌ |
+
+### ⚙️ Webhooks (`/admin/webhooks`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver listado de webhooks configurados | ✅ | ❌ | ❌ |
+| Crear nuevo webhook (URL, eventos, filtros) | ✅ | ❌ | ❌ |
+| Editar webhook existente | ✅ | ❌ | ❌ |
+| Probar webhook (enviar payload de prueba) | ✅ | ❌ | ❌ |
+| Eliminar webhook | ✅ | ❌ | ❌ |
+
+### 👤 Perfil de Usuario (`/profile`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver datos de perfil | ✅ | ✅ | ✅ |
+| Cambiar contraseña | ✅ | ✅ | ✅ |
+| Ver aviso de cambio de contraseña próximo (warning) | ✅ | ✅ | ✅ |
+
+### 🎨 Temas y Personalización (`/admin/settings`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver temas disponibles | ✅ | ❌ | ❌ |
+| Crear nuevo tema (colores, logo, favicon) | ✅ | ❌ | ❌ |
+| Editar tema existente | ✅ | ❌ | ❌ |
+| Duplicar tema | ✅ | ❌ | ❌ |
+| Eliminar tema (excepto presets base) | ✅ | ❌ | ❌ |
+| Subir logo y favicon | ✅ | ❌ | ❌ |
+
+---
+
 ¡Bienvenido al futuro de la gestión de guardias! 🚀
+
+
