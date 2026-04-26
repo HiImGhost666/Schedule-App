@@ -140,7 +140,14 @@ export function HolidaysPage() {
   }, [holidays?.data, holidayTypeFilter, sortBy, sortOrder]);
 
   const deleteHolidayMutation = useMutation({
-    mutationFn: (holidayId: string) => api.delete(`/branches/${effectiveSelectedBranchId}/holidays/${holidayId}`),
+    mutationFn: (holiday: DisplayHoliday) => {
+      if (isGrouped(holiday)) {
+        return api.delete(`/branches/${effectiveSelectedBranchId}/holidays/bulk`, {
+          data: { holidayIds: holiday.holidayIds },
+        });
+      }
+      return api.delete(`/branches/${effectiveSelectedBranchId}/holidays/${holiday.id}`);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['branch-holidays'] });
       qc.invalidateQueries({ queryKey: ['branch-holidays-calendar'] });
@@ -149,6 +156,7 @@ export function HolidaysPage() {
     },
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo eliminar el festivo')),
   });
+
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -411,7 +419,8 @@ export function HolidaysPage() {
         description={`¿Quieres eliminar "${holidayToDelete?.name ?? ''}"?`}
         confirmLabel="Eliminar"
         loading={deleteHolidayMutation.isPending}
-        onConfirm={() => holidayToDelete && deleteHolidayMutation.mutate(holidayToDelete.id)}
+        onConfirm={() => holidayToDelete && deleteHolidayMutation.mutate(holidayToDelete)}
+
         onCancel={() => setHolidayToDelete(null)}
       />
     </div>
