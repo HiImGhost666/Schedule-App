@@ -26,12 +26,27 @@ interface UserProfileModalProps {
         createdAt?: string;
     }
     | null;
+    initialTab?: 'general' | 'schedules' | 'security';
+    setTab?: (tab: 'general' | 'schedules' | 'security') => void;
 }
+
 
 type ProfileTab = 'general' | 'schedules' | 'security';
 
-export function UserProfileModal({ open, onClose, user }: UserProfileModalProps) {
-    const [activeTab, setActiveTab] = useState<ProfileTab>('general');
+export function UserProfileModal({ open, onClose, user, initialTab, setTab }: UserProfileModalProps) {
+    // Si initialTab es nullish, default a 'general' solo al abrir
+    const [internalTab, setInternalTab] = useState<ProfileTab>('general');
+    // Sincroniza initialTab solo cuando el modal se abre
+    useEffect(() => {
+        if (open) {
+            setInternalTab(initialTab ?? 'general');
+        }
+    }, [open, initialTab]);
+    const activeTab = setTab ? (initialTab ?? 'general') : internalTab;
+    const handleSetTab = (tab: ProfileTab) => {
+        if (setTab) setTab(tab);
+        else setInternalTab(tab);
+    };
     const currentUser = useAuthStore((s) => s.user);
     const isDark = isDarkThemePreset(
       useUIStore(
@@ -44,7 +59,7 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
 
     useEffect(() => {
         if (!canViewSecurityTab && activeTab === 'security') {
-            setActiveTab('general');
+            handleSetTab('general');
         }
     }, [activeTab, canViewSecurityTab]);
 
@@ -224,14 +239,14 @@ export function UserProfileModal({ open, onClose, user }: UserProfileModalProps)
 
                     <div className="mt-6 flex flex-1 min-h-0 flex-col">
                         <div className="rounded-2xl bg-theme-surface-muted/70 border border-theme-color p-1 inline-flex gap-1 self-start">
-                            <button type="button" onClick={() => setActiveTab('general')} className={tabButtonClass('general')}>
+                            <button type="button" onClick={() => handleSetTab('general')} className={tabButtonClass('general')}>
                                 General
                             </button>
-                            <button type="button" onClick={() => setActiveTab('schedules')} className={tabButtonClass('schedules')}>
+                            <button type="button" onClick={() => handleSetTab('schedules')} className={tabButtonClass('schedules')}>
                                 Guardias
                             </button>
                             {canViewSecurityTab && (
-                                <button type="button" onClick={() => setActiveTab('security')} className={tabButtonClass('security')}>
+                                <button type="button" onClick={() => handleSetTab('security')} className={tabButtonClass('security')}>
                                     Seguridad
                                 </button>
                             )}
