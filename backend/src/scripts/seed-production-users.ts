@@ -29,7 +29,7 @@ const PRODUCTION_USERS = [
     role: 'admin' as const,
     department: 'Administración',
     initialPassword: 'Laberit@Admin2025!',
-    forcePasswordChange: false,
+    forcePasswordChange: true,
   },
 
   // ── RESPONSABLES ──

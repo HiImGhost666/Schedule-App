@@ -270,8 +270,7 @@ async function main() {
         password: 'User123!',
         role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
         status: 'active',
-        // Deja al menos un usuario listo para probar flujo obligatorio tras seed.
-        forcePasswordChange: u.email === 'carlos@company.com',
+        forcePasswordChange: true,
       },
       'Demo user'
     );

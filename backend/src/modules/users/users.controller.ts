@@ -65,7 +65,8 @@ export async function createUserController(req: AuthRequest, res: Response) {
   if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
   try {
-    const user = await createUser(parsedBody.data, { id: req.user!.id, ipAddress: req.ip });
+    // Forzar siempre forcePasswordChange: true
+    const user = await createUser({ ...parsedBody.data, forcePasswordChange: true }, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, user, 'Usuario creado', 201);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
