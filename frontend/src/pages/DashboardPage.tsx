@@ -66,11 +66,15 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
   };
 }
 
+
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
+  // Nuevo estado para la pestaña activa del modal
+  // null = default (general), 'schedules' = abrir en guardias
+  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security' | null>(null);
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -116,8 +120,23 @@ export function DashboardPage() {
       : 'bg-white/90 hover:bg-white text-green-600 shadow-sm border border-green-200',
   );
 
+
   const navigateToScheduleWeek = () => {
     navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } });
+  };
+
+  // Nuevo: abrir modal de perfil en pestaña 'schedules'
+  const openMyProfileSchedules = () => {
+    setSelectedProfileUser(user!);
+    setProfileModalTab('schedules');
+    setProfileModalOpen(true);
+  };
+
+  // Cuando se abre el modal desde otro lugar, profileModalTab debe ser null
+  const openProfileGeneral = (profileUser: ScheduleAssignment['user']) => {
+    setSelectedProfileUser(profileUser);
+    setProfileModalTab(null);
+    setProfileModalOpen(true);
   };
 
   const navigateToActiveUsers = () => {
@@ -178,9 +197,9 @@ export function DashboardPage() {
           className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
           role="button"
           tabIndex={0}
-          aria-label="Ver mis turnos en calendario"
-          onClick={navigateToScheduleWeek}
-          onKeyDown={(event) => handleCardKeyDown(event, navigateToScheduleWeek)}
+          aria-label="Ver mis turnos"
+          onClick={openMyProfileSchedules}
+          onKeyDown={(event) => handleCardKeyDown(event, openMyProfileSchedules)}
         >
           <StatCard
             title="Mis turnos"
@@ -387,6 +406,8 @@ export function DashboardPage() {
         open={profileModalOpen}
         user={selectedProfileUser}
         onClose={() => setProfileModalOpen(false)}
+        initialTab={profileModalTab}
+        setTab={setProfileModalTab}
       />
     </div>
   );
