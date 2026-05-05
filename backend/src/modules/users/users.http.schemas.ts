@@ -21,7 +21,7 @@ export const listUsersQuerySchema = z.object({
   lastLoginTo: z.string().optional(),
   createdFrom: z.string().optional(),
   createdTo: z.string().optional(),
-  sortBy: z.enum(['createdAt', 'name', 'email', 'role', 'status', 'lastLoginAt', 'department', 'branch']).optional().default('createdAt'),
+  sortBy: z.enum(['createdAt', 'name', 'email', 'roleId', 'status', 'lastLoginAt', 'department', 'branchId', 'branch']).optional().default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 

@@ -13,7 +13,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
-import { UsersTable } from '@/components/users/UsersTable';
 import { UsersPagination } from '@/components/users/UsersPagination';
 import { UserActionMenu } from '@/components/users/UserActionMenu';
 import type { UsersSortBy, SortOrder } from '@/types';
@@ -512,8 +511,8 @@ export function UsersPage() {
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('name', 'Usuario')}</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">Sucursal</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('role', 'Rol')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('branchId', 'Sucursal')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('roleId', 'Rol')}</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('status', 'Estado')}</th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('lastLoginAt', 'Último acceso')}</th>
                     <th className="px-5 py-3" />

@@ -751,7 +751,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       }
 
       const resolvedBranchId = branch.id;
-      const userRoleId = role ? dbRoles.find(r => r.name === role)?.id : undefined;
+      const userRoleId = role ? dbRoles.find((r: { id: string; name: string }) => r.name === role)?.id : undefined;
       const userStatus = (status || undefined) as UserStatus | undefined;
       const userDept = (department || undefined) as UserDepartment | undefined;
 
