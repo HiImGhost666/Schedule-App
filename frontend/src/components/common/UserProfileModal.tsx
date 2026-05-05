@@ -53,6 +53,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
         (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
       ),
     );
+    const canLoadDetailedUser = currentUser?.role?.name === 'admin' || currentUser?.role?.name === 'general_manager' || currentUser?.role?.name === 'department_manager' || currentUser?.role?.name === 'employee';
     const canLoadPrivateData = currentUser?.role?.name === 'admin' || currentUser?.role?.name === 'general_manager' || currentUser?.role?.name === 'department_manager';
         const canLoadSchedules = Boolean(currentUser);
     const canViewSecurityTab = canLoadPrivateData;
@@ -66,7 +67,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
     const { data: detailedUser, isLoading: loadingUserDetail } = useQuery({
         queryKey: ['user-profile-modal-detail', user?.id],
         queryFn: () => api.get<{ data: User }>(`/users/${user!.id}`).then((r) => r.data.data),
-        enabled: open && canLoadPrivateData && Boolean(user?.id),
+        enabled: open && canLoadDetailedUser && Boolean(user?.id),
         retry: false,
     });
 

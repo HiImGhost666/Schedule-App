@@ -52,7 +52,7 @@ const router = Router();
 router.get('/', authMiddleware, requirePermission('users:view'), (req: AuthRequest, res: Response) => listUsersController(req, res));
 
 // Get single user
-router.get('/:id', authMiddleware, requirePermission('users:view'), (req: AuthRequest, res: Response) => getUserController(req, res));
+router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getUserController(req, res));
 
 // Import CSV
 router.post('/import', authMiddleware, requirePermission('users:manage'), upload.single('file'), handleMulterError, (req: AuthRequest, res: Response) => importUsersCsvController(req, res));

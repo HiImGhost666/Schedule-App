@@ -81,7 +81,7 @@ export function listSchedulesForActor(
   if (params.type) where.type = params.type;
   if (params.userId) where.assignments = { some: { userId: params.userId } };
 
-  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager';
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
@@ -150,7 +150,7 @@ export async function listWeekSchedulesForActor(
   branchId: string | undefined,
   actor: Pick<Actor, 'roleName' | 'branchId'>,
 ) {
-  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager';
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
@@ -231,7 +231,7 @@ export async function getScheduleById(scheduleId: string) {
 export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'roleName' | 'branchId'>) {
   const schedule = await getScheduleById(scheduleId);
 
-  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager';
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar guardias');
   }
