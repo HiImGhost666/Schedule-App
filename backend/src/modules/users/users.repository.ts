@@ -7,11 +7,7 @@ type UserWhere = NonNullable<Parameters<typeof prisma.user.findMany>[0]>['where'
 type UserCreateData = NonNullable<Parameters<typeof prisma.user.create>[0]>['data'];
 type UserUpdateData = NonNullable<Parameters<typeof prisma.user.update>[0]>['data'];
 type IdentityConflict = { id: string; email: string } | null;
-<<<<<<< Updated upstream
-export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt' | 'department' | 'branch';
-=======
-export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'roleId' | 'status' | 'lastLoginAt';
->>>>>>> Stashed changes
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'roleId' | 'status' | 'lastLoginAt' | 'department' | 'branchId';
 export type SortOrder = 'asc' | 'desc';
 
 function getDb(tx?: TransactionClient) {

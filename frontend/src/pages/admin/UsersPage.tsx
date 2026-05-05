@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Upload, Download, Shield } from 'lucide-react';
+import { Plus, Upload, Download, Shield, MoreVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { formatRelative } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
 import type { Branch, User } from '@/types';
@@ -25,6 +28,20 @@ const ALLOWED_ROLES = new Set(['admin', 'general_manager', 'department_manager',
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
 const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
 const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  general_manager: 'Gerente General',
+  department_manager: 'Responsable',
+  employee: 'Empleado',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Activo',
+  disabled: 'Deshabilitado',
+  locked: 'Bloqueado',
+};
+
 
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
@@ -166,27 +183,6 @@ export function UsersPage() {
   ];
 
   const USERS_FILTER_FIELDS_DYNAMIC: Array<FilterFieldConfig<UsersFilterKey>> = [
-<<<<<<< Updated upstream
-    { key: 'search', type: 'text', label: 'Buscar', placeholder: 'Nombre o email...', className: 'min-w-56' },
-    { key: 'role', type: 'select', label: 'Rol', options: [
-      { value: '', label: 'Todos los roles' }, { value: 'admin', label: 'Administrador' },
-      { value: 'manager', label: 'Responsable' }, { value: 'viewer', label: 'Usuario' },
-    ]},
-    { key: 'status', type: 'select', label: 'Estado', options: [
-      { value: '', label: 'Todos los estados' }, { value: 'active', label: 'Activo' },
-      { value: 'disabled', label: 'Deshabilitado' }, { value: 'locked', label: 'Bloqueado' },
-    ]},
-    { key: 'department', type: 'select', label: 'Departamento', options: [
-      { value: '', label: 'Todos los departamentos' }, { value: 'seguridad', label: 'Seguridad' },
-      { value: 'mantenimiento', label: 'Mantenimiento' }, { value: 'operaciones', label: 'Operaciones' },
-      { value: 'administración', label: 'Administración' },
-    ]},
-    { key: 'branchId', type: 'select', label: 'Sucursal', options: branchOptions },
-    { key: 'lastLoginFrom', type: 'date', label: 'Último login desde', className: 'w-36' },
-    { key: 'lastLoginTo', type: 'date', label: 'Último login hasta', className: 'w-36' },
-    { key: 'createdFrom', type: 'date', label: 'Creado desde', className: 'w-36' },
-    { key: 'createdTo', type: 'date', label: 'Creado hasta', className: 'w-36' },
-=======
     {
       key: 'search',
       type: 'text',
@@ -260,7 +256,7 @@ export function UsersPage() {
       label: 'Creado hasta',
       className: 'w-36',
     },
->>>>>>> Stashed changes
+
   ];
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
@@ -294,6 +290,24 @@ export function UsersPage() {
     setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
   };
 
+  const renderSortLabel = (field: UsersSortBy, label: string) => {
+    const isActive = sortBy === field;
+    return (
+      <button
+        onClick={() => handleSortChange(field)}
+        className="flex items-center gap-1 hover:text-navy-700 transition-colors"
+      >
+        {label}
+        {isActive ? (
+          sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUp className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+        )}
+      </button>
+    );
+  };
+
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/users/${id}/status`, { status }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Estado actualizado'); setConfirmAction(null); },
@@ -325,16 +339,12 @@ export function UsersPage() {
         currentPage += 1;
       }
       const rows = allUsers.map((user) => ({
-<<<<<<< Updated upstream
-        employeeId: user.employeeId ?? '', name: user.name ?? '', email: user.email ?? '',
-        role: user.role ?? '', status: user.status ?? '',
-=======
         employeeId: user.employeeId ?? '',
         name: user.name ?? '',
         email: user.email ?? '',
         role: user.role?.name ?? '',
         status: user.status ?? '',
->>>>>>> Stashed changes
+
         department: normalizeDepartment(user.department ?? '') ?? '',
         branchId: user.branch?.code ?? '', companyPhone: user.companyPhone ?? '', auxiliaryPhone: user.auxiliaryPhone ?? '',
       }));
@@ -442,8 +452,6 @@ export function UsersPage() {
     document.body.removeChild(link);
   };
 
-<<<<<<< Updated upstream
-=======
   const roleBadge = (role: string) => {
     const cls: Record<string, string> = {
       admin: 'badge-role-admin',
@@ -460,7 +468,6 @@ export function UsersPage() {
     return <span className={cls[status as keyof typeof cls] || 'badge-status-disabled'}>{STATUS_LABELS[status]}</span>;
   };
 
->>>>>>> Stashed changes
   const openMenuUser = data?.data?.find((user) => user.id === menuOpenId) ?? null;
 
   return (
@@ -498,15 +505,6 @@ export function UsersPage() {
           <EmptyState icon={Shield} title="Sin usuarios" description="No se encontraron usuarios con los filtros aplicados" />
         ) : (
           <>
-<<<<<<< Updated upstream
-            <UsersTable
-              data={data.data}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={handleSortChange}
-              onMenuToggle={handleMenuToggle}
-            />
-=======
             <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full">
                 <thead>
@@ -528,7 +526,7 @@ export function UsersPage() {
                       <td className="px-5 py-3 text-xs font-mono text-navy-400 hidden xl:table-cell">{u.employeeId || '—'}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                           <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
                             {u.name[0]}
                           </div>
                           <div className="min-w-0">
@@ -544,8 +542,9 @@ export function UsersPage() {
                       <td className="px-5 py-3">{roleBadge(u.role?.name)}</td>
                       <td className="px-5 py-3">{statusBadge(u.status)}</td>
                       <td className="px-5 py-3 text-xs text-navy-400 hidden lg:table-cell">
-                        {u.lastLoginAt ? formatRelative(u.lastLoginAt) : 'Nunca'}
+                        {u.lastLoginAt ? formatRelative(new Date(u.lastLoginAt), new Date(), { locale: es }) : 'Nunca'}
                       </td>
+
                       <td className="px-5 py-3 relative">
                         <button
                           onClick={(event) => handleMenuToggle(u.id, event)}
@@ -560,8 +559,7 @@ export function UsersPage() {
                 </tbody>
               </table>
             </div>
-            {/* Pagination */}
->>>>>>> Stashed changes
+
             {data?.pagination && (
               <UsersPagination
                 page={page}

@@ -261,12 +261,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, parsed.data.type, confirmed);
   }
 
-<<<<<<< Updated upstream
-
-  if (actor.role !== 'admin') {
-=======
   if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
->>>>>>> Stashed changes
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }

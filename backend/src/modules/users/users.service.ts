@@ -61,7 +61,9 @@ const createUserInputSchema = z.object({
   branchId: z.string().min(1),
   employeeId: z.string().optional().nullable(),
   forcePasswordChange: z.boolean().optional(),
+  role: z.string().optional(),
 });
+
 
 const updateUserInputSchema = z.object({
   name: z.string().min(2).optional(),
@@ -73,7 +75,9 @@ const updateUserInputSchema = z.object({
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
   employeeId: z.string().optional().nullable(),
+  role: z.string().optional(),
 });
+
 
 export type CreateUserInput = z.infer<typeof createUserInputSchema>;
 type CreateUserOptions = {
@@ -239,7 +243,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
   const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
   const shouldUpsertExisting = options?.upsertExisting ?? false;
   await ensureBranchExists(parsed.data.branchId);
-  const { password: _password, branchId: createBranchId, forcePasswordChange, ...userData } = parsed.data;
+  const { password: _password, branchId: createBranchId, forcePasswordChange, role: _role, ...userData } = parsed.data;
 
   const result = await executeInTransaction(async (tx) => {
     const identity = shouldUpsertExisting
@@ -442,7 +446,7 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-    const { branchId: updateBranchId, employeeId, ...updateData } = parsed.data;
+    const { branchId: updateBranchId, employeeId, role: _role, ...updateData } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -462,6 +466,9 @@ export async function updateUser(userId: string, data: {
           : updateBranchId
             ? { branchId: updateBranchId }
             : { branchId: null }),
+        ...(parsed.data.role
+          ? { roleId: await resolveRoleId(undefined, parsed.data.role) }
+          : {}),
       } as Parameters<typeof updateUserRecord>[1],
       tx,
     );
