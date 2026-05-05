@@ -17,6 +17,14 @@ jest.mock('../src/utils/jwt', () => ({
   verifyRefreshToken: jest.fn(),
 }));
 
+jest.mock('../src/common/transactions/transaction.utils', () => ({
+  executeInTransaction: jest.fn(async (operation: any) => {
+    // Pasamos un objeto tx mock para que getDb(tx) lo use
+    // y las aserciones con expect.anything() funcionen
+    return operation({});
+  }),
+}));
+
 import * as usersRepo from '../src/modules/users/users.repository';
 import * as authRepo from '../src/modules/auth/auth.repository';
 import * as bcryptUtils from '../src/utils/bcrypt';
@@ -205,7 +213,8 @@ describe('login - Seguridad y Valores Límite', () => {
     expect(result.refreshToken).toBe('mock-refresh-token');
     expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
       'user-1',
-      expect.objectContaining({ failedAttempts: 0 })
+      expect.objectContaining({ failedAttempts: 0 }),
+      expect.anything()
     );
   });
 
@@ -248,7 +257,8 @@ describe('login - Seguridad y Valores Límite', () => {
       expect.objectContaining({
         forcePasswordChange: true,
         passwordChangePolicy: 'required',
-      })
+      }),
+      expect.anything()
     );
     expect(result.user.passwordChangeState).toBe('required');
     expect(result.user.forcePasswordChange).toBe(true);
@@ -283,7 +293,8 @@ describe('login - Seguridad y Valores Límite', () => {
       expect.objectContaining({
         passwordChangePolicy: 'warning',
         forcePasswordChange: false,
-      })
+      }),
+      expect.anything()
     );
     expect(result.user.passwordChangeState).toBe('warning');
   });
@@ -300,7 +311,8 @@ describe('login - Seguridad y Valores Límite', () => {
     expect(mockUsersRepo.findUserByDerivedUsername).toHaveBeenCalledWith('user');
     expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
       'user-1',
-      expect.objectContaining({ failedAttempts: 0 })
+      expect.objectContaining({ failedAttempts: 0 }),
+      expect.anything()
     );
   });
 
@@ -358,7 +370,8 @@ describe('password policy helpers in auth.service', () => {
         passwordChangePolicy: 'none',
         passwordChangeWarnedAt: null,
         passwordChangeDeadlineAt: null,
-      })
+      }),
+      expect.anything()
     );
   });
 });

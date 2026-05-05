@@ -22,6 +22,7 @@ import {
 } from './auth.repository';
 import { createAppError } from '../../common/errors/error-catalog';
 import { hashPassword } from '../../utils/bcrypt';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import {
   buildClearedPasswordChangeFields,
   getPolicyTransitionPatch,
@@ -84,9 +85,6 @@ export async function login(identifier: string, password: string, ipAddress?: st
     ...(policyUpgradePatch ?? {}),
   };
 
-  // Reset failed attempts on success and normalize password-change policy transitions.
-  const updatedUser = await updateUserById(user.id, successfulLoginPatch);
-
   const tokenId = crypto.randomUUID();
   const accessToken = signAccessToken({
     sub: user.id,
@@ -99,13 +97,20 @@ export async function login(identifier: string, password: string, ipAddress?: st
   const refreshExpiry = new Date();
   refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
-  await createRefreshToken({
-    id: tokenId,
-    token: refreshToken,
-    userId: user.id,
-    expiresAt: refreshExpiry,
-    ipAddress,
-    userAgent,
+  // Atomicidad: reset de intentos fallidos + creación de refresh token en una sola transacción
+  const updatedUser = await executeInTransaction(async (tx) => {
+    const updated = await updateUserById(user.id, successfulLoginPatch, tx);
+
+    await createRefreshToken({
+      id: tokenId,
+      token: refreshToken,
+      userId: user.id,
+      expiresAt: refreshExpiry,
+      ipAddress,
+      userAgent,
+    }, tx);
+
+    return updated;
   });
 
   const safeUser = {
@@ -153,9 +158,6 @@ export async function refreshTokens(token: string) {
     throw createAppError('UNAUTHORIZED', 'Usuario no disponible');
   }
 
-  // Revoke old token
-  await revokeRefreshTokenById(storedToken.id);
-
   const newTokenId = crypto.randomUUID();
   const accessToken = signAccessToken({
     sub: user.id,
@@ -168,11 +170,15 @@ export async function refreshTokens(token: string) {
   const refreshExpiry = new Date();
   refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
-  await createRefreshToken({
-    id: newTokenId,
-    token: newRefreshToken,
-    userId: user.id,
-    expiresAt: refreshExpiry,
+  // Atomicidad: revocar token viejo + crear token nuevo en una sola transacción
+  await executeInTransaction(async (tx) => {
+    await revokeRefreshTokenById(storedToken.id, tx);
+    await createRefreshToken({
+      id: newTokenId,
+      token: newRefreshToken,
+      userId: user.id,
+      expiresAt: refreshExpiry,
+    }, tx);
   });
 
   return { accessToken, refreshToken: newRefreshToken };
@@ -240,9 +246,11 @@ export async function changePassword(userId: string, currentPassword: string | u
   }
 
   const newHash = await hashPassword(newPassword);
-  await updateUserById(user.id, {
-    passwordHash: newHash,
-    passwordChangedAt: new Date(),
-    ...buildClearedPasswordChangeFields(),
+  await executeInTransaction(async (tx) => {
+    await updateUserById(user.id, {
+      passwordHash: newHash,
+      passwordChangedAt: new Date(),
+      ...buildClearedPasswordChangeFields(),
+    }, tx);
   });
 }
