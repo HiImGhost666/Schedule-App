@@ -125,7 +125,7 @@ export function HolidaysPage() {
 
   const filteredHolidays = useMemo(() => {
     const source = holidays?.data ?? [];
-    let filtered = holidayTypeFilter === 'all' ? source : source.filter((h) => h.type === holidayTypeFilter);
+    const filtered = holidayTypeFilter === 'all' ? source : source.filter((h) => h.type === holidayTypeFilter);
     return [...filtered].sort((a, b) => {
       let cmp = 0;
       if (sortBy === 'date') {

@@ -56,7 +56,7 @@ export function connectRealtime() {
     socket = createSocketInstance(token);
   } else {
     // If token changed, we must update it and reconnect
-    const currentToken = (socket.auth as any)?.token;
+    const currentToken = (socket.auth as { token?: string })?.token;
     if (currentToken !== token) {
       console.log('[Realtime] Token changed, reconnecting...');
       socket.auth = { token };

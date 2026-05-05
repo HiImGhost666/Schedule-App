@@ -74,7 +74,7 @@ export function DashboardPage() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   // Nuevo estado para la pestaña activa del modal
   // null = default (general), 'schedules' = abrir en guardias
-  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security' | null>(null);
+  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security' | undefined>(undefined);
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -129,13 +129,6 @@ export function DashboardPage() {
   const openMyProfileSchedules = () => {
     setSelectedProfileUser(user!);
     setProfileModalTab('schedules');
-    setProfileModalOpen(true);
-  };
-
-  // Cuando se abre el modal desde otro lugar, profileModalTab debe ser null
-  const openProfileGeneral = (profileUser: ScheduleAssignment['user']) => {
-    setSelectedProfileUser(profileUser);
-    setProfileModalTab(null);
     setProfileModalOpen(true);
   };
 
