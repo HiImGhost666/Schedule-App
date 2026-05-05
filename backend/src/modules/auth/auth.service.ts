@@ -88,11 +88,15 @@ export async function login(identifier: string, password: string, ipAddress?: st
   const updatedUser = await updateUserById(user.id, successfulLoginPatch);
 
   const tokenId = crypto.randomUUID();
+  const userWithRole = updatedUser as any;
+  const permissions = userWithRole.role?.permissions?.map((p: any) => p.name) || [];
+
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    role: user.role,
+    role: userWithRole.role?.name || 'viewer',
     name: user.name,
+    permissions,
   });
   const refreshToken = signRefreshToken({ sub: user.id, jti: tokenId });
 
@@ -112,7 +116,12 @@ export async function login(identifier: string, password: string, ipAddress?: st
     id: updatedUser.id,
     name: updatedUser.name,
     email: updatedUser.email,
-    role: updatedUser.role,
+    role: {
+      name: userWithRole.role?.name || 'viewer',
+      permissions: userWithRole.role?.permissions || []
+    },
+
+    permissions,
     status: updatedUser.status,
     avatarUrl: updatedUser.avatarUrl,
     department: updatedUser.department,
@@ -157,11 +166,15 @@ export async function refreshTokens(token: string) {
   await revokeRefreshTokenById(storedToken.id);
 
   const newTokenId = crypto.randomUUID();
+  const userWithRole = user as any;
+  const permissions = userWithRole.role?.permissions?.map((p: any) => p.name) || [];
+
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    role: user.role,
+    role: userWithRole.role?.name || 'viewer',
     name: user.name,
+    permissions,
   });
   const newRefreshToken = signRefreshToken({ sub: user.id, jti: newTokenId });
 
@@ -208,8 +221,15 @@ export async function getMe(userId: string) {
     user = refreshedProfile;
   }
 
+  const userWithRole = user as any;
   return {
     ...user,
+    role: {
+      name: userWithRole.role?.name || 'viewer',
+      permissions: userWithRole.role?.permissions || []
+    },
+
+    permissions: userWithRole.role?.permissions?.map((p: any) => p.name) || [],
     forcePasswordChange: resolvePasswordChangeState(user) === 'required',
     passwordChangeState: resolvePasswordChangeState(user),
   };

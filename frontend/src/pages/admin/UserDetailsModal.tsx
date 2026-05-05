@@ -117,7 +117,7 @@ export function UserDetailsModal({ open, userId, userName, onClose }: UserDetail
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4">
                     <p className="text-xs text-navy-400 mb-1">Rol</p>
-                    <p className="text-sm font-medium text-navy-700">{user.role}</p>
+                    <p className="text-sm font-medium text-navy-700">{ROLE_LABELS[user.role?.name] || user.role?.name}</p>
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4">
                     <p className="text-xs text-navy-400 mb-1">Estado</p>

@@ -39,7 +39,7 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
   id: 'user-1',
   email: 'user@test.com',
   name: 'Test',
-  role: 'viewer',
+  roleId: 'role-viewer-id',
   status: USER_STATUS.ACTIVE,
   failedAttempts: 0,
   passwordHash: 'hashed',

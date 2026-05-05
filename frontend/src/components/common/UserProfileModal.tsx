@@ -22,7 +22,7 @@ interface UserProfileModalProps {
         department?: string;
         companyPhone?: string;
         auxiliaryPhone?: string;
-        role?: 'admin' | 'manager' | 'viewer';
+        role?: string;
         createdAt?: string;
     }
     | null;
@@ -53,7 +53,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
         (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
       ),
     );
-    const canLoadPrivateData = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+    const canLoadPrivateData = currentUser?.role?.name === 'admin' || currentUser?.role?.name === 'general_manager' || currentUser?.role?.name === 'department_manager';
         const canLoadSchedules = Boolean(currentUser);
     const canViewSecurityTab = canLoadPrivateData;
 
@@ -221,8 +221,10 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black tracking-tight text-theme-primary">{profileUser.name}</h2>
                         <div className="flex items-center gap-2 flex-wrap text-xs">
-                            <span className={`badge-role-${(profileUser as User).role || 'viewer'}`}>
-                                {ROLE_LABELS[(profileUser as User).role || 'viewer']}
+                            <span className={cn('badge-role-viewer', (profileUser as User).role?.name === 'admin' && 'badge-role-admin', ((profileUser as User).role?.name === 'general_manager' || (profileUser as User).role?.name === 'department_manager') && 'badge-role-manager')}>
+                                {ROLE_LABELS[(profileUser as User).role?.name] || (profileUser as User).role?.name}
+
+
                             </span>
                             {status && (
                                 <span className={`badge-status-${status}`}>

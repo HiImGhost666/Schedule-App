@@ -32,7 +32,7 @@ const mockRepo = schedulesRepo as jest.Mocked<typeof schedulesRepo>;
 
 const mockActor = {
   id: 'admin-1',
-  role: 'admin',
+  roleName: 'admin',
   email: 'admin@test.com',
   name: 'Admin',
 };

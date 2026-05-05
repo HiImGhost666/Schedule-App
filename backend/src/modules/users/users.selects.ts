@@ -1,13 +1,23 @@
 import { Prisma } from '@prisma/client';
 
-export const USER_RESPONSE_SELECT = {
+export const USER_RESPONSE_SELECT: Prisma.UserSelect = {
   id: true,
   employeeId: true,
   name: true,
   email: true,
   derivedUsername: true,
   passwordChangedAt: true,
-  role: true,
+  roleId: true,
+  role: {
+    select: {
+      name: true,
+      permissions: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
   status: true,
   avatarUrl: true,
   department: true,
@@ -29,16 +39,26 @@ export const USER_RESPONSE_SELECT = {
       isActive: true,
     },
   },
-} as const;
+};
 
-export const USER_SAFE_SELECT = {
+export const USER_SAFE_SELECT: Prisma.UserSelect = {
   id: true,
   employeeId: true,
   name: true,
   email: true,
   derivedUsername: true,
   passwordChangedAt: true,
-  role: true,
+  roleId: true,
+  role: {
+    select: {
+      name: true,
+      permissions: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
   status: true,
   avatarUrl: true,
   department: true,
@@ -60,6 +80,6 @@ export const USER_SAFE_SELECT = {
       isActive: true,
     },
   },
-} as const;
+};
 
 export type UserResponse = Prisma.UserGetPayload<{ select: typeof USER_RESPONSE_SELECT }>;

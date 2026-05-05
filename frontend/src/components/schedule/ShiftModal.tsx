@@ -93,7 +93,7 @@ interface ShiftModalProps {
 export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, defaultBranchId }: ShiftModalProps) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [includeWeekends, setIncludeWeekends] = useState(false);

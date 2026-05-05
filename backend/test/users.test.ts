@@ -39,7 +39,7 @@ import {
 
 const mockRepo = usersRepo as jest.Mocked<typeof usersRepo>;
 
-const mockActor = { id: 'admin-id-1', ipAddress: '127.0.0.1' };
+const mockActor = { id: 'admin-id-1', roleName: 'admin', email: 'admin@test.com', name: 'Admin', ipAddress: '127.0.0.1' };
 const mockPrisma = prisma as unknown as {
   branch: { findUnique: jest.Mock };
 };
@@ -50,7 +50,7 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
   employeeId: 'LAB-0001',
   email: 'test@example.com',
   name: 'Test User',
-  role: 'viewer',
+  roleId: 'role-viewer-id',
   status: 'active',
   failedAttempts: 0,
   passwordHash: 'hashed',

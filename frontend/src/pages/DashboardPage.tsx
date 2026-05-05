@@ -93,13 +93,13 @@ export function DashboardPage() {
   const { data: usersData, isLoading: loadingUsers } = useQuery({
     queryKey: ['users', 'count', 'active'],
     queryFn: () => api.get('/users?limit=1&status=active').then((r) => r.data.pagination?.total || 0),
-    enabled: user?.role === 'admin' || user?.role === 'manager',
+    enabled: user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager',
   });
 
   const { data: auditLogs } = useQuery({
     queryKey: ['audit', 'recent'],
     queryFn: () => api.get<{ data: AuditLog[] }>('/audit?limit=5').then((r) => r.data.data),
-    enabled: user?.role === 'admin',
+    enabled: user?.role?.name === 'admin',
   });
 
   const mySchedules = weekSchedules?.filter((s) =>
@@ -219,7 +219,7 @@ export function DashboardPage() {
           </button>
         </div>
 
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (
           <div
             className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
             role="button"
@@ -358,7 +358,7 @@ export function DashboardPage() {
         </div>
 
         {/* Activity log */}
-        {user?.role === 'admin' && (
+        {user?.role?.name === 'admin' && (
           <div className="card p-7 min-h-[220px]">
             <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-gold-500" />

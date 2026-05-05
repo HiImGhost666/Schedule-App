@@ -2,7 +2,10 @@ import { prisma } from '../../config/database';
 import { USER_RESPONSE_SELECT } from '../users/users.selects';
 
 export function findUserById(userId: string) {
-  return prisma.user.findUnique({ where: { id: userId } });
+  return prisma.user.findUnique({ 
+    where: { id: userId },
+    include: { role: { include: { permissions: true } } }
+  });
 }
 
 export function findUserProfileById(userId: string) {
@@ -30,6 +33,7 @@ export function updateUserById(
   return prisma.user.update({
     where: { id: userId },
     data,
+    include: { role: { include: { permissions: true } } }
   });
 }
 

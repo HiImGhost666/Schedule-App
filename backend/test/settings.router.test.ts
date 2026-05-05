@@ -1,22 +1,33 @@
 import express from 'express';
 import request from 'supertest';
 
-jest.mock('../src/middleware/auth.middleware', () => ({
-  authMiddleware: (req: any, res: any, next: any) => {
-    const role = req.header('x-test-role');
+jest.mock('../src/middleware/auth.middleware', () => {
+  const { DEFAULT_ROLE_PERMISSIONS } = require('../src/modules/roles/roles.constants');
+  return {
+    authMiddleware: (req: any, res: any, next: any) => {
+      const role = req.header('x-test-role') as any;
 
-    if (!role) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token de acceso requerido',
-        code: 'UNAUTHORIZED',
-      });
-    }
+      if (!role) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token de acceso requerido',
+          code: 'UNAUTHORIZED',
+        });
+      }
 
-    req.user = { id: 'test-user', role, name: 'Test User' };
-    next();
-  },
-}));
+      const permissions = DEFAULT_ROLE_PERMISSIONS[role] || [];
+      req.user = { 
+        id: 'test-user', 
+        roleName: role, 
+        permissions, 
+        name: 'Test User', 
+        email: 'test@example.com', 
+        status: 'active'
+      };
+      next();
+    },
+  };
+});
 
 jest.mock('../src/modules/audit/audit.service', () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),
@@ -121,7 +132,7 @@ describe('settings.router', () => {
   });
 
   it('returns active theme on GET /theme', async () => {
-    const response = await request(app).get('/api/settings/theme').set('x-test-role', 'viewer');
+    const response = await request(app).get('/api/settings/theme').set('x-test-role', 'employee');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -140,10 +151,10 @@ describe('settings.router', () => {
     expect(themeService.publishThemeSettings).not.toHaveBeenCalled();
   });
 
-  it('returns 403 on PUT /theme for viewer', async () => {
+  it('returns 403 on PUT /theme for employee', async () => {
     const response = await request(app)
       .put('/api/settings/theme')
-      .set('x-test-role', 'viewer')
+      .set('x-test-role', 'employee')
       .send(validThemePayload);
 
     expect(response.status).toBe(403);

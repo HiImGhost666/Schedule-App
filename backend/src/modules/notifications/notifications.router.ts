@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/role.middleware';
+import { requirePermission } from '../../middleware/permission.middleware';
 import { sendSuccess, sendError, sendPaginated } from '../../utils/response';
 import { prisma } from '../../config/database';
 import { resendNotification, sendToWebhook } from './notifications.service';
@@ -14,7 +14,7 @@ const getParam = (value: string | string[] | undefined): string | undefined => (
   Array.isArray(value) ? value[0] : value
 );
 
-router.get('/logs', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.get('/logs', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
   const { type, status } = req.query;
@@ -40,7 +40,7 @@ router.get('/logs', authMiddleware, requireRole('admin'), async (req: AuthReques
   return sendPaginated(res, logs, total, page, limit);
 });
 
-router.post('/resend/:logId', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.post('/resend/:logId', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const logId = getParam(req.params.logId);
     if (!logId) return sendError(res, 'logId invalido', 400);
@@ -53,7 +53,7 @@ router.post('/resend/:logId', authMiddleware, requireRole('admin'), async (req: 
   }
 });
 
-router.post('/friday-summary', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.post('/friday-summary', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const results = await sendFridaySummary(req.user!.id);
     return sendSuccess(res, { sent: results.length }, `Resumen enviado a ${results.length} webhook(s)`);
@@ -63,7 +63,7 @@ router.post('/friday-summary', authMiddleware, requireRole('admin'), async (req:
   }
 });
 
-router.post('/vacation-summary', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.post('/vacation-summary', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const results = await sendMondayVacationSummary(req.user!.id);
     return sendSuccess(res, { sent: results.length }, `Resumen de vacaciones enviado a ${results.length} webhook(s)`);
@@ -73,7 +73,7 @@ router.post('/vacation-summary', authMiddleware, requireRole('admin'), async (re
   }
 });
 
-router.post('/announce', authMiddleware, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+router.post('/announce', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
   const { message, webhookConfigId } = req.body;
   if (!message) return sendError(res, 'Mensaje requerido', 400);
 

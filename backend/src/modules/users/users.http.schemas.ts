@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_DEPARTMENTS, USER_ROLES, USER_STATUSES } from './users.constants';
+import { USER_DEPARTMENTS, USER_STATUSES } from './users.constants';
 
 export const userIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -10,8 +10,10 @@ export const listUsersQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(500).optional().default(20),
   search: z.string().optional(),
   email: z.string().email().optional(),
-  role: z.enum(USER_ROLES).optional(),
+  roleId: z.string().optional(),
+  role: z.string().optional(),
   status: z.enum(USER_STATUSES).optional(),
+
   department: z.enum(USER_DEPARTMENTS).optional(),
   employeeId: z.string().optional(),
   branchId: z.string().optional(),
@@ -29,7 +31,9 @@ export const createUserBodySchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(USER_ROLES).optional(),
+  roleId: z.string().optional(),
+  role: z.string().optional(),
+
   status: z.enum(USER_STATUSES).optional(),
   department: z.enum(USER_DEPARTMENTS).optional(),
   avatarUrl: z.string().url().optional(),
@@ -51,7 +55,8 @@ export const changeStatusBodySchema = z.object({
 });
 
 export const changeRoleBodySchema = z.object({
-  role: z.enum(USER_ROLES),
+  roleId: z.string().optional(),
+  role: z.string().optional(),
 });
 
 export const resetPasswordBodySchema = z.object({

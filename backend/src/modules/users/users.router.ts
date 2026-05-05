@@ -1,7 +1,7 @@
 import { Router, Response, NextFunction, Request } from 'express';
 import multer, { MulterError } from 'multer';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/role.middleware';
+import { requirePermission } from '../../middleware/permission.middleware';
 import {
   changeUserRoleController,
   changeUserStatusController,
@@ -49,37 +49,37 @@ function handleMulterError(err: unknown, _req: Request, res: Response, next: Nex
 const router = Router();
 
 // List users
-router.get('/', authMiddleware, requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => listUsersController(req, res));
+router.get('/', authMiddleware, requirePermission('users:view'), (req: AuthRequest, res: Response) => listUsersController(req, res));
 
 // Get single user
-router.get('/:id', authMiddleware, requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => getUserController(req, res));
+router.get('/:id', authMiddleware, requirePermission('users:view'), (req: AuthRequest, res: Response) => getUserController(req, res));
 
 // Import CSV
-router.post('/import', authMiddleware, requireRole('admin'), upload.single('file'), handleMulterError, (req: AuthRequest, res: Response) => importUsersCsvController(req, res));
+router.post('/import', authMiddleware, requirePermission('users:manage'), upload.single('file'), handleMulterError, (req: AuthRequest, res: Response) => importUsersCsvController(req, res));
 
 
 // Create user
-router.post('/', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => createUserController(req, res));
+router.post('/', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => createUserController(req, res));
 
 // Update user
-router.patch('/:id', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => updateUserController(req, res));
+router.patch('/:id', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => updateUserController(req, res));
 
 // Change status
-router.patch('/:id/status', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => changeUserStatusController(req, res));
+router.patch('/:id/status', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => changeUserStatusController(req, res));
 
 // Change role
-router.patch('/:id/role', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => changeUserRoleController(req, res));
+router.patch('/:id/role', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => changeUserRoleController(req, res));
 
 // Reset password
-router.post('/:id/reset-password', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => resetPasswordController(req, res));
+router.post('/:id/reset-password', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => resetPasswordController(req, res));
 
 // Force password change without resetting password
-router.post('/:id/force-password-change', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => forcePasswordChangeController(req, res));
+router.post('/:id/force-password-change', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => forcePasswordChangeController(req, res));
 
 // Soft delete user
-router.delete('/:id', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => deleteUserController(req, res));
+router.delete('/:id', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => deleteUserController(req, res));
 
 // Get user schedules
-router.get('/:id/schedules', authMiddleware, requireRole('admin', 'manager', 'viewer'), (req: AuthRequest, res: Response) => listUserSchedulesController(req, res));
+router.get('/:id/schedules', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => listUserSchedulesController(req, res));
 
 export default router;
