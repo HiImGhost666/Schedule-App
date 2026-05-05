@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Mail, Phone, CalendarDays, ShieldAlert, Clock3, Activity } from 'lucide-react';
 import api from '@/config/api';
@@ -35,18 +35,20 @@ type ProfileTab = 'general' | 'schedules' | 'security';
 
 export function UserProfileModal({ open, onClose, user, initialTab, setTab }: UserProfileModalProps) {
     // Si initialTab es nullish, default a 'general' solo al abrir
-    const [internalTab, setInternalTab] = useState<ProfileTab>('general');
+    const [internalTab, setInternalTab] = useState<ProfileTab>(initialTab ?? 'general');
     // Sincroniza initialTab solo cuando el modal se abre
+    const prevOpenRef = useRef(open);
     useEffect(() => {
-        if (open) {
+        if (open && !prevOpenRef.current) {
             setInternalTab(initialTab ?? 'general');
         }
+        prevOpenRef.current = open;
     }, [open, initialTab]);
     const activeTab = setTab ? (initialTab ?? 'general') : internalTab;
-    const handleSetTab = (tab: ProfileTab) => {
+    const handleSetTab = useCallback((tab: ProfileTab) => {
         if (setTab) setTab(tab);
         else setInternalTab(tab);
-    };
+    }, [setTab]);
     const currentUser = useAuthStore((s) => s.user);
     const isDark = isDarkThemePreset(
       useUIStore(
@@ -58,11 +60,14 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
         const canLoadSchedules = Boolean(currentUser);
     const canViewSecurityTab = canLoadPrivateData;
 
+    // If user loses permission to view security tab, fall back to general
+    const prevCanViewSecurityRef = useRef(canViewSecurityTab);
     useEffect(() => {
-        if (!canViewSecurityTab && activeTab === 'security') {
+        if (!canViewSecurityTab && prevCanViewSecurityRef.current && activeTab === 'security') {
             handleSetTab('general');
         }
-    }, [activeTab, canViewSecurityTab]);
+        prevCanViewSecurityRef.current = canViewSecurityTab;
+    }, [activeTab, canViewSecurityTab, handleSetTab]);
 
     const { data: detailedUser, isLoading: loadingUserDetail } = useQuery({
         queryKey: ['user-profile-modal-detail', user?.id],

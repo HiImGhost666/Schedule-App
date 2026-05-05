@@ -1,5 +1,6 @@
 import { ThemeSettings } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import {
   DEFAULT_THEME,
   BUILT_IN_THEME_PRESETS,
@@ -113,21 +114,23 @@ export async function getThemeSettings() {
 export async function publishThemeSettings(theme: ThemePayload, updatedByUserId?: string) {
   const before = await ensureGlobalThemeSettings();
 
-  const row = await prisma.themeSettings.upsert({
-    where: { key: GLOBAL_THEME_KEY },
-    create: {
-      key: GLOBAL_THEME_KEY,
-      preset: theme.preset,
-      tokensJson: JSON.stringify(theme.tokens),
-      overridesJson: JSON.stringify(theme.overrides),
-      updatedByUserId,
-    },
-    update: {
-      preset: theme.preset,
-      tokensJson: JSON.stringify(theme.tokens),
-      overridesJson: JSON.stringify(theme.overrides),
-      updatedByUserId,
-    },
+  const row = await executeInTransaction(async (tx) => {
+    return tx.themeSettings.upsert({
+      where: { key: GLOBAL_THEME_KEY },
+      create: {
+        key: GLOBAL_THEME_KEY,
+        preset: theme.preset,
+        tokensJson: JSON.stringify(theme.tokens),
+        overridesJson: JSON.stringify(theme.overrides),
+        updatedByUserId,
+      },
+      update: {
+        preset: theme.preset,
+        tokensJson: JSON.stringify(theme.tokens),
+        overridesJson: JSON.stringify(theme.overrides),
+        updatedByUserId,
+      },
+    });
   });
 
   return {

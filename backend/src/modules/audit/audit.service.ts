@@ -247,7 +247,7 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
         await scheduleRepository.deleteSchedule(entityId, tx);
       } else if (details?.before && (action === 'UPDATE_SCHEDULE' || action === 'DELETE_SCHEDULE')) {
         const beforeState = details.before as Record<string, unknown>;
-        const { assigneeIds, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, assignments, branch, createdBy, ...rawScalars } = beforeState;
+        const { assigneeIds, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rawScalars } = beforeState;
         // Convertir tipos: los snapshots vienen como JSON (strings, no Date)
         const upsertData: Record<string, unknown> = {
           title: rawScalars.title,

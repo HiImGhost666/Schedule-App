@@ -98,7 +98,16 @@ describe('HolidaysPage', () => {
 
     renderPage();
 
-    await userEvent.click(await screen.findByRole('button', { name: /Añadir festivo/i }));
+    // Abrir el modal de creación
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo festivo/i }));
+
+    // El modal hace su propia llamada a /branches
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalled();
+    });
+
+    // Hacer clic en "Crear festivo" sin rellenar campos
+    await userEvent.click(await screen.findByRole('button', { name: /Crear festivo/i }));
 
     expect(toast.error).toHaveBeenCalledWith('Fecha y nombre son obligatorios');
     expect(postMock).not.toHaveBeenCalled();
@@ -132,10 +141,16 @@ describe('HolidaysPage', () => {
 
     const { container } = renderPage();
 
+    // Abrir el modal de creación
+    await userEvent.click(await screen.findByRole('button', { name: /Nuevo festivo/i }));
+
+    // Rellenar campos en el modal
     await userEvent.type(await screen.findByPlaceholderText('Nombre del festivo'), 'San Isidro');
     const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
     await userEvent.type(dateInput, '2026-05-15');
-    await userEvent.click(screen.getByRole('button', { name: /Añadir festivo/i }));
+
+    // Enviar
+    await userEvent.click(screen.getByRole('button', { name: /Crear festivo/i }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/branches/b-1/holidays', expect.objectContaining({ name: 'San Isidro' }));

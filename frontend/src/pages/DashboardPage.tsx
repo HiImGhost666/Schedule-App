@@ -365,16 +365,16 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {auditLogs.map((log) => (
-                  <div 
-                    key={log.id} 
+                  <div
+                    key={log.id}
                     className="flex gap-3 cursor-pointer hover:bg-navy-100/80 p-2 -m-2 rounded-lg transition-colors group"
                     onClick={() => {
                       const isIrreversible = IRREVERSIBLE_ACTIONS.includes(log.action);
-                      navigate('/admin/audit', { 
-                        state: { 
+                      navigate('/admin/audit', {
+                        state: {
                           selectedLogId: log.id,
                           activeTab: isIrreversible ? 'irreversible' : 'reversible'
-                        } 
+                        }
                       });
                     }}
                   >

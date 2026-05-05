@@ -1,8 +1,13 @@
 import { prisma } from '../../config/database';
+import { TransactionClient } from '../../common/transactions/transaction.utils';
 import { USER_RESPONSE_SELECT } from '../users/users.selects';
 
+function getDb(tx?: TransactionClient) {
+  return tx ?? prisma;
+}
+
 export function findUserById(userId: string) {
-  return prisma.user.findUnique({ 
+  return prisma.user.findUnique({
     where: { id: userId },
     include: { role: { include: { permissions: true } } }
   });
@@ -28,9 +33,10 @@ export function updateUserById(
     passwordChangePolicy?: string;
     passwordChangeWarnedAt?: Date | null;
     passwordChangeDeadlineAt?: Date | null;
-  }
+  },
+  tx?: TransactionClient,
 ) {
-  return prisma.user.update({
+  return getDb(tx).user.update({
     where: { id: userId },
     data,
     include: { role: { include: { permissions: true } } }
@@ -44,16 +50,16 @@ export function createRefreshToken(data: {
   expiresAt: Date;
   ipAddress?: string;
   userAgent?: string;
-}) {
-  return prisma.refreshToken.create({ data });
+}, tx?: TransactionClient) {
+  return getDb(tx).refreshToken.create({ data });
 }
 
 export function findRefreshTokenByToken(token: string) {
   return prisma.refreshToken.findUnique({ where: { token } });
 }
 
-export function revokeRefreshTokenById(id: string) {
-  return prisma.refreshToken.update({
+export function revokeRefreshTokenById(id: string, tx?: TransactionClient) {
+  return getDb(tx).refreshToken.update({
     where: { id },
     data: { revokedAt: new Date() },
   });

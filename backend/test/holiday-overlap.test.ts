@@ -22,9 +22,12 @@ jest.mock('../src/config/database', () => ({
     branch: {
       findUnique: jest.fn(),
     },
+    branchHoliday: {
+      findMany: jest.fn(),
+    },
     user: {
       findUnique: jest.fn(),
-    }
+    },
   },
 }));
 
@@ -61,7 +64,8 @@ describe('Holiday and Task Overlap Logic', () => {
       assigneeIds: ['u-1'],
       type: 'guardia',
       color: '#1e3a5f',
-      hoursPerDay: 8
+      hoursPerDay: 8,
+      confirmed: false,
     }, mockActor)).rejects.toMatchObject({
       code: 'BAD_REQUEST',
       message: expect.stringContaining('No se puede asignar trabajo en días festivos: Festivo Test')
@@ -87,7 +91,8 @@ describe('Holiday and Task Overlap Logic', () => {
       assigneeIds: ['u-1'],
       type: 'otro',
       color: '#1e3a5f',
-      hoursPerDay: 8
+      hoursPerDay: 8,
+      confirmed: false,
     }, mockActor);
 
     expect(result).toBeDefined();
