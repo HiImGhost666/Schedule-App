@@ -42,8 +42,10 @@ export function Sidebar() {
     toast.success('Sesión cerrada');
   };
 
-  const isAdmin = user?.role === 'admin';
-  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role?.name === 'admin';
+  const isAdminOrManager = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
+
+
   const expandedLogo =
     activeTheme.overrides.sidebar.logoVariant === 'logo_oscuro' ? LogoOscuroSidebar : LogoClaroSidebar;
 
@@ -178,7 +180,7 @@ export function Sidebar() {
           {!sidebarCollapsed && (
             <div className="min-w-0">
               <p className="text-xs font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-theme-sidebar truncate">{user?.department || user?.role}</p>
+              <p className="text-xs text-theme-sidebar truncate">{user?.department || (user?.role?.name ? ROLE_LABELS[user.role.name] : '')}</p>
             </div>
           )}
           {!sidebarCollapsed && <User className="h-3.5 w-3.5 text-theme-sidebar ml-auto flex-shrink-0" />}

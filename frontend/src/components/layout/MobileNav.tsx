@@ -26,8 +26,9 @@ const adminExtraItems = [
 
 export function MobileNav() {
   const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.role === "admin";
-  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
+  const isAdmin = user?.role?.name === "admin";
+  const isAdminOrManager = user?.role?.name === "admin" || user?.role?.name === "general_manager" || user?.role?.name === "department_manager";
+
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (

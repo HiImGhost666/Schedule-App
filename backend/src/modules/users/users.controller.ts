@@ -143,7 +143,7 @@ export async function changeUserRoleController(req: AuthRequest, res: Response) 
   if (!parsedBody.success) return sendError(res, 'Rol inválido', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
   try {
-    await changeUserRole(parsedParams.data.id, parsedBody.data.role, { id: req.user!.id, ipAddress: req.ip });
+    await changeUserRole(parsedParams.data.id, parsedBody.data, { id: req.user!.id, ipAddress: req.ip });
     return sendSuccess(res, null, 'Rol actualizado');
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);

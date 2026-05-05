@@ -5,20 +5,35 @@ import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { env } from '../src/config/env';
-import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
+import type { UserDepartment } from '../src/modules/users/users.constants';
+import { DEFAULT_ROLE_PERMISSIONS, ROLE_NAMES } from '../src/modules/roles/roles.constants';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const prisma = new PrismaClient();
+
+async function databaseHasAnyData() {
+  const [userCount, roleCount, branchCount] = await Promise.all([
+    prisma.user.count(),
+    prisma.role.count(),
+    prisma.branch.count(),
+  ]);
+  return userCount > 0 || roleCount > 0 || branchCount > 0;
+}
 
 // ============================================================================
 // BLOQUE 1: FUNCIONES DE AYUDA (HELPERS)
 // ============================================================================
 
 async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
-  const user = await createUser(input, undefined, { upsertExisting: true });
-  console.log(`[USER] ${label} synced: ${input.email}`);
-  return user;
+  try {
+    const user = await createUser(input, undefined, { upsertExisting: true });
+    console.log(`[USER] ${label} synced: ${input.email}`);
+    return user;
+  } catch (error) {
+    console.error(`[ERROR] Failed to sync user ${label} (${input.email}):`, error);
+    throw error;
+  }
 }
 
 async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, type: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
@@ -85,6 +100,12 @@ async function main() {
   console.log('# Si usas el docker-compose.yml incluido, déjalo como está.');
   console.log('----------------------------------------------------');
 
+  const alreadySeeded = await databaseHasAnyData();
+  if (alreadySeeded) {
+    console.log('La base de datos ya contiene datos. Seed omitido.');
+    return;
+  }
+
   // --- BLOQUE 2.1: TEMA GLOBAL ---
   console.log('BLOQUE: TEMAS');
   const existingTheme = await prisma.themeSettings.findUnique({ where: { key: 'global' } });
@@ -136,7 +157,7 @@ async function main() {
 
   // --- BLOQUE 2.1.1: FERIADOS POR SEDE ---
   console.log('BLOQUE: FERIADOS (Limpieza y Seeding)');
-  
+
   // Limpieza previa para evitar duplicados y asegurar estado limpio
   await prisma.scheduleAssignment.deleteMany();
   await prisma.schedule.deleteMany();
@@ -179,9 +200,9 @@ async function main() {
 
   for (const h of holidays_2026) {
     for (const b of allBranches) {
-      const isApplicable = h.targetRegion === 'all' || 
-                          h.targetRegion === 'Canarias' || 
-                          b.region === h.targetRegion;
+      const isApplicable = h.targetRegion === 'all' ||
+        h.targetRegion === 'Canarias' ||
+        b.region === h.targetRegion;
 
       if (isApplicable) {
         await prisma.branchHoliday.create({
@@ -218,6 +239,52 @@ async function main() {
   }
   console.log(`[HOLIDAY] ${holidays_2026.length} holidays and ${partial_days_2026.length} partial days seeded.`);
 
+  // --- BLOQUE 2.1.2: ROLES Y PERMISOS ---
+  console.log('BLOQUE: ROLES Y PERMISOS');
+
+  const rolesData = ROLE_NAMES.map(name => ({
+    name,
+    permissions: DEFAULT_ROLE_PERMISSIONS[name]
+  }));
+
+  const dbRoles: Record<string, string> = {};
+  const allPermissions = new Set(rolesData.flatMap(r => r.permissions));
+
+  for (const perm of allPermissions) {
+    await prisma.permission.upsert({
+      where: { name: perm },
+      create: { name: perm },
+      update: {},
+    });
+  }
+
+  for (const roleDef of rolesData) {
+    let role = await prisma.role.findUnique({ where: { name: roleDef.name } });
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          name: roleDef.name,
+          permissions: {
+            connect: roleDef.permissions.map(name => ({ name }))
+          }
+        }
+      });
+      console.log(`[ROLE] Created role ${roleDef.name}`);
+    } else {
+      // Si ya existe, nos aseguramos de que los permisos estén conectados
+      role = await prisma.role.update({
+        where: { id: role.id },
+        data: {
+          permissions: {
+            connect: roleDef.permissions.map(name => ({ name }))
+          }
+        }
+      });
+      console.log(`[ROLE] Role ${roleDef.name} already exists`);
+    }
+    dbRoles[roleDef.name] = role.id;
+  }
+
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
   const adminEmail = env.SEED_ADMIN_EMAIL || 'admin@company.com';
@@ -229,7 +296,7 @@ async function main() {
       name: adminName,
       email: adminEmail,
       password: adminPassword,
-      role: 'admin',
+      roleId: dbRoles['admin'],
       status: 'active',
       department: 'administración',
       companyPhone: '900200200',
@@ -244,7 +311,7 @@ async function main() {
       name: 'María García',
       email: 'manager@company.com',
       password: 'Manager123!',
-      role: 'manager',
+      roleId: dbRoles['general_manager'],
       status: 'active',
       department: 'operaciones',
       companyPhone: '900200200',
@@ -268,7 +335,7 @@ async function main() {
       {
         ...u,
         password: 'User123!',
-        role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
+        roleId: u.email === 'pedro@company.com' ? dbRoles['department_manager'] : dbRoles['employee'],
         status: 'active',
         forcePasswordChange: true,
       },
@@ -378,7 +445,11 @@ async function main() {
 
 main()
   .catch((e) => {
+    console.error('!!! SEED ERROR !!!');
     console.error(e);
+    if (e instanceof Error) {
+      console.error('Stack:', e.stack);
+    }
     process.exit(1);
   })
   .finally(async () => {

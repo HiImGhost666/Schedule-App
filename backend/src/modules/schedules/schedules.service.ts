@@ -23,7 +23,7 @@ import {
 } from './domain/schedule.rules';
 import { SCHEDULE_TYPES } from './schedules.constants';
 
-type Actor = { id: string; role: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
+type Actor = { id: string; roleName: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
 const scheduleCreateInputSchema = z.object({
   title: z.string().min(2),
   description: z.string().optional(),
@@ -71,7 +71,7 @@ export function listSchedules(params: { from?: string; to?: string; userId?: str
 
 export function listSchedulesForActor(
   params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string },
-  actor: Pick<Actor, 'role' | 'branchId'>,
+  actor: Pick<Actor, 'roleName' | 'branchId'>,
 ) {
   const where: ScheduleWhere = {};
   const fromDate = parseOptionalDate(params.from);
@@ -81,7 +81,7 @@ export function listSchedulesForActor(
   if (params.type) where.type = params.type;
   if (params.userId) where.assignments = { some: { userId: params.userId } };
 
-  const canViewAllBranches = actor.role === 'admin' || actor.role === 'manager' || actor.role === 'viewer';
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
@@ -148,9 +148,9 @@ export async function listWeekSchedulesForActor(
   year: number,
   week: number,
   branchId: string | undefined,
-  actor: Pick<Actor, 'role' | 'branchId'>,
+  actor: Pick<Actor, 'roleName' | 'branchId'>,
 ) {
-  const canViewAllBranches = actor.role === 'admin' || actor.role === 'manager' || actor.role === 'viewer';
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
@@ -228,10 +228,10 @@ export async function getScheduleById(scheduleId: string) {
   return schedule;
 }
 
-export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'role' | 'branchId'>) {
+export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'roleName' | 'branchId'>) {
   const schedule = await getScheduleById(scheduleId);
 
-  const canViewAllBranches = actor.role === 'admin' || actor.role === 'manager' || actor.role === 'viewer';
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar guardias');
   }
@@ -261,8 +261,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, parsed.data.type, confirmed);
   }
 
-
-  if (actor.role !== 'admin') {
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
@@ -342,7 +341,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const nextBranchId = branchId ?? existing.branchId;
   if (nextBranchId) await ensureActiveBranch(nextBranchId);
 
-  if (actor.role !== 'admin') {
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
@@ -434,7 +433,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  if (actor.role !== 'admin') {
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }

@@ -1,16 +1,20 @@
 import express from 'express';
 import request from 'supertest';
 
-jest.mock('../src/middleware/auth.middleware', () => ({
-  authMiddleware: (req: any, _res: any, next: any) => {
-    req.user = { id: 'admin-1', role: 'admin' };
-    next();
-  },
-}));
-
-jest.mock('../src/middleware/role.middleware', () => ({
-  requireRole: () => (_req: any, _res: any, next: any) => next(),
-}));
+jest.mock('../src/middleware/auth.middleware', () => {
+  const { DEFAULT_ROLE_PERMISSIONS } = require('../src/modules/roles/roles.constants');
+  return {
+    authMiddleware: (req: any, _res: any, next: any) => {
+      req.user = { 
+        id: 'admin-1', 
+        roleName: 'admin', 
+        permissions: DEFAULT_ROLE_PERMISSIONS['admin'],
+        status: 'active'
+      };
+      next();
+    },
+  };
+});
 
 jest.mock('../src/modules/webhooks/webhooks.service', () => ({
   createWebhook: jest.fn(),

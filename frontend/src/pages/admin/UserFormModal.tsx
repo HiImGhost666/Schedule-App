@@ -34,7 +34,7 @@ const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8).optional().or(z.literal('')),
-  role: z.enum(['admin', 'manager', 'viewer']),
+  role: z.enum(['admin', 'general_manager', 'department_manager', 'employee']),
   department: z.enum(DEPARTMENT_VALUES).optional().or(z.literal('')),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
@@ -77,7 +77,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       reset({
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: user.role?.name,
         department,
         companyPhone: user.companyPhone || '',
         auxiliaryPhone: user.auxiliaryPhone || '',
@@ -90,7 +90,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       name: '',
       email: '',
       password: '',
-      role: 'viewer',
+      role: 'employee',
       department: '',
       companyPhone: '',
       auxiliaryPhone: '',
@@ -114,7 +114,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       const updatePayload = { ...rest };
       if (!updatePayload.password) delete updatePayload.password;
       await api.patch(`/users/${user!.id}`, updatePayload);
-      if (role !== user!.role) {
+      if (role !== user!.role?.name) {
         await api.patch(`/users/${user!.id}/role`, { role });
       }
     },
@@ -165,10 +165,12 @@ export function UserFormModal({ open, user, onClose }: Props) {
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Rol *</label>
               <select {...register('role')} className="input-field">
-                <option value="viewer">Usuario</option>
-                <option value="manager">Responsable</option>
+                <option value="employee">Empleado</option>
+                <option value="department_manager">Responsable</option>
+                <option value="general_manager">Gerente General</option>
                 <option value="admin">Administrador</option>
               </select>
+
             </div>
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Departamento</label>

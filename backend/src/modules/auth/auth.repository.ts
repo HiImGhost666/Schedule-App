@@ -6,8 +6,11 @@ function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
 }
 
-export function findUserById(userId: string, tx?: TransactionClient) {
-  return getDb(tx).user.findUnique({ where: { id: userId } });
+export function findUserById(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    include: { role: { include: { permissions: true } } }
+  });
 }
 
 export function findUserProfileById(userId: string) {
@@ -36,6 +39,7 @@ export function updateUserById(
   return getDb(tx).user.update({
     where: { id: userId },
     data,
+    include: { role: { include: { permissions: true } } }
   });
 }
 

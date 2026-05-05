@@ -32,7 +32,7 @@ const mockActor = {
   id: 'admin-id',
   email: 'admin@test.com',
   name: 'Admin',
-  role: 'admin',
+  roleName: 'admin',
   ipAddress: '127.0.0.1',
 };
 
