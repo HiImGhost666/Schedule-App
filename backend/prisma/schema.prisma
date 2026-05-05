@@ -17,7 +17,8 @@ model User {
   role                String     @default("viewer")
   status              String     @default("active")
   avatarUrl           String?    @map("avatar_url")
-  department          String?
+  departmentId        String?    @map("department_id")
+  department          Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
   lastLoginAt         DateTime?  @map("last_login")
@@ -43,6 +44,8 @@ model User {
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
   @@index([branchId])
+  // departmentId: para filtros y joins con Department
+  @@index([departmentId])
   // status + role: listado de usuarios con filtros combinados (muy frecuente en UsersPage)
   @@index([status, role])
   // role: búsquedas solo por rol
@@ -80,12 +83,34 @@ model Branch {
   users     User[]
   schedules Schedule[]
   holidays  BranchHoliday[]
+  departments Department[]
 
   // -- ÍNDICES --
   // isActive: listBranches filtra por activas constantemente
   @@index([isActive])
 
   @@map("branches")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  branchId    String   @map("branch_id")
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name        String
+  code        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+
+  @@index([branchId])
+  @@index([branchId, isActive])
+  @@unique([branchId, code])
+  @@unique([branchId, name])
+
+  @@map("departments")
 }
 
 enum HolidayType {

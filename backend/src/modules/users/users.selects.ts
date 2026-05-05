@@ -10,7 +10,7 @@ export const USER_RESPONSE_SELECT = {
   role: true,
   status: true,
   avatarUrl: true,
-  department: true,
+  departmentId: true,
   createdAt: true,
   lastLoginAt: true,
   failedAttempts: true,
@@ -29,6 +29,14 @@ export const USER_RESPONSE_SELECT = {
       isActive: true,
     },
   },
+  department: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      branchId: true,
+    },
+  },
 } as const;
 
 export const USER_SAFE_SELECT = {
@@ -41,7 +49,7 @@ export const USER_SAFE_SELECT = {
   role: true,
   status: true,
   avatarUrl: true,
-  department: true,
+  departmentId: true,
   createdAt: true,
   lastLoginAt: true,
   failedAttempts: true,
@@ -58,6 +66,14 @@ export const USER_SAFE_SELECT = {
       name: true,
       code: true,
       isActive: true,
+    },
+  },
+  department: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      branchId: true,
     },
   },
 } as const;

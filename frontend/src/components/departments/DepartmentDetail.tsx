@@ -1,0 +1,93 @@
+import { Pencil } from 'lucide-react';
+import type { Department } from '@/types';
+
+interface DepartmentDetailProps {
+  department: Department;
+  users: Array<{ id: string; name: string; email: string }>;
+  usersLoading: boolean;
+  onEdit: () => void;
+  onDisable: () => void;
+  onActivate: () => void;
+  onHardDelete: () => void;
+  isDisabling: boolean;
+  isActivating: boolean;
+  isDeleting: boolean;
+}
+
+export function DepartmentDetail({
+  department,
+  users,
+  usersLoading,
+  onEdit,
+  onDisable,
+  onActivate,
+  onHardDelete,
+  isDisabling,
+  isActivating,
+  isDeleting,
+}: DepartmentDetailProps) {
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-theme-muted">Departamento seleccionado</p>
+          <h3 className="text-base font-semibold text-theme-primary">{department.name}</h3>
+          <p className="text-xs text-theme-muted">{department.code}</p>
+        </div>
+        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+          department.isActive
+            ? 'border border-theme-color bg-theme-surface text-theme-primary'
+            : 'bg-amber-500/15 text-amber-600'
+        }`}>{department.isActive ? 'Activo' : 'Inactivo'}</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <InfoBox label="Nombre" value={department.name} />
+        <InfoBox label="Codigo" value={department.code} />
+        <InfoBox label="Descripcion" value={department.description || 'Sin descripcion'} className="md:col-span-2" />
+      </div>
+
+      <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
+        <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Usuarios asignados</p>
+        {usersLoading ? (
+          <p className="text-sm text-theme-muted">Cargando usuarios...</p>
+        ) : users.length ? (
+          <div className="space-y-1">
+            {users.map((user) => (
+              <div key={user.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-theme-primary truncate">{user.name}</span>
+                <span className="text-theme-muted text-xs truncate">{user.email}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-theme-muted">Sin usuarios asignados</p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+        {department.isActive ? (
+          <button type="button" onClick={onDisable} disabled={isDisabling}
+            className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Desactivar</button>
+        ) : (
+          <button type="button" onClick={onActivate} disabled={isActivating}
+            className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Activar</button>
+        )}
+        <button type="button" onClick={onHardDelete} disabled={isDeleting}
+          className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Eliminar definitivamente</button>
+        <button type="button" onClick={onEdit} className="btn-ghost text-sm inline-flex items-center gap-1.5">
+          <Pencil className="h-4 w-4" />Editar departamento
+        </button>
+      </div>
+    </>
+  );
+}
+
+function InfoBox({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 ${className ?? ''}`}>
+      <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">{label}</p>
+      <p className="text-sm text-theme-primary mt-1">{value}</p>
+    </div>
+  );
+}

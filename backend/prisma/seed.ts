@@ -5,7 +5,7 @@ import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { env } from '../src/config/env';
-import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
+import type { UserRole } from '../src/modules/users/users.constants';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -72,6 +72,19 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
   return schedule;
 }
 
+async function ensureSeedDepartment(branchId: string, name: string, code: string) {
+  const existing = await prisma.department.findFirst({ where: { branchId, code } });
+  if (existing) return existing;
+  return prisma.department.create({
+    data: {
+      branchId,
+      name,
+      code,
+      isActive: true,
+    },
+  });
+}
+
 // ============================================================================
 // BLOQUE 2: FUNCIÓN PRINCIPAL DE SEEDING
 // ============================================================================
@@ -133,6 +146,30 @@ async function main() {
       },
     });
   }
+
+  const departmentCatalog = [
+    { key: 'seguridad', name: 'Seguridad', code: 'SEG' },
+    { key: 'mantenimiento', name: 'Mantenimiento', code: 'MANT' },
+    { key: 'operaciones', name: 'Operaciones', code: 'OPER' },
+    { key: 'administracion', name: 'Administración', code: 'ADMIN' },
+  ];
+
+  const mainDepartments = await Promise.all(
+    departmentCatalog.map((dept) => ensureSeedDepartment(mainBranch.id, dept.name, dept.code)),
+  );
+  const secondDepartments = await Promise.all(
+    departmentCatalog.map((dept) => ensureSeedDepartment(secondBranch.id, dept.name, dept.code)),
+  );
+
+  const departmentsByBranch = new Map<string, Map<string, string>>();
+  departmentsByBranch.set(
+    mainBranch.id,
+    new Map(departmentCatalog.map((dept, index) => [dept.key, mainDepartments[index].id])),
+  );
+  departmentsByBranch.set(
+    secondBranch.id,
+    new Map(departmentCatalog.map((dept, index) => [dept.key, secondDepartments[index].id])),
+  );
 
   // --- BLOQUE 2.1.1: FERIADOS POR SEDE ---
   console.log('BLOQUE: FERIADOS (Limpieza y Seeding)');
@@ -231,7 +268,7 @@ async function main() {
       password: adminPassword,
       role: 'admin',
       status: 'active',
-      department: 'administración',
+      departmentId: departmentsByBranch.get(mainBranch.id)?.get('administracion'),
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
@@ -246,7 +283,7 @@ async function main() {
       password: 'Manager123!',
       role: 'manager',
       status: 'active',
-      department: 'operaciones',
+      departmentId: departmentsByBranch.get(mainBranch.id)?.get('operaciones'),
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
@@ -255,22 +292,25 @@ async function main() {
     'Demo manager'
   );
 
-  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string }> = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id },
+  const demoUsers: Array<{ name: string; email: string; departmentKey: string; branchId: string }> = [
+    { name: 'Carlos López', email: 'carlos@company.com', departmentKey: 'seguridad', branchId: mainBranch.id },
+    { name: 'Ana Martínez', email: 'ana@company.com', departmentKey: 'seguridad', branchId: mainBranch.id },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', departmentKey: 'mantenimiento', branchId: secondBranch.id },
+    { name: 'Laura Fernández', email: 'laura@company.com', departmentKey: 'seguridad', branchId: secondBranch.id },
   ];
 
   const createdUsers = [];
   for (const u of demoUsers) {
     const user = await ensureSeedUser(
       {
-        ...u,
+        name: u.name,
+        email: u.email,
+        branchId: u.branchId,
         password: 'User123!',
         role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
         status: 'active',
         forcePasswordChange: true,
+        departmentId: departmentsByBranch.get(u.branchId)?.get(u.departmentKey),
       },
       'Demo user'
     );

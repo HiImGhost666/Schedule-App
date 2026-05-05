@@ -30,13 +30,18 @@ import {
 } from './domain/user.factory';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
-import { USER_DEPARTMENTS, USER_ROLES, USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserRole, type UserStatus, type UserDepartment } from './users.constants';
+import { USER_ROLES, USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserRole, type UserStatus } from './users.constants';
 import { type UserCsvRow } from '../../utils/csv';
 import {
   buildClearedPasswordChangeFields,
   buildRequiredPasswordChangeFields,
   resolvePasswordChangeState,
 } from '../auth/password-change-policy';
+import {
+  findDepartmentByBranchAndCode,
+  findDepartmentByBranchAndName,
+  findDepartmentById,
+} from '../departments/departments.repository';
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
@@ -44,7 +49,7 @@ const createUserInputSchema = z.object({
   password: z.string().min(8),
   role: z.enum(USER_ROLES).optional(),
   status: z.enum(USER_STATUSES).optional(),
-  department: z.enum(USER_DEPARTMENTS).optional(),
+  departmentId: z.string().optional(),
   avatarUrl: z.string().url().optional(),
 
   companyPhone: z.string().optional(),
@@ -57,7 +62,7 @@ const createUserInputSchema = z.object({
 const updateUserInputSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  department: z.enum(USER_DEPARTMENTS).optional(),
+  departmentId: z.string().optional().nullable(),
   avatarUrl: z.string().optional(),
 
   companyPhone: z.string().optional(),
@@ -215,6 +220,17 @@ async function ensureBranchExists(branchId: string) {
   }
 }
 
+async function ensureDepartmentExists(departmentId: string, branchId?: string | null) {
+  const department = await findDepartmentById(departmentId);
+  if (!department) {
+    throw createAppError('BAD_REQUEST', 'El departamento seleccionado no existe');
+  }
+  if (branchId && department.branchId !== branchId) {
+    throw createAppError('BAD_REQUEST', 'El departamento no pertenece a la sucursal seleccionada');
+  }
+  return department;
+}
+
 /**
  * @description Crea un usuario validando duplicados (email/username), hashea password y emite evento en tiempo real.
  * @param input @param actor
@@ -230,7 +246,10 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
   const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
   const shouldUpsertExisting = options?.upsertExisting ?? false;
   await ensureBranchExists(parsed.data.branchId);
-  const { password: _password, branchId: createBranchId, forcePasswordChange, ...userData } = parsed.data;
+  if (parsed.data.departmentId) {
+    await ensureDepartmentExists(parsed.data.departmentId, parsed.data.branchId);
+  }
+  const { password: _password, branchId: createBranchId, departmentId, forcePasswordChange, ...userData } = parsed.data;
 
   const result = await executeInTransaction(async (tx) => {
     const identity = shouldUpsertExisting
@@ -253,7 +272,11 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
       role: parsed.data.role ?? identity.existingUser?.role ?? 'viewer',
       status: parsed.data.status ?? identity.existingUser?.status ?? 'active',
       avatarUrl: parsed.data.avatarUrl ?? identity.existingUser?.avatarUrl ?? null,
-      department: parsed.data.department ?? identity.existingUser?.department ?? null,
+      ...(departmentId
+        ? { department: { connect: { id: departmentId } } }
+        : identity.existingUser?.departmentId
+          ? { department: { connect: { id: identity.existingUser.departmentId } } }
+          : {}),
       passwordChangedAt: identity.existingUser?.passwordChangedAt ?? new Date(),
       ...resolvePasswordChangeFields(forcePasswordChange, identity.existingUser),
       ...(createBranchId ? { branch: { connect: { id: createBranchId } } } : {}),
@@ -328,7 +351,7 @@ export async function getUsersList(params: {
   email?: string;
   role?: string;
   status?: string;
-  department?: string;
+  departmentId?: string;
   employeeId?: string;
   branchId?: string;
   lastLoginFrom?: string;
@@ -350,7 +373,7 @@ export async function getUsersList(params: {
     role: params.role,
     status: params.status,
     email: normalizedEmail,
-    department: params.department,
+    departmentId: params.departmentId,
     employeeId: params.employeeId,
     branchId: params.branchId,
     lastLoginFrom,
@@ -384,7 +407,7 @@ export async function getUserById(userId: string) {
 export async function updateUser(userId: string, data: {
   name?: string;
   email?: string;
-  department?: UserDepartment;
+  departmentId?: string | null;
   avatarUrl?: string;
   companyPhone?: string;
   auxiliaryPhone?: string;
@@ -416,6 +439,16 @@ export async function updateUser(userId: string, data: {
     await ensureBranchExists(parsed.data.branchId);
   }
 
+  const targetBranchId = parsed.data.branchId ?? (user as { branchId?: string | null }).branchId ?? null;
+  if (parsed.data.departmentId) {
+    await ensureDepartmentExists(parsed.data.departmentId, targetBranchId);
+  } else if (parsed.data.branchId && (user as { departmentId?: string | null }).departmentId) {
+    const currentDepartment = await findDepartmentById((user as { departmentId?: string | null }).departmentId ?? '');
+    if (currentDepartment && currentDepartment.branchId !== parsed.data.branchId) {
+      parsed.data.departmentId = null;
+    }
+  }
+
   if (parsed.data.employeeId !== undefined) {
     const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
     const currentEmployeeId = normalizeEmployeeId((user as { employeeId?: string | null }).employeeId);
@@ -429,7 +462,7 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-    const { branchId: updateBranchId, employeeId, ...updateData } = parsed.data;
+    const { branchId: updateBranchId, departmentId, employeeId, ...updateData } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -449,6 +482,11 @@ export async function updateUser(userId: string, data: {
           : updateBranchId
             ? { branch: { connect: { id: updateBranchId } } }
             : { branch: { disconnect: true } }),
+        ...(departmentId === undefined
+          ? {}
+          : departmentId
+            ? { department: { connect: { id: departmentId } } }
+            : { department: { disconnect: true } }),
       } as Parameters<typeof updateUserRecord>[1],
       tx,
     );
@@ -706,7 +744,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
       const role = row.role.trim().toLowerCase();
       const status = row.status.trim().toLowerCase();
-      const department = row.department.trim().toLowerCase();
+      const department = row.department.trim();
       const branchSearch = row.branchId?.trim();
       const companyPhone = row.companyPhone.trim() || undefined;
       const auxiliaryPhone = row.auxiliaryPhone.trim() || undefined;
@@ -714,7 +752,6 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       if (!branchSearch) throw new Error('La sucursal es obligatoria');
       if (role && !(USER_ROLES as readonly string[]).includes(role)) throw new Error(`Rol inválido: ${role}`);
       if (status && !(USER_STATUSES as readonly string[]).includes(status)) throw new Error(`Estado inválido: ${status}`);
-      if (department && !(USER_DEPARTMENTS as readonly string[]).includes(department)) throw new Error(`Departamento inválido: ${department}`);
 
       const normalizedBranchSearch = branchSearch.toUpperCase();
       const branch = allowedBranchCodes.has(normalizedBranchSearch)
@@ -726,9 +763,20 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       }
 
       const resolvedBranchId = branch.id;
+      let resolvedDepartmentId: string | undefined;
+      if (department) {
+        const matchByCode = await findDepartmentByBranchAndCode(resolvedBranchId, department.toUpperCase());
+        const matchByName = matchByCode
+          ? null
+          : await findDepartmentByBranchAndName(resolvedBranchId, department.trim());
+        const match = matchByCode ?? matchByName;
+        if (!match) {
+          throw new Error(`Departamento inválido: ${department}`);
+        }
+        resolvedDepartmentId = match.id;
+      }
       const userRole = (role || undefined) as UserRole | undefined;
       const userStatus = (status || undefined) as UserStatus | undefined;
-      const userDept = (department || undefined) as UserDepartment | undefined;
 
       const [existingByEmployeeId, existingByEmail] = await Promise.all([
         employeeId ? findUserByEmployeeId(employeeId) : Promise.resolve(null),
@@ -755,7 +803,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
       const targetRole = userRole ?? (existing?.role as UserRole | undefined);
       const targetStatus = userStatus ?? (existing?.status as UserStatus | undefined);
-      const targetDepartment = userDept ?? ((existing?.department ?? undefined) as UserDepartment | undefined);
+      const targetDepartmentId = resolvedDepartmentId ?? ((existing as { departmentId?: string | null } | null)?.departmentId ?? undefined);
       const targetCompanyPhone = companyPhone ?? (existing?.companyPhone ?? undefined);
       const targetAuxiliaryPhone = auxiliaryPhone ?? (existing?.auxiliaryPhone ?? undefined);
       const targetEmployeeId = employeeId ?? normalizedExistingEmployeeId ?? undefined;
@@ -768,7 +816,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
         || email !== existing.email
         || targetRole !== existing.role
         || targetStatus !== existing.status
-        || (targetDepartment ?? undefined) !== (existing.department ?? undefined)
+        || (targetDepartmentId ?? undefined) !== ((existing as { departmentId?: string | null } | null)?.departmentId ?? undefined)
         || (targetCompanyPhone ?? undefined) !== (existing.companyPhone ?? undefined)
         || (targetAuxiliaryPhone ?? undefined) !== (existing.auxiliaryPhone ?? undefined)
         || (existing.branchId ?? null) !== resolvedBranchId
@@ -787,7 +835,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
         password: CSV_IMPORT_DEFAULT_PASSWORD,
         role: targetRole,
         status: targetStatus,
-        department: targetDepartment,
+        ...(targetDepartmentId ? { departmentId: targetDepartmentId } : {}),
         branchId: resolvedBranchId,
         companyPhone: targetCompanyPhone,
         auxiliaryPhone: targetAuxiliaryPhone,

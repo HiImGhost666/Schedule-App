@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Upload, Download, Shield } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
-import type { Branch, User } from '@/types';
+import type { Branch, Department, User } from '@/types';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -23,13 +23,11 @@ const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'departmen
 const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'viewer']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
-const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
-const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
 
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
-type UsersFilterKey = 'search' | 'role' | 'status' | 'department' | 'branchId' | 'employeeId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
+type UsersFilterKey = 'search' | 'role' | 'status' | 'departmentId' | 'branchId' | 'employeeId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
 
 function escapeCsvValue(value: string): string {
   if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
@@ -113,14 +111,6 @@ function detectCsvDelimiter(headerLine: string): CsvDelimiter {
   return bestDelimiter;
 }
 
-function normalizeDepartment(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const normalized = trimmed.toLowerCase();
-  const matched = DEPARTMENT_VALUES.find((department) => department.toLowerCase() === normalized);
-  return matched ?? undefined;
-}
-
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'admin';
@@ -130,7 +120,7 @@ export function UsersPage() {
   const location = useLocation();
   const navState = location.state as { status?: string } | null;
   const [filters, setFilters] = useState<Record<UsersFilterKey, string>>({
-    search: '', role: '', status: navState?.status || '', department: '', employeeId: '',
+    search: '', role: '', status: navState?.status || '', departmentId: '', employeeId: '',
     branchId: '', lastLoginFrom: '', lastLoginTo: '', createdFrom: '', createdTo: '',
   });
   const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
@@ -165,6 +155,17 @@ export function UsersPage() {
     ...(branchesData?.data ?? []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
   ];
 
+  const { data: departmentsData, isLoading: departmentsLoading } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', 'users-page', filters.branchId],
+    queryFn: () => api.get('/departments', { params: { branchId: filters.branchId, includeInactive: true } }).then((r) => r.data),
+    enabled: Boolean(filters.branchId),
+  });
+
+  const departmentOptions = [
+    { value: '', label: filters.branchId ? 'Todos los departamentos' : 'Selecciona una sucursal' },
+    ...(departmentsData?.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
+  ];
+
   const USERS_FILTER_FIELDS_DYNAMIC: Array<FilterFieldConfig<UsersFilterKey>> = [
     { key: 'search', type: 'text', label: 'Buscar', placeholder: 'Nombre o email...', className: 'min-w-56' },
     { key: 'role', type: 'select', label: 'Rol', options: [
@@ -175,11 +176,7 @@ export function UsersPage() {
       { value: '', label: 'Todos los estados' }, { value: 'active', label: 'Activo' },
       { value: 'disabled', label: 'Deshabilitado' }, { value: 'locked', label: 'Bloqueado' },
     ]},
-    { key: 'department', type: 'select', label: 'Departamento', options: [
-      { value: '', label: 'Todos los departamentos' }, { value: 'seguridad', label: 'Seguridad' },
-      { value: 'mantenimiento', label: 'Mantenimiento' }, { value: 'operaciones', label: 'Operaciones' },
-      { value: 'administración', label: 'Administración' },
-    ]},
+    { key: 'departmentId', type: 'select', label: 'Departamento', options: departmentOptions, disabled: departmentsLoading || !filters.branchId },
     { key: 'branchId', type: 'select', label: 'Sucursal', options: branchOptions },
     { key: 'lastLoginFrom', type: 'date', label: 'Último login desde', className: 'w-36' },
     { key: 'lastLoginTo', type: 'date', label: 'Último login hasta', className: 'w-36' },
@@ -194,7 +191,7 @@ export function UsersPage() {
         params: {
           page, limit,
           search: filters.search || undefined, role: filters.role || undefined,
-          status: filters.status || undefined, department: filters.department || undefined,
+          status: filters.status || undefined, departmentId: filters.departmentId || undefined,
           employeeId: filters.employeeId || undefined, branchId: filters.branchId || undefined,
           lastLoginFrom: filters.lastLoginFrom || undefined, lastLoginTo: filters.lastLoginTo || undefined,
           createdFrom: filters.createdFrom || undefined, createdTo: filters.createdTo || undefined,
@@ -204,7 +201,11 @@ export function UsersPage() {
   });
 
   const handleFilterChange = (key: UsersFilterKey, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === 'branchId' ? { departmentId: '' } : {}),
+    }));
     setPage(1);
   };
 
@@ -251,7 +252,7 @@ export function UsersPage() {
       const rows = allUsers.map((user) => ({
         employeeId: user.employeeId ?? '', name: user.name ?? '', email: user.email ?? '',
         role: user.role ?? '', status: user.status ?? '',
-        department: normalizeDepartment(user.department ?? '') ?? '',
+        department: user.department?.code ?? '',
         branchId: user.branch?.code ?? '', companyPhone: user.companyPhone ?? '', auxiliaryPhone: user.auxiliaryPhone ?? '',
       }));
       const csv = buildCsv(rows, [...CSV_HEADERS]);
@@ -315,10 +316,6 @@ export function UsersPage() {
     if (!branchExists) return `Fila ${index + 2}: Sucursal inválida "${row.branchId}". Usa TFN, GC o nombre de sede`;
     if (row.role && !ALLOWED_ROLES.has(row.role.trim().toLowerCase())) return `Fila ${index + 2}: Rol inválido "${row.role}"`;
     if (row.status && !ALLOWED_STATUS.has(row.status.trim().toLowerCase())) return `Fila ${index + 2}: Estado inválido "${row.status}"`;
-    if (row.department) {
-      const normalizedDepartment = normalizeDepartment(row.department);
-      if (!normalizedDepartment || !ALLOWED_DEPARTMENTS.has(normalizedDepartment)) return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
-    }
     return null;
   };
 

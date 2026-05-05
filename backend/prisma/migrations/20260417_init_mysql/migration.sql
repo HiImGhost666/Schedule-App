@@ -9,7 +9,7 @@ CREATE TABLE `users` (
     `role` VARCHAR(191) NOT NULL DEFAULT 'viewer',
     `status` VARCHAR(191) NOT NULL DEFAULT 'active',
     `avatar_url` VARCHAR(191) NULL,
-    `department` VARCHAR(191) NULL,
+    `department_id` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
     `last_login` DATETIME(3) NULL,
@@ -31,6 +31,7 @@ CREATE TABLE `users` (
     INDEX `users_role_idx`(`role`),
     INDEX `users_status_idx`(`status`),
     INDEX `users_branch_id_idx`(`branch_id`),
+    INDEX `users_department_id_idx`(`department_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -60,6 +61,24 @@ CREATE TABLE `branches` (
 
     UNIQUE INDEX `branches_code_key`(`code`),
     INDEX `branches_is_active_idx`(`is_active`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `departments` (
+    `id` VARCHAR(191) NOT NULL,
+    `branch_id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `code` VARCHAR(191) NOT NULL,
+    `description` VARCHAR(191) NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `departments_branch_id_code_key`(`branch_id`, `code`),
+    UNIQUE INDEX `departments_branch_id_name_key`(`branch_id`, `name`),
+    INDEX `departments_branch_id_idx`(`branch_id`),
+    INDEX `departments_branch_id_is_active_idx`(`branch_id`, `is_active`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -219,6 +238,12 @@ CREATE TABLE `theme_settings` (
 
 -- AddForeignKey
 ALTER TABLE `users` ADD CONSTRAINT `users_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `users` ADD CONSTRAINT `users_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `departments` ADD CONSTRAINT `departments_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `branch_holidays` ADD CONSTRAINT `branch_holidays_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

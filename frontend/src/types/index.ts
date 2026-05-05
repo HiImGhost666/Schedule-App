@@ -6,7 +6,13 @@ export interface User {
   role: 'admin' | 'manager' | 'viewer';
   status: 'active' | 'disabled' | 'locked';
   avatarUrl?: string;
-  department?: string;
+  departmentId?: string | null;
+  department?: {
+    id: string;
+    name: string;
+    code: string;
+    branchId: string;
+  } | null;
   createdAt: string;
   passwordChangedAt?: string;
   lastLoginAt?: string;
@@ -61,7 +67,12 @@ export interface ScheduleAssignment {
     name: string;
     email: string;
     avatarUrl?: string;
-    department?: string;
+    department?: {
+      id: string;
+      name: string;
+      code: string;
+      branchId: string;
+    } | null;
     companyPhone?: string;
     auxiliaryPhone?: string;
   };
@@ -73,7 +84,12 @@ export interface WeekScheduleAssignee {
   name: string;
   email: string;
   avatarUrl?: string | null;
-  department?: string | null;
+  department?: {
+    id: string;
+    name: string;
+    code: string;
+    branchId: string;
+  } | null;
   companyPhone?: string | null;
   auxiliaryPhone?: string | null;
 }
@@ -102,6 +118,17 @@ export interface Branch {
   region?: string | null;
   countryCode: string;
   timezone: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Department {
+  id: string;
+  branchId: string;
+  name: string;
+  code: string;
+  description?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -1,0 +1,24 @@
+import { z } from 'zod';
+
+const departmentCodeRegex = /^[A-Z0-9_-]{2,20}$/;
+
+export const departmentIdParamsSchema = z.object({
+  departmentId: z.string().min(1),
+});
+
+export const listDepartmentsQuerySchema = z.object({
+  branchId: z.string().min(1),
+  includeInactive: z.coerce.boolean().optional().default(false),
+});
+
+export const createDepartmentBodySchema = z.object({
+  branchId: z.string().min(1),
+  name: z.string().min(2).max(80),
+  code: z.string().trim().toUpperCase().regex(departmentCodeRegex, 'Codigo invalido (2-20, A-Z, 0-9, _ o -)'),
+  description: z.string().max(200).optional(),
+});
+
+export const updateDepartmentBodySchema = createDepartmentBodySchema.partial().extend({
+  isActive: z.boolean().optional(),
+  branchId: z.string().min(1).optional(),
+});

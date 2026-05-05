@@ -13,15 +13,6 @@ interface UsersTableProps {
   onMenuToggle: (userId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-function normalizeDepartment(value: string): string | undefined {
-  const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const normalized = trimmed.toLowerCase();
-  const matched = DEPARTMENT_VALUES.find((department) => department.toLowerCase() === normalized);
-  return matched ?? undefined;
-}
-
 function roleBadge(role: string) {
   const cls = { admin: 'badge-role-admin', manager: 'badge-role-manager', viewer: 'badge-role-viewer' };
   return <span className={cls[role as keyof typeof cls] || 'badge-role-viewer'}>{ROLE_LABELS[role]}</span>;
@@ -93,7 +84,7 @@ export function UsersTable({ data, sortBy, sortOrder, onSortChange, onMenuToggle
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{normalizeDepartment(u.department ?? '') || '—'}</td>
+              <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department?.name || '—'}</td>
               <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
                 {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
               </td>

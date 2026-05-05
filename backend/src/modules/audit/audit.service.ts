@@ -158,7 +158,7 @@ export async function listAuditLogs(params: {
   }
   // Filtro por departamento del usuario que realizó la acción
   if (params.userDepartment) {
-    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), department: params.userDepartment };
+    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), departmentId: params.userDepartment };
   }
   // Filtro por sucursal del usuario que realizó la acción
   if (params.branchId) {

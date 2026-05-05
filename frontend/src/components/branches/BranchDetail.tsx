@@ -3,6 +3,8 @@ import type { Branch } from '@/types';
 
 interface BranchDetailProps {
   branch: Branch;
+  departments: Array<{ id: string; name: string; code: string; isActive: boolean }>;
+  onSelectDepartment: (departmentId: string) => void;
   onEdit: () => void;
   onDisable: () => void;
   onActivate: () => void;
@@ -13,7 +15,10 @@ interface BranchDetailProps {
 }
 
 export function BranchDetail({
-  branch, onEdit, onDisable, onActivate, onHardDelete,
+  branch,
+  departments,
+  onSelectDepartment,
+  onEdit, onDisable, onActivate, onHardDelete,
   isDisabling, isActivating, isDeleting,
 }: BranchDetailProps) {
   return (
@@ -39,6 +44,26 @@ export function BranchDetail({
         <InfoBox label="Dirección" value={branch.address || 'Sin dirección'} className="md:col-span-2" />
         <InfoBox label="País" value={branch.countryCode} />
         <InfoBox label="Zona horaria" value={branch.timezone} />
+      </div>
+
+      <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
+        <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Departamentos</p>
+        {departments.length ? (
+          <div className="flex flex-wrap gap-2">
+            {departments.map((department) => (
+              <button
+                key={department.id}
+                type="button"
+                onClick={() => onSelectDepartment(department.id)}
+                className="text-xs font-semibold px-2.5 py-1 rounded-full border border-theme-color bg-theme-surface hover:bg-theme-surface-hover"
+              >
+                {department.name} ({department.code}){department.isActive ? '' : ' · inactivo'}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-theme-muted">Sin departamentos</p>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">

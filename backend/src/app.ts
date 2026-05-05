@@ -11,6 +11,7 @@ import notificationsRouter from './modules/notifications/notifications.router';
 import auditRouter from './modules/audit/audit.router';
 import settingsRouter from './modules/settings/settings.router';
 import branchesRouter from './modules/branches/branches.router';
+import departmentsRouter from './modules/departments/departments.router';
 import { sendSuccess } from './utils/response';
 import path from 'path';
 
@@ -49,6 +50,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/schedules', schedulesRouter);
 app.use('/api/branches', branchesRouter);
+app.use('/api/departments', departmentsRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/audit', auditRouter);

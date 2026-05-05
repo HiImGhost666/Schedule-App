@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Webhook, Bell, ClipboardList,
-  LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays
+  LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays, Layers
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
@@ -20,6 +20,7 @@ const navItems = [
 const adminItems = [
   { to: '/admin/users', icon: Users, label: 'Usuarios' },
   { to: '/admin/branches', icon: Building2, label: 'Sucursales' },
+  { to: '/admin/departments', icon: Layers, label: 'Departamentos' },
   { to: '/admin/holidays', icon: CalendarDays, label: 'Festivos' },
   { to: '/admin/webhooks', icon: Webhook, label: 'Webhooks' },
   { to: '/admin/notifications', icon: Bell, label: 'Notificaciones' },

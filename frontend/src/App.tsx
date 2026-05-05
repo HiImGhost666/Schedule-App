@@ -30,6 +30,7 @@ const ThemeManagerPage = lazy(() =>
   import('@/pages/admin/ThemeManagerPage').then((m) => ({ default: m.ThemeManagerPage }))
 );
 const BranchesPage = lazy(() => import('@/pages/admin/BranchesPage').then((m) => ({ default: m.BranchesPage })));
+const DepartmentsPage = lazy(() => import('@/pages/admin/DepartmentsPage').then((m) => ({ default: m.DepartmentsPage })));
 const HolidaysPage = lazy(() => import('@/pages/admin/HolidaysPage').then((m) => ({ default: m.HolidaysPage })));
 
 const THEME_MANAGER_PATH = '/admin/theme';
@@ -158,6 +159,7 @@ function App() {
                 </Route>
                 <Route element={<RoleGuard roles={['admin']} />}>
                   <Route path="admin/branches" element={<BranchesPage />} />
+                  <Route path="admin/departments" element={<DepartmentsPage />} />
                   <Route path="admin/holidays" element={<HolidaysPage />} />
                   <Route path="admin/webhooks" element={<WebhooksPage />} />
                   <Route path="admin/notifications" element={<NotificationsPage />} />

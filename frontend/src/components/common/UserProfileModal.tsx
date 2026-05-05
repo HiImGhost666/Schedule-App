@@ -19,7 +19,7 @@ interface UserProfileModalProps {
         name: string;
         email: string;
         avatarUrl?: string;
-        department?: string;
+        department?: { name: string } | null;
         companyPhone?: string;
         auxiliaryPhone?: string;
         role?: 'admin' | 'manager' | 'viewer';
@@ -229,9 +229,9 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                                     {STATUS_LABELS[status]}
                                 </span>
                             )}
-                            {profileUser.department && (
+                            {(profileUser as User).department?.name && (
                                 <span className="text-xs text-theme-muted bg-theme-surface-muted px-2 py-0.5 rounded-full">
-                                    {profileUser.department}
+                                    {(profileUser as User).department?.name}
                                 </span>
                             )}
                         </div>

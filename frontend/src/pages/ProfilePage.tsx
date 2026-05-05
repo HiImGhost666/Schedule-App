@@ -102,8 +102,8 @@ export function ProfilePage() {
             <p className="text-theme-muted text-sm">{user.email}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className={`badge-role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
-              {user.department && (
-                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">{user.department}</span>
+              {user.department?.name && (
+                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">{user.department.name}</span>
               )}
             </div>
           </div>

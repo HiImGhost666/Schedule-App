@@ -11,12 +11,14 @@ import { BranchForm } from '@/components/branches/BranchForm';
 import { BranchDetail } from '@/components/branches/BranchDetail';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
-import type { Branch } from '@/types';
+import type { Branch, Department } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 const emptyBranchForm = { name: '', code: '', address: '', city: '', region: '', countryCode: 'ES', timezone: 'Europe/Madrid' };
 
 export function BranchesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [showInactiveBranches, setShowInactiveBranches] = useState(false);
   const [branchForm, setBranchForm] = useState(emptyBranchForm);
@@ -41,6 +43,12 @@ export function BranchesPage() {
   const selectedBranch = branches?.data?.find((b) => b.id === effectiveSelectedBranchId) ?? null;
   const activeBranchesCount = (branches?.data ?? []).filter((b) => b.isActive).length;
   const inactiveBranchesCount = Math.max((branches?.data?.length ?? 0) - activeBranchesCount, 0);
+
+  const { data: departmentsData } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', effectiveSelectedBranchId],
+    queryFn: () => api.get('/departments', { params: { branchId: effectiveSelectedBranchId, includeInactive: true } }).then((r) => r.data),
+    enabled: Boolean(effectiveSelectedBranchId),
+  });
 
   const createBranchMutation = useMutation({
     mutationFn: () => api.post('/branches', { ...branchForm, code: branchForm.code.toUpperCase() }),
@@ -163,6 +171,15 @@ export function BranchesPage() {
               ) : selectedBranch ? (
                 <BranchDetail
                   branch={selectedBranch}
+                  departments={(departmentsData?.data ?? []).map((department) => ({
+                    id: department.id,
+                    name: department.name,
+                    code: department.code,
+                    isActive: department.isActive,
+                  }))}
+                  onSelectDepartment={(departmentId) => {
+                    navigate(`/admin/departments?branchId=${selectedBranch.id}&departmentId=${departmentId}`);
+                  }}
                   onEdit={() => startEditBranch(selectedBranch)}
                   onDisable={() => setBranchToDisable(selectedBranch)}
                   onActivate={() => setBranchToActivate(selectedBranch)}
