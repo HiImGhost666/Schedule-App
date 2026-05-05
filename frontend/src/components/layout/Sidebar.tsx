@@ -15,6 +15,7 @@ import LogotipoIA from '@/assets/Logotipo_IA.webp';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/schedule', icon: Calendar, label: 'Turnos' },
+  { to: '/vacaciones', icon: CalendarDays, label: 'Vacaciones' },
 ];
 
 const adminItems = [
