@@ -12,8 +12,10 @@ jest.mock('../src/middleware/role.middleware', () => ({
   requireRole: () => (_req: any, _res: any, next: any) => next(),
 }));
 
-jest.mock('../src/modules/audit/audit.service', () => ({
-  logAudit: jest.fn().mockResolvedValue(undefined),
+jest.mock('../src/modules/webhooks/webhooks.service', () => ({
+  createWebhook: jest.fn(),
+  updateWebhook: jest.fn(),
+  deleteWebhook: jest.fn(),
 }));
 
 jest.mock('../src/modules/notifications/notifications.service', () => ({
@@ -29,9 +31,6 @@ jest.mock('../src/config/database', () => ({
     webhookConfig: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
     },
   },
 }));
@@ -39,16 +38,16 @@ jest.mock('../src/config/database', () => ({
 import webhooksRouter from '../src/modules/webhooks/webhooks.router';
 import { errorHandler } from '../src/middleware/errorHandler.middleware';
 import { prisma } from '../src/config/database';
+import * as webhooksService from '../src/modules/webhooks/webhooks.service';
 
 const prismaMock = prisma as unknown as {
   webhookConfig: {
     findMany: jest.Mock;
     findUnique: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
   };
 };
+
+const webhooksServiceMock = webhooksService as jest.Mocked<typeof webhooksService>;
 
 const app = express();
 app.use(express.json());
@@ -66,9 +65,17 @@ function buildWebhookUrl(totalLength: number): string {
 describe('webhooks.router validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    prismaMock.webhookConfig.create.mockResolvedValue({
+    prismaMock.webhookConfig.findUnique.mockResolvedValue({
       id: 'wh-1',
       name: 'Ops Teams',
+      webhookUrl: buildWebhookUrl(8000),
+    });
+  });
+
+  it('acepta URL válida muy larga en POST', async () => {
+    webhooksServiceMock.createWebhook.mockResolvedValue({
+      id: 'wh-1',
+      name: 'Canal guardias',
       webhookUrl: buildWebhookUrl(8000),
       enabled: true,
       notifyModifications: true,
@@ -78,19 +85,8 @@ describe('webhooks.router validation', () => {
       fridayReminderTime: '12:00',
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
-    prismaMock.webhookConfig.findUnique.mockResolvedValue({
-      id: 'wh-1',
-      name: 'Ops Teams',
-      webhookUrl: buildWebhookUrl(8000),
-    });
-    prismaMock.webhookConfig.update.mockResolvedValue({
-      id: 'wh-1',
-      webhookUrl: buildWebhookUrl(7000),
-    });
-  });
+    } as any);
 
-  it('acepta URL válida muy larga en POST', async () => {
     const response = await request(app)
       .post('/api/webhooks')
       .send({
@@ -100,7 +96,7 @@ describe('webhooks.router validation', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
-    expect(prismaMock.webhookConfig.create).toHaveBeenCalledTimes(1);
+    expect(webhooksServiceMock.createWebhook).toHaveBeenCalledTimes(1);
   });
 
   it('rechaza URL inválida en POST con BAD_REQUEST', async () => {
@@ -114,7 +110,7 @@ describe('webhooks.router validation', () => {
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(response.body.code).toBe('BAD_REQUEST');
-    expect(prismaMock.webhookConfig.create).not.toHaveBeenCalled();
+    expect(webhooksServiceMock.createWebhook).not.toHaveBeenCalled();
   });
 
   it('rechaza URL inválida en PATCH con BAD_REQUEST', async () => {
@@ -127,12 +123,11 @@ describe('webhooks.router validation', () => {
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(response.body.code).toBe('BAD_REQUEST');
-    expect(prismaMock.webhookConfig.findUnique).not.toHaveBeenCalled();
-    expect(prismaMock.webhookConfig.update).not.toHaveBeenCalled();
+    expect(webhooksServiceMock.updateWebhook).not.toHaveBeenCalled();
   });
 
   it('mapea error P2000 de webhook_url a 400 controlado', async () => {
-    prismaMock.webhookConfig.create.mockRejectedValueOnce({
+    webhooksServiceMock.createWebhook.mockRejectedValueOnce({
       code: 'P2000',
       meta: { target: ['webhook_url'] },
       message: 'The provided value for the column is too long for the column\'s type. Column: webhook_url',
