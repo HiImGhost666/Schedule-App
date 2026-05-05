@@ -5,6 +5,10 @@
 
 import { prismaMock } from './singleton';
 import { DEFAULT_THEME, BUILT_IN_THEME_PRESETS } from '../src/modules/settings/theme.presets';
+
+jest.mock('../src/common/transactions/transaction.utils', () => ({
+  executeInTransaction: jest.fn(async (operation: any) => operation(prismaMock)),
+}));
 import {
   ensureGlobalThemeSettings,
   getThemeSettings,
