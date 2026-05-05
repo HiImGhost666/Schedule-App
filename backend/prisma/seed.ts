@@ -12,6 +12,15 @@ import { DEFAULT_ROLE_PERMISSIONS, ROLE_NAMES } from '../src/modules/roles/roles
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const prisma = new PrismaClient();
 
+async function databaseHasAnyData() {
+  const [userCount, roleCount, branchCount] = await Promise.all([
+    prisma.user.count(),
+    prisma.role.count(),
+    prisma.branch.count(),
+  ]);
+  return userCount > 0 || roleCount > 0 || branchCount > 0;
+}
+
 // ============================================================================
 // BLOQUE 1: FUNCIONES DE AYUDA (HELPERS)
 // ============================================================================
@@ -90,6 +99,12 @@ async function main() {
   console.log('# [CAMBIO PRODUCCIÓN]: Cambia esta URL por la de tu servidor MySQL de producción.');
   console.log('# Si usas el docker-compose.yml incluido, déjalo como está.');
   console.log('----------------------------------------------------');
+
+  const alreadySeeded = await databaseHasAnyData();
+  if (alreadySeeded) {
+    console.log('La base de datos ya contiene datos. Seed omitido.');
+    return;
+  }
 
   // --- BLOQUE 2.1: TEMA GLOBAL ---
   console.log('BLOQUE: TEMAS');

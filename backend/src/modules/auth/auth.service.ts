@@ -86,16 +86,6 @@ export async function login(identifier: string, password: string, ipAddress?: st
   };
 
   const tokenId = crypto.randomUUID();
-  const userWithRole = updatedUser as any;
-  const permissions = userWithRole.role?.permissions?.map((p: any) => p.name) || [];
-
-  const accessToken = signAccessToken({
-    sub: user.id,
-    email: user.email,
-    role: userWithRole.role?.name || 'viewer',
-    name: user.name,
-    permissions,
-  });
   const refreshToken = signRefreshToken({ sub: user.id, jti: tokenId });
 
   const refreshExpiry = new Date();
@@ -115,6 +105,17 @@ export async function login(identifier: string, password: string, ipAddress?: st
     }, tx);
 
     return updated;
+  });
+
+  const userWithRole = updatedUser as any;
+  const permissions = userWithRole.role?.permissions?.map((p: any) => p.name) || [];
+
+  const accessToken = signAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: userWithRole.role?.name || 'viewer',
+    name: user.name,
+    permissions,
   });
 
   const safeUser = {
