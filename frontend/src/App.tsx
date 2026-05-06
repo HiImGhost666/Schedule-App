@@ -154,7 +154,7 @@ function App() {
                 <Route path="profile" element={<ProfilePage />} />
 
                 {/* Admin routes */}
-                <Route element={<RoleGuard roles={['admin', 'manager']} />}>
+                <Route element={<RoleGuard roles={['admin', 'general_manager', 'department_manager']} />}>
                   <Route path="admin/users" element={<UsersPage />} />
                 </Route>
                 <Route element={<RoleGuard roles={['admin']} />}>

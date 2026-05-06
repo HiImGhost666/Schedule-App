@@ -1,22 +1,33 @@
 import express from 'express';
 import request from 'supertest';
 
-jest.mock('../src/middleware/auth.middleware', () => ({
-  authMiddleware: (req: any, res: any, next: any) => {
-    const role = req.header('x-test-role');
+jest.mock('../src/middleware/auth.middleware', () => {
+  const { DEFAULT_ROLE_PERMISSIONS } = require('../src/modules/roles/roles.constants');
+  return {
+    authMiddleware: (req: any, res: any, next: any) => {
+      const role = req.header('x-test-role') as any;
 
-    if (!role) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token de acceso requerido',
-        code: 'UNAUTHORIZED',
-      });
-    }
+      if (!role) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token de acceso requerido',
+          code: 'UNAUTHORIZED',
+        });
+      }
 
-    req.user = { id: 'test-user', role, name: 'Test User' };
-    next();
-  },
-}));
+      const permissions = DEFAULT_ROLE_PERMISSIONS[role] || [];
+      req.user = { 
+        id: 'test-user', 
+        roleName: role, 
+        permissions, 
+        name: 'Test User', 
+        email: 'test@example.com', 
+        status: 'active'
+      };
+      next();
+    },
+  };
+});
 
 jest.mock('../src/modules/notifications/notifications.service', () => ({
   resendNotification: jest.fn(),
@@ -109,10 +120,10 @@ describe('notifications.router', () => {
     });
   });
 
-  it('returns 403 on announce for viewer', async () => {
+  it('returns 403 on announce for employee', async () => {
     const response = await request(app)
       .post('/api/notifications/announce')
-      .set('x-test-role', 'viewer')
+      .set('x-test-role', 'employee')
       .send({ message: 'Aviso' });
 
     expect(response.status).toBe(403);

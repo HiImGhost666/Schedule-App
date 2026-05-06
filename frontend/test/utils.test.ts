@@ -11,7 +11,8 @@ describe('cn', () => {
   });
 
   it('acepta condicionales falsy', () => {
-    expect(cn('a', false && 'b', 'c')).toBe('a c');
+    const falsy = false;
+    expect(cn('a', falsy && 'b', 'c')).toBe('a c');
   });
 });
 

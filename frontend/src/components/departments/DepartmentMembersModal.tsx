@@ -97,7 +97,7 @@ export function DepartmentMembersModal({
             {availableUsers.length ? (
               <div className="space-y-2">
                 {availableUsers.map((user) => {
-                  const currentDepartment = user.department ?? user.departments?.[0]?.department ?? null;
+                  const currentDepartment = user.department ?? null;
                   return (
                     <div key={user.id} className="rounded-xl border border-theme-color bg-theme-surface p-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>

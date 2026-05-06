@@ -8,12 +8,22 @@ jest.mock('../src/modules/branches/branches.repository');
 jest.mock('../src/modules/users/users.repository');
 jest.mock('../src/modules/audit/audit.service', () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),
+  logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('../src/config/database', () => ({
+  prisma: {
+    role: {
+      findFirst: jest.fn((args: { where: { name: string } }) => Promise.resolve({
+        id: args.where.name === 'general_manager' ? 'role-general-manager-id' : 'role-employee-id',
+      })),
+    },
+  },
 }));
 jest.mock('../src/common/transactions/transaction.utils');
 
 import * as branchesRepo from '../src/modules/branches/branches.repository';
 import * as usersRepo from '../src/modules/users/users.repository';
-import { logAudit } from '../src/modules/audit/audit.service';
+import { logAuditOrThrow } from '../src/modules/audit/audit.service';
 import { executeInTransaction } from '../src/common/transactions/transaction.utils';
 import {
   assignBranchManager,
@@ -23,7 +33,7 @@ import { createAppError } from '../src/common/errors/error-catalog';
 
 const repoBranches = branchesRepo as jest.Mocked<typeof branchesRepo>;
 const repoUsers = usersRepo as jest.Mocked<typeof usersRepo>;
-const mockLogAudit = logAudit as jest.MockedFunction<typeof logAudit>;
+const mockLogAudit = logAuditOrThrow as jest.MockedFunction<typeof logAuditOrThrow>;
 const mockExecuteInTransaction = executeInTransaction as jest.MockedFunction<typeof executeInTransaction>;
 
 const actor = {
@@ -44,19 +54,19 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-1';
       const userId = 'user-1';
       const branch = { id: branchId, managerId: null, name: 'Test Branch' };
-      const user = { id: userId, role: 'viewer', name: 'John Manager' };
+        const user = { id: userId, role: 'employee', name: 'John Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
       repoBranches.updateBranchManager.mockResolvedValue({ ...branch, managerId: userId } as any);
-      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'manager' } as any);
+        repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'general_manager' } as any);
 
       // Act
       const result = await assignBranchManager(branchId, userId, actor);
 
       // Assert
       expect(result.managerId).toBe(userId);
-      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { role: 'manager' }, {});
+      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { roleId: 'role-general-manager-id' }, {});
       expect(mockLogAudit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'ASSIGN_BRANCH_MANAGER',
@@ -71,7 +81,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-2';
       const userId = 'user-2';
       const branch = { id: branchId, managerId: null, name: 'Test Branch' };
-      const user = { id: userId, role: 'manager', name: 'Jane Manager' };
+        const user = { id: userId, role: 'general_manager', name: 'Jane Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
@@ -129,12 +139,12 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-5';
       const userId = 'user-5';
       const branch = { id: branchId, managerId: null, name: 'Test Branch Alpha' };
-      const user = { id: userId, role: 'viewer', name: 'Audit Manager' };
+      const user = { id: userId, role: 'employee', name: 'Audit Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
       repoBranches.updateBranchManager.mockResolvedValue({ ...branch, managerId: userId } as any);
-      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'manager' } as any);
+        repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'general_manager' } as any);
 
       // Act
       await assignBranchManager(branchId, userId, actor);
@@ -157,7 +167,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-6';
       const userId = 'user-6';
       const branch = { id: branchId, managerId: null, name: 'Test Branch' };
-      const user = { id: userId, role: 'viewer', name: 'Rollback Manager' };
+      const user = { id: userId, role: 'employee', name: 'Rollback Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
@@ -179,20 +189,20 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-7';
       const userId = 'user-7';
       const branch = { id: branchId, managerId: userId, name: 'Test Branch' };
-      const user = { id: userId, role: 'manager', name: 'Single Manager' };
+      const user = { id: userId, role: 'general_manager', name: 'Single Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
       repoBranches.countBranchesForManager.mockResolvedValue(0); // No other branches
       repoBranches.updateBranchManager.mockResolvedValue({ ...branch, managerId: null } as any);
-      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'viewer' } as any);
+        repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'employee' } as any);
 
       // Act
       const result = await removeBranchManager(branchId, actor);
 
       // Assert
       expect(result.managerId).toBeNull();
-      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { role: 'viewer' }, {});
+      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { roleId: 'role-employee-id' }, {});
       expect(mockLogAudit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'REMOVE_BRANCH_MANAGER',
@@ -210,7 +220,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-8';
       const userId = 'user-8';
       const branch = { id: branchId, managerId: userId, name: 'Test Branch' };
-      const user = { id: userId, role: 'manager', name: 'Multi Manager' };
+      const user = { id: userId, role: 'general_manager', name: 'Multi Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
@@ -277,7 +287,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-11';
       const userId = 'user-11';
       const branch = { id: branchId, managerId: userId, name: 'Test Branch' };
-      const user = { id: userId, role: 'manager', name: 'Audit Multi Manager' };
+      const user = { id: userId, role: 'general_manager', name: 'Audit Multi Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
@@ -303,7 +313,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-12';
       const userId = 'user-12';
       const branch = { id: branchId, managerId: userId, name: 'Test Branch' };
-      const user = { id: userId, role: 'manager', name: 'Rollback Single Manager' };
+      const user = { id: userId, role: 'general_manager', name: 'Rollback Single Manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
@@ -326,8 +336,8 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-13';
       const userId = 'user-13';
       const branch = { id: branchId, managerId: null, name: 'Test Branch' };
-      const user = { id: userId, role: 'viewer', name: 'Role Exclusive User' };
-      const updatedUser = { ...user, role: 'manager' };
+      const user = { id: userId, role: 'employee', name: 'Role Exclusive User' };
+      const updatedUser = { ...user, role: 'general_manager' };
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
       repoUsers.findUserById.mockResolvedValue(user as any);
@@ -338,9 +348,9 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       await assignBranchManager(branchId, userId, actor);
 
       // Assert
-      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { role: 'manager' }, {});
+      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { roleId: 'role-general-manager-id' }, {});
       // Role must be a single string, not an array or multiple roles
-      expect(typeof 'manager').toBe('string');
+      expect(typeof 'general_manager').toBe('string');
     });
 
     it('should not accumulate roles during sequential assignments', async () => {
@@ -348,8 +358,8 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branch1Id = 'branch-14';
       const branch2Id = 'branch-15';
       const userId = 'user-14';
-      const userViewer = { id: userId, role: 'viewer', name: 'Sequential User' };
-      const userManager = { id: userId, role: 'manager', name: 'Sequential User' };
+      const userViewer = { id: userId, role: 'employee', name: 'Sequential User' };
+      const userManager = { id: userId, role: 'general_manager', name: 'Sequential User' };
 
       // First assignment: user starts as viewer
       repoBranches.findBranchById
@@ -365,7 +375,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
         .mockResolvedValueOnce({ id: branch1Id, managerId: userId } as any)
         .mockResolvedValueOnce({ id: branch2Id, managerId: userId } as any);
 
-      repoUsers.updateUserRecord.mockResolvedValue({ ...userViewer, role: 'manager' } as any);
+      repoUsers.updateUserRecord.mockResolvedValue({ ...userViewer, role: 'general_manager' } as any);
 
       // Act
       await assignBranchManager(branch1Id, userId, actor);
@@ -373,7 +383,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
 
       // Assert
       // updateUserRecord should be called exactly once (first assignment)
-      // because after first assignment, user.role is already 'manager'
+      // because after first assignment, user.role is already 'general_manager'
       expect(repoUsers.updateUserRecord).toHaveBeenCalledTimes(1);
     });
   });
@@ -384,7 +394,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-16';
       const userId = 'user-16';
       const branch = { id: branchId, managerId: null, name: 'Test Branch' };
-      const user = { id: userId, role: 'viewer', name: 'Atomic User' };
+      const user = { id: userId, role: 'employee', name: 'Atomic User' };
       let transactionOperationCalled = false;
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
@@ -397,7 +407,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       });
 
       repoBranches.updateBranchManager.mockResolvedValue({ ...branch, managerId: userId } as any);
-      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'manager' } as any);
+      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'general_manager' } as any);
 
       // Act
       await assignBranchManager(branchId, userId, actor);
@@ -412,7 +422,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       const branchId = 'branch-17';
       const userId = 'user-17';
       const branch = { id: branchId, managerId: userId, name: 'Test Branch' };
-      const user = { id: userId, role: 'manager', name: 'Atomic Removal' };
+      const user = { id: userId, role: 'general_manager', name: 'Atomic Removal' };
       let transactionOperationCalled = false;
 
       repoBranches.findBranchById.mockResolvedValue(branch as any);
@@ -426,7 +436,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       });
 
       repoBranches.updateBranchManager.mockResolvedValue({ ...branch, managerId: null } as any);
-      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'viewer' } as any);
+      repoUsers.updateUserRecord.mockResolvedValue({ ...user, role: 'employee' } as any);
 
       // Act
       await removeBranchManager(branchId, actor);

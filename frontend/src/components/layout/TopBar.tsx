@@ -31,7 +31,7 @@ export function TopBar({ title }: TopBarProps) {
         <div className="flex items-center gap-2 px-2">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-medium leading-tight text-theme-primary">{user?.name}</p>
-            <p className="text-xs opacity-75 text-theme-muted">{ROLE_LABELS[user?.role || '']}</p>
+            <p className="text-xs opacity-75 text-theme-muted">{user?.role?.name ? ROLE_LABELS[user.role.name] : ''}</p>
           </div>
         </div>
       </div>

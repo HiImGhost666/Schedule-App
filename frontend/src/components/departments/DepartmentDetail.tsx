@@ -88,7 +88,7 @@ export function DepartmentDetail({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+      <div className="flex flex-wrap gap-2 pt-3 border-t border-theme-color/80">
         {onManageMembers ? (
           <button type="button" onClick={onManageMembers} className="btn-ghost text-sm inline-flex items-center gap-1.5">
             Gestionar integrantes

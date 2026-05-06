@@ -94,7 +94,7 @@ describe('UsersPage', () => {
             id: 'u-1',
             name: 'Maria Admin',
             email: 'maria@test.dev',
-            role: 'viewer',
+            role: { name: 'employee' },
             status: 'disabled',
             department: { id: 'dept-1', name: 'Soporte', code: 'SOP' },
             branch: null,
@@ -130,7 +130,7 @@ describe('UsersPage', () => {
             id: 'u-10',
             name: 'Pedro Manager',
             email: 'pedro@test.dev',
-            role: 'manager',
+            role: { name: 'general_manager' },
             status: 'active',
             department: { id: 'dept-2', name: 'Operaciones', code: 'OPS' },
             branch: null,
@@ -177,7 +177,7 @@ describe('UsersPage', () => {
               id: 'u-2',
               name: 'Carlos Viewer',
               email: 'carlos@test.dev',
-              role: 'viewer',
+              role: { name: 'employee' },
               status: 'active',
               department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
               branch: null,
@@ -222,7 +222,7 @@ describe('UsersPage', () => {
 
     renderPage();
 
-    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,TFN,,'], 'users.csv', { type: 'text/csv' });
+    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,employee,active,,TFN,,'], 'users.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
     
     // El input está hidden, pero podemos interactuar con él si lo encontramos
@@ -271,7 +271,7 @@ describe('UsersPage', () => {
     renderPage();
 
     const headers = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'].join(delimiter);
-    const row = ['LAB-201', 'Juana', 'juana@test.com', 'viewer', 'active', '', 'TFN', '', ''].join(delimiter);
+    const row = ['LAB-201', 'Juana', 'juana@test.com', 'employee', 'active', '', 'TFN', '', ''].join(delimiter);
     const file = new File([`${headers}\n${row}`], 'users-alt-delimiter.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
 
@@ -286,7 +286,6 @@ describe('UsersPage', () => {
   });
 
   it('envia sortBy y sortOrder al cambiar orden desde cabecera', async () => {
-    getMock.mockResolvedValue({
       data: {
         success: true,
         data: [
@@ -294,7 +293,7 @@ describe('UsersPage', () => {
             id: 'u-3',
             name: 'Ana Viewer',
             email: 'ana@test.dev',
-            role: 'viewer',
+          role: { name: 'employee' },
             status: 'active',
             department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
             branch: null,
@@ -329,7 +328,7 @@ describe('UsersPage', () => {
             id: 'u-4',
             name: 'Luis Admin',
             email: 'luis@test.dev',
-            role: 'admin',
+            role: { name: 'admin' },
             status: 'active',
             department: { id: 'dept-4', name: 'Administración', code: 'ADM' },
             branch: null,
@@ -343,14 +342,14 @@ describe('UsersPage', () => {
     renderPage();
 
     await screen.findByText('Luis Admin');
-    await userEvent.selectOptions(screen.getByDisplayValue('Todos los roles'), 'manager');
+    await userEvent.selectOptions(screen.getByDisplayValue('Todos los roles'), 'general_manager');
 
     await waitFor(() => {
       expect(getMock).toHaveBeenCalledWith('/users', expect.objectContaining({
         params: expect.objectContaining({
-          role: 'manager',
+          role: 'general_manager',
         }),
       }));
     });
   });
-});
+            role: { name: 'general_manager' },

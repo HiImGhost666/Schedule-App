@@ -45,7 +45,7 @@ export function HolidayCreateModal({ open, onClose, defaultBranchId }: HolidayCr
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
   const [type, setType] = useState<HolidayType>('local');
-  const [targetBranchId, setTargetBranchId] = useState(defaultBranchId ?? 'all');
+  const [targetBranchId, setTargetBranchId] = useState(defaultBranchId || 'all');
   const [warningData, setWarningData] = useState<{ warning: string; schedules: ConflictingSchedule[] } | null>(null);
 
   const { data: branches } = useQuery<{ data: Branch[] }>({

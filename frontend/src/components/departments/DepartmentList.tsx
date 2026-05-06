@@ -80,7 +80,7 @@ export function DepartmentList({
         </div>
       </div>
 
-      <div className="space-y-2 max-h-[25rem] overflow-y-auto mt-2 pr-1">
+      <div className="space-y-2 max-h-100 overflow-y-auto mt-2 pr-1">
         {filteredAndSorted.length > 0 ? (
           filteredAndSorted.map((department) => {
             const active = !isCreatingDepartment && selectedDepartmentId === department.id;

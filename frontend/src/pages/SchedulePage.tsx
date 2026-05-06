@@ -88,8 +88,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
         name: assignee.name,
         email: assignee.email ?? '',
         avatarUrl: assignee.avatarUrl ?? undefined,
-        department: assignee.department ?? assignee.departments?.[0]?.department ?? undefined,
-        departments: assignee.departments,
+        department: assignee.department ?? undefined,
         companyPhone: assignee.companyPhone ?? undefined,
         auxiliaryPhone: assignee.auxiliaryPhone ?? undefined,
       },
@@ -137,9 +136,10 @@ export function SchedulePage() {
     ),
   );
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role?.name === 'admin';
   const canViewAllBranches = Boolean(user);
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
+
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +175,7 @@ export function SchedulePage() {
   const isoWeek = getISOWeek(weekRefDate);
 
   const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'schedule-page', user?.id, user?.role],
+    queryKey: ['branches', 'schedule-page', user?.id, user?.role?.name],
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 

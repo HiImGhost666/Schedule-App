@@ -72,7 +72,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
-  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security' | undefined>(undefined);
+  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security'>('general');
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -91,13 +91,13 @@ export function DashboardPage() {
   const { data: usersData, isLoading: loadingUsers } = useQuery({
     queryKey: ['users', 'count', 'active'],
     queryFn: () => api.get('/users?limit=1&status=active').then((r) => r.data.pagination?.total || 0),
-    enabled: user?.role === 'admin' || user?.role === 'manager',
+    enabled: user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager',
   });
 
   const { data: auditLogs } = useQuery({
     queryKey: ['audit', 'recent'],
     queryFn: () => api.get<{ data: AuditLog[] }>('/audit?limit=5').then((r) => r.data.data),
-    enabled: user?.role === 'admin',
+    enabled: user?.role?.name === 'admin',
   });
 
   const mySchedules = weekSchedules?.filter((s) =>
@@ -147,7 +147,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-7 animate-fade-in">
       {/* Header: altura mínima evita CLS al cargar la webfont */}
-      <div className="min-h-[3.5rem]">
+      <div className="min-h-14">
         <h1 className="text-2xl font-bold text-theme-primary">
           Bienvenido, {user?.name?.split(' ')[0]} 👋
         </h1>
@@ -210,7 +210,7 @@ export function DashboardPage() {
           </button>
         </div>
 
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (
           <div
             className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
             role="button"
@@ -301,7 +301,7 @@ export function DashboardPage() {
                   className="flex items-center gap-3 px-5 py-4 rounded-xl border border-navy-100 hover:border-navy-200 hover:shadow-sm transition-all cursor-pointer text-left w-full"
                 >
                   <div
-                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    className="w-3 h-3 rounded-full shrink-0"
                     style={{ backgroundColor: getTypeColor(s.type) }}
                   />
                   <div className="flex-1 min-w-0">
@@ -310,7 +310,7 @@ export function DashboardPage() {
                       {formatDateTime(s.startDatetime)} — {format(new Date(s.endDatetime), 'HH:mm')}
                     </p>
                   </div>
-                  <div className="flex -space-x-1 flex-shrink-0">
+                  <div className="flex -space-x-1 shrink-0">
                     {s.assignments.slice(0, 3).map((a) => (
                       <div
                         key={a.userId}
@@ -332,12 +332,12 @@ export function DashboardPage() {
                     )}
                   </div>
                   {s.isLastMinute && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium shrink-0">
                       Urgente
                     </span>
                   )}
                   <span
-                    className="text-xs px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                    className="text-xs px-2 py-0.5 rounded-full text-white shrink-0"
                     style={{ backgroundColor: getTypeColor(s.type) }}
                   >
                     {getTypeLabel(s.type)}
@@ -349,8 +349,8 @@ export function DashboardPage() {
         </div>
 
         {/* Activity log */}
-        {user?.role === 'admin' && (
-          <div className="card p-7 min-h-[220px]">
+        {user?.role?.name === 'admin' && (
+          <div className="card p-7 min-h-55">
             <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-gold-500" />
               Actividad Reciente
@@ -363,20 +363,20 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {auditLogs.map((log) => (
-                  <div 
-                    key={log.id} 
+                  <div
+                    key={log.id}
                     className="flex gap-3 cursor-pointer hover:bg-navy-100/80 p-2 -m-2 rounded-lg transition-colors group"
                     onClick={() => {
                       const isIrreversible = IRREVERSIBLE_ACTIONS.includes(log.action);
-                      navigate('/admin/audit', { 
-                        state: { 
+                      navigate('/admin/audit', {
+                        state: {
                           selectedLogId: log.id,
                           activeTab: isIrreversible ? 'irreversible' : 'reversible'
-                        } 
+                        }
                       });
                     }}
                   >
-                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 flex-shrink-0 group-hover:scale-125 transition-all" />
+                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 shrink-0 group-hover:scale-125 transition-all" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-theme-primary group-hover:text-navy-800 transition-colors">
                         {log.action.replace(/_/g, ' ')}

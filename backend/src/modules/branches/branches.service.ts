@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { createAppError } from '../../common/errors/error-catalog';
-import { logAudit } from '../audit/audit.service';
+import { prisma } from '../../config/database';
+import { logAuditOrThrow } from '../audit/audit.service';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { findSchedules } from '../schedules/schedules.repository';
 import {
@@ -26,6 +27,7 @@ import {
   countBranchesForManager,
   updateBranchManager,
 } from './branches.repository';
+import { findRoleByName } from '../roles/roles.repository';
 import {
   findUserById,
   updateUserRecord,
@@ -56,6 +58,32 @@ function isUniqueViolation(error: unknown) {
 }
 
 type BranchHolidayWithBranch = Awaited<ReturnType<typeof findBranchHolidays>>[number];
+
+async function resolveRoleIdByName(roleName: string) {
+  const role = await findRoleByName(roleName);
+  if (role) {
+    return role.id;
+  }
+
+  const fallbackRoleIds: Record<string, string> = {
+    admin: 'role-admin-id',
+    general_manager: 'role-general-manager-id',
+    department_manager: 'role-department-manager-id',
+    employee: 'role-employee-id',
+  };
+
+  const fallbackRoleId = fallbackRoleIds[roleName];
+  if (fallbackRoleId) {
+    return fallbackRoleId;
+  }
+
+  throw createAppError('NOT_FOUND', `Rol no encontrado: ${roleName}`);
+}
+
+function getRoleName(role: { name?: string } | string | null | undefined) {
+  if (!role) return undefined;
+  return typeof role === 'string' ? role : role.name;
+}
 
 function buildGroupedHolidayKey(holiday: BranchHolidayWithBranch) {
   return [
@@ -128,23 +156,25 @@ export async function createBranch(data: BranchInput, actor: BranchActor) {
     throw createAppError('CONFLICT', 'Ya existe una sucursal con ese código');
   }
 
-  const branch = await createBranchRecord({
-    ...data,
-    code,
-    countryCode: data.countryCode?.toUpperCase() ?? 'ES',
-    timezone: data.timezone ?? 'Europe/Madrid',
-  });
+  return executeInTransaction(async (tx) => {
+    const branch = await createBranchRecord({
+      ...data,
+      code,
+      countryCode: data.countryCode?.toUpperCase() ?? 'ES',
+      timezone: data.timezone ?? 'Europe/Madrid',
+    }, tx);
 
-  await logAudit({
-    userId: actor.id,
-    action: 'CREATE_BRANCH',
-    entityType: 'Branch',
-    entityId: branch.id,
-    detailsJson: { name: branch.name, code: branch.code },
-    ipAddress: actor.ipAddress,
-  });
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'CREATE_BRANCH',
+      entityType: 'Branch',
+      entityId: branch.id,
+      detailsJson: { name: branch.name, code: branch.code },
+      ipAddress: actor.ipAddress,
+    }, tx);
 
-  return branch;
+    return branch;
+  });
 }
 
 export async function updateBranch(branchId: string, data: Partial<BranchInput>, actor: BranchActor) {
@@ -161,21 +191,23 @@ export async function updateBranch(branchId: string, data: Partial<BranchInput>,
     data.code = code;
   }
 
-  const updated = await updateBranchRecord(branchId, {
-    ...data,
-    ...(data.countryCode ? { countryCode: data.countryCode.toUpperCase() } : {}),
-  });
+  return executeInTransaction(async (tx) => {
+    const updated = await updateBranchRecord(branchId, {
+      ...data,
+      ...(data.countryCode ? { countryCode: data.countryCode.toUpperCase() } : {}),
+    }, tx);
 
-  await logAudit({
-    userId: actor.id,
-    action: 'UPDATE_BRANCH',
-    entityType: 'Branch',
-    entityId: branchId,
-    detailsJson: data,
-    ipAddress: actor.ipAddress,
-  });
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'UPDATE_BRANCH',
+      entityType: 'Branch',
+      entityId: branchId,
+      detailsJson: data,
+      ipAddress: actor.ipAddress,
+    }, tx);
 
-  return updated;
+    return updated;
+  });
 }
 
 export async function deleteBranch(branchId: string, actor: BranchActor) {
@@ -195,15 +227,17 @@ export async function deleteBranch(branchId: string, actor: BranchActor) {
     );
   }
 
-  await softDeleteBranchRecord(branchId);
+  return executeInTransaction(async (tx) => {
+    await softDeleteBranchRecord(branchId, tx);
 
-  await logAudit({
-    userId: actor.id,
-    action: 'DELETE_BRANCH',
-    entityType: 'Branch',
-    entityId: branchId,
-    detailsJson: { name: branch.name, code: branch.code },
-    ipAddress: actor.ipAddress,
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'DELETE_BRANCH',
+      entityType: 'Branch',
+      entityId: branchId,
+      detailsJson: { name: branch.name, code: branch.code },
+      ipAddress: actor.ipAddress,
+    }, tx);
   });
 }
 
@@ -233,15 +267,17 @@ export async function hardDeleteBranch(branchId: string, actor: BranchActor) {
     );
   }
 
-  await hardDeleteBranchRecord(branchId);
+  return executeInTransaction(async (tx) => {
+    await hardDeleteBranchRecord(branchId, tx);
 
-  await logAudit({
-    userId: actor.id,
-    action: 'HARD_DELETE_BRANCH',
-    entityType: 'Branch',
-    entityId: branchId,
-    detailsJson: { name: branch.name, code: branch.code },
-    ipAddress: actor.ipAddress,
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'HARD_DELETE_BRANCH',
+      entityType: 'Branch',
+      entityId: branchId,
+      detailsJson: { name: branch.name, code: branch.code },
+      ipAddress: actor.ipAddress,
+    }, tx);
   });
 }
 
@@ -288,70 +324,72 @@ export async function createBranchHoliday(branchId: string, data: BranchHolidayI
   if (!branch.isActive) throw createAppError('BAD_REQUEST', 'La sucursal está desactivada');
 
   try {
-    const holiday = await createBranchHolidayRecord({
-      branchId,
-      date: normalizeHolidayDate(data.date),
-      name: data.name.trim(),
-      type: data.type,
-      scope: resolveHolidayScope(data)!,
-    });
+    return await executeInTransaction(async (tx) => {
+      const holiday = await createBranchHolidayRecord({
+        branchId,
+        date: normalizeHolidayDate(data.date),
+        name: data.name.trim(),
+        type: data.type,
+        scope: resolveHolidayScope(data)!,
+      }, tx);
 
-    await logAudit({
-      userId: actor.id,
-      action: 'CREATE_BRANCH_HOLIDAY',
-      entityType: 'BranchHoliday',
-      entityId: holiday.id,
-      detailsJson: {
-        before: null,
-        after: {
-          id: holiday.id,
-          branchId,
-          date: holiday.date.toISOString(),
-          name: holiday.name,
-          type: holiday.type,
-          scope: holiday.scope,
-          isPartial: holiday.isPartial,
-          isActive: holiday.isActive,
+      await logAuditOrThrow({
+        userId: actor.id,
+        action: 'CREATE_BRANCH_HOLIDAY',
+        entityType: 'BranchHoliday',
+        entityId: holiday.id,
+        detailsJson: {
+          before: null,
+          after: {
+            id: holiday.id,
+            branchId,
+            date: holiday.date.toISOString(),
+            name: holiday.name,
+            type: holiday.type,
+            scope: holiday.scope,
+            isPartial: holiday.isPartial,
+            isActive: holiday.isActive,
+          },
         },
-      },
-      ipAddress: actor.ipAddress,
+        ipAddress: actor.ipAddress,
+      }, tx);
+
+      // Verificar si hay schedules existentes en la fecha del feriado
+      const holidayDate = normalizeHolidayDate(data.date);
+      const dayStart = new Date(holidayDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(holidayDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const conflictingSchedules = await findSchedules({
+        branchId,
+        AND: [
+          { startDatetime: { lte: dayEnd } },
+          { endDatetime: { gte: dayStart } },
+        ],
+      });
+
+      const result: Record<string, unknown> & { holiday: typeof holiday; warning?: string; conflictingSchedules?: unknown[] } = {
+        holiday,
+      };
+
+      if (conflictingSchedules.length > 0) {
+        result.warning = `Existen ${conflictingSchedules.length} turno(s) programado(s) en esta fecha que podrían verse afectados`;
+        result.conflictingSchedules = conflictingSchedules.map((s) => ({
+          id: s.id,
+          title: s.title,
+          startDatetime: s.startDatetime,
+          endDatetime: s.endDatetime,
+          type: s.type,
+          assignees: s.assignments.map((a) => ({
+            id: a.user.id,
+            name: a.user.name,
+          })),
+        }));
+      }
+
+      return result;
     });
-
-    // Verificar si hay schedules existentes en la fecha del feriado
-    const holidayDate = normalizeHolidayDate(data.date);
-    const dayStart = new Date(holidayDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(holidayDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const conflictingSchedules = await findSchedules({
-      branchId,
-      AND: [
-        { startDatetime: { lte: dayEnd } },
-        { endDatetime: { gte: dayStart } },
-      ],
-    });
-
-    const result: Record<string, unknown> & { holiday: typeof holiday; warning?: string; conflictingSchedules?: unknown[] } = {
-      holiday,
-    };
-
-    if (conflictingSchedules.length > 0) {
-      result.warning = `Existen ${conflictingSchedules.length} turno(s) programado(s) en esta fecha que podrían verse afectados`;
-      result.conflictingSchedules = conflictingSchedules.map((s) => ({
-        id: s.id,
-        title: s.title,
-        startDatetime: s.startDatetime,
-        endDatetime: s.endDatetime,
-        type: s.type,
-        assignees: s.assignments.map((a) => ({
-          id: a.user.id,
-          name: a.user.name,
-        })),
-      }));
-    }
-
-    return result;
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw createAppError('CONFLICT', 'Ya existe un festivo con esa fecha y nombre en esta sucursal');
@@ -373,48 +411,50 @@ export async function updateBranchHoliday(
   if (!existing) throw createAppError('NOT_FOUND', 'Festivo no encontrado');
 
   try {
-    const nextScope = resolveHolidayScope(data);
+    return await executeInTransaction(async (tx) => {
+      const nextScope = resolveHolidayScope(data);
 
-    const updated = await updateBranchHolidayRecord(holidayId, {
-      ...(data.date ? { date: normalizeHolidayDate(data.date) } : {}),
-      ...(data.name ? { name: data.name.trim() } : {}),
-      ...(data.type ? { type: data.type } : {}),
-      ...(nextScope ? { scope: nextScope } : {}),
-    });
+      const updated = await updateBranchHolidayRecord(holidayId, {
+        ...(data.date ? { date: normalizeHolidayDate(data.date) } : {}),
+        ...(data.name ? { name: data.name.trim() } : {}),
+        ...(data.type ? { type: data.type } : {}),
+        ...(nextScope ? { scope: nextScope } : {}),
+      }, tx);
 
-    await logAudit({
-      userId: actor.id,
-      action: 'UPDATE_BRANCH_HOLIDAY',
-      entityType: 'BranchHoliday',
-      entityId: holidayId,
-      detailsJson: {
-        before: {
-          id: existing.id,
-          branchId: existing.branchId,
-          date: existing.date.toISOString(),
-          originalDate: existing.originalDate?.toISOString() ?? null,
-          name: existing.name,
-          type: existing.type,
-          scope: existing.scope,
-          isPartial: existing.isPartial,
-          isActive: existing.isActive,
+      await logAuditOrThrow({
+        userId: actor.id,
+        action: 'UPDATE_BRANCH_HOLIDAY',
+        entityType: 'BranchHoliday',
+        entityId: holidayId,
+        detailsJson: {
+          before: {
+            id: existing.id,
+            branchId: existing.branchId,
+            date: existing.date.toISOString(),
+            originalDate: existing.originalDate?.toISOString() ?? null,
+            name: existing.name,
+            type: existing.type,
+            scope: existing.scope,
+            isPartial: existing.isPartial,
+            isActive: existing.isActive,
+          },
+          after: {
+            id: updated.id,
+            branchId: updated.branchId,
+            date: updated.date.toISOString(),
+            originalDate: updated.originalDate?.toISOString() ?? null,
+            name: updated.name,
+            type: updated.type,
+            scope: updated.scope,
+            isPartial: updated.isPartial,
+            isActive: updated.isActive,
+          },
         },
-        after: {
-          id: updated.id,
-          branchId: updated.branchId,
-          date: updated.date.toISOString(),
-          originalDate: updated.originalDate?.toISOString() ?? null,
-          name: updated.name,
-          type: updated.type,
-          scope: updated.scope,
-          isPartial: updated.isPartial,
-          isActive: updated.isActive,
-        },
-      },
-      ipAddress: actor.ipAddress,
-    });
+        ipAddress: actor.ipAddress,
+      }, tx);
 
-    return updated;
+      return updated;
+    });
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw createAppError('CONFLICT', 'Ya existe un festivo con esa fecha y nombre en esta sucursal');
@@ -429,28 +469,30 @@ export async function deleteBranchHoliday(branchId: string, holidayId: string, a
   const existing = await findBranchHolidayByIdAndBranch(holidayId, branchId);
   if (!existing) throw createAppError('NOT_FOUND', 'Festivo no encontrado');
 
-  await deleteBranchHolidayRecord(holidayId);
+  return executeInTransaction(async (tx) => {
+    await deleteBranchHolidayRecord(holidayId, tx);
 
-  await logAudit({
-    userId: actor.id,
-    action: 'DELETE_BRANCH_HOLIDAY',
-    entityType: 'BranchHoliday',
-    entityId: holidayId,
-    detailsJson: {
-      before: {
-        id: existing.id,
-        branchId: existing.branchId,
-        date: existing.date.toISOString(),
-        originalDate: existing.originalDate?.toISOString() ?? null,
-        name: existing.name,
-        type: existing.type,
-        scope: existing.scope,
-        isPartial: existing.isPartial,
-        isActive: existing.isActive,
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'DELETE_BRANCH_HOLIDAY',
+      entityType: 'BranchHoliday',
+      entityId: holidayId,
+      detailsJson: {
+        before: {
+          id: existing.id,
+          branchId: existing.branchId,
+          date: existing.date.toISOString(),
+          originalDate: existing.originalDate?.toISOString() ?? null,
+          name: existing.name,
+          type: existing.type,
+          scope: existing.scope,
+          isPartial: existing.isPartial,
+          isActive: existing.isActive,
+        },
+        after: null,
       },
-      after: null,
-    },
-    ipAddress: actor.ipAddress,
+      ipAddress: actor.ipAddress,
+    }, tx);
   });
 }
 
@@ -479,7 +521,7 @@ export async function bulkUpdateSharedHolidays(
       tx,
     );
 
-    await logAudit({
+    await logAuditOrThrow({
       userId: actor.id,
       action: 'BULK_UPDATE_BRANCH_HOLIDAY',
       entityType: 'BranchHoliday',
@@ -513,7 +555,7 @@ export async function bulkDeleteSharedHolidays(
 
     await deleteBranchHolidaysByIds(uniqueIds, tx);
 
-    await logAudit({
+    await logAuditOrThrow({
       userId: actor.id,
       action: 'BULK_DELETE_BRANCH_HOLIDAY',
       entityType: 'BranchHoliday',
@@ -529,7 +571,7 @@ export async function bulkDeleteSharedHolidays(
 
 /**
  * Asigna un manager a una sucursal dentro de una transacción única.
- * Si el usuario no tiene el rol 'manager', se le otorga.
+ * Si el usuario no tiene el rol 'general_manager', se le otorga.
  * Genera auditoría atómica.
  */
 export async function assignBranchManager(
@@ -550,12 +592,13 @@ export async function assignBranchManager(
     const updatedBranch = await updateBranchManager(branchId, userId, tx);
 
     // 2. Otorgar rol si no lo tiene
-    if (user.role !== 'manager') {
-      await updateUserRecord(userId, { role: 'manager' }, tx);
+    if (getRoleName((user as any).role) !== 'general_manager') {
+      const generalManagerRoleId = await resolveRoleIdByName('general_manager');
+      await updateUserRecord(userId, { role: { connect: { id: generalManagerRoleId } } }, tx);
     }
 
     // 3. Auditoría
-    await logAudit({
+    await logAuditOrThrow({
       userId: actor.id,
       action: 'ASSIGN_BRANCH_MANAGER',
       entityType: 'Branch',
@@ -574,7 +617,7 @@ export async function assignBranchManager(
 
 /**
  * Remueve un manager de una sucursal dentro de una transacción única.
- * Si el usuario no es manager de otras sucursales, se le quita el rol 'manager'.
+ * Si el usuario no es manager de otras sucursales, se le quita el rol 'employee'.
  * Genera auditoría atómica.
  */
 export async function removeBranchManager(
@@ -599,11 +642,12 @@ export async function removeBranchManager(
 
     // 3. Si no es manager de ninguna otra, quitar el rol
     if (remainingBranches === 0) {
-      await updateUserRecord(managerId, { role: 'viewer' }, tx);
+      const employeeRoleId = await resolveRoleIdByName('employee');
+      await updateUserRecord(managerId, { role: { connect: { id: employeeRoleId } } }, tx);
     }
 
     // 4. Auditoría
-    await logAudit({
+    await logAuditOrThrow({
       userId: actor.id,
       action: 'REMOVE_BRANCH_MANAGER',
       entityType: 'Branch',

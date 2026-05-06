@@ -3,7 +3,13 @@ export interface User {
   employeeId?: string | null;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'viewer';
+  role: {
+    name: string;
+    permissions?: Array<{ name: string }>;
+  };
+  roleId?: string | null;
+  permissions?: string[]; // Flattened permissions array for easier consumption
+
   status: 'active' | 'disabled' | 'locked';
   avatarUrl?: string;
   departmentId?: string | null;
@@ -11,15 +17,7 @@ export interface User {
     id: string;
     name: string;
     code: string;
-    branchId?: string;
   } | null;
-  departments?: Array<{
-    department: {
-      id: string;
-      name: string;
-      code: string;
-    };
-  }>;
   createdAt: string;
   passwordChangedAt?: string;
   lastLoginAt?: string;
@@ -39,6 +37,14 @@ export interface User {
     isActive: boolean;
   } | null;
 }
+
+export interface Role {
+  id: string;
+  name: string;
+  description?: string | null;
+  permissions?: Array<{ name: string }>;
+}
+
 
 export interface Schedule {
   id: string;
@@ -80,13 +86,6 @@ export interface ScheduleAssignment {
       code: string;
       branchId?: string;
     } | null;
-    departments?: Array<{
-      department: {
-        id: string;
-        name: string;
-        code: string;
-      };
-    }>;
     companyPhone?: string;
     auxiliaryPhone?: string;
   };
@@ -104,13 +103,6 @@ export interface WeekScheduleAssignee {
     code: string;
     branchId?: string;
   } | null;
-  departments?: Array<{
-    department: {
-      id: string;
-      name: string;
-      code: string;
-    };
-  }>;
   companyPhone?: string | null;
   auxiliaryPhone?: string | null;
 }
@@ -381,9 +373,11 @@ export type ScheduleType = 'guardia' | 'ausencia' | 'vacaciones' | 'formacion' |
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
-  manager: 'Responsable',
-  viewer: 'Usuario',
+  general_manager: 'Gerente General',
+  department_manager: 'Responsable',
+  employee: 'Empleado',
 };
+
 
 export const STATUS_LABELS: Record<string, string> = {
   active: 'Activo',
@@ -407,6 +401,6 @@ export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
 
 // ── Shared sort types ──────────────────────────────────────────────
-export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt' | 'department' | 'branch';
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'roleId' | 'status' | 'lastLoginAt' | 'department' | 'branchId';
 export type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
 export type SortOrder = 'asc' | 'desc';

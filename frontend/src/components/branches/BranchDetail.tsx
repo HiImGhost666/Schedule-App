@@ -108,7 +108,7 @@ export function BranchDetail({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+      <div className="flex flex-wrap gap-2 pt-3 border-t border-theme-color/80">
         {branch.isActive ? (
           <button type="button" onClick={onDisable} disabled={isDisabling}
             className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Desactivar</button>

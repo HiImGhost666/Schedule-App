@@ -1,7 +1,8 @@
 export const ROLES = {
   ADMIN: 'admin',
-  MANAGER: 'manager',
-  VIEWER: 'viewer',
+  GENERAL_MANAGER: 'general_manager',
+  DEPARTMENT_MANAGER: 'department_manager',
+  EMPLOYEE: 'employee',
 } as const;
 
 export const USER_STATUS = {

@@ -101,11 +101,9 @@ export function ProfilePage() {
             <h2 className="text-xl font-bold text-theme-primary">{user.name}</h2>
             <p className="text-theme-muted text-sm">{user.email}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className={`badge-role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
-              {(user.department?.name || user.departments?.[0]?.department.name) && (
-                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">
-                  {user.department?.name || user.departments?.[0]?.department.name}
-                </span>
+              <span className={`badge-role-${user.role?.name}`}>{ROLE_LABELS[user.role?.name]}</span>
+              {user.department && (
+                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">{user.department}</span>
               )}
             </div>
           </div>
@@ -144,13 +142,13 @@ export function ProfilePage() {
             <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
             Ver planificación de guardias
           </div>
-          {(user.role === 'manager' || user.role === 'admin') && (
+          {(user.role?.name === 'admin' || user.role?.name === 'general_manager' || user.role?.name === 'department_manager') && (
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
               Crear y modificar guardias
             </div>
           )}
-          {user.role === 'admin' && (
+          {user.role?.name === 'admin' && (
             <>
               <div className="flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-green-400" />

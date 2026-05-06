@@ -27,7 +27,7 @@ jest.mock('../src/config/database', () => ({
     },
     user: {
       findUnique: jest.fn(),
-    }
+    },
   },
 }));
 
@@ -35,7 +35,7 @@ const mockRepo = schedulesRepo as jest.Mocked<typeof schedulesRepo>;
 
 const mockActor = {
   id: 'admin-1',
-  role: 'admin',
+  roleName: 'admin',
   email: 'admin@test.com',
   name: 'Admin',
 };

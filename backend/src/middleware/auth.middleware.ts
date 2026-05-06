@@ -3,13 +3,17 @@ import { verifyAccessToken } from '../utils/jwt';
 import { sendError } from '../utils/response';
 import { prisma } from '../config/database';
 import { USER_STATUS } from '../config/constants';
+import { RoleName, PermissionName } from '../modules/roles/roles.constants';
 
 export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: string;
+    roleId: string | null;
+    roleName?: RoleName | string;
+    permissions?: PermissionName[] | string[];
     name: string;
+    status: string;
     branchId: string | null;
   };
   file?: Express.Multer.File;
@@ -31,7 +35,15 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       select: {
         id: true,
         email: true,
-        role: true,
+        roleId: true,
+        role: {
+          select: {
+            name: true,
+            permissions: {
+              select: { name: true },
+            },
+          },
+        },
         name: true,
         status: true,
         branchId: true,
@@ -49,8 +61,11 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     req.user = {
       id: user.id,
       email: user.email,
-      role: user.role,
+      roleId: user.roleId,
+      roleName: user.role?.name,
+      permissions: user.role?.permissions.map((p) => p.name) || [],
       name: user.name,
+      status: user.status,
       branchId: user.branchId,
     };
 

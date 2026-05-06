@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow } from '../audit/audit.service';
@@ -62,13 +61,6 @@ async function buildDepartmentSnapshot(departmentId: string, tx?: Parameters<typ
     branchIds: branchLinks.map((link) => link.branchId),
     userCount: department._count?.users ?? 0,
   };
-}
-
-function isUniqueViolation(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError
-    && error.code === 'P2002'
-  );
 }
 
 export async function listDepartments(params: ListDepartmentsParams) {

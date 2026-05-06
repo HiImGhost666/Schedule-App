@@ -32,6 +32,6 @@ export function RoleGuard({ roles }: { roles: string[] }) {
     );
   }
 
-  if (!user || !roles.includes(user.role)) return <Navigate to="/" replace />;
+  if (!user || !roles.includes(user.role?.name)) return <Navigate to="/" replace />;
   return <Outlet />;
 }

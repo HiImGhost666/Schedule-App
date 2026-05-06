@@ -15,7 +15,7 @@ jest.mock('../src/modules/users/users.service', () => {
         id: 'user-id-test',
         name: input.name,
         email: input.email,
-        role: input.role ?? 'viewer',
+        role: input.role ?? 'employee',
         status: input.status ?? 'active',
       });
     }),
@@ -50,6 +50,14 @@ jest.mock('../src/config/database', () => ({
     department: {
       findFirst: jest.fn().mockResolvedValue(null),
     },
+    role: {
+      findMany: jest.fn().mockResolvedValue([
+        { id: 'role-employee-id', name: 'employee' },
+        { id: 'role-admin-id', name: 'admin' },
+        { id: 'role-general-manager-id', name: 'general_manager' },
+        { id: 'role-department-manager-id', name: 'department_manager' },
+      ]),
+    },
   },
 }));
 
@@ -71,6 +79,9 @@ const mockPrisma = prisma as unknown as {
   department: {
     findFirst: jest.Mock;
   };
+  role: {
+    findMany: jest.Mock;
+  };
 };
 
 // ── Helper: construye una fila CSV mínima válida ─────────────────────────────
@@ -79,7 +90,7 @@ function buildRow(overrides: Partial<UserCsvRow> = {}): UserCsvRow {
     employeeId: '',
     name: 'Test User',
     email: 'test@example.com',
-    role: 'viewer',
+    role: 'employee',
     status: 'active',
     department: '',
     branchId: 'TFN',
@@ -96,7 +107,7 @@ function buildDbUser(overrides: Record<string, any> = {}) {
     employeeId: 'LAB-0001',
     email: 'test@example.com',
     name: 'Test User',
-    role: 'viewer',
+    roleId: 'role-employee-id',
     status: 'active',
     department: null,
     companyPhone: null,
@@ -117,6 +128,10 @@ describe('importUsersCsv — validación de payload', () => {
     mockPrisma.branch.findMany.mockResolvedValue([
       { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
       { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    ]);
+    mockPrisma.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' },
+      { id: 'role-admin-id', name: 'admin' },
     ]);
   });
 
@@ -189,6 +204,10 @@ describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
       { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
       { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
     ]);
+    mockPrisma.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' },
+      { id: 'role-admin-id', name: 'admin' },
+    ]);
     // Usuario inexistente → path CREATE
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
     mockRepo.findUserByEmployeeId.mockResolvedValue(null as any);
@@ -241,6 +260,10 @@ describe('importUsersCsv — actualización de usuario existente (path UPDATE)',
       { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
       { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
     ]);
+    mockPrisma.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' },
+      { id: 'role-admin-id', name: 'admin' },
+    ]);
     // Usuario existe → path UPDATE
     mockRepo.findUserByEmail.mockResolvedValue(existing as any);
     mockRepo.findUserByEmployeeId.mockResolvedValue(existing as any);
@@ -285,6 +308,10 @@ describe('importUsersCsv — procesamiento mixto (no propaga excepciones)', () =
     mockPrisma.branch.findMany.mockResolvedValue([
       { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
       { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    ]);
+    mockPrisma.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' },
+      { id: 'role-admin-id', name: 'admin' },
     ]);
   });
 

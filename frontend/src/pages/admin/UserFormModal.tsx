@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +14,7 @@ const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8).optional().or(z.literal('')),
-  role: z.enum(['admin', 'manager', 'viewer']),
+  role: z.enum(['admin', 'general_manager', 'department_manager', 'employee']),
   departmentId: z.string().min(1, 'Debes seleccionar un departamento'),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
@@ -59,15 +59,15 @@ export function UserFormModal({ open, user, onClose }: Props) {
     queryFn: () => api.get('/departments', { params: { branchId: selectedBranchId, includeInactive: false } }).then((r) => r.data),
     enabled: open && Boolean(selectedBranchId),
   });
-  const departments = departmentsData?.data ?? [];
+  const departments = useMemo(() => departmentsData?.data ?? [], [departmentsData?.data]);
 
   useEffect(() => {
     if (user) {
-      const currentDepartment = user.departments?.[0]?.department ?? user.department;
+      const currentDepartment = user.department;
       reset({
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: (user.role?.name ?? 'employee') as FormData['role'],
         departmentId: currentDepartment?.id ?? '',
         companyPhone: user.companyPhone || '',
         auxiliaryPhone: user.auxiliaryPhone || '',
@@ -80,7 +80,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       name: '',
       email: '',
       password: '',
-      role: 'viewer',
+      role: 'employee',
       departmentId: '',
       companyPhone: '',
       auxiliaryPhone: '',
@@ -116,7 +116,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       const updatePayload = { ...rest };
       if (!updatePayload.password) delete updatePayload.password;
       await api.patch(`/users/${user!.id}`, updatePayload);
-      if (role !== user!.role) {
+      if (role !== user!.role?.name) {
         await api.patch(`/users/${user!.id}/role`, { role });
       }
     },
@@ -133,7 +133,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
       <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up max-h-[calc(100vh-2rem)] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color shrink-0">
           <h2 className="text-lg font-semibold text-theme-primary">{isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
           <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
             <X className="h-4 w-4" />
@@ -167,10 +167,12 @@ export function UserFormModal({ open, user, onClose }: Props) {
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Rol *</label>
               <select {...register('role')} className="input-field">
-                <option value="viewer">Usuario</option>
-                <option value="manager">Responsable</option>
+                <option value="employee">Empleado</option>
+                <option value="department_manager">Responsable</option>
+                <option value="general_manager">Gerente General</option>
                 <option value="admin">Administrador</option>
               </select>
+
             </div>
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Departamento *</label>

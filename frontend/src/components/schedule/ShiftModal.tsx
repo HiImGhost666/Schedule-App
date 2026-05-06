@@ -93,7 +93,7 @@ interface ShiftModalProps {
 export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, defaultBranchId }: ShiftModalProps) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [includeWeekends, setIncludeWeekends] = useState(false);
@@ -371,7 +371,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     }
     if (asideDeptFilter) {
       result = result.filter((u) => {
-        const departmentCode = u.department?.code ?? u.departments?.[0]?.department.code ?? '';
+        const departmentCode = u.department?.code ?? '';
         return departmentCode.toLowerCase() === asideDeptFilter;
       });
     }
@@ -398,7 +398,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
-            <p className="text-xs text-theme-muted truncate">{u.department?.name || u.departments?.[0]?.department.name || u.email}</p>
+            <p className="text-xs text-theme-muted truncate">{u.department?.name || u.email}</p>
             {isAllBranchesMode && (
               <p className="text-[10px] text-theme-muted truncate mt-0.5">
                 Sucursal: {u.branch?.name ?? 'Sin sucursal'}

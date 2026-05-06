@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { CalendarDays, Save, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -30,16 +30,18 @@ function isGroupedHoliday(holiday: CalendarBranchHoliday): holiday is Extract<Ca
 
 export function HolidayEditModal({ open, holiday, branchName, onClose }: HolidayEditModalProps) {
   const qc = useQueryClient();
-  const [name, setName] = useState('');
-  const [date, setDate] = useState('');
-  const [type, setType] = useState<BranchHoliday['type']>('local');
+  const [name, setName] = useState(() => holiday?.name ?? '');
+  const [date, setDate] = useState(() => holiday?.date?.slice(0, 10) ?? '');
+  const [type, setType] = useState<BranchHoliday['type']>(() => holiday?.type ?? 'local');
 
+  const prevHolidayIdRef = useRef(holiday?.id);
   useEffect(() => {
-    if (holiday) {
+    if (holiday && holiday.id !== prevHolidayIdRef.current) {
       setName(holiday.name ?? '');
       setDate(holiday.date.slice(0, 10) ?? '');
       setType(holiday.type ?? 'local');
     }
+    prevHolidayIdRef.current = holiday?.id;
   }, [holiday]);
 
   const canSave = useMemo(() => Boolean(name.trim()) && Boolean(date), [name, date]);

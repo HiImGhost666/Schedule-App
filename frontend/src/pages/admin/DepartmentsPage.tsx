@@ -72,6 +72,7 @@ export function DepartmentsPage() {
     [departments?.data, selectedDepartmentId],
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const preselectBranch = searchParams.get('branchId');
     if (preselectBranch) {
@@ -91,6 +92,7 @@ export function DepartmentsPage() {
       appliedPreselectRef.current = true;
     }
   }, [departments?.data, searchParams]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const activeDepartmentsCount = (departments?.data ?? []).filter((d) => d.isActive).length;
   const inactiveDepartmentsCount = Math.max((departments?.data?.length ?? 0) - activeDepartmentsCount, 0);
@@ -274,7 +276,7 @@ export function DepartmentsPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-theme-muted">Sucursal</span>
             <select
-              className="input-field text-sm min-w-[220px]"
+              className="input-field text-sm min-w-55"
               value={effectiveSelectedBranchId}
               onChange={(e) => setSelectedBranchId(e.target.value)}
               disabled={branchesLoading || !hasBranches}

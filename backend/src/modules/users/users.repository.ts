@@ -7,7 +7,7 @@ type UserWhere = NonNullable<Parameters<typeof prisma.user.findMany>[0]>['where'
 type UserCreateData = NonNullable<Parameters<typeof prisma.user.create>[0]>['data'];
 type UserUpdateData = NonNullable<Parameters<typeof prisma.user.update>[0]>['data'];
 type IdentityConflict = { id: string; email: string } | null;
-export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt' | 'department' | 'branch';
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'roleId' | 'status' | 'lastLoginAt' | 'department' | 'branchId' | 'branch';
 export type SortOrder = 'asc' | 'desc';
 
 function getDb(tx?: TransactionClient) {
@@ -23,7 +23,10 @@ export function findUserDetailById(id: string, tx?: TransactionClient) {
 }
 
 export function findUserByEmail(email: string, tx?: TransactionClient) {
-  return getDb(tx).user.findUnique({ where: { email } });
+  return getDb(tx).user.findUnique({ 
+    where: { email },
+    include: { role: { include: { permissions: true } } }
+  });
 }
 
 export function findUserByEmployeeId(employeeId: string, tx?: TransactionClient) {
@@ -80,6 +83,7 @@ export function findUserByDerivedUsername(username: string, tx?: TransactionClie
     where: {
       derivedUsername: username,
     },
+    include: { role: { include: { permissions: true } } }
   });
 }
 
@@ -114,7 +118,7 @@ function buildOrderBy(sortBy: UsersSortBy, sortOrder: SortOrder) {
     return { branch: { name: sortOrder } };
   }
   if (sortBy === 'department') {
-    return { departments: { _count: sortOrder } };
+    return { department: { name: sortOrder } };
   }
   return { [sortBy]: sortOrder };
 }
@@ -166,15 +170,11 @@ export function listUserSchedules(userId: string, from?: Date, to?: Date) {
               name: true,
               email: true,
               avatarUrl: true,
-              departments: {
+              department: {
                 select: {
-                  department: {
-                    select: {
-                      id: true,
-                      name: true,
-                      code: true,
-                    },
-                  },
+                  id: true,
+                  name: true,
+                  code: true,
                 },
               },
               companyPhone: true,
@@ -190,8 +190,10 @@ export function listUserSchedules(userId: string, from?: Date, to?: Date) {
 
 export function buildUsersWhere(params: {
   search?: string;
+  roleId?: string;
   role?: string;
   status?: string;
+
   email?: string;
   departmentId?: string;
   employeeId?: string;
@@ -208,9 +210,11 @@ export function buildUsersWhere(params: {
     where.OR = [{ name: { contains: params.search } }, { email: { contains: params.search } }];
   }
   if (params.email) where.email = params.email;
-  if (params.role) where.role = params.role;
+  if (params.roleId) where.roleId = params.roleId;
+  if (params.role) where.role = { name: params.role };
+
   if (params.status) where.status = params.status;
-  if (params.departmentId) where.departments = { some: { departmentId: params.departmentId } };
+  if (params.departmentId) where.departmentId = params.departmentId;
   if (params.employeeId) where.employeeId = { contains: params.employeeId };
   if (params.branchId) where.branchId = params.branchId;
   if (params.lastLoginFrom || params.lastLoginTo) {

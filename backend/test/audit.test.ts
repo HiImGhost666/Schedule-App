@@ -36,8 +36,8 @@ const buildLog = (overrides: Record<string, any> = {}) => ({
   entityType: 'User',
   entityId: 'user-99',
   detailsJson: JSON.stringify({
-    before: { id: 'user-99', name: 'Anterior', email: 'ant@test.com', role: 'viewer', status: 'active' },
-    after: { id: 'user-99', name: 'Posterior', email: 'ant@test.com', role: 'admin', status: 'active' },
+    before: { id: 'user-99', name: 'Anterior', email: 'ant@test.com', roleId: 'role-viewer-id', status: 'active' },
+    after: { id: 'user-99', name: 'Posterior', email: 'ant@test.com', roleId: 'role-admin-id', status: 'active' },
   }),
   ipAddress: '127.0.0.1',
   createdAt: new Date(),

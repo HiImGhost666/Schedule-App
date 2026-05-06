@@ -61,7 +61,7 @@ export function DepartmentForm({ form, branches, isEditing, isSaving, onChange, 
       <label className="space-y-1 block">
         <span className="text-xs font-medium text-theme-muted">Descripcion</span>
         <textarea
-          className="input-field text-sm min-h-[92px]"
+          className="input-field text-sm min-h-23"
           placeholder="Descripcion breve del departamento"
           value={form.description}
           onChange={(e) => update('description', e.target.value)}
@@ -94,7 +94,7 @@ export function DepartmentForm({ form, branches, isEditing, isSaving, onChange, 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+      <div className="flex flex-wrap gap-2 pt-3 border-t border-theme-color/80">
         <button
           type="button"
           onClick={onSave}

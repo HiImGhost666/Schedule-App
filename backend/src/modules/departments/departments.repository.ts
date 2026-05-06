@@ -125,7 +125,7 @@ export function removeDepartmentBranches(departmentId: string, tx: TransactionCl
 }
 
 export function countUsersByDepartment(departmentId: string, tx?: TransactionClient) {
-  return getDb(tx).userDepartment.count({ where: { departmentId } });
+  return getDb(tx).user.count({ where: { departmentId } });
 }
 
 export function findDepartmentBranches(departmentId: string, tx?: TransactionClient) {
