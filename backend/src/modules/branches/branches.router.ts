@@ -13,6 +13,8 @@ import {
   listBranchHolidaysController,
   updateBranchController,
   updateBranchHolidayController,
+  assignBranchManagerController,
+  removeBranchManagerController,
 } from './branches.controller';
 
 const router = Router();
@@ -29,5 +31,9 @@ router.patch('/:branchId/holidays/bulk', authMiddleware, requireRole('admin'), (
 router.delete('/:branchId/holidays/bulk', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => bulkDeleteBranchHolidayController(req, res));
 router.patch('/:branchId/holidays/:holidayId', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => updateBranchHolidayController(req, res));
 router.delete('/:branchId/holidays/:holidayId', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => deleteBranchHolidayController(req, res));
+
+// Manager assignment/removal - Single Transaction Pattern
+router.patch('/:branchId/manager', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => assignBranchManagerController(req, res));
+router.delete('/:branchId/manager', authMiddleware, requireRole('admin'), (req: AuthRequest, res: Response) => removeBranchManagerController(req, res));
 
 export default router;

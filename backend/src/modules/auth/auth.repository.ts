@@ -1,8 +1,16 @@
 import { prisma } from '../../config/database';
 import { USER_RESPONSE_SELECT } from '../users/users.selects';
 
+const AUTH_USER_SELECT = {
+  ...USER_RESPONSE_SELECT,
+  passwordHash: true,
+} as const;
+
 export function findUserById(userId: string) {
-  return prisma.user.findUnique({ where: { id: userId } });
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: AUTH_USER_SELECT,
+  });
 }
 
 export function findUserProfileById(userId: string) {
@@ -30,6 +38,7 @@ export function updateUserById(
   return prisma.user.update({
     where: { id: userId },
     data,
+    select: USER_RESPONSE_SELECT,
   });
 }
 

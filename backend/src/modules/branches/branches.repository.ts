@@ -61,6 +61,10 @@ export function countSchedulesByBranch(branchId: string) {
   return prisma.schedule.count({ where: { branchId } });
 }
 
+export function countDepartmentsByBranch(branchId: string) {
+  return prisma.departmentBranch.count({ where: { branchId } });
+}
+
 export function findBranchHolidayByIdAndBranch(holidayId: string, branchId: string) {
   return prisma.branchHoliday.findFirst({ where: { id: holidayId, branchId } });
 }
@@ -126,5 +130,20 @@ export function updateBranchHolidaysByIds(
 export function deleteBranchHolidaysByIds(holidayIds: string[], tx: TransactionClient) {
   return tx.branchHoliday.deleteMany({
     where: { id: { in: holidayIds } },
+  });
+}
+
+export function countBranchesForManager(managerId: string, tx?: TransactionClient) {
+  const db = tx ?? prisma;
+  return db.branch.count({
+    where: { managerId },
+  });
+}
+
+export function updateBranchManager(branchId: string, managerId: string | null, tx?: TransactionClient) {
+  const db = tx ?? prisma;
+  return db.branch.update({
+    where: { id: branchId },
+    data: { managerId },
   });
 }

@@ -11,6 +11,7 @@ import {
 import {
   createDepartment,
   deleteDepartment,
+  getDepartmentBranches,
   hardDeleteDepartment,
   listDepartments,
   updateDepartment,
@@ -102,6 +103,21 @@ export async function hardDeleteDepartmentController(req: AuthRequest, res: Resp
       ipAddress: req.ip,
     });
     return sendSuccess(res, null, 'Departamento eliminado definitivamente');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function listDepartmentBranchesController(req: AuthRequest, res: Response) {
+  const parsedParams = departmentIdParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const branches = await getDepartmentBranches(parsedParams.data.departmentId);
+    return sendSuccess(res, branches);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

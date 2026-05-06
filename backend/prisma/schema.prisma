@@ -17,8 +17,6 @@ model User {
   role                String     @default("viewer")
   status              String     @default("active")
   avatarUrl           String?    @map("avatar_url")
-  departmentId        String?    @map("department_id")
-  department          Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
   lastLoginAt         DateTime?  @map("last_login")
@@ -33,6 +31,7 @@ model User {
   auxiliaryPhone      String?    @map("auxiliary_phone")
   branchId            String?    @map("branch_id")
   branch              Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  departments         UserDepartment[]
 
   refreshTokens       RefreshToken[]
   createdSchedules    Schedule[]           @relation("ScheduleCreator")
@@ -40,12 +39,11 @@ model User {
   auditLogs           AuditLog[]           @relation("AuditActor")
   rolledBackAuditLogs AuditLog[]           @relation("AuditRollbackActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
+  managedBranches     Branch[]             @relation("BranchManager")
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
   @@index([branchId])
-  // departmentId: para filtros y joins con Department
-  @@index([departmentId])
   // status + role: listado de usuarios con filtros combinados (muy frecuente en UsersPage)
   @@index([status, role])
   // role: búsquedas solo por rol
@@ -77,40 +75,65 @@ model Branch {
   countryCode String   @default("ES") @map("country_code")
   timezone    String   @default("Europe/Madrid")
   isActive    Boolean  @default(true) @map("is_active")
+  managerId   String?  @map("manager_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   users     User[]
+  manager   User?     @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
   schedules Schedule[]
   holidays  BranchHoliday[]
-  departments Department[]
+  departmentBranches DepartmentBranch[]
 
   // -- ÍNDICES --
   // isActive: listBranches filtra por activas constantemente
   @@index([isActive])
+  // managerId: búsquedas de sucursales por manager
+  @@index([managerId])
 
   @@map("branches")
 }
 
 model Department {
   id          String   @id @default(cuid())
-  branchId    String   @map("branch_id")
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   name        String
-  code        String
+  code        String   @unique
   description String?
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users       User[]
+  branches    DepartmentBranch[]
+  users       UserDepartment[]
 
-  @@index([branchId])
-  @@index([branchId, isActive])
-  @@unique([branchId, code])
-  @@unique([branchId, name])
+  @@index([isActive])
+  @@index([code])
 
   @@map("departments")
+}
+
+model DepartmentBranch {
+  departmentId String     @map("department_id")
+  branchId     String     @map("branch_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@id([departmentId, branchId])
+  @@index([branchId])
+  @@map("department_branches")
+}
+
+model UserDepartment {
+  userId       String     @map("user_id")
+  departmentId String     @map("department_id")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@id([userId, departmentId])
+  @@index([departmentId])
+  @@map("user_departments")
 }
 
 enum HolidayType {

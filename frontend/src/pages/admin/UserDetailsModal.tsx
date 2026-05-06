@@ -125,7 +125,9 @@ export function UserDetailsModal({ open, userId, userName, onClose }: UserDetail
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4 md:col-span-2">
                     <p className="text-xs text-navy-400 mb-1">Departamento</p>
-                    <p className="text-sm font-medium text-navy-700">{user.department || 'Sin departamento'}</p>
+                    <p className="text-sm font-medium text-navy-700">
+                      {user.department?.name || user.departments?.[0]?.department.name || 'Sin departamento'}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4 md:col-span-2">
                     <p className="text-xs text-navy-400 mb-1">Sucursal</p>

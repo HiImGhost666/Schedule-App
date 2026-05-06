@@ -7,18 +7,18 @@ export const departmentIdParamsSchema = z.object({
 });
 
 export const listDepartmentsQuerySchema = z.object({
-  branchId: z.string().min(1),
+  branchId: z.string().min(1).optional(),
   includeInactive: z.coerce.boolean().optional().default(false),
 });
 
 export const createDepartmentBodySchema = z.object({
-  branchId: z.string().min(1),
   name: z.string().min(2).max(80),
-  code: z.string().trim().toUpperCase().regex(departmentCodeRegex, 'Codigo invalido (2-20, A-Z, 0-9, _ o -)'),
+  code: z.string().trim().toUpperCase().regex(departmentCodeRegex, 'Código inválido (2-20, A-Z, 0-9, _ o -)'),
   description: z.string().max(200).optional(),
+  branchIds: z.array(z.string().min(1)).min(1, 'Debe seleccionar al menos una sucursal'),
 });
 
 export const updateDepartmentBodySchema = createDepartmentBodySchema.partial().extend({
   isActive: z.boolean().optional(),
-  branchId: z.string().min(1).optional(),
+  branchIds: z.array(z.string().min(1)).min(1).optional(),
 });

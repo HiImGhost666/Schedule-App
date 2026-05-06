@@ -108,6 +108,11 @@ export function DepartmentList({
                 </div>
                 <p className="text-xs opacity-85 truncate mt-0.5">{department.code}</p>
                 <p className="text-xs opacity-75 truncate mt-0.5">{department.description || 'Sin descripcion'}</p>
+                <p className="text-[11px] opacity-70 truncate mt-1">
+                  {department.branches?.length
+                    ? department.branches.map((item) => item.branch.code).join(', ')
+                    : 'Sin sucursales'}
+                </p>
               </button>
             );
           })

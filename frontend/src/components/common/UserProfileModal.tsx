@@ -229,9 +229,9 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                                     {STATUS_LABELS[status]}
                                 </span>
                             )}
-                            {(profileUser as User).department?.name && (
+                            {((profileUser as User).department?.name || (profileUser as User).departments?.[0]?.department.name) && (
                                 <span className="text-xs text-theme-muted bg-theme-surface-muted px-2 py-0.5 rounded-full">
-                                    {(profileUser as User).department?.name}
+                                    {(profileUser as User).department?.name || (profileUser as User).departments?.[0]?.department.name}
                                 </span>
                             )}
                         </div>

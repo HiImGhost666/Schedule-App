@@ -4,16 +4,20 @@
  */
 
 // ── Mocks antes de imports ──────────────────────────────────────────────────
+const mockTransaction = {
+  schedule: { upsert: jest.fn() },
+  user: { update: jest.fn(), upsert: jest.fn() },
+  webhookConfig: { delete: jest.fn(), upsert: jest.fn() },
+  auditLog: { update: jest.fn() },
+  department: { upsert: jest.fn(), delete: jest.fn() },
+  departmentBranch: { deleteMany: jest.fn(), createMany: jest.fn() },
+};
+
 jest.mock('../src/modules/audit/audit.repository');
 jest.mock('../src/modules/schedules/schedules.repository');
 jest.mock('../src/modules/users/users.repository');
 jest.mock('../src/common/transactions/transaction.utils', () => ({
-  executeInTransaction: jest.fn((fn: any) => fn({ 
-    schedule: { upsert: jest.fn() }, 
-    user: { update: jest.fn(), upsert: jest.fn() },
-    webhookConfig: { delete: jest.fn(), upsert: jest.fn() },
-    auditLog: { update: jest.fn() }
-  })),
+  executeInTransaction: jest.fn((fn: any) => fn(mockTransaction)),
 }));
 
 import * as auditRepo from '../src/modules/audit/audit.repository';
@@ -133,6 +137,56 @@ describe('rollbackAudit', () => {
       expect.objectContaining({ derivedUsername: 'revoked_12345_test@example.com' }),
       expect.anything()
     );
+  });
+
+  it('restaura un Department con sus branchIds al hacer rollback de un UPDATE_DEPARTMENT', async () => {
+    mockAuditRepo.findAuditLogById.mockResolvedValue(
+      buildLog({
+        action: 'UPDATE_DEPARTMENT',
+        entityType: 'Department',
+        entityId: 'dept-1',
+        detailsJson: JSON.stringify({
+          before: {
+            id: 'dept-1',
+            name: 'Recursos Humanos',
+            code: 'RH01',
+            description: 'Equipo interno',
+            isActive: true,
+            branchIds: ['branch-1', 'branch-2'],
+          },
+          after: {
+            id: 'dept-1',
+            name: 'RRHH',
+            code: 'RH02',
+            description: 'Equipo interno nuevo',
+            isActive: true,
+            branchIds: ['branch-2'],
+          },
+        }),
+      }) as any,
+    );
+
+    await rollbackAudit('log-1', 'admin-id');
+
+    expect(mockTransaction.department.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'dept-1' },
+      create: expect.objectContaining({
+        id: 'dept-1',
+        name: 'Recursos Humanos',
+        code: 'RH01',
+      }),
+      update: expect.objectContaining({
+        name: 'Recursos Humanos',
+        code: 'RH01',
+      }),
+    }));
+    expect(mockTransaction.departmentBranch.deleteMany).toHaveBeenCalledWith({ where: { departmentId: 'dept-1' } });
+    expect(mockTransaction.departmentBranch.createMany).toHaveBeenCalledWith({
+      data: [
+        { departmentId: 'dept-1', branchId: 'branch-1' },
+        { departmentId: 'dept-1', branchId: 'branch-2' },
+      ],
+    });
   });
 });
 

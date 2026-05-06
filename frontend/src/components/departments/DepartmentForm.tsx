@@ -1,14 +1,17 @@
 import { Save, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import type { Branch } from '@/types';
 
 interface DepartmentFormData {
   name: string;
   code: string;
   description: string;
+  branchIds: string[];
 }
 
 interface DepartmentFormProps {
   form: DepartmentFormData;
+  branches: Branch[];
   isEditing: boolean;
   isSaving: boolean;
   onChange: (form: DepartmentFormData) => void;
@@ -16,8 +19,14 @@ interface DepartmentFormProps {
   onCancel: () => void;
 }
 
-export function DepartmentForm({ form, isEditing, isSaving, onChange, onSave, onCancel }: DepartmentFormProps) {
+export function DepartmentForm({ form, branches, isEditing, isSaving, onChange, onSave, onCancel }: DepartmentFormProps) {
   const update = (key: keyof DepartmentFormData, value: string) => onChange({ ...form, [key]: value });
+  const toggleBranch = (branchId: string) => {
+    const nextBranchIds = form.branchIds.includes(branchId)
+      ? form.branchIds.filter((id) => id !== branchId)
+      : [...form.branchIds, branchId];
+    onChange({ ...form, branchIds: nextBranchIds });
+  };
 
   return (
     <>
@@ -58,6 +67,32 @@ export function DepartmentForm({ form, isEditing, isSaving, onChange, onSave, on
           onChange={(e) => update('description', e.target.value)}
         />
       </label>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-theme-muted">Sucursales asociadas</span>
+          <span className="text-[11px] text-theme-muted">Selecciona una o más</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 rounded-xl border border-theme-color bg-theme-surface-muted/20 p-3">
+          {branches.map((branch) => {
+            const checked = form.branchIds.includes(branch.id);
+            return (
+              <label
+                key={branch.id}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer ${checked ? 'border-navy-600 bg-navy-50 text-navy-700' : 'border-theme-color bg-theme-surface text-theme-primary'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="rounded border-theme-color"
+                  checked={checked}
+                  onChange={() => toggleBranch(branch.id)}
+                />
+                <span className="truncate">{branch.name} ({branch.code})</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
         <button

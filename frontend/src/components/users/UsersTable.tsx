@@ -84,7 +84,9 @@ export function UsersTable({ data, sortBy, sortOrder, onSortChange, onMenuToggle
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department?.name || '—'}</td>
+              <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">
+                {u.department?.name || u.departments?.[0]?.department.name || '—'}
+              </td>
               <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
                 {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
               </td>

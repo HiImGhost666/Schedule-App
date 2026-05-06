@@ -4,14 +4,14 @@ export type DepartmentActor = {
 };
 
 export type DepartmentInput = {
-  branchId: string;
   name: string;
   code: string;
   description?: string;
+  branchIds: string[];
   isActive?: boolean;
 };
 
 export type ListDepartmentsParams = {
-  branchId: string;
+  branchId?: string;
   includeInactive: boolean;
 };

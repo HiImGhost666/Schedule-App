@@ -38,8 +38,6 @@ import {
   resolvePasswordChangeState,
 } from '../auth/password-change-policy';
 import {
-  findDepartmentByBranchAndCode,
-  findDepartmentByBranchAndName,
   findDepartmentById,
 } from '../departments/departments.repository';
 
@@ -50,6 +48,7 @@ const createUserInputSchema = z.object({
   role: z.enum(USER_ROLES).optional(),
   status: z.enum(USER_STATUSES).optional(),
   departmentId: z.string().optional(),
+  departmentIds: z.array(z.string().min(1)).optional(),
   avatarUrl: z.string().url().optional(),
 
   companyPhone: z.string().optional(),
@@ -63,6 +62,7 @@ const updateUserInputSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
   departmentId: z.string().optional().nullable(),
+  departmentIds: z.array(z.string().min(1)).optional(),
   avatarUrl: z.string().optional(),
 
   companyPhone: z.string().optional(),
@@ -225,10 +225,25 @@ async function ensureDepartmentExists(departmentId: string, branchId?: string | 
   if (!department) {
     throw createAppError('BAD_REQUEST', 'El departamento seleccionado no existe');
   }
-  if (branchId && department.branchId !== branchId) {
+  if (branchId && !department.branches?.some((link) => link.branchId === branchId)) {
     throw createAppError('BAD_REQUEST', 'El departamento no pertenece a la sucursal seleccionada');
   }
   return department;
+}
+
+function resolveDepartmentSelection(departmentId?: string | null, departmentIds?: string[]): string[] | undefined {
+  if (departmentIds !== undefined) return departmentIds;
+  if (departmentId) return [departmentId];
+  if (departmentId === null) return [];
+  return undefined;
+}
+
+async function syncUserDepartments(tx: TransactionClient, userId: string, departmentIds: string[]) {
+  await tx.userDepartment.deleteMany({ where: { userId } });
+  if (departmentIds.length === 0) return;
+  await tx.userDepartment.createMany({
+    data: departmentIds.map((departmentId) => ({ userId, departmentId })),
+  });
 }
 
 /**
@@ -245,11 +260,12 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
   const normalizedName = parsed.data.name.trim();
   const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
   const shouldUpsertExisting = options?.upsertExisting ?? false;
+  const selectedDepartmentIds = resolveDepartmentSelection(parsed.data.departmentId, parsed.data.departmentIds) ?? [];
   await ensureBranchExists(parsed.data.branchId);
-  if (parsed.data.departmentId) {
-    await ensureDepartmentExists(parsed.data.departmentId, parsed.data.branchId);
+  for (const departmentId of selectedDepartmentIds) {
+    await ensureDepartmentExists(departmentId, parsed.data.branchId);
   }
-  const { password: _password, branchId: createBranchId, departmentId, forcePasswordChange, ...userData } = parsed.data;
+  const { password: _password, branchId: createBranchId, departmentId, departmentIds, forcePasswordChange, ...userData } = parsed.data;
 
   const result = await executeInTransaction(async (tx) => {
     const identity = shouldUpsertExisting
@@ -272,11 +288,6 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
       role: parsed.data.role ?? identity.existingUser?.role ?? 'viewer',
       status: parsed.data.status ?? identity.existingUser?.status ?? 'active',
       avatarUrl: parsed.data.avatarUrl ?? identity.existingUser?.avatarUrl ?? null,
-      ...(departmentId
-        ? { department: { connect: { id: departmentId } } }
-        : identity.existingUser?.departmentId
-          ? { department: { connect: { id: identity.existingUser.departmentId } } }
-          : {}),
       passwordChangedAt: identity.existingUser?.passwordChangedAt ?? new Date(),
       ...resolvePasswordChangeFields(forcePasswordChange, identity.existingUser),
       ...(createBranchId ? { branch: { connect: { id: createBranchId } } } : {}),
@@ -290,21 +301,31 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
         }, tx)
       : await updateUserRecord(identity.existingUser!.id, baseUserData, tx);
 
+    const finalDepartmentIds = selectedDepartmentIds.length > 0
+      ? selectedDepartmentIds
+      : (identity.existingUser ? (await tx.userDepartment.findMany({ where: { userId: user.id }, select: { departmentId: true } })).map((item) => item.departmentId) : []);
+
+    if (selectedDepartmentIds.length > 0) {
+      await syncUserDepartments(tx, user.id, selectedDepartmentIds);
+    }
+
+    const finalUser = (await findUserDetailById(user.id, tx)) ?? user;
+
     if (actor?.id) {
       await logAuditOrThrow({
         userId: actor.id,
         action: identity.createNew || !shouldUpsertExisting ? 'CREATE_USER' : 'UPDATE_USER',
         entityType: 'User',
-        entityId: user.id,
+        entityId: finalUser.id,
         detailsJson: {
           before: identity.createNew ? null : sanitizeSnapshot(identity.existingUser),
-          after: sanitizeSnapshot(user),
+          after: sanitizeSnapshot(finalUser),
         },
         ipAddress: actor.ipAddress,
       }, tx);
     }
 
-    return { user, created: identity.createNew };
+    return { user: finalUser, created: identity.createNew };
   });
 
   publishRealtimeEvent(result.created ? REALTIME_EVENTS.USER_CREATED : REALTIME_EVENTS.USER_UPDATED, {
@@ -408,6 +429,7 @@ export async function updateUser(userId: string, data: {
   name?: string;
   email?: string;
   departmentId?: string | null;
+  departmentIds?: string[];
   avatarUrl?: string;
   companyPhone?: string;
   auxiliaryPhone?: string;
@@ -440,12 +462,10 @@ export async function updateUser(userId: string, data: {
   }
 
   const targetBranchId = parsed.data.branchId ?? (user as { branchId?: string | null }).branchId ?? null;
-  if (parsed.data.departmentId) {
-    await ensureDepartmentExists(parsed.data.departmentId, targetBranchId);
-  } else if (parsed.data.branchId && (user as { departmentId?: string | null }).departmentId) {
-    const currentDepartment = await findDepartmentById((user as { departmentId?: string | null }).departmentId ?? '');
-    if (currentDepartment && currentDepartment.branchId !== parsed.data.branchId) {
-      parsed.data.departmentId = null;
+  const selectedDepartmentIds = resolveDepartmentSelection(parsed.data.departmentId, parsed.data.departmentIds);
+  if (selectedDepartmentIds) {
+    for (const departmentId of selectedDepartmentIds) {
+      await ensureDepartmentExists(departmentId, targetBranchId);
     }
   }
 
@@ -462,7 +482,7 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-    const { branchId: updateBranchId, departmentId, employeeId, ...updateData } = parsed.data;
+    const { branchId: updateBranchId, departmentId, departmentIds, employeeId, ...updateData } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -482,14 +502,17 @@ export async function updateUser(userId: string, data: {
           : updateBranchId
             ? { branch: { connect: { id: updateBranchId } } }
             : { branch: { disconnect: true } }),
-        ...(departmentId === undefined
-          ? {}
-          : departmentId
-            ? { department: { connect: { id: departmentId } } }
-            : { department: { disconnect: true } }),
       } as Parameters<typeof updateUserRecord>[1],
       tx,
     );
+
+    if (selectedDepartmentIds !== undefined) {
+      await syncUserDepartments(tx, userId, selectedDepartmentIds);
+    } else if (updateBranchId !== undefined) {
+      await tx.userDepartment.deleteMany({ where: { userId } });
+    }
+
+    const finalUser = (await findUserDetailById(userId, tx)) ?? updated;
     await logAuditOrThrow({
       userId: actor.id,
       action: 'UPDATE_USER',
@@ -497,11 +520,11 @@ export async function updateUser(userId: string, data: {
       entityId: userId,
       detailsJson: {
         before: sanitizeSnapshot(user),
-        after: sanitizeSnapshot(updated),
+        after: sanitizeSnapshot(finalUser),
       },
       ipAddress: actor.ipAddress,
     }, tx);
-    return updated;
+    return finalUser;
   });
 
   publishRealtimeEvent(REALTIME_EVENTS.USER_UPDATED, {
@@ -765,13 +788,15 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       const resolvedBranchId = branch.id;
       let resolvedDepartmentId: string | undefined;
       if (department) {
-        const matchByCode = await findDepartmentByBranchAndCode(resolvedBranchId, department.toUpperCase());
-        const matchByName = matchByCode
-          ? null
-          : await findDepartmentByBranchAndName(resolvedBranchId, department.trim());
-        const match = matchByCode ?? matchByName;
+        const match = await prisma.department.findFirst({
+          where: { code: department.toUpperCase() },
+          include: { branches: true },
+        });
         if (!match) {
           throw new Error(`Departamento inválido: ${department}`);
+        }
+        if (!match.branches.some((link) => link.branchId === resolvedBranchId)) {
+          throw new Error(`Departamento fuera de la sucursal seleccionada: ${department}`);
         }
         resolvedDepartmentId = match.id;
       }

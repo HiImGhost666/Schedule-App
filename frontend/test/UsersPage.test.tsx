@@ -96,7 +96,7 @@ describe('UsersPage', () => {
             email: 'maria@test.dev',
             role: 'viewer',
             status: 'disabled',
-            department: 'Soporte',
+            department: { id: 'dept-1', name: 'Soporte', code: 'SOP' },
             branch: null,
             lastLoginAt: null,
           },
@@ -132,7 +132,7 @@ describe('UsersPage', () => {
             email: 'pedro@test.dev',
             role: 'manager',
             status: 'active',
-            department: 'operaciones',
+            department: { id: 'dept-2', name: 'Operaciones', code: 'OPS' },
             branch: null,
             lastLoginAt: null,
           },
@@ -159,23 +159,34 @@ describe('UsersPage', () => {
   });
 
   it('muestra departamento con inicial mayuscula en la tabla', async () => {
-    getMock.mockResolvedValueOnce({
-      data: {
-        success: true,
-        data: [
-          {
-            id: 'u-2',
-            name: 'Carlos Viewer',
-            email: 'carlos@test.dev',
-            role: 'viewer',
-            status: 'active',
-            department: 'seguridad',
-            branch: null,
-            lastLoginAt: null,
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 'branch-1', code: 'TFN', name: 'Tenerife', isActive: true }],
           },
-        ],
-        pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
-      },
+        });
+      }
+
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: [
+            {
+              id: 'u-2',
+              name: 'Carlos Viewer',
+              email: 'carlos@test.dev',
+              role: 'viewer',
+              status: 'active',
+              department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
+              branch: null,
+              lastLoginAt: null,
+            },
+          ],
+          pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
+        },
+      });
     });
 
     renderPage();
@@ -285,7 +296,7 @@ describe('UsersPage', () => {
             email: 'ana@test.dev',
             role: 'viewer',
             status: 'active',
-            department: 'seguridad',
+            department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
             branch: null,
             lastLoginAt: null,
           },
@@ -320,7 +331,7 @@ describe('UsersPage', () => {
             email: 'luis@test.dev',
             role: 'admin',
             status: 'active',
-            department: 'administración',
+            department: { id: 'dept-4', name: 'Administración', code: 'ADM' },
             branch: null,
             lastLoginAt: null,
           },

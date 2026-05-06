@@ -10,11 +10,12 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DepartmentList } from '@/components/departments/DepartmentList';
 import { DepartmentForm } from '@/components/departments/DepartmentForm';
 import { DepartmentDetail } from '@/components/departments/DepartmentDetail';
+import { DepartmentMembersModal } from '@/components/departments/DepartmentMembersModal';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
-import type { Branch, Department } from '@/types';
+import type { Branch, Department, User } from '@/types';
 
-const emptyDepartmentForm = { name: '', code: '', description: '' };
+const emptyDepartmentForm = { name: '', code: '', description: '', branchIds: [] as string[] };
 
 export function DepartmentsPage() {
   const qc = useQueryClient();
@@ -28,6 +29,7 @@ export function DepartmentsPage() {
   const [departmentToActivate, setDepartmentToActivate] = useState<Department | null>(null);
   const [departmentToDisable, setDepartmentToDisable] = useState<Department | null>(null);
   const [departmentToHardDelete, setDepartmentToHardDelete] = useState<Department | null>(null);
+  const [showMembersModal, setShowMembersModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'code'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -49,6 +51,12 @@ export function DepartmentsPage() {
     queryFn: () => api.get('/departments', {
       params: { branchId: effectiveSelectedBranchId, includeInactive: showInactiveDepartments },
     }).then((r) => r.data),
+    enabled: Boolean(effectiveSelectedBranchId),
+  });
+
+  const { data: branchUsersData, isLoading: branchUsersLoading } = useQuery<{ data: User[] }>({
+    queryKey: ['users', 'department-members', effectiveSelectedBranchId],
+    queryFn: () => api.get('/users', { params: { branchId: effectiveSelectedBranchId, limit: 500 } }).then((r) => r.data),
     enabled: Boolean(effectiveSelectedBranchId),
   });
 
@@ -89,7 +97,6 @@ export function DepartmentsPage() {
 
   const createDepartmentMutation = useMutation({
     mutationFn: () => api.post('/departments', {
-      branchId: effectiveSelectedBranchId,
       ...departmentForm,
       code: departmentForm.code.toUpperCase(),
     }),
@@ -149,6 +156,17 @@ export function DepartmentsPage() {
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo eliminar el departamento')),
   });
 
+  const updateDepartmentMemberMutation = useMutation({
+    mutationFn: ({ userId, departmentId }: { userId: string; departmentId: string }) =>
+      api.patch(`/users/${userId}`, { departmentId, branchId: effectiveSelectedBranchId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      qc.invalidateQueries({ queryKey: ['departments'] });
+      toast.success('Integrante actualizado');
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo actualizar el integrante')),
+  });
+
   const departmentSaving = createDepartmentMutation.isPending || updateDepartmentMutation.isPending;
   const hasBranches = Boolean(branches?.data?.length);
   const hasDepartments = Boolean(departments?.data?.length);
@@ -168,7 +186,7 @@ export function DepartmentsPage() {
     setSelectedDepartmentId('');
     setIsCreatingDepartment(true);
     setEditingDepartmentId(null);
-    setDepartmentForm(emptyDepartmentForm);
+    setDepartmentForm({ ...emptyDepartmentForm, branchIds: effectiveSelectedBranchId ? [effectiveSelectedBranchId] : [] });
   };
 
   const cancelNewDepartment = () => {
@@ -185,6 +203,7 @@ export function DepartmentsPage() {
       name: department.name,
       code: department.code,
       description: department.description ?? '',
+      branchIds: department.branches?.map((item) => item.branch.id) ?? [],
     });
   };
 
@@ -193,11 +212,29 @@ export function DepartmentsPage() {
       toast.error('Nombre y codigo son obligatorios');
       return;
     }
+    if (!departmentForm.branchIds.length) {
+      toast.error('Debe seleccionar al menos una sucursal');
+      return;
+    }
     if (editingDepartmentId) {
       updateDepartmentMutation.mutate(editingDepartmentId);
       return;
     }
     createDepartmentMutation.mutate();
+  };
+
+  const selectedBranch = branches?.data?.find((branch) => branch.id === effectiveSelectedBranchId) ?? null;
+  const branchUsers = branchUsersData?.data ?? [];
+  const departmentUsersList = departmentUsers?.data ?? [];
+  const otherDepartments = (departments?.data ?? []).filter((department) => department.id !== selectedDepartmentId);
+
+  const handleAssignUser = (userId: string) => {
+    if (!selectedDepartment) return;
+    updateDepartmentMemberMutation.mutate({ userId, departmentId: selectedDepartment.id });
+  };
+
+  const handleMoveUser = (userId: string, departmentId: string) => {
+    updateDepartmentMemberMutation.mutate({ userId, departmentId });
   };
 
   return (
@@ -277,6 +314,7 @@ export function DepartmentsPage() {
               {isCreatingDepartment ? (
                 <DepartmentForm
                   form={departmentForm}
+                  branches={branches?.data ?? []}
                   isEditing={!!editingDepartmentId}
                   isSaving={departmentSaving}
                   onChange={setDepartmentForm}
@@ -289,6 +327,7 @@ export function DepartmentsPage() {
                   users={departmentUsers?.data ?? []}
                   usersLoading={usersLoading}
                   onEdit={() => startEditDepartment(selectedDepartment)}
+                  onManageMembers={() => setShowMembersModal(true)}
                   onDisable={() => setDepartmentToDisable(selectedDepartment)}
                   onActivate={() => setDepartmentToActivate(selectedDepartment)}
                   onHardDelete={() => setDepartmentToHardDelete(selectedDepartment)}
@@ -303,6 +342,21 @@ export function DepartmentsPage() {
           </div>
         )}
       </section>
+
+      {showMembersModal && selectedDepartment ? (
+        <DepartmentMembersModal
+          open={showMembersModal}
+          department={selectedDepartment}
+          branchName={selectedBranch?.name ?? 'Sucursal'}
+          branchUsers={branchUsers}
+          departmentUsers={departmentUsersList}
+          departments={otherDepartments}
+          isLoading={branchUsersLoading || updateDepartmentMemberMutation.isPending}
+          onAssignUser={handleAssignUser}
+          onMoveUser={handleMoveUser}
+          onCancel={() => setShowMembersModal(false)}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={!!departmentToActivate}

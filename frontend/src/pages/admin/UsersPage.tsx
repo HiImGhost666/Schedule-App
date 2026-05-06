@@ -252,7 +252,7 @@ export function UsersPage() {
       const rows = allUsers.map((user) => ({
         employeeId: user.employeeId ?? '', name: user.name ?? '', email: user.email ?? '',
         role: user.role ?? '', status: user.status ?? '',
-        department: user.department?.code ?? '',
+        department: user.departments?.[0]?.department.code ?? user.department?.code ?? '',
         branchId: user.branch?.code ?? '', companyPhone: user.companyPhone ?? '', auxiliaryPhone: user.auxiliaryPhone ?? '',
       }));
       const csv = buildCsv(rows, [...CSV_HEADERS]);

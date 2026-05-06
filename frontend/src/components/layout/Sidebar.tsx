@@ -179,7 +179,7 @@ export function Sidebar() {
           {!sidebarCollapsed && (
             <div className="min-w-0">
               <p className="text-xs font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-theme-sidebar truncate">{user?.department || user?.role}</p>
+              <p className="text-xs text-theme-sidebar truncate">{user?.department?.name || user?.departments?.[0]?.department.name || user?.role}</p>
             </div>
           )}
           {!sidebarCollapsed && <User className="h-3.5 w-3.5 text-theme-sidebar ml-auto flex-shrink-0" />}

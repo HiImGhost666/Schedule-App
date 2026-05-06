@@ -15,7 +15,7 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8).optional().or(z.literal('')),
   role: z.enum(['admin', 'manager', 'viewer']),
-  departmentId: z.string().optional().or(z.literal('')),
+  departmentId: z.string().min(1, 'Debes seleccionar un departamento'),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1, 'La sucursal es obligatoria'),
@@ -63,11 +63,12 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
   useEffect(() => {
     if (user) {
+      const currentDepartment = user.departments?.[0]?.department ?? user.department;
       reset({
         name: user.name,
         email: user.email,
         role: user.role,
-        departmentId: user.department?.id ?? '',
+        departmentId: currentDepartment?.id ?? '',
         companyPhone: user.companyPhone || '',
         auxiliaryPhone: user.auxiliaryPhone || '',
         branchId: user.branchId || '',
@@ -103,7 +104,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
     mutationFn: async (data: FormData) => {
       const payload = {
         ...data,
-        departmentId: data.departmentId || undefined,
+        departmentIds: data.departmentId ? [data.departmentId] : [],
         branchId: data.branchId,
       };
 
@@ -172,15 +173,16 @@ export function UserFormModal({ open, user, onClose }: Props) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-theme-muted mb-1">Departamento</label>
+              <label className="block text-sm font-medium text-theme-muted mb-1">Departamento *</label>
               <select {...register('departmentId')} className="input-field" disabled={departmentsLoading || !selectedBranchId}>
-                <option value="">Sin departamento</option>
+                <option value="" disabled>Selecciona un departamento</option>
                 {departments.map((department) => (
                   <option key={department.id} value={department.id}>
                     {department.name} ({department.code})
                   </option>
                 ))}
               </select>
+              {errors.departmentId && <p className="text-xs text-red-500 mt-1">{errors.departmentId.message}</p>}
             </div>
           </div>
 

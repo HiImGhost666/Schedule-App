@@ -11,8 +11,15 @@ export interface User {
     id: string;
     name: string;
     code: string;
-    branchId: string;
+    branchId?: string;
   } | null;
+  departments?: Array<{
+    department: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  }>;
   createdAt: string;
   passwordChangedAt?: string;
   lastLoginAt?: string;
@@ -71,8 +78,15 @@ export interface ScheduleAssignment {
       id: string;
       name: string;
       code: string;
-      branchId: string;
+      branchId?: string;
     } | null;
+    departments?: Array<{
+      department: {
+        id: string;
+        name: string;
+        code: string;
+      };
+    }>;
     companyPhone?: string;
     auxiliaryPhone?: string;
   };
@@ -88,8 +102,15 @@ export interface WeekScheduleAssignee {
     id: string;
     name: string;
     code: string;
-    branchId: string;
+    branchId?: string;
   } | null;
+  departments?: Array<{
+    department: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  }>;
   companyPhone?: string | null;
   auxiliaryPhone?: string | null;
 }
@@ -121,17 +142,30 @@ export interface Branch {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  managerId?: string | null;
+  manager?: User | null;
 }
-
 export interface Department {
   id: string;
-  branchId: string;
   name: string;
   code: string;
   description?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  branchId?: string;
+  branches?: Array<{
+    branch: {
+      id: string;
+      name: string;
+      code: string;
+      isActive: boolean;
+    };
+    createdAt?: string;
+  }>;
+  _count?: {
+    users: number;
+  };
 }
 
 export interface BranchHoliday {
@@ -223,7 +257,7 @@ export interface AuditLog {
   updatedAt: string;
   rolledBackAt?: string | null;
   rolledBackBy?: { id: string; name: string } | null;
-  user?: { id: string; name: string; email: string; department?: string | null } | null;
+  user?: { id: string; name: string; email: string; department?: { id: string; name: string; code: string } | null } | null;
 }
 
 export interface PaginatedResponse<T> {

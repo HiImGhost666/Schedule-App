@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
+import { DEPARTMENT_CATALOG } from '../src/config/constants';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { env } from '../src/config/env';
@@ -72,16 +73,38 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
   return schedule;
 }
 
-async function ensureSeedDepartment(branchId: string, name: string, code: string) {
-  const existing = await prisma.department.findFirst({ where: { branchId, code } });
-  if (existing) return existing;
-  return prisma.department.create({
+async function ensureSeedDepartment(name: string, code: string, branchIds: string[]) {
+  const existing = await prisma.department.findUnique({ where: { code } });
+
+  const department = existing ?? await prisma.department.create({
     data: {
-      branchId,
       name,
       code,
       isActive: true,
     },
+  });
+
+  if (existing && existing.name !== name) {
+    await prisma.department.update({
+      where: { id: existing.id },
+      data: { name },
+    });
+  }
+
+  await prisma.departmentBranch.createMany({
+    data: branchIds.map((branchId) => ({ departmentId: department.id, branchId })),
+    skipDuplicates: true,
+  });
+
+  return department;
+}
+
+async function ensureSeedUserDepartments(userId: string, departmentIds: string[]) {
+  await prisma.userDepartment.deleteMany({ where: { userId } });
+  if (departmentIds.length === 0) return;
+  await prisma.userDepartment.createMany({
+    data: departmentIds.map((departmentId) => ({ userId, departmentId })),
+    skipDuplicates: true,
   });
 }
 
@@ -147,29 +170,11 @@ async function main() {
     });
   }
 
-  const departmentCatalog = [
-    { key: 'seguridad', name: 'Seguridad', code: 'SEG' },
-    { key: 'mantenimiento', name: 'Mantenimiento', code: 'MANT' },
-    { key: 'operaciones', name: 'Operaciones', code: 'OPER' },
-    { key: 'administracion', name: 'Administración', code: 'ADMIN' },
-  ];
-
-  const mainDepartments = await Promise.all(
-    departmentCatalog.map((dept) => ensureSeedDepartment(mainBranch.id, dept.name, dept.code)),
+  const allBranchIds = [mainBranch.id, secondBranch.id];
+  const departments = await Promise.all(
+    DEPARTMENT_CATALOG.map((dept) => ensureSeedDepartment(dept.name, dept.code, allBranchIds)),
   );
-  const secondDepartments = await Promise.all(
-    departmentCatalog.map((dept) => ensureSeedDepartment(secondBranch.id, dept.name, dept.code)),
-  );
-
-  const departmentsByBranch = new Map<string, Map<string, string>>();
-  departmentsByBranch.set(
-    mainBranch.id,
-    new Map(departmentCatalog.map((dept, index) => [dept.key, mainDepartments[index].id])),
-  );
-  departmentsByBranch.set(
-    secondBranch.id,
-    new Map(departmentCatalog.map((dept, index) => [dept.key, secondDepartments[index].id])),
-  );
+  const departmentsByCode = new Map(DEPARTMENT_CATALOG.map((dept, index) => [dept.key, departments[index].id]));
 
   // --- BLOQUE 2.1.1: FERIADOS POR SEDE ---
   console.log('BLOQUE: FERIADOS (Limpieza y Seeding)');
@@ -268,13 +273,13 @@ async function main() {
       password: adminPassword,
       role: 'admin',
       status: 'active',
-      departmentId: departmentsByBranch.get(mainBranch.id)?.get('administracion'),
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
     },
     'Admin'
   );
+  await ensureSeedUserDepartments(adminUser.id, [departmentsByCode.get('administracion')!]);
 
   const managerUser = await ensureSeedUser(
     {
@@ -283,7 +288,6 @@ async function main() {
       password: 'Manager123!',
       role: 'manager',
       status: 'active',
-      departmentId: departmentsByBranch.get(mainBranch.id)?.get('operaciones'),
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
@@ -291,6 +295,7 @@ async function main() {
     },
     'Demo manager'
   );
+  await ensureSeedUserDepartments(managerUser.id, [departmentsByCode.get('operaciones')!]);
 
   const demoUsers: Array<{ name: string; email: string; departmentKey: string; branchId: string }> = [
     { name: 'Carlos López', email: 'carlos@company.com', departmentKey: 'seguridad', branchId: mainBranch.id },
@@ -310,10 +315,10 @@ async function main() {
         role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
         status: 'active',
         forcePasswordChange: true,
-        departmentId: departmentsByBranch.get(u.branchId)?.get(u.departmentKey),
       },
       'Demo user'
     );
+    await ensureSeedUserDepartments(user.id, [departmentsByCode.get(u.departmentKey)!]);
     if (user) createdUsers.push(user);
   }
 

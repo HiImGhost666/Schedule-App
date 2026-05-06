@@ -14,6 +14,7 @@ export type FilterFieldConfig<TFilterKey extends string> = {
   options?: FilterOption[];
   className?: string;
   id?: string;
+  disabled?: boolean;
 };
 
 type FilterTableProps<TFilterKey extends string> = {
@@ -55,6 +56,7 @@ export function FilterTable<TFilterKey extends string>({
             placeholder={field.placeholder}
             value={values[field.key] ?? ''}
             onChange={(e) => onChange(field.key, e.target.value)}
+            disabled={field.disabled}
             className="input-field text-sm"
           />
         </div>
@@ -76,6 +78,7 @@ export function FilterTable<TFilterKey extends string>({
             id={field.id ?? String(field.key)}
             value={values[field.key] ?? ''}
             onChange={(e) => onChange(field.key, e.target.value)}
+            disabled={field.disabled}
             className="input-field text-sm w-full"
           >
             {(field.options ?? []).map((option) => (
@@ -104,6 +107,7 @@ export function FilterTable<TFilterKey extends string>({
           type="date"
           value={values[field.key] ?? ''}
           onChange={(e) => onChange(field.key, e.target.value)}
+          disabled={field.disabled}
           className="input-field text-sm w-full"
         />
       </div>

@@ -6,6 +6,7 @@ interface DepartmentDetailProps {
   users: Array<{ id: string; name: string; email: string }>;
   usersLoading: boolean;
   onEdit: () => void;
+  onManageMembers?: () => void;
   onDisable: () => void;
   onActivate: () => void;
   onHardDelete: () => void;
@@ -19,6 +20,7 @@ export function DepartmentDetail({
   users,
   usersLoading,
   onEdit,
+  onManageMembers,
   onDisable,
   onActivate,
   onHardDelete,
@@ -45,7 +47,28 @@ export function DepartmentDetail({
         <InfoBox label="Nombre" value={department.name} />
         <InfoBox label="Codigo" value={department.code} />
         <InfoBox label="Descripcion" value={department.description || 'Sin descripcion'} className="md:col-span-2" />
+        <InfoBox label="Usuarios" value={String(department._count?.users ?? users.length)} />
+        <InfoBox
+          label="Sucursales"
+          value={department.branches?.length
+            ? department.branches.map((item) => item.branch.code).join(', ')
+            : 'Sin sucursales'}
+          className="md:col-span-2"
+        />
       </div>
+
+      {department.branches?.length ? (
+        <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
+          <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Sucursales vinculadas</p>
+          <div className="flex flex-wrap gap-2">
+            {department.branches.map((item) => (
+              <span key={item.branch.id} className="inline-flex items-center rounded-full border border-theme-color bg-theme-surface px-2.5 py-1 text-xs text-theme-primary">
+                {item.branch.name} ({item.branch.code})
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
         <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Usuarios asignados</p>
@@ -66,6 +89,11 @@ export function DepartmentDetail({
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+        {onManageMembers ? (
+          <button type="button" onClick={onManageMembers} className="btn-ghost text-sm inline-flex items-center gap-1.5">
+            Gestionar integrantes
+          </button>
+        ) : null}
         {department.isActive ? (
           <button type="button" onClick={onDisable} disabled={isDisabling}
             className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Desactivar</button>

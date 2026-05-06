@@ -114,7 +114,7 @@ function buildOrderBy(sortBy: UsersSortBy, sortOrder: SortOrder) {
     return { branch: { name: sortOrder } };
   }
   if (sortBy === 'department') {
-    return { department: { name: sortOrder } };
+    return { departments: { _count: sortOrder } };
   }
   return { [sortBy]: sortOrder };
 }
@@ -166,12 +166,15 @@ export function listUserSchedules(userId: string, from?: Date, to?: Date) {
               name: true,
               email: true,
               avatarUrl: true,
-              department: {
+              departments: {
                 select: {
-                  id: true,
-                  name: true,
-                  code: true,
-                  branchId: true,
+                  department: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                    },
+                  },
                 },
               },
               companyPhone: true,
@@ -207,7 +210,7 @@ export function buildUsersWhere(params: {
   if (params.email) where.email = params.email;
   if (params.role) where.role = params.role;
   if (params.status) where.status = params.status;
-  if (params.departmentId) where.departmentId = params.departmentId;
+  if (params.departmentId) where.departments = { some: { departmentId: params.departmentId } };
   if (params.employeeId) where.employeeId = { contains: params.employeeId };
   if (params.branchId) where.branchId = params.branchId;
   if (params.lastLoginFrom || params.lastLoginTo) {

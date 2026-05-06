@@ -158,7 +158,14 @@ export async function listAuditLogs(params: {
   }
   // Filtro por departamento del usuario que realizó la acción
   if (params.userDepartment) {
-    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), departmentId: params.userDepartment };
+    auditWhere.user = {
+      ...(auditWhere.user as Record<string, unknown> || {}),
+      departments: {
+        some: {
+          departmentId: params.userDepartment,
+        },
+      },
+    };
   }
   // Filtro por sucursal del usuario que realizó la acción
   if (params.branchId) {
@@ -367,6 +374,41 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
             isActive: beforeState.isActive as boolean,
           },
         });
+      }
+    } else if (entityType === 'Department') {
+      if (action === 'CREATE_DEPARTMENT') {
+        await tx.departmentBranch.deleteMany({ where: { departmentId: entityId } });
+        rollbackResult = await tx.department.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        const branchIds = Array.isArray(beforeState.branchIds)
+          ? beforeState.branchIds.filter((branchId): branchId is string => typeof branchId === 'string')
+          : [];
+        const { branchIds: _branchIds, userCount: _userCount, id, ...departmentData } = beforeState;
+
+        rollbackResult = await tx.department.upsert({
+          where: { id: entityId },
+          create: {
+            id: entityId,
+            name: departmentData.name as string,
+            code: departmentData.code as string,
+            description: departmentData.description as string | null,
+            isActive: departmentData.isActive as boolean,
+          },
+          update: {
+            name: departmentData.name as string,
+            code: departmentData.code as string,
+            description: departmentData.description as string | null,
+            isActive: departmentData.isActive as boolean,
+          },
+        });
+
+        await tx.departmentBranch.deleteMany({ where: { departmentId: entityId } });
+        if (branchIds.length > 0) {
+          await tx.departmentBranch.createMany({
+            data: branchIds.map((branchId) => ({ departmentId: entityId, branchId })),
+          });
+        }
       }
     } else {
       throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);

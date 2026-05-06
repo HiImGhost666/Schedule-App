@@ -7,13 +7,13 @@ import type { User } from '@/types';
 const mockUsers: User[] = [
   {
     id: '1', name: 'Juan Pérez', email: 'juan@test.com', role: 'admin', status: 'active',
-    employeeId: 'EMP001', department: 'seguridad', createdAt: '2024-01-01T00:00:00Z',
+    employeeId: 'EMP001', department: { id: 'dept-1', name: 'Seguridad', code: 'SEG' }, createdAt: '2024-01-01T00:00:00Z',
     branch: { id: 'b1', name: 'Sede Central', code: 'SC', isActive: true },
     lastLoginAt: '2024-06-15T10:00:00Z',
   } as User,
   {
     id: '2', name: 'María López', email: 'maria@test.com', role: 'viewer', status: 'disabled',
-    employeeId: 'EMP002', department: 'operaciones', createdAt: '2024-02-01T00:00:00Z',
+    employeeId: 'EMP002', department: { id: 'dept-2', name: 'Operaciones', code: 'OPS' }, createdAt: '2024-02-01T00:00:00Z',
     branch: { id: 'b2', name: 'Sucursal Norte', code: 'SN', isActive: true },
     lastLoginAt: undefined,
   } as User,

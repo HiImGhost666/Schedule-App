@@ -1,32 +1,49 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { TransactionClient } from '../../common/transactions/transaction.utils';
 
 type DepartmentWhere = Prisma.Args<typeof prisma.department, 'findMany'>['where'];
 type DepartmentCreateData = Prisma.Args<typeof prisma.department, 'create'>['data'];
 type DepartmentUpdateData = Prisma.Args<typeof prisma.department, 'update'>['data'];
 
-export function findDepartmentById(id: string) {
-  return prisma.department.findUnique({ where: { id } });
+function getDb(tx?: TransactionClient) {
+  return tx ?? prisma;
 }
 
-export function findDepartmentByBranchAndCode(branchId: string, code: string) {
-  return prisma.department.findFirst({ where: { branchId, code } });
+export function findDepartmentById(id: string, tx?: TransactionClient) {
+  return getDb(tx).department.findUnique({
+    where: { id },
+    include: {
+      branches: {
+        include: {
+          branch: {
+            select: { id: true, name: true, code: true, isActive: true },
+          },
+        },
+      },
+      _count: { select: { users: true } },
+    },
+  });
 }
 
-export function findDepartmentByBranchAndName(branchId: string, name: string) {
-  return prisma.department.findFirst({ where: { branchId, name } });
+export function findDepartmentByCode(code: string, tx?: TransactionClient) {
+  return getDb(tx).department.findUnique({ where: { code } });
 }
 
-export function findDepartmentCodeConflict(branchId: string, code: string, excludedId: string) {
-  return prisma.department.findFirst({
-    where: { branchId, code, id: { not: excludedId } },
+export function findDepartmentByName(name: string, tx?: TransactionClient) {
+  return getDb(tx).department.findFirst({ where: { name } });
+}
+
+export function findDepartmentCodeConflict(code: string, excludedId: string, tx?: TransactionClient) {
+  return getDb(tx).department.findFirst({
+    where: { code, id: { not: excludedId } },
     select: { id: true },
   });
 }
 
-export function findDepartmentNameConflict(branchId: string, name: string, excludedId: string) {
-  return prisma.department.findFirst({
-    where: { branchId, name, id: { not: excludedId } },
+export function findDepartmentNameConflict(name: string, excludedId: string, tx?: TransactionClient) {
+  return getDb(tx).department.findFirst({
+    where: { name, id: { not: excludedId } },
     select: { id: true },
   });
 }
@@ -34,28 +51,91 @@ export function findDepartmentNameConflict(branchId: string, name: string, exclu
 export function findDepartments(where: DepartmentWhere) {
   return prisma.department.findMany({
     where,
+    include: {
+      branches: {
+        include: {
+          branch: {
+            select: { id: true, name: true, code: true, isActive: true },
+          },
+        },
+      },
+      _count: { select: { users: true } },
+    },
     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
   });
 }
 
-export function createDepartmentRecord(data: DepartmentCreateData) {
-  return prisma.department.create({ data });
+export function findDepartmentsByBranch(branchId: string, includeInactive: boolean) {
+  return prisma.department.findMany({
+    where: {
+      branches: { some: { branchId } },
+      ...(includeInactive ? {} : { isActive: true }),
+    },
+    include: {
+      branches: {
+        include: {
+          branch: {
+            select: { id: true, name: true, code: true, isActive: true },
+          },
+        },
+      },
+      _count: { select: { users: true } },
+    },
+    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+  });
 }
 
-export function updateDepartmentRecord(departmentId: string, data: DepartmentUpdateData) {
-  return prisma.department.update({
+export function createDepartmentRecord(data: DepartmentCreateData, tx?: TransactionClient) {
+  return getDb(tx).department.create({ data });
+}
+
+export function updateDepartmentRecord(departmentId: string, data: DepartmentUpdateData, tx?: TransactionClient) {
+  return getDb(tx).department.update({
     where: { id: departmentId },
     data,
   });
 }
 
-export function softDeleteDepartmentRecord(departmentId: string) {
-  return prisma.department.update({
+export function softDeleteDepartmentRecord(departmentId: string, tx?: TransactionClient) {
+  return getDb(tx).department.update({
     where: { id: departmentId },
     data: { isActive: false },
   });
 }
 
-export function hardDeleteDepartmentRecord(departmentId: string) {
-  return prisma.department.delete({ where: { id: departmentId } });
+export function hardDeleteDepartmentRecord(departmentId: string, tx?: TransactionClient) {
+  return getDb(tx).department.delete({ where: { id: departmentId } });
+}
+
+export function findDepartmentBranchIds(departmentId: string, tx?: TransactionClient) {
+  return getDb(tx).departmentBranch.findMany({
+    where: { departmentId },
+    select: { branchId: true },
+  });
+}
+
+export function setDepartmentBranches(departmentId: string, branchIds: string[], tx: TransactionClient) {
+  return tx.departmentBranch.createMany({
+    data: branchIds.map((branchId) => ({ departmentId, branchId })),
+  });
+}
+
+export function removeDepartmentBranches(departmentId: string, tx: TransactionClient) {
+  return tx.departmentBranch.deleteMany({ where: { departmentId } });
+}
+
+export function countUsersByDepartment(departmentId: string, tx?: TransactionClient) {
+  return getDb(tx).userDepartment.count({ where: { departmentId } });
+}
+
+export function findDepartmentBranches(departmentId: string, tx?: TransactionClient) {
+  return getDb(tx).departmentBranch.findMany({
+    where: { departmentId },
+    include: {
+      branch: {
+        select: { id: true, name: true, code: true, isActive: true },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
 }
