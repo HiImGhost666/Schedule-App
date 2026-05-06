@@ -113,7 +113,7 @@ export async function login(identifier: string, password: string, ipAddress?: st
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    role: userWithRole.role?.name || 'viewer',
+    role: userWithRole.role?.name || 'employee',
     name: user.name,
     permissions,
   });
@@ -123,14 +123,14 @@ export async function login(identifier: string, password: string, ipAddress?: st
     name: updatedUser.name,
     email: updatedUser.email,
     role: {
-      name: userWithRole.role?.name || 'viewer',
+      name: userWithRole.role?.name || 'employee',
       permissions: userWithRole.role?.permissions || []
     },
 
     permissions,
     status: updatedUser.status,
     avatarUrl: updatedUser.avatarUrl,
-    department: updatedUser.department,
+    department: updatedUser.department ?? null,
     createdAt: updatedUser.createdAt,
     lastLoginAt: updatedUser.lastLoginAt,
     failedAttempts: updatedUser.failedAttempts,
@@ -175,7 +175,7 @@ export async function refreshTokens(token: string) {
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    role: userWithRole.role?.name || 'viewer',
+    role: userWithRole.role?.name || 'employee',
     name: user.name,
     permissions,
   });
@@ -232,7 +232,7 @@ export async function getMe(userId: string) {
   return {
     ...user,
     role: {
-      name: userWithRole.role?.name || 'viewer',
+      name: userWithRole.role?.name || 'employee',
       permissions: userWithRole.role?.permissions || []
     },
 

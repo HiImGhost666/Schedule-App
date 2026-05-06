@@ -2,6 +2,11 @@ import { prisma } from '../../config/database';
 import { TransactionClient } from '../../common/transactions/transaction.utils';
 import { USER_RESPONSE_SELECT } from '../users/users.selects';
 
+const AUTH_USER_SELECT = {
+  ...USER_RESPONSE_SELECT,
+  passwordHash: true,
+} as const;
+
 function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
 }
@@ -9,7 +14,7 @@ function getDb(tx?: TransactionClient) {
 export function findUserById(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
-    include: { role: { include: { permissions: true } } }
+    select: AUTH_USER_SELECT,
   });
 }
 
@@ -39,7 +44,7 @@ export function updateUserById(
   return getDb(tx).user.update({
     where: { id: userId },
     data,
-    include: { role: { include: { permissions: true } } }
+    select: USER_RESPONSE_SELECT,
   });
 }
 

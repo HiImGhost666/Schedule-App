@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { ShieldCheck, RefreshCw, Lock, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import type { AuditLog, Branch } from '@/types';
+import type { AuditLog, Branch, Department } from '@/types';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
 import { AuditTable } from '@/components/audit/AuditTable';
 import type { AuditSortBy, SortOrder } from '@/types';
@@ -24,11 +24,7 @@ const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
     { value: 'Schedule', label: 'Turno' }, { value: 'WebhookConfig', label: 'Webhook' },
   ]},
   { key: 'branchId', type: 'select', label: 'Sucursal', className: 'w-44', options: [] },
-  { key: 'userDepartment', type: 'select', label: 'Departamento', options: [
-    { value: '', label: 'Todos los departamentos' }, { value: 'seguridad', label: 'Seguridad' },
-    { value: 'mantenimiento', label: 'Mantenimiento' }, { value: 'operaciones', label: 'Operaciones' },
-    { value: 'administración', label: 'Administración' },
-  ]},
+  { key: 'userDepartment', type: 'select', label: 'Departamento', options: [] },
   { key: 'userId', type: 'select', label: 'Usuario', className: 'w-48', options: [] },
   { key: 'from', type: 'date', label: 'Fecha desde', className: 'w-36' },
   { key: 'to', type: 'date', label: 'Fecha hasta', className: 'w-36' },
@@ -61,6 +57,11 @@ export function AuditLogPage() {
   });
   const [availableBranches, setAvailableBranches] = useState<Branch[]>([]);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const { data: departmentsData } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', 'audit', filters.branchId],
+    queryFn: () => api.get('/departments', { params: { branchId: filters.branchId, includeInactive: true } }).then((r) => r.data),
+    enabled: Boolean(filters.branchId),
+  });
   const [sortBy, setSortBy] = useState<AuditSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageRev, setPageRev] = useState(1);
@@ -175,6 +176,10 @@ export function AuditLogPage() {
           fields={AUDIT_FILTER_FIELDS_BASE.map((field) => {
             if (field.key === 'branchId') return { ...field, options: [{ value: '', label: 'Todas las sucursales' }, ...availableBranches.map((b) => ({ value: b.id, label: b.name }))] };
             if (field.key === 'userId') return { ...field, options: [{ value: '', label: filters.branchId || filters.userDepartment ? 'Todos los usuarios' : 'Selecciona sucursal o departamento' }, ...availableUsers.map((u) => ({ value: u.id, label: u.name }))] };
+            if (field.key === 'userDepartment') return { ...field, options: [
+              { value: '', label: filters.branchId ? 'Todos los departamentos' : 'Selecciona una sucursal' },
+              ...(departmentsData?.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
+            ] };
             return field;
           })}
           values={filters}

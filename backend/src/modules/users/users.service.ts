@@ -30,14 +30,17 @@ import {
 } from './domain/user.factory';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
-import { USER_DEPARTMENTS, USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserStatus, type UserDepartment } from './users.constants';
 import { ROLE_NAMES } from '../roles/roles.constants';
+import { USER_STATUSES, CSV_IMPORT_DEFAULT_PASSWORD, type UserStatus } from './users.constants';
 import { type UserCsvRow } from '../../utils/csv';
 import {
   buildClearedPasswordChangeFields,
   buildRequiredPasswordChangeFields,
   resolvePasswordChangeState,
 } from '../auth/password-change-policy';
+import {
+  findDepartmentById,
+} from '../departments/departments.repository';
 
 async function resolveRoleId(roleId?: string, roleName?: string): Promise<string | null> {
   if (roleId) return roleId;
@@ -53,7 +56,8 @@ const createUserInputSchema = z.object({
   password: z.string().min(8),
   roleId: z.string().optional(),
   status: z.enum(USER_STATUSES).optional(),
-  department: z.enum(USER_DEPARTMENTS).optional(),
+  departmentId: z.string().optional(),
+  departmentIds: z.array(z.string().min(1)).optional(),
   avatarUrl: z.string().url().optional(),
 
   companyPhone: z.string().optional(),
@@ -61,21 +65,23 @@ const createUserInputSchema = z.object({
   branchId: z.string().min(1),
   employeeId: z.string().optional().nullable(),
   forcePasswordChange: z.boolean().optional(),
-  role: z.string().optional(),
+  role: z.enum(ROLE_NAMES).optional(),
 });
 
 
 const updateUserInputSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  department: z.enum(USER_DEPARTMENTS).optional(),
+  departmentId: z.string().optional().nullable(),
+  departmentIds: z.array(z.string().min(1)).optional(),
   avatarUrl: z.string().optional(),
 
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
   employeeId: z.string().optional().nullable(),
-  role: z.string().optional(),
+  roleId: z.string().optional(),
+  role: z.enum(ROLE_NAMES).optional(),
 });
 
 
@@ -228,6 +234,23 @@ async function ensureBranchExists(branchId: string) {
   }
 }
 
+async function ensureDepartmentExists(departmentId: string, branchId?: string | null) {
+  const department = await findDepartmentById(departmentId);
+  if (!department) {
+    throw createAppError('BAD_REQUEST', 'El departamento seleccionado no existe');
+  }
+  if (branchId && !department.branches?.some((link) => link.branchId === branchId)) {
+    throw createAppError('BAD_REQUEST', 'El departamento no pertenece a la sucursal seleccionada');
+  }
+  return department;
+}
+
+function resolveDepartmentId(departmentId?: string | null, departmentIds?: string[]): string | null | undefined {
+  if (departmentIds !== undefined) return departmentIds[0] ?? null;
+  if (departmentId !== undefined) return departmentId ?? null;
+  return undefined;
+}
+
 /**
  * @description Crea un usuario validando duplicados (email/username), hashea password y emite evento en tiempo real.
  * @param input @param actor
@@ -242,8 +265,12 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
   const normalizedName = parsed.data.name.trim();
   const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
   const shouldUpsertExisting = options?.upsertExisting ?? false;
+  const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds) ?? undefined;
   await ensureBranchExists(parsed.data.branchId);
-  const { password: _password, branchId: createBranchId, forcePasswordChange, role: _role, ...userData } = parsed.data;
+  if (selectedDepartmentId) {
+    await ensureDepartmentExists(selectedDepartmentId, parsed.data.branchId);
+  }
+  const { password: _password, branchId: createBranchId, departmentId: _departmentId, departmentIds: _departmentIds, forcePasswordChange, roleId, role, ...userData } = parsed.data;
 
   const result = await executeInTransaction(async (tx) => {
     const identity = shouldUpsertExisting
@@ -263,11 +290,10 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
       derivedUsername: identity.username,
       companyPhone: normalizePhone(parsed.data.companyPhone) ?? identity.existingUser?.companyPhone ?? null,
       auxiliaryPhone: normalizePhone(parsed.data.auxiliaryPhone) ?? identity.existingUser?.auxiliaryPhone ?? null,
-      roleId: (await resolveRoleId(parsed.data.roleId, parsed.data.role)) ?? identity.existingUser?.roleId ?? null,
+      roleId: (await resolveRoleId(roleId, role)) ?? identity.existingUser?.roleId ?? (await resolveRoleId(undefined, 'employee')),
 
       status: parsed.data.status ?? identity.existingUser?.status ?? 'active',
       avatarUrl: parsed.data.avatarUrl ?? identity.existingUser?.avatarUrl ?? null,
-      department: parsed.data.department ?? identity.existingUser?.department ?? null,
       passwordChangedAt: identity.existingUser?.passwordChangedAt ?? new Date(),
       ...resolvePasswordChangeFields(forcePasswordChange, identity.existingUser),
       ...(createBranchId ? { branchId: createBranchId } : {}),
@@ -277,25 +303,31 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
     const user = identity.createNew
       ? await createUserRecord({
           ...baseUserData,
+          ...(selectedDepartmentId ? { departmentId: selectedDepartmentId } : {}),
           passwordHash: await hashPassword(parsed.data.password),
         }, tx)
-      : await updateUserRecord(identity.existingUser!.id, baseUserData, tx);
+      : await updateUserRecord(identity.existingUser!.id, {
+          ...baseUserData,
+          ...(selectedDepartmentId !== undefined ? { departmentId: selectedDepartmentId } : {}),
+        }, tx);
+
+    const finalUser = (await findUserDetailById(user.id, tx)) ?? user;
 
     if (actor?.id) {
       await logAuditOrThrow({
         userId: actor.id,
         action: identity.createNew || !shouldUpsertExisting ? 'CREATE_USER' : 'UPDATE_USER',
         entityType: 'User',
-        entityId: user.id,
+        entityId: finalUser.id,
         detailsJson: {
           before: identity.createNew ? null : sanitizeSnapshot(identity.existingUser),
-          after: sanitizeSnapshot(user),
+          after: sanitizeSnapshot(finalUser),
         },
         ipAddress: actor.ipAddress,
       }, tx);
     }
 
-    return { user, created: identity.createNew };
+    return { user: finalUser, created: identity.createNew };
   });
 
   publishRealtimeEvent(result.created ? REALTIME_EVENTS.USER_CREATED : REALTIME_EVENTS.USER_UPDATED, {
@@ -342,7 +374,7 @@ export async function getUsersList(params: {
   email?: string;
   roleId?: string;
   status?: string;
-  department?: string;
+  departmentId?: string;
   employeeId?: string;
   branchId?: string;
   lastLoginFrom?: string;
@@ -367,7 +399,7 @@ export async function getUsersList(params: {
     status: params.status,
 
     email: normalizedEmail,
-    department: params.department,
+    departmentId: params.departmentId,
     employeeId: params.employeeId,
     branchId: params.branchId,
     lastLoginFrom,
@@ -401,7 +433,8 @@ export async function getUserById(userId: string) {
 export async function updateUser(userId: string, data: {
   name?: string;
   email?: string;
-  department?: UserDepartment;
+  departmentId?: string | null;
+  departmentIds?: string[];
   avatarUrl?: string;
   companyPhone?: string;
   auxiliaryPhone?: string;
@@ -433,6 +466,12 @@ export async function updateUser(userId: string, data: {
     await ensureBranchExists(parsed.data.branchId);
   }
 
+  const targetBranchId = parsed.data.branchId ?? (user as { branchId?: string | null }).branchId ?? null;
+  const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds);
+  if (selectedDepartmentId) {
+    await ensureDepartmentExists(selectedDepartmentId, targetBranchId);
+  }
+
   if (parsed.data.employeeId !== undefined) {
     const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
     const currentEmployeeId = normalizeEmployeeId((user as { employeeId?: string | null }).employeeId);
@@ -446,7 +485,7 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-    const { branchId: updateBranchId, employeeId, role: _role, ...updateData } = parsed.data;
+  const { branchId: updateBranchId, departmentId: _departmentId2, departmentIds: _departmentIds2, employeeId, roleId, role, ...updateData } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -466,12 +505,20 @@ export async function updateUser(userId: string, data: {
           : updateBranchId
             ? { branchId: updateBranchId }
             : { branchId: null }),
-        ...(parsed.data.role
-          ? { roleId: await resolveRoleId(undefined, parsed.data.role) }
+        ...((roleId || role)
+          ? { roleId: await resolveRoleId(roleId, role) }
           : {}),
       } as Parameters<typeof updateUserRecord>[1],
       tx,
     );
+
+    if (selectedDepartmentId !== undefined) {
+      await updateUserRecord(userId, { departmentId: selectedDepartmentId ?? null }, tx);
+    } else if (updateBranchId !== undefined) {
+      // No action needed for department when branch changes
+    }
+
+    const finalUser = (await findUserDetailById(userId, tx)) ?? updated;
     await logAuditOrThrow({
       userId: actor.id,
       action: 'UPDATE_USER',
@@ -479,11 +526,11 @@ export async function updateUser(userId: string, data: {
       entityId: userId,
       detailsJson: {
         before: sanitizeSnapshot(user),
-        after: sanitizeSnapshot(updated),
+        after: sanitizeSnapshot(finalUser),
       },
       ipAddress: actor.ipAddress,
     }, tx);
-    return updated;
+    return finalUser;
   });
 
   publishRealtimeEvent(REALTIME_EVENTS.USER_UPDATED, {
@@ -731,7 +778,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
       const role = row.role.trim().toLowerCase();
       const status = row.status.trim().toLowerCase();
-      const department = row.department.trim().toLowerCase();
+      const department = row.department.trim();
       const branchSearch = row.branchId?.trim();
       const companyPhone = row.companyPhone.trim() || undefined;
       const auxiliaryPhone = row.auxiliaryPhone.trim() || undefined;
@@ -739,7 +786,6 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       if (!branchSearch) throw new Error('La sucursal es obligatoria');
       if (role && !(ROLE_NAMES as readonly string[]).includes(role)) throw new Error(`Rol inválido: ${role}`);
       if (status && !(USER_STATUSES as readonly string[]).includes(status)) throw new Error(`Estado inválido: ${status}`);
-      if (department && !(USER_DEPARTMENTS as readonly string[]).includes(department)) throw new Error(`Departamento inválido: ${department}`);
 
       const normalizedBranchSearch = branchSearch.toUpperCase();
       const branch = allowedBranchCodes.has(normalizedBranchSearch)
@@ -751,9 +797,22 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
       }
 
       const resolvedBranchId = branch.id;
+      let resolvedDepartmentId: string | undefined;
+      if (department) {
+        const match = await prisma.department.findFirst({
+          where: { code: department.toUpperCase() },
+          include: { branches: true },
+        });
+        if (!match) {
+          throw new Error(`Departamento inválido: ${department}`);
+        }
+        if (!match.branches.some((link) => link.branchId === resolvedBranchId)) {
+          throw new Error(`Departamento fuera de la sucursal seleccionada: ${department}`);
+        }
+        resolvedDepartmentId = match.id;
+      }
       const userRoleId = role ? dbRoles.find((r: { id: string; name: string }) => r.name === role)?.id : undefined;
       const userStatus = (status || undefined) as UserStatus | undefined;
-      const userDept = (department || undefined) as UserDepartment | undefined;
 
       const [existingByEmployeeId, existingByEmail] = await Promise.all([
         employeeId ? findUserByEmployeeId(employeeId) : Promise.resolve(null),
@@ -780,7 +839,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
 
       const targetRoleId = userRoleId ?? existing?.roleId ?? undefined;
       const targetStatus = userStatus ?? (existing?.status as UserStatus | undefined);
-      const targetDepartment = userDept ?? ((existing?.department ?? undefined) as UserDepartment | undefined);
+      const targetDepartmentId = resolvedDepartmentId ?? ((existing as { departmentId?: string | null } | null)?.departmentId ?? undefined);
       const targetCompanyPhone = companyPhone ?? (existing?.companyPhone ?? undefined);
       const targetAuxiliaryPhone = auxiliaryPhone ?? (existing?.auxiliaryPhone ?? undefined);
       const targetEmployeeId = employeeId ?? normalizedExistingEmployeeId ?? undefined;
@@ -793,7 +852,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
         || email !== existing.email
         || targetRoleId !== existing.roleId
         || targetStatus !== existing.status
-        || (targetDepartment ?? undefined) !== (existing.department ?? undefined)
+        || (targetDepartmentId ?? undefined) !== ((existing as { departmentId?: string | null } | null)?.departmentId ?? undefined)
         || (targetCompanyPhone ?? undefined) !== (existing.companyPhone ?? undefined)
         || (targetAuxiliaryPhone ?? undefined) !== (existing.auxiliaryPhone ?? undefined)
         || (existing.branchId ?? null) !== resolvedBranchId
@@ -812,7 +871,7 @@ export async function importUsersCsv(rows: UserCsvRow[], actor: ActorContext) {
         password: CSV_IMPORT_DEFAULT_PASSWORD,
         roleId: targetRoleId,
         status: targetStatus,
-        department: targetDepartment,
+        ...(targetDepartmentId ? { departmentId: targetDepartmentId } : {}),
         branchId: resolvedBranchId,
         companyPhone: targetCompanyPhone,
         auxiliaryPhone: targetAuxiliaryPhone,

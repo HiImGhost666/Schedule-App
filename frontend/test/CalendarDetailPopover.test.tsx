@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CalendarDetailPopover, type CalendarDetailItem } from '@/components/schedule/CalendarDetailPopover';
 import type { Schedule } from '@/types';
+
+const queryClient = new QueryClient();
 
 function buildSchedule(overrides: Partial<Schedule> = {}): Schedule {
   return {
@@ -41,16 +44,18 @@ describe('CalendarDetailPopover', () => {
     };
 
     render(
-      <CalendarDetailPopover
-        open
-        item={item}
-        anchor={{ x: 120, y: 80 }}
-        canEditSchedule={true}
-        canEditHoliday={false}
-        onClose={vi.fn()}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <CalendarDetailPopover
+          open
+          item={item}
+          anchor={{ x: 120, y: 80 }}
+          canEditSchedule={true}
+          canEditHoliday={false}
+          onClose={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </QueryClientProvider>,
     );
 
     expect(screen.getByText('Guardia Central')).toBeInTheDocument();
@@ -69,6 +74,7 @@ describe('CalendarDetailPopover', () => {
         name: 'Domingo de Ramos',
         type: 'regional',
         scope: 'regional',
+        isPartial: false,
         isActive: true,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
@@ -77,16 +83,18 @@ describe('CalendarDetailPopover', () => {
     };
 
     render(
-      <CalendarDetailPopover
-        open
-        item={item}
-        anchor={{ x: 80, y: 90 }}
-        canEditSchedule={true}
-        canEditHoliday={false}
-        onClose={vi.fn()}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <CalendarDetailPopover
+          open
+          item={item}
+          anchor={{ x: 80, y: 90 }}
+          canEditSchedule={true}
+          canEditHoliday={false}
+          onClose={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </QueryClientProvider>,
     );
 
     expect(screen.getByText('Domingo de Ramos')).toBeInTheDocument();
@@ -106,17 +114,19 @@ describe('CalendarDetailPopover', () => {
     };
 
     render(
-      <CalendarDetailPopover
-        open
-        item={item}
-        anchor={{ x: 40, y: 60 }}
-        canEditSchedule={true}
-        canEditHoliday={false}
-        onClose={onClose}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onAssigneeClick={onAssigneeClick}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <CalendarDetailPopover
+          open
+          item={item}
+          anchor={{ x: 40, y: 60 }}
+          canEditSchedule={true}
+          canEditHoliday={false}
+          onClose={onClose}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onAssigneeClick={onAssigneeClick}
+        />
+      </QueryClientProvider>,
     );
 
     fireEvent.click(screen.getByTitle('Editar'));

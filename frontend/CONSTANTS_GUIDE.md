@@ -39,21 +39,12 @@ Alcance:
   - CSV_HEADERS
   - ALLOWED_ROLES
   - ALLOWED_STATUS
-  - ALLOWED_BRANCH_CODES
-  - DEPARTMENT_VALUES
-  - ALLOWED_DEPARTMENTS
-  - DEPARTMENT_LOOKUP
-  - normalizeDepartment (capitalizacion: primera letra mayuscula)
 - src/pages/admin/UserFormModal.tsx
-  - DEPARTMENT_VALUES
-  - DEPARTMENT_OPTIONS
-  - DEPARTMENT_LOOKUP
-  - normalizeDepartment
+  - (Sin constantes de departamentos; se cargan desde la API)
 
 Nota importante de departamentos:
-- En backend se guarda en minusculas (seguridad, mantenimiento, operaciones, administracion).
-- En frontend se muestra y exporta con inicial mayuscula (Seguridad, Mantenimiento, Operaciones, Administracion).
-- Siempre usar normalizeDepartment en UI/CSV para evitar inconsistencias.
+- Se cargan desde la API (`/departments`) y se validan contra la sede seleccionada.
+- Exportaciones CSV usan el codigo del departamento.
 
 ## 5) Otras Constantes por Pantalla
 

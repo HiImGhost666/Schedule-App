@@ -5,6 +5,7 @@ import { executeInTransaction } from '../../common/transactions/transaction.util
 import { findSchedules } from '../schedules/schedules.repository';
 import {
   countActiveBranches,
+  countDepartmentsByBranch,
   countSchedulesByBranch,
   createBranchHolidayRecord,
   createBranchRecord,
@@ -22,7 +23,14 @@ import {
   updateBranchHolidaysByIds,
   updateBranchHolidayRecord,
   updateBranchRecord,
+  countBranchesForManager,
+  updateBranchManager,
 } from './branches.repository';
+import { findRoleByName } from '../roles/roles.repository';
+import {
+  findUserById,
+  updateUserRecord,
+} from '../users/users.repository';
 
 import { ensureDateRange, normalizeBranchCode, normalizeHolidayDate, resolveHolidayScope } from './domain/branches.rules';
 import {
@@ -49,6 +57,32 @@ function isUniqueViolation(error: unknown) {
 }
 
 type BranchHolidayWithBranch = Awaited<ReturnType<typeof findBranchHolidays>>[number];
+
+async function resolveRoleIdByName(roleName: string) {
+  const role = await findRoleByName(roleName);
+  if (role) {
+    return role.id;
+  }
+
+  const fallbackRoleIds: Record<string, string> = {
+    admin: 'role-admin-id',
+    general_manager: 'role-general-manager-id',
+    department_manager: 'role-department-manager-id',
+    employee: 'role-employee-id',
+  };
+
+  const fallbackRoleId = fallbackRoleIds[roleName];
+  if (fallbackRoleId) {
+    return fallbackRoleId;
+  }
+
+  throw createAppError('NOT_FOUND', `Rol no encontrado: ${roleName}`);
+}
+
+function getRoleName(role: { name?: string } | string | null | undefined) {
+  if (!role) return undefined;
+  return typeof role === 'string' ? role : role.name;
+}
 
 function buildGroupedHolidayKey(holiday: BranchHolidayWithBranch) {
   return [
@@ -183,6 +217,15 @@ export async function deleteBranch(branchId: string, actor: BranchActor) {
     throw createAppError('BAD_REQUEST', 'Debe existir al menos una sucursal activa');
   }
 
+  const linkedDepartments = await countDepartmentsByBranch(branchId);
+  if (linkedDepartments > 0) {
+    throw createAppError(
+      'BAD_REQUEST',
+      'No se puede eliminar la sucursal: tiene departamentos asociados. Desasígnalos primero.',
+      { linkedDepartments },
+    );
+  }
+
   return executeInTransaction(async (tx) => {
     await softDeleteBranchRecord(branchId, tx);
 
@@ -203,6 +246,15 @@ export async function hardDeleteBranch(branchId: string, actor: BranchActor) {
   const activeBranches = await countActiveBranches();
   if (branch.isActive && activeBranches <= 1) {
     throw createAppError('BAD_REQUEST', 'Debe existir al menos una sucursal activa');
+  }
+
+  const linkedDepartments = await countDepartmentsByBranch(branchId);
+  if (linkedDepartments > 0) {
+    throw createAppError(
+      'BAD_REQUEST',
+      'No se puede eliminar definitivamente la sucursal: tiene departamentos asociados. Desasígnalos primero.',
+      { linkedDepartments },
+    );
   }
 
   const linkedSchedules = await countSchedulesByBranch(branchId);
@@ -513,5 +565,101 @@ export async function bulkDeleteSharedHolidays(
       },
       ipAddress: actor.ipAddress,
     }, tx);
+  });
+}
+
+/**
+ * Asigna un manager a una sucursal dentro de una transacción única.
+ * Si el usuario no tiene el rol 'general_manager', se le otorga.
+ * Genera auditoría atómica.
+ */
+export async function assignBranchManager(
+  branchId: string,
+  userId: string,
+  actor: BranchActor,
+) {
+  const branch = await ensureBranch(branchId);
+  const user = await findUserById(userId);
+  if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+
+  if (branch.managerId === userId) {
+    throw createAppError('BAD_REQUEST', 'Este usuario ya es manager de esta sucursal');
+  }
+
+  return executeInTransaction(async (tx) => {
+    // 1. Actualizar sucursal
+    const updatedBranch = await updateBranchManager(branchId, userId, tx);
+
+    // 2. Otorgar rol si no lo tiene
+    if (getRoleName((user as any).role) !== 'general_manager') {
+      const generalManagerRoleId = await resolveRoleIdByName('general_manager');
+      await updateUserRecord(userId, { role: { connect: { id: generalManagerRoleId } } }, tx);
+    }
+
+    // 3. Auditoría
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'ASSIGN_BRANCH_MANAGER',
+      entityType: 'Branch',
+      entityId: branchId,
+      detailsJson: {
+        branchName: updatedBranch.name,
+        managerName: user.name,
+        managerId: userId,
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return updatedBranch;
+  });
+}
+
+/**
+ * Remueve un manager de una sucursal dentro de una transacción única.
+ * Si el usuario no es manager de otras sucursales, se le quita el rol 'employee'.
+ * Genera auditoría atómica.
+ */
+export async function removeBranchManager(
+  branchId: string,
+  actor: BranchActor,
+) {
+  const branch = await ensureBranch(branchId);
+  if (!branch.managerId) {
+    throw createAppError('BAD_REQUEST', 'Esta sucursal no tiene un manager asignado');
+  }
+
+  const managerId = branch.managerId;
+  const manager = await findUserById(managerId);
+  if (!manager) throw createAppError('NOT_FOUND', 'Manager no encontrado');
+
+  return executeInTransaction(async (tx) => {
+    // 1. Remover manager de la sucursal
+    const updatedBranch = await updateBranchManager(branchId, null, tx);
+
+    // 2. Verificar si sigue siendo manager de otras sucursales
+    const remainingBranches = await countBranchesForManager(managerId, tx);
+
+    // 3. Si no es manager de ninguna otra, quitar el rol
+    if (remainingBranches === 0) {
+      const employeeRoleId = await resolveRoleIdByName('employee');
+      await updateUserRecord(managerId, { role: { connect: { id: employeeRoleId } } }, tx);
+    }
+
+    // 4. Auditoría
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'REMOVE_BRANCH_MANAGER',
+      entityType: 'Branch',
+      entityId: branchId,
+      detailsJson: {
+        branchName: updatedBranch.name,
+        formerManagerName: manager.name,
+        formerManagerId: managerId,
+        stillManagerOfOtherBranches: remainingBranches > 0,
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return updatedBranch;
   });
 }

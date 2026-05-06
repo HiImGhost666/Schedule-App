@@ -7,9 +7,9 @@ import { SchedulePage } from '@/pages/SchedulePage';
 const getMock = vi.fn();
 
 const authState: {
-  user: { id: string; role: 'admin' | 'manager' | 'viewer'; branchId?: string } | null;
+  user: { id: string; role: { name: 'admin' | 'general_manager' | 'department_manager' | 'employee' }; branchId?: string } | null;
 } = {
-  user: { id: 'admin-1', role: 'admin' },
+  user: { id: 'admin-1', role: { name: 'admin' } },
 };
 
 vi.mock('@/store/authStore', () => ({
@@ -94,7 +94,7 @@ describe('SchedulePage smoke', () => {
   });
 
   it('admin carga calendario sin branchId forzado cuando no hay sucursal activa', async () => {
-    authState.user = { id: 'admin-1', role: 'admin' };
+    authState.user = { id: 'admin-1', role: { name: 'admin' } };
 
     getMock.mockImplementation((url: string) => {
       if (url === '/branches') {
@@ -154,8 +154,8 @@ describe('SchedulePage smoke', () => {
     });
   });
 
-  it('viewer con sucursal asignada usa vista global sin branchId forzado', async () => {
-    authState.user = { id: 'viewer-1', role: 'viewer', branchId: 'b-1' };
+  it('employee con sucursal asignada usa vista global sin branchId forzado', async () => {
+    authState.user = { id: 'employee-1', role: { name: 'employee' }, branchId: 'b-1' };
 
     getMock.mockImplementation((url: string) => {
       if (url === '/branches') {
@@ -204,8 +204,8 @@ describe('SchedulePage smoke', () => {
     );
   });
 
-  it('viewer sin sucursal asignada y sin sucursales consulta vista global', async () => {
-    authState.user = { id: 'viewer-2', role: 'viewer' };
+  it('employee sin sucursal asignada y sin sucursales consulta vista global', async () => {
+    authState.user = { id: 'employee-2', role: { name: 'employee' } };
 
     getMock.mockImplementation((url: string) => {
       if (url === '/branches') {
@@ -235,7 +235,7 @@ describe('SchedulePage smoke', () => {
   });
   
   it('combina turnos y festivos en el calendario', async () => {
-    authState.user = { id: 'viewer-1', role: 'viewer', branchId: 'b-1' };
+    authState.user = { id: 'employee-1', role: { name: 'employee' }, branchId: 'b-1' };
 
     getMock.mockImplementation((url: string) => {
       if (url === '/branches') {

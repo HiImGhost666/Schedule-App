@@ -382,8 +382,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       result = result.filter((u) => u.branchId === asideBranchFilter);
     }
     if (asideDeptFilter) {
-      // El filtro de departamento siempre está disponible
-      result = result.filter((u) => (u.department ?? '').toLowerCase() === asideDeptFilter);
+      result = result.filter((u) => {
+        const departmentCode = u.department?.code ?? '';
+        return departmentCode.toLowerCase() === asideDeptFilter;
+      });
     }
     if (asideSearchFilter) {
       const q = asideSearchFilter.toLowerCase();
@@ -408,7 +410,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
-            <p className="text-xs text-theme-muted truncate">{u.department || u.email}</p>
+            <p className="text-xs text-theme-muted truncate">{u.department?.name || u.email}</p>
             {isAllBranchesMode && (
               <p className="text-[10px] text-theme-muted truncate mt-0.5">
                 Sucursal: {u.branch?.name ?? 'Sin sucursal'}

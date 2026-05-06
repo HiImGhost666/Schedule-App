@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale';
 
 import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
-import type { Branch, User } from '@/types';
+import { type Branch, type Department, type User, ROLE_LABELS } from '@/types';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -25,15 +25,6 @@ const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'departmen
 const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'general_manager', 'department_manager', 'employee']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
-const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
-const ALLOWED_DEPARTMENTS = new Set<string>(DEPARTMENT_VALUES);
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  general_manager: 'Gerente General',
-  department_manager: 'Responsable',
-  employee: 'Empleado',
-};
 
 const STATUS_LABELS: Record<string, string> = {
   active: 'Activo',
@@ -45,7 +36,7 @@ const STATUS_LABELS: Record<string, string> = {
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
-type UsersFilterKey = 'search' | 'role' | 'status' | 'department' | 'branchId' | 'employeeId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
+type UsersFilterKey = 'search' | 'role' | 'status' | 'departmentId' | 'branchId' | 'employeeId' | 'lastLoginFrom' | 'lastLoginTo' | 'createdFrom' | 'createdTo';
 
 function escapeCsvValue(value: string): string {
   if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
@@ -129,14 +120,6 @@ function detectCsvDelimiter(headerLine: string): CsvDelimiter {
   return bestDelimiter;
 }
 
-function normalizeDepartment(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const normalized = trimmed.toLowerCase();
-  const matched = DEPARTMENT_VALUES.find((department) => department.toLowerCase() === normalized);
-  return matched ?? undefined;
-}
-
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role?.name === 'admin';
@@ -146,7 +129,7 @@ export function UsersPage() {
   const location = useLocation();
   const navState = location.state as { status?: string } | null;
   const [filters, setFilters] = useState<Record<UsersFilterKey, string>>({
-    search: '', role: '', status: navState?.status || '', department: '', employeeId: '',
+    search: '', role: '', status: navState?.status || '', departmentId: '', employeeId: '',
     branchId: '', lastLoginFrom: '', lastLoginTo: '', createdFrom: '', createdTo: '',
   });
   const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
@@ -181,6 +164,16 @@ export function UsersPage() {
     ...(branchesData?.data ?? []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
   ];
 
+  const { data: departmentsData } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', 'users-page-filter'],
+    queryFn: () => api.get('/departments', { params: { includeInactive: true } }).then((r) => r.data),
+  });
+
+  const departmentOptions = [
+    { value: '', label: 'Todos los departamentos' },
+    ...(departmentsData?.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
+  ];
+
   const USERS_FILTER_FIELDS_DYNAMIC: Array<FilterFieldConfig<UsersFilterKey>> = [
     {
       key: 'search',
@@ -200,7 +193,6 @@ export function UsersPage() {
         { value: 'department_manager', label: 'Responsable' },
         { value: 'employee', label: 'Empleado' },
       ],
-
     },
     {
       key: 'status',
@@ -214,22 +206,16 @@ export function UsersPage() {
       ],
     },
     {
-      key: 'department',
-      type: 'select',
-      label: 'Departamento',
-      options: [
-        { value: '', label: 'Todos los departamentos' },
-        { value: 'seguridad', label: 'Seguridad' },
-        { value: 'mantenimiento', label: 'Mantenimiento' },
-        { value: 'operaciones', label: 'Operaciones' },
-        { value: 'administración', label: 'Administración' },
-      ],
-    },
-    {
       key: 'branchId',
       type: 'select',
       label: 'Sucursal',
       options: branchOptions,
+    },
+    {
+      key: 'departmentId',
+      type: 'select',
+      label: 'Departamento',
+      options: departmentOptions,
     },
     {
       key: 'lastLoginFrom',
@@ -255,7 +241,6 @@ export function UsersPage() {
       label: 'Creado hasta',
       className: 'w-36',
     },
-
   ];
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
@@ -265,7 +250,7 @@ export function UsersPage() {
         params: {
           page, limit,
           search: filters.search || undefined, role: filters.role || undefined,
-          status: filters.status || undefined, department: filters.department || undefined,
+          status: filters.status || undefined, departmentId: filters.departmentId || undefined,
           employeeId: filters.employeeId || undefined, branchId: filters.branchId || undefined,
           lastLoginFrom: filters.lastLoginFrom || undefined, lastLoginTo: filters.lastLoginTo || undefined,
           createdFrom: filters.createdFrom || undefined, createdTo: filters.createdTo || undefined,
@@ -275,7 +260,11 @@ export function UsersPage() {
   });
 
   const handleFilterChange = (key: UsersFilterKey, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === 'branchId' ? { departmentId: '' } : {}),
+    }));
     setPage(1);
   };
 
@@ -343,8 +332,7 @@ export function UsersPage() {
         email: user.email ?? '',
         role: user.role?.name ?? '',
         status: user.status ?? '',
-
-        department: normalizeDepartment(user.department ?? '') ?? '',
+        department: user.department?.code ?? '',
         branchId: user.branch?.code ?? '', companyPhone: user.companyPhone ?? '', auxiliaryPhone: user.auxiliaryPhone ?? '',
       }));
       const csv = buildCsv(rows, [...CSV_HEADERS]);
@@ -408,10 +396,6 @@ export function UsersPage() {
     if (!branchExists) return `Fila ${index + 2}: Sucursal inválida "${row.branchId}". Usa TFN, GC o nombre de sede`;
     if (row.role && !ALLOWED_ROLES.has(row.role.trim().toLowerCase())) return `Fila ${index + 2}: Rol inválido "${row.role}"`;
     if (row.status && !ALLOWED_STATUS.has(row.status.trim().toLowerCase())) return `Fila ${index + 2}: Estado inválido "${row.status}"`;
-    if (row.department) {
-      const normalizedDepartment = normalizeDepartment(row.department);
-      if (!normalizedDepartment || !ALLOWED_DEPARTMENTS.has(normalizedDepartment)) return `Fila ${index + 2}: Departamento inválido "${row.department}"`;
-    }
     return null;
   };
 
@@ -456,9 +440,9 @@ export function UsersPage() {
       admin: 'badge-role-admin',
       general_manager: 'badge-role-manager',
       department_manager: 'badge-role-manager',
-      employee: 'badge-role-viewer',
+      employee: 'badge-role-employee',
     };
-    return <span className={cls[role] || 'badge-role-viewer'}>{ROLE_LABELS[role] || role}</span>;
+    return <span className={cls[role] || 'badge-role-employee'}>{ROLE_LABELS[role] || role}</span>;
   };
 
 
@@ -534,7 +518,7 @@ export function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{normalizeDepartment(u.department ?? '') || '—'}</td>
+                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department?.name || '—'}</td>
                       <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
                         {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
                       </td>
@@ -584,8 +568,9 @@ export function UsersPage() {
           onResetPassword={(u) => setResetUser(u)}
           onForcePasswordChange={(u) => { forcePasswordChangeMutation.mutate(u.id); setMenuOpenId(null); setMenuPosition(null); }}
           onToggleStatus={(u) => {
-            if (u.status === 'active') setConfirmAction({ type: 'lock', user: u });
-            else statusMutation.mutate({ id: u.id, status: 'active' });
+            const actionType = u.status === 'active' ? 'lock' : 'activate';
+            setConfirmAction({ type: actionType, user: u });
+            setMenuOpenId(null);
           }}
           onDelete={(u) => setConfirmAction({ type: 'delete', user: u })}
         />
@@ -601,18 +586,27 @@ export function UsersPage() {
 
       <ConfirmDialog
         open={!!confirmAction}
-        title={confirmAction?.type === 'delete' ? 'Eliminar Usuario' : 'Bloquear Usuario'}
+        title={
+          confirmAction?.type === 'delete' ? 'Eliminar Usuario' :
+          confirmAction?.type === 'lock' ? 'Bloquear Usuario' : 'Activar Usuario'
+        }
         description={
           confirmAction?.type === 'delete'
             ? `¿Eliminar la cuenta de "${confirmAction?.user.name}"? Esta acción no se puede deshacer.`
-            : `¿Bloquear la cuenta de "${confirmAction?.user.name}"?`
+            : confirmAction?.type === 'lock'
+            ? `¿Bloquear la cuenta de "${confirmAction?.user.name}"?`
+            : `¿Activar la cuenta de "${confirmAction?.user.name}"?`
         }
-        confirmLabel={confirmAction?.type === 'delete' ? 'Eliminar' : 'Bloquear'}
+        confirmLabel={
+          confirmAction?.type === 'delete' ? 'Eliminar' :
+          confirmAction?.type === 'lock' ? 'Bloquear' : 'Activar'
+        }
         loading={deleteMutation.isPending || statusMutation.isPending}
         onConfirm={() => {
           if (!isAdmin) return;
           if (confirmAction?.type === 'delete') deleteMutation.mutate(confirmAction.user.id);
           else if (confirmAction?.type === 'lock') statusMutation.mutate({ id: confirmAction.user.id, status: 'locked' });
+          else if (confirmAction?.type === 'activate') statusMutation.mutate({ id: confirmAction.user.id, status: 'active' });
         }}
         onCancel={() => setConfirmAction(null)}
       />
