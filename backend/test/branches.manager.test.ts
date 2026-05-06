@@ -10,15 +10,6 @@ jest.mock('../src/modules/audit/audit.service', () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),
   logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    role: {
-      findFirst: jest.fn((args: { where: { name: string } }) => Promise.resolve({
-        id: args.where.name === 'general_manager' ? 'role-general-manager-id' : 'role-employee-id',
-      })),
-    },
-  },
-}));
 jest.mock('../src/common/transactions/transaction.utils');
 
 import * as branchesRepo from '../src/modules/branches/branches.repository';
@@ -29,6 +20,7 @@ import {
   assignBranchManager,
   removeBranchManager,
 } from '../src/modules/branches/branches.service';
+import { prismaMock } from './singleton';
 import { createAppError } from '../src/common/errors/error-catalog';
 
 const repoBranches = branchesRepo as jest.Mocked<typeof branchesRepo>;
@@ -66,7 +58,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
 
       // Assert
       expect(result.managerId).toBe(userId);
-      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { roleId: 'role-general-manager-id' }, {});
+      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { role: { connect: { id: 'role-general-manager-id' } } }, {});
       expect(mockLogAudit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'ASSIGN_BRANCH_MANAGER',
@@ -202,7 +194,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
 
       // Assert
       expect(result.managerId).toBeNull();
-      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { roleId: 'role-employee-id' }, {});
+      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { role: { connect: { id: 'role-employee-id' } } }, {});
       expect(mockLogAudit).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'REMOVE_BRANCH_MANAGER',
@@ -348,7 +340,7 @@ describe('Branch Manager - Single Transaction Pattern', () => {
       await assignBranchManager(branchId, userId, actor);
 
       // Assert
-      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { roleId: 'role-general-manager-id' }, {});
+      expect(repoUsers.updateUserRecord).toHaveBeenCalledWith(userId, { role: { connect: { id: 'role-general-manager-id' } } }, {});
       // Role must be a single string, not an array or multiple roles
       expect(typeof 'general_manager').toBe('string');
     });

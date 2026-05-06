@@ -94,7 +94,7 @@ export default function EventTypesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                <label className="text-sm font-medium mb-1 flex items-center gap-2">
                   <Palette size={14} /> Color
                 </label>
                 <input 

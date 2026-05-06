@@ -149,7 +149,15 @@ describe('schedule-types.router', () => {
 
   describe('DELETE /:id', () => {
     it('deletes schedule type for admin', async () => {
-      mockService.deleteScheduleType.mockResolvedValue(undefined);
+      mockService.deleteScheduleType.mockResolvedValue({
+        id: 'st-1',
+        value: 'morning',
+        label: 'Morning',
+        color: '#ff0000',
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       const response = await request(app)
         .delete('/api/schedule-types/st-1')

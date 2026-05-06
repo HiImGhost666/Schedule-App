@@ -38,31 +38,9 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
     },
   })),
 }));
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    branch: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'branch-1' }),
-      findMany: jest.fn().mockResolvedValue([
-        { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
-        { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
-      ]),
-    },
-    department: {
-      findFirst: jest.fn().mockResolvedValue(null),
-    },
-    role: {
-      findMany: jest.fn().mockResolvedValue([
-        { id: 'role-employee-id', name: 'employee' },
-        { id: 'role-admin-id', name: 'admin' },
-        { id: 'role-general-manager-id', name: 'general_manager' },
-        { id: 'role-department-manager-id', name: 'department_manager' },
-      ]),
-    },
-  },
-}));
 
 import * as usersRepo from '../src/modules/users/users.repository';
-import { prisma } from '../src/config/database';
+import { prismaMock } from './singleton';
 import { importUsersCsv, createUser } from '../src/modules/users/users.service';
 import { hashPassword } from '../src/utils/bcrypt';
 import { CSV_IMPORT_DEFAULT_PASSWORD } from '../src/modules/users/users.constants';
@@ -71,18 +49,6 @@ import type { UserCsvRow } from '../src/utils/csv';
 const mockRepo = usersRepo as jest.Mocked<typeof usersRepo>;
 const mockCreateUser = createUser as jest.Mock;
 const mockActor = { id: 'admin-id', ipAddress: '127.0.0.1' };
-const mockPrisma = prisma as unknown as {
-  branch: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-  };
-  department: {
-    findFirst: jest.Mock;
-  };
-  role: {
-    findMany: jest.Mock;
-  };
-};
 
 // ── Helper: construye una fila CSV mínima válida ─────────────────────────────
 function buildRow(overrides: Partial<UserCsvRow> = {}): UserCsvRow {
@@ -124,15 +90,16 @@ function buildDbUser(overrides: Record<string, any> = {}) {
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — validación de payload', () => {
   beforeEach(() => {
-    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
-    mockPrisma.branch.findMany.mockResolvedValue([
-      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
-      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1' } as any);
+    prismaMock.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' } as any,
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' } as any,
     ]);
-    mockPrisma.role.findMany.mockResolvedValue([
-      { id: 'role-employee-id', name: 'employee' },
-      { id: 'role-admin-id', name: 'admin' },
+    prismaMock.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' } as any,
+      { id: 'role-admin-id', name: 'admin' } as any,
     ]);
+    prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
   });
 
   it('lanza BAD_REQUEST si el array de filas está vacío', async () => {
@@ -199,16 +166,17 @@ describe('importUsersCsv — validación de payload', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
   beforeEach(() => {
-    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
-    mockPrisma.branch.findMany.mockResolvedValue([
-      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
-      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1' } as any);
+    prismaMock.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' } as any,
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' } as any,
     ]);
-    mockPrisma.role.findMany.mockResolvedValue([
-      { id: 'role-employee-id', name: 'employee' },
-      { id: 'role-admin-id', name: 'admin' },
+    prismaMock.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' } as any,
+      { id: 'role-admin-id', name: 'admin' } as any,
     ]);
     // Usuario inexistente → path CREATE
+    prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
     mockRepo.findUserByEmployeeId.mockResolvedValue(null as any);
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
@@ -255,16 +223,17 @@ describe('importUsersCsv — actualización de usuario existente (path UPDATE)',
   const existing = buildDbUser({ name: 'Nombre Viejo', companyPhone: '600000000', branchId: 'branch-1' });
 
   beforeEach(() => {
-    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
-    mockPrisma.branch.findMany.mockResolvedValue([
-      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
-      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1' } as any);
+    prismaMock.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' } as any,
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' } as any,
     ]);
-    mockPrisma.role.findMany.mockResolvedValue([
-      { id: 'role-employee-id', name: 'employee' },
-      { id: 'role-admin-id', name: 'admin' },
+    prismaMock.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' } as any,
+      { id: 'role-admin-id', name: 'admin' } as any,
     ]);
     // Usuario existe → path UPDATE
+    prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
     mockRepo.findUserByEmail.mockResolvedValue(existing as any);
     mockRepo.findUserByEmployeeId.mockResolvedValue(existing as any);
     mockRepo.findUserById.mockResolvedValue(existing as any); // Crucial para updateUser() interno
@@ -304,15 +273,16 @@ describe('importUsersCsv — actualización de usuario existente (path UPDATE)',
 // ══════════════════════════════════════════════════════════════════════════════
 describe('importUsersCsv — procesamiento mixto (no propaga excepciones)', () => {
   beforeEach(() => {
-    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
-    mockPrisma.branch.findMany.mockResolvedValue([
-      { id: 'branch-1', code: 'TFN', name: 'Tenerife' },
-      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' },
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1' } as any);
+    prismaMock.branch.findMany.mockResolvedValue([
+      { id: 'branch-1', code: 'TFN', name: 'Tenerife' } as any,
+      { id: 'branch-2', code: 'GC', name: 'Gran Canaria' } as any,
     ]);
-    mockPrisma.role.findMany.mockResolvedValue([
-      { id: 'role-employee-id', name: 'employee' },
-      { id: 'role-admin-id', name: 'admin' },
+    prismaMock.role.findMany.mockResolvedValue([
+      { id: 'role-employee-id', name: 'employee' } as any,
+      { id: 'role-admin-id', name: 'admin' } as any,
     ]);
+    prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
   });
 
   it('continúa procesando filas tras un fallo en una de ellas', async () => {

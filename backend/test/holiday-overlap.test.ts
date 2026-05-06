@@ -16,23 +16,7 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn(async (fn: any) => await fn({})),
 }));
 
-// We mock the DB partially
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    branch: {
-      findUnique: jest.fn(),
-    },
-    branchHoliday: {
-      findMany: jest.fn(),
-    },
-    user: {
-      findUnique: jest.fn(),
-    },
-    scheduleType: {
-      findUnique: jest.fn(),
-    },
-  },
-}));
+import { prismaMock } from './singleton';
 
 const mockRepo = schedulesRepo as jest.Mocked<typeof schedulesRepo>;
 
@@ -50,16 +34,15 @@ describe('Holiday and Task Overlap Logic', () => {
 
   it('bloquea la creación de tarea de guardia en un día festivo', async () => {
     // Escenario: 1 de Junio es festivo en Sucursal A
-    (prisma.branch.findUnique as jest.Mock).mockResolvedValue({ id: 'b-1', isActive: true });
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'b-1', isActive: true } as any);
     
     // Simulamos que existe un festivo ese día
-    (prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([{
+    prismaMock.branchHoliday.findMany.mockResolvedValue([{
       id: 'h-1',
       name: 'Festivo Test',
       date: new Date('2026-06-01')
-    }]);
-
-    (prisma.scheduleType.findUnique as jest.Mock).mockResolvedValue({ id: 'st-guardia', value: 'guardia' });
+    } as any]);
+    prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia' } as any);
 
     await expect(createScheduleEntry({
       title: 'Guardia de Festivo',
@@ -78,14 +61,14 @@ describe('Holiday and Task Overlap Logic', () => {
   });
 
   it('permite crear una tarea de tipo "otro" en un día festivo (excepción)', async () => {
-    (prisma.branch.findUnique as jest.Mock).mockResolvedValue({ id: 'b-1', isActive: true });
-    (prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([{
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'b-1', isActive: true } as any);
+    prismaMock.branchHoliday.findMany.mockResolvedValue([{
       id: 'h-1',
       name: 'Festivo Test',
       date: new Date('2026-06-01')
-    }]);
+    } as any]);
 
-    (prisma.scheduleType.findUnique as jest.Mock).mockResolvedValue({ id: 'st-otro', value: 'otro' });
+    prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-otro', value: 'otro' } as any);
 
     mockRepo.findSchedules.mockResolvedValue([]);
     mockRepo.createSchedule.mockResolvedValue({ id: 's-1', title: 'Tarea Excepcional', type: 'otro' } as any);

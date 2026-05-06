@@ -74,6 +74,7 @@ describe('CalendarDetailPopover', () => {
         name: 'Domingo de Ramos',
         type: 'regional',
         scope: 'regional',
+        isPartial: false,
         isActive: true,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
