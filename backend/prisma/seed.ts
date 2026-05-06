@@ -36,7 +36,7 @@ async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: st
   }
 }
 
-async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, type: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
+async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, scheduleTypeId: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
   const existing = await prisma.schedule.findFirst({
     where: { title, createdById: adminId, startDatetime: startAt, endDatetime: endAt }
   });
@@ -70,7 +70,7 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
   const schedule = await prisma.schedule.create({
     data: {
       title,
-      type,
+      scheduleTypeId,
       color,
       isLastMinute,
       startDatetime: startAt,
@@ -111,15 +111,6 @@ async function ensureSeedDepartment(name: string, code: string, branchIds: strin
   });
 
   return department;
-}
-
-async function ensureSeedUserDepartments(userId: string, departmentIds: string[]) {
-  await prisma.userDepartment.deleteMany({ where: { userId } });
-  if (departmentIds.length === 0) return;
-  await prisma.userDepartment.createMany({
-    data: departmentIds.map((departmentId) => ({ userId, departmentId })),
-    skipDuplicates: true,
-  });
 }
 
 // ============================================================================
@@ -338,12 +329,14 @@ async function main() {
     { value: 'excepcion', label: 'Excepción', color: '#dc2626' },
   ];
 
+  const scheduleTypesByValue = new Map<string, string>();
   for (const typeData of scheduleTypesData) {
-    await prisma.scheduleType.upsert({
+    const synced = await prisma.scheduleType.upsert({
       where: { value: typeData.value },
       create: typeData,
       update: typeData,
     });
+    scheduleTypesByValue.set(typeData.value, synced.id);
     console.log(`[SCHEDULE_TYPE] Synced ${typeData.label}`);
   }
 
@@ -363,10 +356,10 @@ async function main() {
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      departmentId: departmentsByCode.get('administracion'),
     },
     'Admin'
   );
-  await ensureSeedUserDepartments(adminUser.id, [departmentsByCode.get('administracion')!]);
 
   const managerUser = await ensureSeedUser(
     {
@@ -379,10 +372,10 @@ async function main() {
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
       forcePasswordChange: false,
+      departmentId: departmentsByCode.get('operaciones'),
     },
     'Demo manager'
   );
-  await ensureSeedUserDepartments(managerUser.id, [departmentsByCode.get('operaciones')!]);
 
   type DepartmentKey = (typeof DEPARTMENT_CATALOG)[number]['key'];
   const demoUsers: Array<{ name: string; email: string; departmentKey: DepartmentKey; branchId: string }> = [
@@ -403,10 +396,10 @@ async function main() {
         roleId: u.email === 'pedro@company.com' ? dbRoles['department_manager'] : dbRoles['employee'],
         status: 'active',
         forcePasswordChange: true,
+        departmentId: departmentsByCode.get(u.departmentKey),
       },
       'Demo user'
     );
-    await ensureSeedUserDepartments(user.id, [departmentsByCode.get(u.departmentKey)!]);
     if (user) createdUsers.push(user);
   }
 
@@ -426,7 +419,7 @@ async function main() {
       carlosInfo.id,
       mainBranch.id,
       'Vacaciones Carlos',
-      'vacaciones',
+      scheduleTypesByValue.get('vacaciones')!,
       '#65a30d',
       false,
       monday,
@@ -439,7 +432,7 @@ async function main() {
       anaInfo.id,
       mainBranch.id,
       'Guardia General',
-      'guardia',
+      scheduleTypesByValue.get('guardia')!,
       '#2563eb',
       false,
       setHours(setMinutes(addDays(monday, 1), 0), 8), // Martes 8:00
@@ -452,7 +445,7 @@ async function main() {
       anaInfo.id,
       mainBranch.id,
       'Guardia Extraordinaria',
-      'guardia',
+      scheduleTypesByValue.get('guardia')!,
       '#db2777',
       true,
       setHours(setMinutes(addDays(monday, 3), 0), 14), // Jueves 14:00
@@ -481,7 +474,7 @@ async function main() {
           task.user.id,
           (task as any).branchId,
           task.title,
-          task.type,
+          scheduleTypesByValue.get(task.type)!,
           task.color,
           false,
           stressStart,

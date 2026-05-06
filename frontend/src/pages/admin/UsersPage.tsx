@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale';
 
 import { useLocation } from 'react-router-dom';
 import api from '@/config/api';
-import type { Branch, Department, User } from '@/types';
+import { type Branch, type Department, type User, ROLE_LABELS } from '@/types';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -25,13 +25,6 @@ const CSV_HEADERS = ['employeeId', 'name', 'email', 'role', 'status', 'departmen
 const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
 const ALLOWED_ROLES = new Set(['admin', 'general_manager', 'department_manager', 'employee']);
 const ALLOWED_STATUS = new Set(['active', 'disabled', 'locked']);
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  general_manager: 'Gerente General',
-  department_manager: 'Responsable',
-  employee: 'Empleado',
-};
 
 const STATUS_LABELS: Record<string, string> = {
   active: 'Activo',

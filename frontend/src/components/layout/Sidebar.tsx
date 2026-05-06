@@ -9,7 +9,6 @@ import { useUIStore } from '@/store/uiStore';
 import { cn, getInitials, getAvatarColor } from '@/lib/utils';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
-import { ROLE_LABELS } from '@/types';
 import LogoClaroSidebar from '@/assets/Logo_Claro.webp';
 import LogoOscuroSidebar from '@/assets/Logo_Oscuro.webp';
 import LogotipoIA from '@/assets/Logotipo_IA.webp';
