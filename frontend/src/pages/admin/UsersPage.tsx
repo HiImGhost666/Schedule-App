@@ -575,8 +575,9 @@ export function UsersPage() {
           onResetPassword={(u) => setResetUser(u)}
           onForcePasswordChange={(u) => { forcePasswordChangeMutation.mutate(u.id); setMenuOpenId(null); setMenuPosition(null); }}
           onToggleStatus={(u) => {
-            if (u.status === 'active') setConfirmAction({ type: 'lock', user: u });
-            else statusMutation.mutate({ id: u.id, status: 'active' });
+            const actionType = u.status === 'active' ? 'lock' : 'activate';
+            setConfirmAction({ type: actionType, user: u });
+            setMenuOpenId(null);
           }}
           onDelete={(u) => setConfirmAction({ type: 'delete', user: u })}
         />
@@ -592,18 +593,27 @@ export function UsersPage() {
 
       <ConfirmDialog
         open={!!confirmAction}
-        title={confirmAction?.type === 'delete' ? 'Eliminar Usuario' : 'Bloquear Usuario'}
+        title={
+          confirmAction?.type === 'delete' ? 'Eliminar Usuario' :
+          confirmAction?.type === 'lock' ? 'Bloquear Usuario' : 'Activar Usuario'
+        }
         description={
           confirmAction?.type === 'delete'
             ? `¿Eliminar la cuenta de "${confirmAction?.user.name}"? Esta acción no se puede deshacer.`
-            : `¿Bloquear la cuenta de "${confirmAction?.user.name}"?`
+            : confirmAction?.type === 'lock'
+            ? `¿Bloquear la cuenta de "${confirmAction?.user.name}"?`
+            : `¿Activar la cuenta de "${confirmAction?.user.name}"?`
         }
-        confirmLabel={confirmAction?.type === 'delete' ? 'Eliminar' : 'Bloquear'}
+        confirmLabel={
+          confirmAction?.type === 'delete' ? 'Eliminar' :
+          confirmAction?.type === 'lock' ? 'Bloquear' : 'Activar'
+        }
         loading={deleteMutation.isPending || statusMutation.isPending}
         onConfirm={() => {
           if (!isAdmin) return;
           if (confirmAction?.type === 'delete') deleteMutation.mutate(confirmAction.user.id);
           else if (confirmAction?.type === 'lock') statusMutation.mutate({ id: confirmAction.user.id, status: 'locked' });
+          else if (confirmAction?.type === 'activate') statusMutation.mutate({ id: confirmAction.user.id, status: 'active' });
         }}
         onCancel={() => setConfirmAction(null)}
       />

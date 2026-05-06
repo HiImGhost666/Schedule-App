@@ -19,8 +19,8 @@ function useGetTypeInfo() {
 /* ─── month-view event pill ─────────────────────────────────────── */
 export function MonthEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
-  const getTypeInfo = useGetTypeInfo();
-  const typeInfo = getTypeInfo(event.extendedProps.type as string);
+  // const getTypeInfo = useGetTypeInfo(); // Removed unused variable
+  // const _typeInfo = getTypeInfo(event.extendedProps.type as string); // Removed unused variable
   return (
     <div className="google-month-event">
       {event.start && <span className="google-month-event-time">{format(event.start, 'HH:mm')}</span>}

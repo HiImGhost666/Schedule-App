@@ -21,8 +21,8 @@ vi.mock('@/config/api', () => ({
 }));
 
 vi.mock('@/store/authStore', () => ({
-  useAuthStore: (selector: (state: { user: { id: string; role: string } }) => unknown) =>
-    selector({ user: { id: 'admin-1', role: 'admin' } }),
+  useAuthStore: (selector: (state: { user: { id: string; role: { name: string } } }) => unknown) =>
+    selector({ user: { id: 'admin-1', role: { name: 'admin' } } }),
 }));
 
 vi.mock('@/pages/admin/UserFormModal', () => ({
@@ -113,7 +113,11 @@ describe('UsersPage', () => {
     const menuButton = row?.querySelector('button');
     expect(menuButton).toBeTruthy();
     await userEvent.click(menuButton as HTMLButtonElement);
-    await userEvent.click(await screen.findByRole('button', { name: /Activar/i }));
+    // Click "Activar" in the dropdown menu (which is likely not a button element)
+    await userEvent.click(await screen.findByText(/Activar/i));
+
+    // Click "Activar" in the confirmation dialog
+    await userEvent.click(await screen.findByRole('button', { name: /^Activar$/i }));
 
     await waitFor(() => {
       expect(patchMock).toHaveBeenCalledWith('/users/u-1/status', { status: 'active' });
@@ -286,6 +290,7 @@ describe('UsersPage', () => {
   });
 
   it('envia sortBy y sortOrder al cambiar orden desde cabecera', async () => {
+    getMock.mockResolvedValue({
       data: {
         success: true,
         data: [
@@ -293,7 +298,7 @@ describe('UsersPage', () => {
             id: 'u-3',
             name: 'Ana Viewer',
             email: 'ana@test.dev',
-          role: { name: 'employee' },
+            role: { name: 'employee' },
             status: 'active',
             department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
             branch: null,
@@ -318,6 +323,7 @@ describe('UsersPage', () => {
       }));
     });
   });
+
 
   it('envia filtros configurados al backend al cambiar rol', async () => {
     getMock.mockResolvedValue({
@@ -352,4 +358,4 @@ describe('UsersPage', () => {
       }));
     });
   });
-            role: { name: 'general_manager' },
+});

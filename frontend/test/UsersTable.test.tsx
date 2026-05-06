@@ -126,7 +126,7 @@ describe('UsersTable', () => {
     expect(branchHeader).toBeDefined();
     if (branchHeader) {
       await userEvent.click(branchHeader);
-      expect(onSortChange).toHaveBeenCalledWith('branch');
+      expect(onSortChange).toHaveBeenCalledWith('branchId');
     }
   });
 

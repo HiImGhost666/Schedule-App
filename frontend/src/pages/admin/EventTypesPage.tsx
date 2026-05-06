@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 import { Plus, Edit2, Trash2, Palette } from 'lucide-react';
-import type { FullScheduleType } from '@/components/schedule/scheduleTypesApi';
+import type { CreateScheduleTypeInput, FullScheduleType } from '@/components/schedule/scheduleTypesApi';
 
 export default function EventTypesPage() {
   const { types, isLoading, createMutation, updateMutation, deleteMutation } = useScheduleTypes();
@@ -20,7 +20,7 @@ export default function EventTypesPage() {
     if (editingType) {
       updateMutation.mutate({ id: editingType.id, data }, { onSuccess: closeModal });
     } else {
-      createMutation.mutate(data as any, { onSuccess: closeModal });
+      createMutation.mutate(data as CreateScheduleTypeInput, { onSuccess: closeModal });
     }
   };
 
