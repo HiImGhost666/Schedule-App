@@ -10,10 +10,10 @@ import api from '@/config/api';
 import { cn, formatDateTime, formatRelative } from '@/lib/utils';
 import { isDarkThemePreset } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
-import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment } from '@/types';
+import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment, ScheduleType } from '@/types';
 import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { SCHEDULE_TYPES } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 
 const IRREVERSIBLE_ACTIONS = [
   'LOGIN',
@@ -24,12 +24,12 @@ const IRREVERSIBLE_ACTIONS = [
   'ROLLBACK_PERFORMED',
 ];
 
-function getTypeLabel(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type)?.label || type;
+function getTypeLabel(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((t) => t.value === type)?.label || type;
 }
 
-function getTypeColor(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type)?.color || '#1e3a5f';
+function getTypeColor(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((t) => t.value === type)?.color || '#1e3a5f';
 }
 
 function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
@@ -99,6 +99,8 @@ export function DashboardPage() {
     queryFn: () => api.get<{ data: AuditLog[] }>('/audit?limit=5').then((r) => r.data.data),
     enabled: user?.role?.name === 'admin',
   });
+
+  const { types: scheduleTypes = [] } = useScheduleTypes();
 
   const mySchedules = weekSchedules?.filter((s) =>
     s.assignments.some((a) => a.userId === user?.id)
@@ -301,8 +303,8 @@ export function DashboardPage() {
                   className="flex items-center gap-3 px-5 py-4 rounded-xl border border-navy-100 hover:border-navy-200 hover:shadow-sm transition-all cursor-pointer text-left w-full"
                 >
                   <div
-                    className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: getTypeColor(s.type) }}
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: getTypeColor(s.type, scheduleTypes) }}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-theme-primary truncate">{s.title}</p>
@@ -337,10 +339,10 @@ export function DashboardPage() {
                     </span>
                   )}
                   <span
-                    className="text-xs px-2 py-0.5 rounded-full text-white shrink-0"
-                    style={{ backgroundColor: getTypeColor(s.type) }}
+                    className="text-xs px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                    style={{ backgroundColor: getTypeColor(s.type, scheduleTypes) }}
                   >
-                    {getTypeLabel(s.type)}
+                    {getTypeLabel(s.type, scheduleTypes)}
                   </span>
                 </div>
               ))}

@@ -79,7 +79,7 @@ export async function sendMondayVacationSummary(sentByUserId?: string) {
   // Find all 'vacaciones' schedules that overlap with this week
   const vacationSchedules = await prisma.schedule.findMany({
     where: {
-      type: 'vacaciones',
+      scheduleType: { value: 'vacaciones' },
       AND: [
         { startDatetime: { lte: weekEnd } },
         { endDatetime: { gte: weekStart } },

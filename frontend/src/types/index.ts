@@ -45,6 +45,12 @@ export interface Role {
   permissions?: Array<{ name: string }>;
 }
 
+export interface ScheduleType {
+  value: string;
+  label: string;
+  color: string;
+}
+
 
 export interface Schedule {
   id: string;
@@ -359,17 +365,9 @@ export interface ThemePreset {
   theme: ThemeConfig;
 }
 
-export const SCHEDULE_TYPES = [
-  { value: 'guardia', label: 'Guardia', color: '#2563eb' }, // blue
-  { value: 'ausencia', label: 'Ausencia', color: '#64748b' }, // slate
-  // Tonos ligeramente más oscuros: texto blanco 12px cumple contrast ratio 4.5:1
-  { value: 'vacaciones', label: 'Vacaciones', color: '#3f6212' }, // lime-800
-  { value: 'formacion', label: 'Formación', color: '#0e7490' }, // cyan-700
-  { value: 'otro', label: 'Otro', color: '#4b5563' }, // gray
-  { value: 'excepcion', label: 'Excepción', color: '#dc2626' }, // red
-];
+// Schedule types are now fetched from API - see useScheduleTypes hook
 
-export type ScheduleType = 'guardia' | 'ausencia' | 'vacaciones' | 'formacion' | 'otro' | 'excepcion';
+export type ScheduleTypeValue = 'guardia' | 'ausencia' | 'vacaciones' | 'formacion' | 'otro' | 'excepcion';
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',

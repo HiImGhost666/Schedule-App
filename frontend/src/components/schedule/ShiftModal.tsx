@@ -6,7 +6,9 @@ import { X, Trash2, Clock, MapPin, FileText, Users, Info, AlertTriangle, Calenda
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import { SCHEDULE_TYPES, type BranchHoliday, type Schedule, type User } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
+import type { BranchHoliday, Schedule, User } from '@/types';
+import type { FullScheduleType } from './scheduleTypesApi';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -102,8 +104,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
   const [asideBranchFilter, setAsideBranchFilter] = useState('');
-  const [asideDeptFilter, setAsideDeptFilter] = useState('');
+  const [asideDeptFilter, setAsideDeptFilter] = useState(''); // Corregido: Inicializado como string vacío
   const [asideSearchFilter, setAsideSearchFilter] = useState('');
+
+  const { types: scheduleTypes = [] } = useScheduleTypes();
 
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
@@ -209,9 +213,9 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   }, [open, canEdit, autoBranchId, getValues, setValue]);
 
   useEffect(() => {
-    const typeColor = SCHEDULE_TYPES.find((t) => t.value === selectedType)?.color || '#1e3a5f';
+    const typeColor = scheduleTypes.find((t: FullScheduleType) => t.value === selectedType)?.color || '#1e3a5f';
     setValue('color', typeColor);
-  }, [selectedType, setValue]);
+  }, [selectedType, setValue, scheduleTypes]);
 
   const { data: branchRangeHolidays } = useQuery({
     queryKey: ['branch-holidays-modal', selectedBranchId, startVal, endVal],
@@ -467,7 +471,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-2">Tipo</label>
               <div className="grid grid-cols-2 gap-1.5">
-                {SCHEDULE_TYPES.map((t) => {
+                {scheduleTypes.map((t: FullScheduleType) => {
                   const active = selectedType === t.value;
                   return (
                     <button

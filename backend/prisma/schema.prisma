@@ -211,7 +211,9 @@ model Schedule {
   description   String?  @db.Text
   startDatetime DateTime @map("start_datetime")
   endDatetime   DateTime @map("end_datetime")
-  type          String   @default("guardia")
+  type          String   @default("guardia") // Legacy field, will be deprecated
+  scheduleTypeId String? @map("schedule_type_id")
+  scheduleType  ScheduleType? @relation(fields: [scheduleTypeId], references: [id], onDelete: SetNull)
   color         String   @default("#1e3a5f")
   location      String?
   notes         String?  @db.Text
@@ -234,6 +236,8 @@ model Schedule {
   @@index([branchId, startDatetime, endDatetime])
   // type: filtros por tipo de turno (guardia, vacaciones, ausencia...)
   @@index([type])
+  // scheduleTypeId: nuevo índice para tipos configurables
+  @@index([scheduleTypeId])
   // isLastMinute: notificaciones y filtros de urgencia
   @@index([isLastMinute])
   // createdById: historial de guardias creadas por un usuario
@@ -255,6 +259,25 @@ model ScheduleAssignment {
   // MySQL no indexa automáticamente la segunda columna de un PK compuesto para búsquedas inversas.
   @@index([userId])
   @@map("schedule_assignments")
+}
+
+model ScheduleType {
+  id        String   @id @default(cuid())
+  value     String   @unique
+  label     String
+  color     String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  schedules Schedule[]
+
+  // -- ÍNDICES --
+  // value: búsquedas por valor (validación, joins)
+  @@index([value])
+  // isActive: filtrar tipos activos
+  @@index([isActive])
+  @@map("schedule_types")
 }
 
 model WebhookConfig {
