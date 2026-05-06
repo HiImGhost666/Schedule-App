@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { AlertTriangle, CalendarDays, Clock3, MapPin, Pencil, Tag, Trash2, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { SCHEDULE_TYPES, type BranchHoliday, type CalendarBranchHoliday, type Schedule } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
+import type { BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleType } from '@/types';
 
 export interface PopoverAnchor {
   x: number;
@@ -42,8 +43,12 @@ const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   company: 'Empresa',
 };
 
-function getScheduleTypeInfo(type: string) {
-  return SCHEDULE_TYPES.find((item) => item.value === type) ?? SCHEDULE_TYPES[0];
+function getScheduleTypeInfo(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((item) => item.value === type) ?? scheduleTypes[0] ?? { 
+    value: type, 
+    label: type, 
+    color: '#1e3a5f' 
+  };
 }
 
 function formatScheduleRange(startIso: string, endIso: string) {
@@ -130,6 +135,8 @@ export function CalendarDetailPopover({
   const [mobile, setMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : true));
   const popoverRef = useRef<HTMLElement | null>(null);
 
+  const { data: scheduleTypes = [] } = useScheduleTypes();
+
   useEffect(() => {
     const onResize = () => setMobile(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
@@ -209,7 +216,7 @@ export function CalendarDetailPopover({
             <div className="calendar-popover-row">
               <Tag className="h-4 w-4" />
               <span>
-                {getScheduleTypeInfo(item.schedule.type).label}
+                {getScheduleTypeInfo(item.schedule.type, scheduleTypes).label}
                 {item.schedule.isLastMinute ? ' · Ultimo momento' : ''}
               </span>
             </div>

@@ -28,6 +28,9 @@ jest.mock('../src/config/database', () => ({
     user: {
       findUnique: jest.fn(),
     },
+    scheduleType: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 
@@ -56,13 +59,15 @@ describe('Holiday and Task Overlap Logic', () => {
       date: new Date('2026-06-01')
     }]);
 
+    (prisma.scheduleType.findUnique as jest.Mock).mockResolvedValue({ id: 'st-guardia', value: 'guardia' });
+
     await expect(createScheduleEntry({
       title: 'Guardia de Festivo',
       startDatetime: new Date('2026-06-01T08:00:00Z'),
       endDatetime: new Date('2026-06-01T16:00:00Z'),
       branchId: 'b-1',
       assigneeIds: ['u-1'],
-      type: 'guardia',
+      scheduleTypeId: 'st-guardia',
       color: '#1e3a5f',
       hoursPerDay: 8,
       confirmed: false,
@@ -80,6 +85,8 @@ describe('Holiday and Task Overlap Logic', () => {
       date: new Date('2026-06-01')
     }]);
 
+    (prisma.scheduleType.findUnique as jest.Mock).mockResolvedValue({ id: 'st-otro', value: 'otro' });
+
     mockRepo.findSchedules.mockResolvedValue([]);
     mockRepo.createSchedule.mockResolvedValue({ id: 's-1', title: 'Tarea Excepcional', type: 'otro' } as any);
 
@@ -89,7 +96,7 @@ describe('Holiday and Task Overlap Logic', () => {
       endDatetime: new Date('2026-06-01T16:00:00Z'),
       branchId: 'b-1',
       assigneeIds: ['u-1'],
-      type: 'otro',
+      scheduleTypeId: 'st-otro',
       color: '#1e3a5f',
       hoursPerDay: 8,
       confirmed: false,

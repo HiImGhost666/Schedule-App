@@ -285,6 +285,27 @@ async function main() {
     dbRoles[roleDef.name] = role.id;
   }
 
+  // --- BLOQUE 2.1.3: SCHEDULE TYPES ---
+  console.log('BLOQUE: SCHEDULE TYPES');
+
+  const scheduleTypesData = [
+    { value: 'guardia', label: 'Guardia', color: '#2563eb' },
+    { value: 'ausencia', label: 'Ausencia', color: '#64748b' },
+    { value: 'vacaciones', label: 'Vacaciones', color: '#3f6212' },
+    { value: 'formacion', label: 'Formación', color: '#0e7490' },
+    { value: 'otro', label: 'Otro', color: '#4b5563' },
+    { value: 'excepcion', label: 'Excepción', color: '#dc2626' },
+  ];
+
+  for (const typeData of scheduleTypesData) {
+    await prisma.scheduleType.upsert({
+      where: { value: typeData.value },
+      create: typeData,
+      update: typeData,
+    });
+    console.log(`[SCHEDULE_TYPE] Synced ${typeData.label}`);
+  }
+
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
   const adminEmail = env.SEED_ADMIN_EMAIL || 'admin@company.com';

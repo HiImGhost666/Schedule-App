@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { SCHEDULE_TYPES } from './schedules.constants';
 
 export const scheduleIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -27,8 +26,8 @@ export const createScheduleBodySchema = z.object({
   description: z.string().optional(),
   startDatetime: z.coerce.date(),
   endDatetime: z.coerce.date(),
-  type: z.enum(SCHEDULE_TYPES).default('guardia'),
-  color: z.string().default('#1e3a5f'),
+  scheduleTypeId: z.string().min(1, 'El tipo de turno es obligatorio'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format (must be #RRGGBB)').optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
   branchId: z.string().min(1, 'La sucursal es obligatoria'),
