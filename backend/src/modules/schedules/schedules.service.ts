@@ -56,23 +56,6 @@ async function ensureActiveBranch(branchId: string) {
   if (!branch.isActive) throw createAppError('BAD_REQUEST', 'La sucursal está desactivada');
 }
 
-async function ensureAssigneesBelongToBranch(assigneeIds: string[], branchId: string) {
-  if (!assigneeIds || assigneeIds.length === 0) return;
-
-  const users = await prisma.user.findMany({
-    where: {
-      id: { in: assigneeIds },
-      branchId: { not: branchId },
-    },
-    select: { name: true, email: true },
-  });
-
-  if (users.length > 0) {
-    const names = users.map(u => `${u.name} (${u.email})`).join(', ');
-    throw createAppError('FORBIDDEN', `No puedes asignar usuarios de otras sucursales: ${names}`);
-  }
-}
-
 export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string }) {
   const where: ScheduleWhere = {};
   const fromDate = parseOptionalDate(params.from);
@@ -133,8 +116,8 @@ export async function listWeekSchedules(year: number, week: number, branchId?: s
     startDatetime: schedule.startDatetime,
     endDatetime: schedule.endDatetime,
     type: schedule.scheduleType?.value || schedule.type,
-    scheduleTypeId: schedule.scheduleTypeId,
     color: schedule.color,
+    scheduleTypeId: schedule.scheduleTypeId,
     location: schedule.location,
     notes: schedule.notes,
     isLastMinute: schedule.isLastMinute,
@@ -167,13 +150,11 @@ export async function listWeekSchedulesForActor(
   branchId: string | undefined,
   actor: Pick<Actor, 'roleName' | 'branchId'>,
 ) {
-  let effectiveBranchId = branchId;
-  if (actor.roleName !== 'admin') {
-    if (!actor.branchId) throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    if (effectiveBranchId && effectiveBranchId !== actor.branchId) throw createAppError('FORBIDDEN', 'Solo puedes ver turnos de tu sucursal');
-    effectiveBranchId = actor.branchId;
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
+  if (!canViewAllBranches) {
+    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
-  return listWeekSchedules(year, week, effectiveBranchId);
+  return listWeekSchedules(year, week, branchId);
 }
 
 /** Evita empalmes validando que la constelación de asignados esté libre en la brecha dt_ini a dt_fin. */
@@ -251,11 +232,9 @@ export async function getScheduleById(scheduleId: string) {
 export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'roleName' | 'branchId'>) {
   const schedule = await getScheduleById(scheduleId);
 
-  if (actor.roleName !== 'admin') {
-    if (!actor.branchId) throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    if (schedule.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes permiso para ver guardias de otra sucursal');
-    }
+  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
+  if (!canViewAllBranches) {
+    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar guardias');
   }
 
   return schedule;
@@ -266,11 +245,16 @@ export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Ac
  * @param input @param actor
  */
 export async function createScheduleEntry(input: ScheduleCreateInput, actor: Actor) {
-  const startDt = new Date(input.startDatetime);
-  const endDt = new Date(input.endDatetime);
+  const parsed = scheduleCreateInputSchema.safeParse(input);
+  if (!parsed.success) {
+    throw createAppError('BAD_REQUEST', 'Datos inválidos', parsed.error.flatten());
+  }
+
+  const startDt = new Date(parsed.data.startDatetime);
+  const endDt = new Date(parsed.data.endDatetime);
   ensureValidScheduleRange(startDt, endDt);
 
-  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...scheduleData } = input;
+  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...scheduleData } = parsed.data;
   const targetBranchId = branchId ?? actor.branchId ?? undefined;
 
   // Get schedule type early for validation and color
@@ -282,14 +266,13 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
   }
 
-  if (actor.roleName !== 'admin') {
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
     if (targetBranchId !== actor.branchId) {
       throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
     }
-    await ensureAssigneesBelongToBranch(assigneeIds, actor.branchId);
   }
 
   await ensureNoOverlaps(assigneeIds, startDt, endDt);
@@ -300,6 +283,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     const created = await createSchedule({
       ...scheduleData,
       color: scheduleData.color || scheduleType.color,
+      type: scheduleType.value,
       scheduleType: { connect: { id: scheduleTypeId } },
       startDatetime: startDt,
       endDatetime: endDt,
@@ -353,14 +337,19 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
  * @param scheduleId @param input @param actor
  */
 export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpdateInput, actor: Actor) {
+  const parsed = scheduleUpdateInputSchema.safeParse(input);
+  if (!parsed.success) {
+    throw createAppError('BAD_REQUEST', 'Datos inválidos', parsed.error.flatten());
+  }
+
   const existing = await findScheduleById(scheduleId);
   if (!existing) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...updateData } = input;
-  const nextBranchId = branchId ?? (existing.branchId || undefined);
+  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...updateData } = parsed.data;
+  const nextBranchId = branchId ?? existing.branchId;
   if (nextBranchId) await ensureActiveBranch(nextBranchId);
 
-  if (actor.roleName !== 'admin') {
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
@@ -372,7 +361,6 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     if (nextBranchId !== actor.branchId) {
       throw createAppError('FORBIDDEN', 'No puedes mover una guardia fuera de tu sucursal asignada');
     }
-    await ensureAssigneesBelongToBranch(assigneeIds || existing.assignments.map(a => a.userId), actor.branchId);
   }
 
   const startDt = updateData.startDatetime ? new Date(updateData.startDatetime) : existing.startDatetime;
@@ -405,6 +393,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     const updated = await updateSchedule(scheduleId, {
       ...updateData,
       color: updateData.color || scheduleTypeForColor?.color || existing.color,
+      ...(scheduleTypeForColor && { type: scheduleTypeForColor.value }),
       ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
       ...(scheduleTypeId ? { scheduleType: { connect: { id: scheduleTypeId } } } : {}),
       ...(updateData.startDatetime && { startDatetime: new Date(updateData.startDatetime) }),
@@ -465,7 +454,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  if (actor.roleName !== 'admin') {
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
