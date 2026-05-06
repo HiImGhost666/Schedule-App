@@ -73,6 +73,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     startDatetime: item.startDatetime,
     endDatetime: item.endDatetime,
     type: item.type,
+    scheduleTypeId: item.scheduleTypeId,
     color: item.color,
     location: item.location ?? undefined,
     notes: item.notes ?? undefined,

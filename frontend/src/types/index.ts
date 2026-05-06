@@ -46,6 +46,7 @@ export interface Role {
 }
 
 export interface ScheduleType {
+  id: string;
   value: string;
   label: string;
   color: string;
@@ -59,6 +60,7 @@ export interface Schedule {
   startDatetime: string;
   endDatetime: string;
   type: string;
+  scheduleTypeId: string;
   color: string;
   location?: string;
   notes?: string;
@@ -119,6 +121,7 @@ export interface WeekScheduleItem {
   startDatetime: string;
   endDatetime: string;
   type: string;
+  scheduleTypeId: string;
   color: string;
   location?: string | null;
   notes?: string | null;

@@ -361,6 +361,7 @@ async function main() {
     'Admin'
   );
 
+  // Este manager ahora solo podrá gestionar guardias de 'mainBranch' (TFN)
   const managerUser = await ensureSeedUser(
     {
       name: 'María García',

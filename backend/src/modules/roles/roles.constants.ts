@@ -42,6 +42,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'audit:view',
   ],
   general_manager: [
+    // Nota: Aunque tiene permisos de gestión, la lógica de negocio en el servicio
+    // restringe sus acciones CRUD (Crear, Actualizar, Borrar) a su propia sucursal.
     'users:view',
     'users:manage',
     'schedules:view',
