@@ -4,6 +4,7 @@ import {
   LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { ROLE_LABELS } from '@/types';
 import { useUIStore } from '@/store/uiStore';
 import { cn, getInitials, getAvatarColor } from '@/lib/utils';
 import api from '@/config/api';
@@ -19,6 +20,7 @@ const navItems = [
 
 const adminItems = [
   { to: '/admin/users', icon: Users, label: 'Usuarios' },
+  { to: '/admin/event-types', icon: CalendarDays, label: 'Tipos de Evento' },
   { to: '/admin/branches', icon: Building2, label: 'Sucursales' },
   { to: '/admin/holidays', icon: CalendarDays, label: 'Festivos' },
   { to: '/admin/webhooks', icon: Webhook, label: 'Webhooks' },
@@ -129,8 +131,10 @@ export function Sidebar() {
             {sidebarCollapsed && (
               <div className="my-2 border-t border-navy-700/50" />
             )}
-            {(isAdmin ? adminItems : adminItems.filter((i) => i.to === '/admin/users')).map(
-              ({ to, icon: Icon, label }) => (
+            {(isAdmin 
+              ? adminItems 
+              : adminItems.filter((i) => ['/admin/users', '/admin/event-types'].includes(i.to))
+            ).map(({ to, icon: Icon, label }) => (
                 <NavLink
                   key={to}
                   to={to}

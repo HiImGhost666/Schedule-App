@@ -25,12 +25,12 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Branch, BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem } from '@/types';
-import { SCHEDULE_TYPES } from '@/types';
+import type { Branch, BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem, ScheduleType } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
 import { isDarkThemePreset } from '@/config/theme';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 
 const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
   nacional: '#dc2626',
@@ -43,8 +43,12 @@ const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
 
 /* ─── helpers ──────────────────────────────────────────────────── */
 
-function getTypeInfo(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type) ?? SCHEDULE_TYPES[0];
+function getTypeInfo(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((t) => t.value === type) ?? scheduleTypes[0] ?? { 
+    value: type, 
+    label: type, 
+    color: '#1e3a5f' 
+  };
 }
 
 function computePopoverAnchorFromEventEl(
@@ -254,6 +258,8 @@ export function SchedulePage() {
     enabled: Boolean(scheduleId),
   });
 
+  const { types: scheduleTypes = [] } = useScheduleTypes();
+
   const deleteScheduleMutation = useMutation({
     mutationFn: (schedule: Schedule) =>
       api.delete(`/schedules/${schedule.id}`, { data: { reason: 'Eliminada desde el calendario' } }),
@@ -376,7 +382,7 @@ export function SchedulePage() {
     schedules
       ?.filter((s) => !hiddenTypes.has(s.type))
       .map((s) => {
-        const { color } = getTypeInfo(s.type);
+        const { color } = getTypeInfo(s.type, scheduleTypes);
         return {
           id: s.id,
           title: s.title,

@@ -254,7 +254,6 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
           description: rawScalars.description ?? null,
           startDatetime: new Date(rawScalars.startDatetime as string),
           endDatetime: new Date(rawScalars.endDatetime as string),
-          type: rawScalars.type,
           color: rawScalars.color,
           location: rawScalars.location ?? null,
           notes: rawScalars.notes ?? null,
@@ -262,6 +261,7 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
           hoursPerDay: typeof rawScalars.hoursPerDay === 'number' ? rawScalars.hoursPerDay : Number(rawScalars.hoursPerDay ?? 8),
           branchId: rawScalars.branchId ?? null,
           createdById: rawScalars.createdById as string,
+          scheduleTypeId: rawScalars.scheduleTypeId as string,
         };
         rollbackResult = await tx.schedule.upsert({
           where: { id: entityId },

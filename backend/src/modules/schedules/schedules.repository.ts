@@ -18,6 +18,7 @@ const assigneeInclude = {
       },
     },
   },
+  scheduleType: true,
   createdBy: { select: { id: true, name: true } },
   branch: { select: { id: true, name: true, code: true, isActive: true } },
 } as const;

@@ -20,6 +20,7 @@ jest.mock('../src/config/database', () => ({
   prisma: {
     branch: { findUnique: jest.fn().mockResolvedValue({ id: 'branch-1', isActive: true }) },
     branchHoliday: { findMany: jest.fn().mockResolvedValue([]) },
+    scheduleType: { findUnique: jest.fn().mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' }) },
   },
 }));
 
@@ -43,6 +44,8 @@ const buildSchedule = (overrides: Record<string, any> = {}) => ({
   startDatetime: new Date('2026-04-20T08:00:00Z'),
   endDatetime: new Date('2026-04-20T16:00:00Z'),
   type: 'guardia',
+  scheduleTypeId: 'st-guardia',
+  scheduleType: { id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' },
   color: '#1e3a5f',
   assignments: [{ userId: 'user-1', user: { name: 'User A' } }],
   ...overrides,
@@ -52,9 +55,10 @@ const baseInput = {
   title: 'Nueva Guardia',
   startDatetime: '2026-06-01T08:00:00Z', // Fecha futura para evitar isLastMinute
   endDatetime: '2026-06-01T16:00:00Z',
-  type: 'guardia',
+  scheduleTypeId: 'st-guardia',
   branchId: 'branch-1',
   assigneeIds: ['user-1'],
+  color: '#1e3a5f',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

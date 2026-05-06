@@ -21,7 +21,6 @@ import {
   isLastMinuteSchedule,
   parseOptionalDate,
 } from './domain/schedule.rules';
-import { SCHEDULE_TYPES } from './schedules.constants';
 
 type Actor = { id: string; roleName: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
 const scheduleCreateInputSchema = z.object({
@@ -29,8 +28,8 @@ const scheduleCreateInputSchema = z.object({
   description: z.string().optional(),
   startDatetime: z.coerce.date(),
   endDatetime: z.coerce.date(),
-  type: z.enum(SCHEDULE_TYPES).default('guardia'),
-  color: z.string().default('#1e3a5f'),
+  scheduleTypeId: z.string().min(1, 'El tipo de turno es obligatorio'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format (must be #RRGGBB)').optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
   branchId: z.string().min(1).optional(),
@@ -63,7 +62,7 @@ export function listSchedules(params: { from?: string; to?: string; userId?: str
   const toDate = parseOptionalDate(params.to);
   const rangeFilter = buildOverlapRangeFilter(fromDate, toDate);
   if (rangeFilter) Object.assign(where, rangeFilter);
-  if (params.type) where.type = params.type;
+  if (params.type) where.scheduleType = { value: params.type };
   if (params.userId) where.assignments = { some: { userId: params.userId } };
   if (params.branchId) where.branchId = params.branchId;
   return findSchedules(where);
@@ -78,7 +77,7 @@ export function listSchedulesForActor(
   const toDate = parseOptionalDate(params.to);
   const rangeFilter = buildOverlapRangeFilter(fromDate, toDate);
   if (rangeFilter) Object.assign(where, rangeFilter);
-  if (params.type) where.type = params.type;
+  if (params.type) where.scheduleType = { value: params.type };
   if (params.userId) where.assignments = { some: { userId: params.userId } };
 
   const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
@@ -116,7 +115,7 @@ export async function listWeekSchedules(year: number, week: number, branchId?: s
     title: schedule.title,
     startDatetime: schedule.startDatetime,
     endDatetime: schedule.endDatetime,
-    type: schedule.type,
+    type: schedule.scheduleType?.value || schedule.type,
     color: schedule.color,
     location: schedule.location,
     notes: schedule.notes,
@@ -178,8 +177,9 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
         .filter((a) => assigneeIds.includes(a.userId))
         .map((a) => a.user.name);
       
-      const typeDesc = s.type === 'vacaciones' ? 'está de vacaciones' : 
-                      s.type === 'ausencia' ? 'está ausente' : 
+      const typeValue = s.scheduleType?.value || s.type;
+      const typeDesc = typeValue === 'vacaciones' ? 'está de vacaciones' : 
+                      typeValue === 'ausencia' ? 'está ausente' : 
                       `ya tiene el turno "${s.title}"`;
 
       return conflictedUsers.map(name => `${name} ${typeDesc}`);
@@ -253,12 +253,16 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   const endDt = new Date(parsed.data.endDatetime);
   ensureValidScheduleRange(startDt, endDt);
 
-  const { assigneeIds, reason, branchId, confirmed, ...scheduleData } = parsed.data;
+  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...scheduleData } = parsed.data;
   const targetBranchId = branchId ?? actor.branchId ?? undefined;
+
+  // Get schedule type early for validation and color
+  const scheduleType = await prisma.scheduleType.findUnique({ where: { id: scheduleTypeId } });
+  if (!scheduleType) throw createAppError('BAD_REQUEST', 'Tipo de turno no encontrado');
 
   if (targetBranchId) {
     await ensureActiveBranch(targetBranchId);
-    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, parsed.data.type, confirmed);
+    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
   }
 
   if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
@@ -277,6 +281,8 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   const schedule = await executeInTransaction(async (tx) => {
     const created = await createSchedule({
       ...scheduleData,
+      color: scheduleData.color || scheduleType.color,
+      scheduleType: { connect: { id: scheduleTypeId } },
       startDatetime: startDt,
       endDatetime: endDt,
       isLastMinute,
@@ -316,7 +322,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: schedule.type,
+      type: schedule.scheduleType?.value || schedule.type,
       isLastMinute,
     },
   });
@@ -337,7 +343,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const existing = await findScheduleById(scheduleId);
   if (!existing) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  const { assigneeIds, reason, branchId, confirmed, ...updateData } = parsed.data;
+  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...updateData } = parsed.data;
   const nextBranchId = branchId ?? existing.branchId;
   if (nextBranchId) await ensureActiveBranch(nextBranchId);
 
@@ -361,11 +367,21 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const isLastMinute = isLastMinuteSchedule(startDt);
 
   if (nextBranchId) {
-    await ensureNoHolidayOverlap(nextBranchId, startDt, endDt, parsed.data.type ?? existing.type, confirmed);
+    const typeValue = scheduleTypeId
+      ? (await prisma.scheduleType.findUnique({ where: { id: scheduleTypeId } }))?.value
+      : existing.scheduleType?.value || existing.type;
+    if (!typeValue) throw createAppError('BAD_REQUEST', 'Tipo de turno no encontrado');
+    await ensureNoHolidayOverlap(nextBranchId, startDt, endDt, typeValue, confirmed);
   }
 
 
   await ensureNoOverlaps(assigneeIds || existing.assignments.map(a => a.userId), startDt, endDt, scheduleId);
+
+  // Determine which schedule type to use (either the new one or the existing one)
+  const typeIdForColor = scheduleTypeId || existing.scheduleTypeId;
+  const scheduleTypeForColor = typeIdForColor 
+    ? await prisma.scheduleType.findUnique({ where: { id: typeIdForColor } })
+    : null;
 
   const schedule = await executeInTransaction(async (tx) => {
     if (assigneeIds) {
@@ -374,7 +390,9 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
 
     const updated = await updateSchedule(scheduleId, {
       ...updateData,
+      color: updateData.color || scheduleTypeForColor?.color || existing.color,
       ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
+      ...(scheduleTypeId ? { scheduleType: { connect: { id: scheduleTypeId } } } : {}),
       ...(updateData.startDatetime && { startDatetime: new Date(updateData.startDatetime) }),
       ...(updateData.endDatetime && { endDatetime: new Date(updateData.endDatetime) }),
       isLastMinute,
@@ -417,7 +435,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: schedule.type,
+      type: schedule.scheduleType?.value || schedule.type,
       isLastMinute,
     },
   });
@@ -476,7 +494,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: schedule.type,
+      type: schedule.scheduleType?.value || schedule.type,
     },
   });
 }

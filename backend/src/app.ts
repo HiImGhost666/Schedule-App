@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/errorHandler.middleware';
 import authRouter from './modules/auth/auth.router';
 import usersRouter from './modules/users/users.router';
 import schedulesRouter from './modules/schedules/schedules.router';
+import scheduleTypesRouter from './modules/schedule-types/schedule-types.router';
 import webhooksRouter from './modules/webhooks/webhooks.router';
 import notificationsRouter from './modules/notifications/notifications.router';
 import auditRouter from './modules/audit/audit.router';
@@ -48,6 +49,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/schedules', schedulesRouter);
+app.use('/api/schedule-types', scheduleTypesRouter);
 app.use('/api/branches', branchesRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/notifications', notificationsRouter);

@@ -2,21 +2,25 @@ import type { EventContentArg } from '@fullcalendar/core';
 import { format } from 'date-fns';
 import { useUIStore } from '@/store/uiStore';
 import { isDarkThemePreset } from '@/config/theme';
-import { SCHEDULE_TYPES } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 import type { BranchHoliday, Schedule } from '@/types';
+import type { FullScheduleType } from './scheduleTypesApi';
 
 const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
   nacional: '#dc2626', autonomica: '#ea580c', local: '#d97706',
   mejora: '#65a30d', regional: '#0ea5e9', company: '#7c3aed',
 };
 
-function getTypeInfo(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type) ?? SCHEDULE_TYPES[0];
+function useGetTypeInfo() {
+  const { types: scheduleTypes } = useScheduleTypes();
+  return (type: string) => scheduleTypes.find((t: FullScheduleType) => t.value === type) ?? scheduleTypes[0];
 }
 
 /* ─── month-view event pill ─────────────────────────────────────── */
 export function MonthEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
+  const getTypeInfo = useGetTypeInfo();
+  const typeInfo = getTypeInfo(event.extendedProps.type as string);
   return (
     <div className="google-month-event">
       {event.start && <span className="google-month-event-time">{format(event.start, 'HH:mm')}</span>}
@@ -53,6 +57,7 @@ export function ListEventContent({ info }: { info: EventContentArg }) {
   const timeText = schedule?.startDatetime && schedule?.endDatetime
     ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
     : info.timeText;
+  const getTypeInfo = useGetTypeInfo();
   const typeInfo = getTypeInfo(schedule?.type ?? '');
 
   return (
