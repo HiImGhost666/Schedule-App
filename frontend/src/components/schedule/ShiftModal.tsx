@@ -72,6 +72,7 @@ const shiftSchema = z.object({
   startDatetime: z.string().min(1, 'Requerido'),
   endDatetime: z.string().min(1, 'Requerido'),
   type: z.string().default('guardia'),
+  scheduleTypeId: z.string().min(1, 'Requerido'),
   color: z.string().default('#2563eb'),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -131,6 +132,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     resolver: zodResolver(shiftSchema),
     defaultValues: {
       type: 'guardia',
+      scheduleTypeId: '',
       color: '#2563eb',
       hoursPerDay: 8,
       branchId: user?.branchId ?? defaultBranchId ?? '',
@@ -147,6 +149,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         startDatetime: fmt(new Date(schedule.startDatetime)),
         endDatetime: fmt(new Date(schedule.endDatetime)),
         type: schedule.type,
+        scheduleTypeId: schedule.scheduleTypeId,
         color: schedule.color,
         location: schedule.location || '',
         notes: schedule.notes || '',
@@ -157,6 +160,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       setIncludeWeekends(false);
     } else {
       reset({
+        scheduleTypeId: scheduleTypes.find((t) => t.value === 'guardia')?.id || '',
         type: 'guardia',
         color: '#2563eb',
         hoursPerDay: 8,
@@ -167,7 +171,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       setSelectedUsers([]);
       setIncludeWeekends(false);
     }
-  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId]);
+  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
 
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
@@ -175,13 +179,15 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const endVal = watch('endDatetime');
   const isAllBranchesMode = !schedule && !defaultBranchId;
 
+  // Determine the base pool of assignees based on user role and target branch
   const availableAssignees = useMemo(() => {
     const sourceUsers = users ?? [];
-    if (schedule) return sourceUsers;
-    if (!defaultBranchId) return sourceUsers;
-    return sourceUsers.filter((candidate) => candidate.branchId === defaultBranchId);
-  }, [users, schedule, defaultBranchId]);
-
+    if (user?.role?.name === 'admin') {
+      return sourceUsers; // Admin ve todos los usuarios inicialmente
+    }
+    // Para roles no-admin, restringir a usuarios en la sucursal del turno (nueva o existente)
+    return sourceUsers.filter((candidate) => candidate.branchId === (schedule?.branchId || defaultBranchId));
+  }, [users, user?.role?.name, schedule?.branchId, defaultBranchId]);
   const selectedAssigneeUsers = useMemo(() => {
     const sourceUsers = users ?? [];
     if (sourceUsers.length === 0 || selectedUsers.length === 0) return [];
@@ -370,10 +376,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
   const filteredUsers = useMemo(() => {
     let result = availableAssignees;
-    if (asideBranchFilter) {
+
+    // El filtro de sucursal solo se aplica si el usuario es admin y el filtro está activo
+    if (user?.role?.name === 'admin' && asideBranchFilter) {
       result = result.filter((u) => u.branchId === asideBranchFilter);
     }
     if (asideDeptFilter) {
+      // El filtro de departamento siempre está disponible
       result = result.filter((u) => (u.department ?? '').toLowerCase() === asideDeptFilter);
     }
     if (asideSearchFilter) {
@@ -381,7 +390,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       result = result.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
     }
     return result;
-  }, [availableAssignees, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
+  }, [availableAssignees, user?.role?.name, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const assigneesContent = (
@@ -475,7 +484,12 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                       key={t.value}
                       type="button"
                       disabled={!canEdit}
-                      onClick={() => canEdit && setValue('type', t.value)}
+                    onClick={() => {
+                      if (canEdit) {
+                        setValue('type', t.value);
+                        setValue('scheduleTypeId', t.id, { shouldValidate: true });
+                      }
+                    }}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs font-medium transition-all"
                       style={
                         active
@@ -497,6 +511,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                 })}
               </div>
               <input type="hidden" {...register('type')} />
+              <input type="hidden" {...register('scheduleTypeId')} />
               <input type="hidden" {...register('branchId')} />
             </div>
 
@@ -643,46 +658,31 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                     <span className="ml-1 text-xs text-theme-muted">({selectedUsers.length} seleccionados)</span>
                   </p>
                   {/* Filtros */}
-                  {isAllBranchesMode && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={asideBranchFilter}
-                        onChange={(e) => setAsideBranchFilter(e.target.value)}
-                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
-                      >
-                        <option value="">Todas las sucursales</option>
-                        {(branches ?? []).map((b: { id: string; name: string }) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={asideDeptFilter}
-                        onChange={(e) => setAsideDeptFilter(e.target.value)}
-                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
-                      >
-                        <option value="">Todos los dptos.</option>
-                        <option value="seguridad">Seguridad</option>
-                        <option value="mantenimiento">Mantenimiento</option>
-                        <option value="operaciones">Operaciones</option>
-                        <option value="administración">Administración</option>
-                      </select>
-                    </div>
+                <div className={`grid gap-2 ${user?.role?.name === 'admin' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {user?.role?.name === 'admin' && (
+                    <select
+                      value={asideBranchFilter}
+                      onChange={(e) => setAsideBranchFilter(e.target.value)}
+                      className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                    >
+                      <option value="">Todas las sucursales</option>
+                      {(branches ?? []).map((b: { id: string; name: string }) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
                   )}
-                  {!isAllBranchesMode && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={asideDeptFilter}
-                        onChange={(e) => setAsideDeptFilter(e.target.value)}
-                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300 col-span-2"
-                      >
-                        <option value="">Todos los departamentos</option>
-                        <option value="seguridad">Seguridad</option>
-                        <option value="mantenimiento">Mantenimiento</option>
-                        <option value="operaciones">Operaciones</option>
-                        <option value="administración">Administración</option>
-                      </select>
-                    </div>
-                  )}
+                  <select
+                    value={asideDeptFilter}
+                    onChange={(e) => setAsideDeptFilter(e.target.value)}
+                    className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                  >
+                    <option value="">Todos los dptos.</option>
+                    <option value="seguridad">Seguridad</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                    <option value="operaciones">Operaciones</option>
+                    <option value="administración">Administración</option>
+                  </select>
+                </div>
                   <input
                     type="text"
                     value={asideSearchFilter}
