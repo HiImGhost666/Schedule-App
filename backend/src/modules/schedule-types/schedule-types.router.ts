@@ -17,8 +17,8 @@ import {
 
 const router = Router();
 
-// GET /schedule-types - List all active schedule types (public)
-router.get('/', async (req, res) => {
+// GET /schedule-types - List all active schedule types
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const scheduleTypes = await getScheduleTypes();
     sendSuccess(res, scheduleTypes);
@@ -27,8 +27,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /schedule-types/:id - Get schedule type by ID (public)
-router.get('/:id', async (req, res) => {
+// GET /schedule-types/:id - Get schedule type by ID
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const scheduleType = await getScheduleTypeById(req.params.id as string);
     sendSuccess(res, scheduleType);
