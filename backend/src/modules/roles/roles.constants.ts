@@ -44,14 +44,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
   general_manager: [
     // Nota: Aunque tiene permisos de gestión, la lógica de negocio en el servicio
     // restringe sus acciones CRUD (Crear, Actualizar, Borrar) a su propia sucursal.
+    // Schedule Types: solo lectura — solo admin puede crear/editar/borrar.
     'users:view',
     'users:manage',
     'schedules:view',
     'schedules:manage',
     'schedule_types:read',
-    'schedule_types:create',
-    'schedule_types:update',
-    'schedule_types:delete',
     'branches:view',
     'settings:view',
   ],
@@ -60,9 +58,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'schedules:view',
     'schedules:manage',
     'schedule_types:read',
-    'schedule_types:create',
-    'schedule_types:update',
-    'schedule_types:delete',
     'branches:view',
   ],
   employee: [
