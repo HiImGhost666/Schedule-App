@@ -2,7 +2,9 @@ import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow } from '../audit/audit.service';
 import { findBranchById } from '../branches/branches.repository';
+import { findRoleByName } from '../roles/roles.repository';
 import {
+  countDepartmentsForManager,
   createDepartmentRecord,
   findDepartmentByCode,
   findDepartmentByName,
@@ -17,8 +19,13 @@ import {
   removeDepartmentBranches,
   softDeleteDepartmentRecord,
   setDepartmentBranches,
+  updateDepartmentManager,
   updateDepartmentRecord,
 } from './departments.repository';
+import {
+  findUserById,
+  updateUserRecord,
+} from '../users/users.repository';
 import { normalizeDepartmentCode, normalizeDepartmentName } from './domain/departments.rules';
 import type { DepartmentActor, DepartmentInput, ListDepartmentsParams } from './domain/departments.types';
 
@@ -61,6 +68,32 @@ async function buildDepartmentSnapshot(departmentId: string, tx?: Parameters<typ
     branchIds: branchLinks.map((link) => link.branchId),
     userCount: department._count?.users ?? 0,
   };
+}
+
+async function resolveRoleIdByName(roleName: string) {
+  const role = await findRoleByName(roleName);
+  if (role) {
+    return role.id;
+  }
+
+  const fallbackRoleIds: Record<string, string> = {
+    admin: 'role-admin-id',
+    general_manager: 'role-general-manager-id',
+    department_manager: 'role-department-manager-id',
+    employee: 'role-employee-id',
+  };
+
+  const fallbackRoleId = fallbackRoleIds[roleName];
+  if (fallbackRoleId) {
+    return fallbackRoleId;
+  }
+
+  throw createAppError('NOT_FOUND', `Rol no encontrado: ${roleName}`);
+}
+
+function getRoleName(role: { name?: string } | string | null | undefined) {
+  if (!role) return undefined;
+  return typeof role === 'string' ? role : role.name;
 }
 
 export async function listDepartments(params: ListDepartmentsParams) {
@@ -216,4 +249,100 @@ export async function hardDeleteDepartment(departmentId: string, actor: Departme
 export async function getDepartmentBranches(departmentId: string) {
   await ensureDepartment(departmentId);
   return findDepartmentBranches(departmentId);
+}
+
+/**
+ * Asigna un manager a un departamento dentro de una transacción única.
+ * Si el usuario no tiene el rol 'department_manager', se le otorga.
+ * Genera auditoría atómica.
+ */
+export async function assignDepartmentManager(
+  departmentId: string,
+  userId: string,
+  actor: DepartmentActor,
+) {
+  const department = await ensureDepartment(departmentId);
+  const user = await findUserById(userId);
+  if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+
+  if (department.managerId === userId) {
+    throw createAppError('BAD_REQUEST', 'Este usuario ya es manager de este departamento');
+  }
+
+  return executeInTransaction(async (tx) => {
+    // 1. Actualizar departamento
+    const updatedDepartment = await updateDepartmentManager(departmentId, userId, tx);
+
+    // 2. Otorgar rol si no lo tiene
+    if (getRoleName((user as any).role) !== 'department_manager') {
+      const departmentManagerRoleId = await resolveRoleIdByName('department_manager');
+      await updateUserRecord(userId, { role: { connect: { id: departmentManagerRoleId } } }, tx);
+    }
+
+    // 3. Auditoría
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'ASSIGN_DEPARTMENT_MANAGER',
+      entityType: 'Department',
+      entityId: departmentId,
+      detailsJson: {
+        departmentName: updatedDepartment.name,
+        managerName: user.name,
+        managerId: userId,
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return updatedDepartment;
+  });
+}
+
+/**
+ * Remueve un manager de un departamento dentro de una transacción única.
+ * Si el usuario no es manager de otros departamentos, se le quita el rol 'employee'.
+ * Genera auditoría atómica.
+ */
+export async function removeDepartmentManager(
+  departmentId: string,
+  actor: DepartmentActor,
+) {
+  const department = await ensureDepartment(departmentId);
+  if (!department.managerId) {
+    throw createAppError('BAD_REQUEST', 'Este departamento no tiene un manager asignado');
+  }
+
+  const managerId = department.managerId;
+  const manager = await findUserById(managerId);
+  if (!manager) throw createAppError('NOT_FOUND', 'Manager no encontrado');
+
+  return executeInTransaction(async (tx) => {
+    // 1. Remover manager del departamento
+    const updatedDepartment = await updateDepartmentManager(departmentId, null, tx);
+
+    // 2. Verificar si sigue siendo manager de otros departamentos
+    const remainingDepartments = await countDepartmentsForManager(managerId, tx);
+
+    // 3. Si no es manager de ningún otro, quitar el rol
+    if (remainingDepartments === 0) {
+      const employeeRoleId = await resolveRoleIdByName('employee');
+      await updateUserRecord(managerId, { role: { connect: { id: employeeRoleId } } }, tx);
+    }
+
+    // 4. Auditoría
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'REMOVE_DEPARTMENT_MANAGER',
+      entityType: 'Department',
+      entityId: departmentId,
+      detailsJson: {
+        departmentName: updatedDepartment.name,
+        formerManagerName: manager.name,
+        formerManagerId: managerId,
+        stillManagerOfOtherDepartments: remainingDepartments > 0,
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return updatedDepartment;
+  });
 }

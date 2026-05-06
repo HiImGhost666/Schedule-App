@@ -42,6 +42,7 @@ model User {
   rolledBackAuditLogs AuditLog[]           @relation("AuditRollbackActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
   managedBranches     Branch[]             @relation("BranchManager")
+  managedDepartments  Department[]         @relation("DepartmentManager")
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
@@ -123,14 +124,17 @@ model Department {
   code        String   @unique
   description String?
   isActive    Boolean  @default(true) @map("is_active")
+  managerId   String?  @map("manager_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  manager     User?             @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
   branches    DepartmentBranch[]
   users       User[]
 
   @@index([isActive])
   @@index([code])
+  @@index([managerId])
 
   @@map("departments")
 }

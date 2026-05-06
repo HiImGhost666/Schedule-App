@@ -22,3 +22,7 @@ export const updateDepartmentBodySchema = createDepartmentBodySchema.partial().e
   isActive: z.boolean().optional(),
   branchIds: z.array(z.string().min(1)).min(1).optional(),
 });
+
+export const assignDepartmentManagerBodySchema = z.object({
+  userId: z.string().min(1, 'El ID del usuario es requerido'),
+});

@@ -21,6 +21,9 @@ export function findDepartmentById(id: string, tx?: TransactionClient) {
           },
         },
       },
+      manager: {
+        select: { id: true, name: true, email: true },
+      },
       _count: { select: { users: true } },
     },
   });
@@ -137,5 +140,18 @@ export function findDepartmentBranches(departmentId: string, tx?: TransactionCli
       },
     },
     orderBy: { createdAt: 'asc' },
+  });
+}
+
+export function countDepartmentsForManager(managerId: string, tx?: TransactionClient) {
+  return getDb(tx).department.count({
+    where: { managerId },
+  });
+}
+
+export function updateDepartmentManager(departmentId: string, managerId: string | null, tx?: TransactionClient) {
+  return getDb(tx).department.update({
+    where: { id: departmentId },
+    data: { managerId },
   });
 }
