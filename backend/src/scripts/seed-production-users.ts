@@ -160,6 +160,9 @@ async function main() {
     }
 
     const passwordHash = await bcrypt.hash(u.initialPassword, 12);
+    const departmentRecord = u.department
+      ? await prisma.department.findFirst({ where: { name: u.department }, select: { id: true } })
+      : null;
     await prisma.user.create({
       data: {
         name: u.name,
@@ -168,7 +171,7 @@ async function main() {
         passwordHash,
         roleId: dbRoles.find(r => r.name === u.role)?.id || null,
         status: 'active',
-        department: u.department,
+        departmentId: departmentRecord?.id ?? null,
         forcePasswordChange: u.forcePasswordChange,
       },
     });

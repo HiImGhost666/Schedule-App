@@ -20,7 +20,6 @@ export const USER_RESPONSE_SELECT: Prisma.UserSelect = {
   },
   status: true,
   avatarUrl: true,
-  department: true,
   createdAt: true,
   lastLoginAt: true,
   failedAttempts: true,
@@ -39,7 +38,14 @@ export const USER_RESPONSE_SELECT: Prisma.UserSelect = {
       isActive: true,
     },
   },
-};
+  department: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+} as const;
 
 export const USER_SAFE_SELECT: Prisma.UserSelect = {
   id: true,
@@ -61,7 +67,6 @@ export const USER_SAFE_SELECT: Prisma.UserSelect = {
   },
   status: true,
   avatarUrl: true,
-  department: true,
   createdAt: true,
   lastLoginAt: true,
   failedAttempts: true,
@@ -80,6 +85,13 @@ export const USER_SAFE_SELECT: Prisma.UserSelect = {
       isActive: true,
     },
   },
-};
+  department: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+} as const;
 
 export type UserResponse = Prisma.UserGetPayload<{ select: typeof USER_RESPONSE_SELECT }>;

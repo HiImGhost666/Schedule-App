@@ -30,15 +30,6 @@ jest.mock('../src/modules/notifications/notifications.templates', () => ({
   buildTestCard: jest.fn(() => ({})),
 }));
 
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    webhookConfig: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-    },
-  },
-}));
-
 import webhooksRouter from '../src/modules/webhooks/webhooks.router';
 import { errorHandler } from '../src/middleware/errorHandler.middleware';
 import { prisma } from '../src/config/database';
@@ -48,6 +39,7 @@ const prismaMock = prisma as unknown as {
   webhookConfig: {
     findMany: jest.Mock;
     findUnique: jest.Mock;
+    update: jest.Mock; // Added for completeness
   };
 };
 

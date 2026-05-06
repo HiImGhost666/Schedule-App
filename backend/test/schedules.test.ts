@@ -16,19 +16,13 @@ jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }))
 jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn((fn: any) => fn({})),
 }));
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    branch: { findUnique: jest.fn().mockResolvedValue({ id: 'branch-1', isActive: true }) },
-    branchHoliday: { findMany: jest.fn().mockResolvedValue([]) },
-    scheduleType: { findUnique: jest.fn().mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' }) },
-  },
-}));
 
 import * as schedulesRepo from '../src/modules/schedules/schedules.repository';
 import { createScheduleEntry } from '../src/modules/schedules/schedules.service';
 
 const mockRepo = schedulesRepo as jest.Mocked<typeof schedulesRepo>;
 
+import { prismaMock } from './singleton';
 const mockActor = {
   id: 'admin-id',
   email: 'admin@test.com',
@@ -66,9 +60,10 @@ describe('createScheduleEntry', () => {
   beforeEach(() => {
     // Por defecto: sin overlaps y creación exitosa
     mockRepo.findSchedules.mockResolvedValue([]);
-    (require('../src/config/database').prisma.branch.findUnique as jest.Mock).mockResolvedValue({ id: 'branch-1', isActive: true });
-    (require('../src/config/database').prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([]);
-    mockRepo.createSchedule.mockResolvedValue(buildSchedule() as any);
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1', isActive: true } as any);
+    prismaMock.branchHoliday.findMany.mockResolvedValue([]);
+    prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' } as any);
+    mockRepo.createSchedule.mockResolvedValue(buildSchedule() as any); // This mock is for schedulesRepo, not prisma
   });
 
   // ── Caso: End antes de Start (Time Traveling) ─────────────────────────────
@@ -174,8 +169,8 @@ describe('createScheduleEntry', () => {
     };
     
     // Simulamos que la BD devuelve un festivo para ese día
-    (require('../src/config/database').prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([
-      { name: 'Día del Trabajo', date: new Date('2026-05-01') }
+    prismaMock.branchHoliday.findMany.mockResolvedValue([
+      { name: 'Día del Trabajo', date: new Date('2026-05-01') } as any
     ]);
 
     await expect(createScheduleEntry(holidayInput as any, mockActor))

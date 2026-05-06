@@ -19,7 +19,7 @@ interface UserProfileModalProps {
         name: string;
         email: string;
         avatarUrl?: string;
-        department?: string;
+        department?: { name: string } | null;
         companyPhone?: string;
         auxiliaryPhone?: string;
         role?: string;
@@ -192,10 +192,10 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
     );
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[1.5px] animate-fade-in">
-            <div className="card relative rounded-[28px] shadow-2xl w-full max-w-2xl h-[90vh] max-h-[760px] overflow-hidden animate-slide-up border border-theme-color/60">
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[1.5px] animate-fade-in">
+            <div className="card relative rounded-[28px] shadow-2xl w-full max-w-2xl h-[90vh] max-h-190 overflow-hidden animate-slide-up border border-theme-color/60">
                 {/* Header/Cover */}
-                <div className="h-32 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 relative overflow-hidden">
+                <div className="h-32 bg-linear-to-br from-navy-900 via-navy-800 to-navy-700 relative overflow-hidden">
                     <div className="absolute -top-10 -left-8 h-28 w-28 rounded-full bg-gold-400/25" />
                     <div className="absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-white/10" />
                     <div className="absolute top-4 right-24 h-14 w-14 rotate-12 rounded-2xl border border-white/20" />
@@ -227,7 +227,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black tracking-tight text-theme-primary">{profileUser.name}</h2>
                         <div className="flex items-center gap-2 flex-wrap text-xs">
-                            <span className={cn('badge-role-viewer', (profileUser as User).role?.name === 'admin' && 'badge-role-admin', ((profileUser as User).role?.name === 'general_manager' || (profileUser as User).role?.name === 'department_manager') && 'badge-role-manager')}>
+                            <span className={cn('badge-role-employee', (profileUser as User).role?.name === 'admin' && 'badge-role-admin', ((profileUser as User).role?.name === 'general_manager' || (profileUser as User).role?.name === 'department_manager') && 'badge-role-manager')}>
                                 {ROLE_LABELS[(profileUser as User).role?.name] || (profileUser as User).role?.name}
 
 
@@ -237,9 +237,9 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                                     {STATUS_LABELS[status]}
                                 </span>
                             )}
-                            {profileUser.department && (
+                            {(profileUser as User).department?.name && (
                                 <span className="text-xs text-theme-muted bg-theme-surface-muted px-2 py-0.5 rounded-full">
-                                    {profileUser.department}
+                                    {(profileUser as User).department?.name}
                                 </span>
                             )}
                         </div>
@@ -262,7 +262,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
 
                         <div className="mt-4 flex-1 min-h-0 overflow-y-auto pr-1">
                             {activeTab === 'general' && (
-                                <div className="animate-fade-in rounded-3xl border border-theme-color bg-gradient-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
+                                <div className="animate-fade-in rounded-3xl border border-theme-color bg-linear-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                                         <div className="border-b border-theme-color/60 pb-3">
                                             <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-theme-muted">ID empleado</p>
@@ -312,7 +312,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                             )}
 
                             {activeTab === 'schedules' && (
-                                <div className="animate-fade-in rounded-3xl border border-theme-color bg-gradient-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
+                                <div className="animate-fade-in rounded-3xl border border-theme-color bg-linear-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
                                     <div className="flex items-center gap-2 mb-4">
                                         <Activity className="h-4 w-4 text-navy-600" />
                                         <p className="text-base font-bold text-theme-primary">Actividad de guardias</p>
@@ -423,7 +423,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                                                                 className="flex items-start gap-3 rounded-2xl border border-theme-color/80 bg-theme-surface-muted/40 px-4 py-3"
                                                             >
                                                                 <div
-                                                                    className="mt-1 h-3 w-3 rounded-full flex-shrink-0"
+                                                                    className="mt-1 h-3 w-3 rounded-full shrink-0"
                                                                     style={{ backgroundColor: schedule.color || '#1e3a5f' }}
                                                                 />
                                                                 <div className="min-w-0 flex-1">
@@ -453,7 +453,7 @@ export function UserProfileModal({ open, onClose, user, initialTab, setTab }: Us
                             )}
 
                             {canViewSecurityTab && activeTab === 'security' && (
-                                <div className="animate-fade-in rounded-3xl border border-theme-color bg-gradient-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
+                                <div className="animate-fade-in rounded-3xl border border-theme-color bg-linear-to-b from-white to-theme-surface-muted/30 p-5 md:p-6">
                                     <div className="flex items-center gap-2 mb-4">
                                         <ShieldAlert
                                             className={cn('h-4 w-4', isDark ? 'text-navy-500' : 'text-red-500')}

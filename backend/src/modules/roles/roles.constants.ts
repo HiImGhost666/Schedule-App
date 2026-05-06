@@ -1,6 +1,13 @@
 export const ROLE_NAMES = ['admin', 'general_manager', 'department_manager', 'employee'] as const;
 export type RoleName = typeof ROLE_NAMES[number];
 
+export const ROLE_LABELS: Record<RoleName, string> = {
+  admin: 'Administrador',
+  general_manager: 'Gerente General',
+  department_manager: 'Responsable de Departamento',
+  employee: 'Empleado',
+};
+
 export const PERMISSIONS = [
   'users:view',
   'users:manage',

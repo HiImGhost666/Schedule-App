@@ -43,33 +43,9 @@ jest.mock('../src/modules/notifications/notifications.templates', () => ({
   buildAnnouncementCard: jest.fn(() => ({ type: 'message', body: 'card' })),
 }));
 
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    notificationLog: {
-      findMany: jest.fn(),
-      count: jest.fn(),
-    },
-    webhookConfig: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-    },
-  },
-}));
-
 import notificationsRouter from '../src/modules/notifications/notifications.router';
-import { prisma } from '../src/config/database';
 import * as notificationsService from '../src/modules/notifications/notifications.service';
-
-const prismaMock = prisma as unknown as {
-  notificationLog: {
-    findMany: jest.Mock;
-    count: jest.Mock;
-  };
-  webhookConfig: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-  };
-};
+import { prismaMock } from './singleton';
 
 const app = express();
 app.use(express.json());
@@ -78,12 +54,12 @@ app.use('/api/notifications', notificationsRouter);
 describe('notifications.router', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    prismaMock.notificationLog.findMany.mockResolvedValue([]);
-    prismaMock.notificationLog.count.mockResolvedValue(0);
+    prismaMock.notificationLog.findMany.mockResolvedValue([] as any);
+    prismaMock.notificationLog.count.mockResolvedValue(0 as any);
     prismaMock.webhookConfig.findMany.mockResolvedValue([
       { id: 'wh-1', webhookUrl: 'https://example.com/wh1' },
       { id: 'wh-2', webhookUrl: 'https://example.com/wh2' },
-    ]);
+    ] as any);
     (notificationsService.sendToWebhook as jest.Mock).mockResolvedValue({ success: true });
     (notificationsService.resendNotification as jest.Mock).mockResolvedValue({ id: 'log-1', status: 'sent' });
   });

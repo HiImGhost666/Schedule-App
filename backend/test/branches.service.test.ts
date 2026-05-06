@@ -13,6 +13,7 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn(async (operation: any) => operation({ tx: true })),
 }));
 
+import { prismaMock } from './singleton';
 const repo = branchesRepository as jest.Mocked<typeof branchesRepository>;
 
 const actor = {

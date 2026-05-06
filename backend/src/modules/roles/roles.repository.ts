@@ -11,6 +11,13 @@ export async function findRoleById(id: string) {
   });
 }
 
+export async function findRoleByName(name: string) {
+  return prisma.role.findFirst({
+    where: { name },
+    select: { id: true, name: true },
+  });
+}
+
 export async function createRole(data: { name: string; description?: string | null; permissions?: string[] }) {
   return prisma.role.create({
     data: {

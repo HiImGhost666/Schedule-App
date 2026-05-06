@@ -9,14 +9,17 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { BranchList } from '@/components/branches/BranchList';
 import { BranchForm } from '@/components/branches/BranchForm';
 import { BranchDetail } from '@/components/branches/BranchDetail';
+import { ManagerAssignmentModal } from '@/components/branches/ManagerAssignmentModal';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
-import type { Branch } from '@/types';
-
+import type { Branch, Department } from '@/types';
+import { useNavigate } from 'react-router-dom';
+import type { User } from '@/types';
 const emptyBranchForm = { name: '', code: '', address: '', city: '', region: '', countryCode: 'ES', timezone: 'Europe/Madrid' };
 
 export function BranchesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [showInactiveBranches, setShowInactiveBranches] = useState(false);
   const [branchForm, setBranchForm] = useState(emptyBranchForm);
@@ -28,7 +31,9 @@ export function BranchesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'code'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
+  const [branchForManagerAssignment, setBranchForManagerAssignment] = useState<Branch | null>(null);
+  const [showManagerModal, setShowManagerModal] = useState(false);
+  const [selectedManagerId, setSelectedManagerId] = useState('');
   const { data: branches, isLoading: branchesLoading } = useQuery<{ data: Branch[] }>({
     queryKey: ['branches', showInactiveBranches],
     queryFn: () => api.get('/branches', { params: { includeInactive: showInactiveBranches } }).then((r) => r.data),
@@ -42,6 +47,16 @@ export function BranchesPage() {
   const activeBranchesCount = (branches?.data ?? []).filter((b) => b.isActive).length;
   const inactiveBranchesCount = Math.max((branches?.data?.length ?? 0) - activeBranchesCount, 0);
 
+  const { data: departmentsData } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', effectiveSelectedBranchId],
+    queryFn: () => api.get('/departments', { params: { branchId: effectiveSelectedBranchId, includeInactive: true } }).then((r) => r.data),
+    enabled: Boolean(effectiveSelectedBranchId),
+  });
+
+  const { data: usersData } = useQuery<{ data: User[] }>({
+    queryKey: ['users', 'active'],
+    queryFn: () => api.get('/users', { params: { status: 'active' } }).then((r) => r.data),
+  });
   const createBranchMutation = useMutation({
     mutationFn: () => api.post('/branches', { ...branchForm, code: branchForm.code.toUpperCase() }),
     onSuccess: () => {
@@ -82,6 +97,25 @@ export function BranchesPage() {
       toast.success('Sucursal eliminada definitivamente'); setBranchToHardDelete(null);
     },
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo eliminar definitivamente la sucursal')),
+  });
+
+  const assignManagerMutation = useMutation({
+    mutationFn: ({ branchId, userId }: { branchId: string; userId: string }) =>
+      api.patch(`/branches/${branchId}/manager`, { userId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['branches'] });
+      toast.success('Manager asignado a la sucursal');
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo asignar el manager')),
+  });
+
+  const removeManagerMutation = useMutation({
+    mutationFn: (branchId: string) => api.delete(`/branches/${branchId}/manager`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['branches'] });
+      toast.success('Manager removido de la sucursal');
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo remover el manager')),
   });
 
   const branchSaving = createBranchMutation.isPending || updateBranchMutation.isPending;
@@ -163,13 +197,26 @@ export function BranchesPage() {
               ) : selectedBranch ? (
                 <BranchDetail
                   branch={selectedBranch}
+                  departments={(departmentsData?.data ?? []).map((department) => ({
+                    id: department.id,
+                    name: department.name,
+                    code: department.code,
+                    isActive: department.isActive,
+                  }))}
+                  onSelectDepartment={(departmentId) => {
+                    navigate(`/admin/departments?branchId=${selectedBranch.id}&departmentId=${departmentId}`);
+                  }}
                   onEdit={() => startEditBranch(selectedBranch)}
                   onDisable={() => setBranchToDisable(selectedBranch)}
                   onActivate={() => setBranchToActivate(selectedBranch)}
                   onHardDelete={() => setBranchToHardDelete(selectedBranch)}
+                  onAssignManager={() => { setBranchForManagerAssignment(selectedBranch); setShowManagerModal(true); setSelectedManagerId(''); }}
+                  onRemoveManager={() => removeManagerMutation.mutate(selectedBranch.id)}
                   isDisabling={disableBranchMutation.isPending}
                   isActivating={activateBranchMutation.isPending}
                   isDeleting={hardDeleteBranchMutation.isPending}
+                  isAssigningManager={assignManagerMutation.isPending}
+                  isRemovingManager={removeManagerMutation.isPending}
                 />
               ) : (
                 <EmptyState icon={Building2} title="Sin sucursales" description="Crea la primera sucursal" className="py-10" />
@@ -178,7 +225,27 @@ export function BranchesPage() {
           </div>
         )}
       </section>
-
+      {showManagerModal && branchForManagerAssignment ? (
+        <ManagerAssignmentModal
+          open={showManagerModal}
+          branch={branchForManagerAssignment}
+          users={usersData?.data ?? []}
+          selectedUserId={selectedManagerId}
+          onSelectUser={setSelectedManagerId}
+          onAssign={() => {
+            assignManagerMutation.mutate({ branchId: branchForManagerAssignment.id, userId: selectedManagerId });
+            setShowManagerModal(false);
+            setBranchForManagerAssignment(null);
+            setSelectedManagerId('');
+          }}
+          onCancel={() => {
+            setShowManagerModal(false);
+            setBranchForManagerAssignment(null);
+            setSelectedManagerId('');
+          }}
+          isLoading={assignManagerMutation.isPending}
+        />
+      ) : null}
       <ConfirmDialog open={!!branchToActivate} title="Activar sucursal" description={`¿Quieres activar "${branchToActivate?.name ?? ''}"?`}
         confirmLabel="Activar" variant="warning" loading={activateBranchMutation.isPending}
         onConfirm={() => branchToActivate && activateBranchMutation.mutate(branchToActivate.id)}

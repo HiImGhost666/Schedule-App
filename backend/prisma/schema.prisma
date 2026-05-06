@@ -8,31 +8,32 @@ datasource db {
 }
 
 model User {
-  id                       String    @id @default(cuid())
-  name                     String
-  email                    String    @unique
-  derivedUsername          String    @unique @map("derived_username")
-  passwordHash             String    @map("password_hash")
-  passwordChangedAt        DateTime  @default(now()) @map("password_changed_at")
-  roleId                   String?   @map("role_id")
-  role                     Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  status                   String    @default("active")
-  avatarUrl                String?   @map("avatar_url")
-  department               String?
-  createdAt                DateTime  @default(now()) @map("created_at")
-  updatedAt                DateTime  @updatedAt @map("updated_at")
-  lastLoginAt              DateTime? @map("last_login")
-  failedAttempts           Int       @default(0) @map("failed_attempts")
-  lockedUntil              DateTime? @map("locked_until")
-  forcePasswordChange      Boolean   @default(false) @map("force_password_change")
-  passwordChangePolicy     String    @default("none") @map("password_change_policy")
-  passwordChangeWarnedAt   DateTime? @map("password_change_warned_at")
+  id                      String   @id @default(cuid())
+  name                    String
+  email                   String   @unique
+  derivedUsername         String   @unique @map("derived_username")
+  passwordHash            String   @map("password_hash")
+  passwordChangedAt       DateTime @default(now()) @map("password_changed_at")
+  roleId                  String?  @map("role_id")
+  role                    Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  status                  String   @default("active")
+  avatarUrl               String?  @map("avatar_url")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  lastLoginAt             DateTime? @map("last_login")
+  failedAttempts          Int      @default(0) @map("failed_attempts")
+  lockedUntil             DateTime? @map("locked_until")
+  forcePasswordChange     Boolean  @default(false) @map("force_password_change")
+  passwordChangePolicy    String   @default("none") @map("password_change_policy")
+  passwordChangeWarnedAt  DateTime? @map("password_change_warned_at")
   passwordChangeDeadlineAt DateTime? @map("password_change_deadline_at")
-  employeeId               String?   @unique @map("employee_id")
-  companyPhone             String?   @map("company_phone")
-  auxiliaryPhone           String?   @map("auxiliary_phone")
-  branchId                 String?   @map("branch_id")
-  branch                   Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  employeeId              String?  @unique @map("employee_id")
+  companyPhone            String?  @map("company_phone")
+  auxiliaryPhone          String?  @map("auxiliary_phone")
+  branchId                String?  @map("branch_id")
+  branch                  Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  departmentId            String?  @map("department_id")
+  department              Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   refreshTokens       RefreshToken[]
   createdSchedules    Schedule[]           @relation("ScheduleCreator")
@@ -40,8 +41,8 @@ model User {
   auditLogs           AuditLog[]           @relation("AuditActor")
   rolledBackAuditLogs AuditLog[]           @relation("AuditRollbackActor")
   notificationsSent   NotificationLog[]    @relation("NotificationSender")
-  // email prefix para la lógica soft-delete ("deleted_...") y login por username derivado
-  // MySQL puede usar el índice UNIQUE de email para LIKE 'prefix%', así que no necesita índice extra
+  managedBranches     Branch[]             @relation("BranchManager")
+  managedDepartments  Department[]         @relation("DepartmentManager")
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
@@ -99,17 +100,55 @@ model Branch {
   countryCode String   @default("ES") @map("country_code")
   timezone    String   @default("Europe/Madrid")
   isActive    Boolean  @default(true) @map("is_active")
+  managerId   String?  @map("manager_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users     User[]
-  schedules Schedule[]
-  holidays  BranchHoliday[]
+  users              User[]
+  manager            User?     @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
+  schedules          Schedule[]
+  holidays           BranchHoliday[]
+  departmentBranches  DepartmentBranch[]
 
   // -- ÍNDICES --
   // isActive: listBranches filtra por activas constantemente
   @@index([isActive])
+  // managerId: búsquedas de sucursales por manager
+  @@index([managerId])
   @@map("branches")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  managerId   String?  @map("manager_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  manager     User?             @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  branches    DepartmentBranch[]
+  users       User[]
+
+  @@index([isActive])
+  @@index([code])
+  @@index([managerId])
+
+  @@map("departments")
+}
+
+model DepartmentBranch {
+  departmentId String     @map("department_id")
+  branchId     String     @map("branch_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@id([departmentId, branchId])
+  @@index([branchId])
+  @@map("department_branches")
 }
 
 enum HolidayType {

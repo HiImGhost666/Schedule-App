@@ -107,7 +107,7 @@ export function AuditTable({
                 </td>
                 <td className="px-5 py-4 text-sm text-navy-600 hidden md:table-cell">{log.user?.name || 'Sistema'}</td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">
-                  {log.user?.department ? <span className="capitalize">{log.user.department}</span> : <span className="text-navy-300">-</span>}
+                  {log.user?.department?.name ? <span>{log.user.department.name}</span> : <span className="text-navy-300">-</span>}
                 </td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden lg:table-cell">{getLogDisplayName(log)}</td>
                 <td className="px-5 py-4 text-xs text-navy-400 hidden xl:table-cell">{getLogType(log)}</td>

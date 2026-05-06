@@ -72,8 +72,6 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
-  // Nuevo estado para la pestaña activa del modal
-  // 'general' = pestaña inicial por defecto, 'schedules' = abrir en guardias
   const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security'>('general');
 
   const now = new Date();
@@ -151,7 +149,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-7 animate-fade-in">
       {/* Header: altura mínima evita CLS al cargar la webfont */}
-      <div className="min-h-[3.5rem]">
+      <div className="min-h-14">
         <h1 className="text-2xl font-bold text-theme-primary">
           Bienvenido, {user?.name?.split(' ')[0]} 👋
         </h1>
@@ -314,7 +312,7 @@ export function DashboardPage() {
                       {formatDateTime(s.startDatetime)} — {format(new Date(s.endDatetime), 'HH:mm')}
                     </p>
                   </div>
-                  <div className="flex -space-x-1 flex-shrink-0">
+                  <div className="flex -space-x-1 shrink-0">
                     {s.assignments.slice(0, 3).map((a) => (
                       <div
                         key={a.userId}
@@ -336,7 +334,7 @@ export function DashboardPage() {
                     )}
                   </div>
                   {s.isLastMinute && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium shrink-0">
                       Urgente
                     </span>
                   )}
@@ -354,7 +352,7 @@ export function DashboardPage() {
 
         {/* Activity log */}
         {user?.role?.name === 'admin' && (
-          <div className="card p-7 min-h-[220px]">
+          <div className="card p-7 min-h-55">
             <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-gold-500" />
               Actividad Reciente
@@ -380,7 +378,7 @@ export function DashboardPage() {
                       });
                     }}
                   >
-                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 flex-shrink-0 group-hover:scale-125 transition-all" />
+                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 shrink-0 group-hover:scale-125 transition-all" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-theme-primary group-hover:text-navy-800 transition-colors">
                         {log.action.replace(/_/g, ' ')}

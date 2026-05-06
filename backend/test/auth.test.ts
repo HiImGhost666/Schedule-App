@@ -28,6 +28,7 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
 import * as usersRepo from '../src/modules/users/users.repository';
 import * as authRepo from '../src/modules/auth/auth.repository';
 import * as bcryptUtils from '../src/utils/bcrypt';
+import { prismaMock } from './singleton';
 import { changePassword, getMe, login } from '../src/modules/auth/auth.service';
 import {
   USER_STATUS,
@@ -70,6 +71,10 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
 describe('login - Seguridad y Valores Límite', () => {
   beforeEach(() => {
     mockAuthRepo.createRefreshToken.mockResolvedValue(undefined as any);
+    prismaMock.role.findFirst.mockImplementation(((args: any) => Promise.resolve({
+      id: args?.where?.name === 'admin' ? 'role-admin-id' : 'role-viewer-id',
+      name: args?.where?.name,
+    })) as any);
     (mockAuthRepo.updateUserById as jest.Mock).mockImplementation(async (_id, data) => buildUser(data));
   });
 

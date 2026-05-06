@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { USER_DEPARTMENTS, USER_STATUSES } from './users.constants';
+import { USER_STATUSES } from './users.constants';
+import { ROLE_NAMES } from '../roles/roles.constants';
 
 export const userIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -11,10 +12,9 @@ export const listUsersQuerySchema = z.object({
   search: z.string().optional(),
   email: z.string().email().optional(),
   roleId: z.string().optional(),
-  role: z.string().optional(),
+  role: z.enum(ROLE_NAMES).optional(),
   status: z.enum(USER_STATUSES).optional(),
-
-  department: z.enum(USER_DEPARTMENTS).optional(),
+  departmentId: z.string().optional(),
   employeeId: z.string().optional(),
   branchId: z.string().optional(),
   lastLoginFrom: z.string().optional(),
@@ -32,10 +32,11 @@ export const createUserBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   roleId: z.string().optional(),
-  role: z.string().optional(),
+  role: z.enum(ROLE_NAMES).optional(),
 
   status: z.enum(USER_STATUSES).optional(),
-  department: z.enum(USER_DEPARTMENTS).optional(),
+  departmentId: z.string().optional(),
+  departmentIds: z.array(z.string().min(1)).optional(),
   avatarUrl: z.string().url().optional(),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
@@ -48,7 +49,11 @@ export const createUserCsvBodySchema = createUserBodySchema.extend({
 
 export const updateUserBodySchema = createUserBodySchema
   .omit({ password: true })
-  .partial();
+  .partial()
+  .extend({
+    departmentId: z.string().optional().nullable(),
+    departmentIds: z.array(z.string().min(1)).optional(),
+  });
 
 export const changeStatusBodySchema = z.object({
   status: z.enum(USER_STATUSES),
@@ -56,7 +61,7 @@ export const changeStatusBodySchema = z.object({
 
 export const changeRoleBodySchema = z.object({
   roleId: z.string().optional(),
-  role: z.string().optional(),
+  role: z.enum(ROLE_NAMES).optional(),
 });
 
 export const resetPasswordBodySchema = z.object({

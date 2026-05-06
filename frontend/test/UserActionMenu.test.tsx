@@ -5,12 +5,12 @@ import { UserActionMenu } from '@/components/users/UserActionMenu';
 import type { User } from '@/types';
 
 const mockUser: User = {
-  id: '1', name: 'Juan Pérez', email: 'juan@test.com', role: 'admin', status: 'active',
+  id: '1', name: 'Juan Pérez', email: 'juan@test.com', role: { name: 'admin' }, status: 'active',
   createdAt: '2024-01-01T00:00:00Z',
 } as User;
 
 const mockDisabledUser: User = {
-  id: '2', name: 'María López', email: 'maria@test.com', role: 'viewer', status: 'disabled',
+  id: '2', name: 'María López', email: 'maria@test.com', role: { name: 'employee' }, status: 'disabled',
   createdAt: '2024-01-01T00:00:00Z',
 } as User;
 

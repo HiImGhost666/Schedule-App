@@ -22,7 +22,7 @@ export function useScheduleTypes() {
   });
 
   const updateMutation = useMutation<FullScheduleType, Error, { id: string; data: Partial<CreateScheduleTypeInput> }>({
-    mutationFn: ({ id, data }: { id: string; data: any }) => scheduleTypesApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateScheduleTypeInput> }) => scheduleTypesApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-types'] });
       toast.success('Tipo de evento actualizado');

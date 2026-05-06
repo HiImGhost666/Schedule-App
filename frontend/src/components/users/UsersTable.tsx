@@ -13,18 +13,9 @@ interface UsersTableProps {
   onMenuToggle: (userId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-function normalizeDepartment(value: string): string | undefined {
-  const DEPARTMENT_VALUES = ['Seguridad', 'Mantenimiento', 'Operaciones', 'Administración'] as const;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const normalized = trimmed.toLowerCase();
-  const matched = DEPARTMENT_VALUES.find((department) => department.toLowerCase() === normalized);
-  return matched ?? undefined;
-}
-
 function roleBadge(role: string) {
-  const cls = { admin: 'badge-role-admin', manager: 'badge-role-manager', viewer: 'badge-role-viewer' };
-  return <span className={cls[role as keyof typeof cls] || 'badge-role-viewer'}>{ROLE_LABELS[role]}</span>;
+  const cls = { admin: 'badge-role-admin', general_manager: 'badge-role-manager', department_manager: 'badge-role-manager', employee: 'badge-role-employee' };
+  return <span className={cls[role as keyof typeof cls] || 'badge-role-employee'}>{ROLE_LABELS[role] || role}</span>;
 }
 
 function statusBadge(status: string) {
@@ -64,10 +55,10 @@ export function UsersTable({ data, sortBy, sortOrder, onSortChange, onMenuToggle
               {renderSortLabel('department', 'Departamento')}
             </th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">
-              {renderSortLabel('branch', 'Sucursal')}
+              {renderSortLabel('branchId', 'Sucursal')}
             </th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
-              {renderSortLabel('role', 'Rol')}
+              {renderSortLabel('roleId', 'Rol')}
             </th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">
               {renderSortLabel('status', 'Estado')}
@@ -93,11 +84,13 @@ export function UsersTable({ data, sortBy, sortOrder, onSortChange, onMenuToggle
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{normalizeDepartment(u.department ?? '') || '—'}</td>
+              <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">
+                {u.department?.name || '—'}
+              </td>
               <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
                 {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
               </td>
-              <td className="px-5 py-3">{roleBadge(u.role)}</td>
+              <td className="px-5 py-3">{roleBadge(u.role?.name || '')}</td>
               <td className="px-5 py-3">{statusBadge(u.status)}</td>
               <td className="px-5 py-3 text-xs text-navy-400 hidden lg:table-cell">
                 {u.lastLoginAt ? formatRelative(u.lastLoginAt) : 'Nunca'}

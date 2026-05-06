@@ -21,8 +21,8 @@ vi.mock('@/config/api', () => ({
 }));
 
 vi.mock('@/store/authStore', () => ({
-  useAuthStore: (selector: (state: { user: { id: string; role: string } }) => unknown) =>
-    selector({ user: { id: 'admin-1', role: 'admin' } }),
+  useAuthStore: (selector: (state: { user: { id: string; role: { name: string } } }) => unknown) =>
+    selector({ user: { id: 'admin-1', role: { name: 'admin' } } }),
 }));
 
 vi.mock('@/pages/admin/UserFormModal', () => ({
@@ -94,9 +94,9 @@ describe('UsersPage', () => {
             id: 'u-1',
             name: 'Maria Admin',
             email: 'maria@test.dev',
-            role: 'viewer',
+            role: { name: 'employee' },
             status: 'disabled',
-            department: 'Soporte',
+            department: { id: 'dept-1', name: 'Soporte', code: 'SOP' },
             branch: null,
             lastLoginAt: null,
           },
@@ -113,7 +113,11 @@ describe('UsersPage', () => {
     const menuButton = row?.querySelector('button');
     expect(menuButton).toBeTruthy();
     await userEvent.click(menuButton as HTMLButtonElement);
-    await userEvent.click(await screen.findByRole('button', { name: /Activar/i }));
+    // Click "Activar" in the dropdown menu (which is likely not a button element)
+    await userEvent.click(await screen.findByText(/Activar/i));
+
+    // Click "Activar" in the confirmation dialog
+    await userEvent.click(await screen.findByRole('button', { name: /^Activar$/i }));
 
     await waitFor(() => {
       expect(patchMock).toHaveBeenCalledWith('/users/u-1/status', { status: 'active' });
@@ -130,9 +134,9 @@ describe('UsersPage', () => {
             id: 'u-10',
             name: 'Pedro Manager',
             email: 'pedro@test.dev',
-            role: 'manager',
+            role: { name: 'general_manager' },
             status: 'active',
-            department: 'operaciones',
+            department: { id: 'dept-2', name: 'Operaciones', code: 'OPS' },
             branch: null,
             lastLoginAt: null,
           },
@@ -159,23 +163,34 @@ describe('UsersPage', () => {
   });
 
   it('muestra departamento con inicial mayuscula en la tabla', async () => {
-    getMock.mockResolvedValueOnce({
-      data: {
-        success: true,
-        data: [
-          {
-            id: 'u-2',
-            name: 'Carlos Viewer',
-            email: 'carlos@test.dev',
-            role: 'viewer',
-            status: 'active',
-            department: 'seguridad',
-            branch: null,
-            lastLoginAt: null,
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{ id: 'branch-1', code: 'TFN', name: 'Tenerife', isActive: true }],
           },
-        ],
-        pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
-      },
+        });
+      }
+
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: [
+            {
+              id: 'u-2',
+              name: 'Carlos Viewer',
+              email: 'carlos@test.dev',
+              role: { name: 'employee' },
+              status: 'active',
+              department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
+              branch: null,
+              lastLoginAt: null,
+            },
+          ],
+          pagination: { total: 1, page: 1, limit: 15, totalPages: 1 },
+        },
+      });
     });
 
     renderPage();
@@ -211,7 +226,7 @@ describe('UsersPage', () => {
 
     renderPage();
 
-    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,viewer,active,,TFN,,'], 'users.csv', { type: 'text/csv' });
+    const file = new File(['employeeId,name,email,role,status,department,branchId,companyPhone,auxiliaryPhone\nLAB-200,Juan,juan@test.com,employee,active,,TFN,,'], 'users.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
     
     // El input está hidden, pero podemos interactuar con él si lo encontramos
@@ -260,7 +275,7 @@ describe('UsersPage', () => {
     renderPage();
 
     const headers = ['employeeId', 'name', 'email', 'role', 'status', 'department', 'branchId', 'companyPhone', 'auxiliaryPhone'].join(delimiter);
-    const row = ['LAB-201', 'Juana', 'juana@test.com', 'viewer', 'active', '', 'TFN', '', ''].join(delimiter);
+    const row = ['LAB-201', 'Juana', 'juana@test.com', 'employee', 'active', '', 'TFN', '', ''].join(delimiter);
     const file = new File([`${headers}\n${row}`], 'users-alt-delimiter.csv', { type: 'text/csv' });
     const input = screen.getByTestId('csv-upload-input') as HTMLInputElement;
 
@@ -283,9 +298,9 @@ describe('UsersPage', () => {
             id: 'u-3',
             name: 'Ana Viewer',
             email: 'ana@test.dev',
-            role: 'viewer',
+            role: { name: 'employee' },
             status: 'active',
-            department: 'seguridad',
+            department: { id: 'dept-3', name: 'Seguridad', code: 'SEG' },
             branch: null,
             lastLoginAt: null,
           },
@@ -309,6 +324,7 @@ describe('UsersPage', () => {
     });
   });
 
+
   it('envia filtros configurados al backend al cambiar rol', async () => {
     getMock.mockResolvedValue({
       data: {
@@ -318,9 +334,9 @@ describe('UsersPage', () => {
             id: 'u-4',
             name: 'Luis Admin',
             email: 'luis@test.dev',
-            role: 'admin',
+            role: { name: 'admin' },
             status: 'active',
-            department: 'administración',
+            department: { id: 'dept-4', name: 'Administración', code: 'ADM' },
             branch: null,
             lastLoginAt: null,
           },
@@ -332,12 +348,12 @@ describe('UsersPage', () => {
     renderPage();
 
     await screen.findByText('Luis Admin');
-    await userEvent.selectOptions(screen.getByDisplayValue('Todos los roles'), 'manager');
+    await userEvent.selectOptions(screen.getByDisplayValue('Todos los roles'), 'general_manager');
 
     await waitFor(() => {
       expect(getMock).toHaveBeenCalledWith('/users', expect.objectContaining({
         params: expect.objectContaining({
-          role: 'manager',
+          role: 'general_manager',
         }),
       }));
     });

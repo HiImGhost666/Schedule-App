@@ -3,6 +3,8 @@ import type { Branch } from '@/types';
 
 interface BranchDetailProps {
   branch: Branch;
+  departments: Array<{ id: string; name: string; code: string; isActive: boolean }>;
+  onSelectDepartment: (departmentId: string) => void;
   onEdit: () => void;
   onDisable: () => void;
   onActivate: () => void;
@@ -10,11 +12,21 @@ interface BranchDetailProps {
   isDisabling: boolean;
   isActivating: boolean;
   isDeleting: boolean;
+  onAssignManager?: () => void;
+  onRemoveManager?: () => void;
+  isAssigningManager?: boolean;
+  isRemovingManager?: boolean;
 }
-
 export function BranchDetail({
-  branch, onEdit, onDisable, onActivate, onHardDelete,
+  branch,
+  departments,
+  onSelectDepartment,
+  onEdit, onDisable, onActivate, onHardDelete,
   isDisabling, isActivating, isDeleting,
+  onAssignManager,
+  onRemoveManager,
+  isAssigningManager,
+  isRemovingManager,
 }: BranchDetailProps) {
   return (
     <>
@@ -30,7 +42,6 @@ export function BranchDetail({
             : 'bg-amber-500/15 text-amber-600'
         }`}>{branch.isActive ? 'Activa' : 'Inactiva'}</span>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <InfoBox label="Nombre" value={branch.name} />
         <InfoBox label="Código" value={branch.code} />
@@ -41,7 +52,63 @@ export function BranchDetail({
         <InfoBox label="Zona horaria" value={branch.timezone} />
       </div>
 
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-theme-color/80 pt-3">
+      <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
+        <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Departamentos</p>
+        {departments.length ? (
+          <div className="flex flex-wrap gap-2">
+            {departments.map((department) => (
+              <button
+                key={department.id}
+                type="button"
+                onClick={() => onSelectDepartment(department.id)}
+                className="text-xs font-semibold px-2.5 py-1 rounded-full border border-theme-color bg-theme-surface hover:bg-theme-surface-hover"
+              >
+                {department.name} ({department.code}){department.isActive ? '' : ' · inactivo'}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-theme-muted">Sin departamentos</p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-3">
+        <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Manager</p>
+        {branch.manager ? (
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-theme-primary">{branch.manager.name}</p>
+              <p className="text-xs text-theme-muted">{branch.manager.email}</p>
+            </div>
+            {onRemoveManager ? (
+              <button
+                type="button"
+                onClick={onRemoveManager}
+                disabled={isRemovingManager}
+                className="btn-ghost text-xs disabled:opacity-60"
+              >
+                Remover
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-theme-muted">Sin manager asignado</p>
+            {onAssignManager ? (
+              <button
+                type="button"
+                onClick={onAssignManager}
+                disabled={isAssigningManager}
+                className="btn-ghost text-xs disabled:opacity-60"
+              >
+                Asignar
+              </button>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-3 border-t border-theme-color/80">
         {branch.isActive ? (
           <button type="button" onClick={onDisable} disabled={isDisabling}
             className="btn-ghost text-sm inline-flex items-center gap-2 disabled:opacity-60">Desactivar</button>

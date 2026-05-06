@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Webhook, Bell, ClipboardList,
-  LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays
+  LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays, Layers
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/types';
@@ -22,6 +22,7 @@ const adminItems = [
   { to: '/admin/users', icon: Users, label: 'Usuarios' },
   { to: '/admin/event-types', icon: CalendarDays, label: 'Tipos de Evento' },
   { to: '/admin/branches', icon: Building2, label: 'Sucursales' },
+  { to: '/admin/departments', icon: Layers, label: 'Departamentos' },
   { to: '/admin/holidays', icon: CalendarDays, label: 'Festivos' },
   { to: '/admin/webhooks', icon: Webhook, label: 'Webhooks' },
   { to: '/admin/notifications', icon: Bell, label: 'Notificaciones' },
@@ -88,7 +89,7 @@ export function Sidebar() {
             width={420}
             height={141}
             fetchPriority="high"
-            className="h-16 w-full max-w-[210px] object-contain select-none"
+            className="h-16 w-full max-w-52.5 object-contain select-none"
             draggable={false}
           />
         )}
@@ -116,7 +117,7 @@ export function Sidebar() {
             })}
             title={sidebarCollapsed ? label : undefined}
           >
-            <Icon className="h-4 w-4 flex-shrink-0" />
+            <Icon className="h-4 w-4 shrink-0" />
             {!sidebarCollapsed && <span>{label}</span>}
           </NavLink>
         ))}
@@ -153,7 +154,7 @@ export function Sidebar() {
                   })}
                   title={sidebarCollapsed ? label : undefined}
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   {!sidebarCollapsed && <span>{label}</span>}
                 </NavLink>
               )
@@ -176,7 +177,7 @@ export function Sidebar() {
           title={sidebarCollapsed ? 'Mi Perfil' : undefined}
         >
           <div
-            className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
             style={{ backgroundColor: getAvatarColor(user?.name || '') }}
           >
             {getInitials(user?.name || 'U')}
@@ -184,10 +185,10 @@ export function Sidebar() {
           {!sidebarCollapsed && (
             <div className="min-w-0">
               <p className="text-xs font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-theme-sidebar truncate">{user?.department || (user?.role?.name ? ROLE_LABELS[user.role.name] : '')}</p>
+              <p className="text-xs text-theme-sidebar truncate">{user?.department?.name || (user?.role?.name ? ROLE_LABELS[user.role.name] : '')}</p>
             </div>
           )}
-          {!sidebarCollapsed && <User className="h-3.5 w-3.5 text-theme-sidebar ml-auto flex-shrink-0" />}
+          {!sidebarCollapsed && <User className="h-3.5 w-3.5 text-theme-sidebar ml-auto shrink-0" />}
         </NavLink>
 
         <button
@@ -199,7 +200,7 @@ export function Sidebar() {
           )}
           title={sidebarCollapsed ? 'Cerrar Sesión' : undefined}
         >
-          <LogOut className="h-4 w-4 flex-shrink-0" aria-hidden />
+          <LogOut className="h-4 w-4 shrink-0" aria-hidden />
           {!sidebarCollapsed && <span>Cerrar Sesión</span>}
         </button>
       </div>
