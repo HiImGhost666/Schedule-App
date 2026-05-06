@@ -22,7 +22,7 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const scheduleTypes = await getScheduleTypes();
     sendSuccess(res, scheduleTypes);
-  } catch (error) {
+  } catch {
     sendError(res, 'Error al obtener tipos de turno', 500);
   }
 });
@@ -32,7 +32,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const scheduleType = await getScheduleTypeById(req.params.id as string);
     sendSuccess(res, scheduleType);
-  } catch (error) {
+  } catch {
     sendError(res, 'Tipo de turno no encontrado', 404);
   }
 });

@@ -1,6 +1,5 @@
 import { Prisma } from '@prisma/client';
 import { createAppError } from '../../common/errors/error-catalog';
-import { prisma } from '../../config/database';
 import { logAuditOrThrow } from '../audit/audit.service';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { findSchedules } from '../schedules/schedules.repository';

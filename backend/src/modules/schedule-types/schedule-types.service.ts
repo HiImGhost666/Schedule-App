@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { z } from 'zod';
 import { createAppError } from '../../common/errors/error-catalog';
 import type { CreateScheduleTypeInput, UpdateScheduleTypeInput } from './schedule-types.http.schemas';
 
@@ -71,7 +70,7 @@ export async function updateScheduleType(id: string, input: UpdateScheduleTypeIn
 }
 
 export async function deleteScheduleType(id: string) {
-  const scheduleType = await getScheduleTypeById(id);
+  const _scheduleType = await getScheduleTypeById(id);
 
   // Check if it's being used by schedules
   const usageCount = await prisma.schedule.count({

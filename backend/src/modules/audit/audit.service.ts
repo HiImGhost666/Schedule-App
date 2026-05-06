@@ -380,7 +380,7 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
         const branchIds = Array.isArray(beforeState.branchIds)
           ? beforeState.branchIds.filter((branchId): branchId is string => typeof branchId === 'string')
           : [];
-        const { branchIds: _branchIds, userCount: _userCount, id, ...departmentData } = beforeState;
+        const { branchIds: _branchIds, userCount: _userCount, id: _id, ...departmentData } = beforeState;
 
         rollbackResult = await tx.department.upsert({
           where: { id: entityId },
