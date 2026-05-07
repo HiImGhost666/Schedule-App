@@ -18,6 +18,13 @@ export interface User {
     name: string;
     code: string;
   } | null;
+  managedDepartments?: Array<{
+    departmentId: string;
+    assignedAt: string;
+    id: string;
+    name: string;
+    code: string;
+  }> | null;
   createdAt: string;
   passwordChangedAt?: string;
   lastLoginAt?: string;
@@ -164,6 +171,15 @@ export interface Department {
     };
     createdAt?: string;
   }>;
+    managers?: Array<{
+      user: {
+        id: string;
+        name: string;
+        email: string;
+        avatarUrl?: string | null;
+      };
+      assignedAt: string;
+    }>;
   _count?: {
     users: number;
   };
@@ -231,6 +247,11 @@ export interface WebhookConfig {
   fridayReminderEnabled: boolean;
   mondayVacationReminderEnabled: boolean;
   fridayReminderTime: string;
+  scope: 'general' | 'department' | 'branch';
+  departmentId?: string | null;
+  department?: { id: string; name: string } | null;
+  branchId?: string | null;
+  branch?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }

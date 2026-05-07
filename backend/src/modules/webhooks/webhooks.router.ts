@@ -71,10 +71,48 @@ const webhookSchema = z.object({
   fridayReminderEnabled: z.boolean().default(true),
   mondayVacationReminderEnabled: z.boolean().default(true),
   fridayReminderTime: z.string().default('12:00'),
+  scope: z.enum(['general', 'department', 'branch']).default('general'),
+  departmentId: z.string().optional(),
+  branchId: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.scope === 'department' && !data.departmentId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['departmentId'],
+      message: 'Debes seleccionar un departamento',
+    });
+  }
+  if (data.scope === 'branch' && !data.branchId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['branchId'],
+      message: 'Debes seleccionar una sucursal',
+    });
+  }
+  if (data.scope !== 'department' && data.departmentId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['departmentId'],
+      message: 'El departamento solo puede usarse con alcance departamental',
+    });
+  }
+  if (data.scope !== 'branch' && data.branchId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['branchId'],
+      message: 'La sucursal solo puede usarse con alcance de sucursal',
+    });
+  }
 });
 
 router.get('/', authMiddleware, requirePermission('settings:view'), asyncRoute(async (_req: AuthRequest, res: Response) => {
-  const webhooks = await prisma.webhookConfig.findMany({ orderBy: { createdAt: 'desc' } });
+  const webhooks = await prisma.webhookConfig.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      department: { select: { id: true, name: true } },
+      branch: { select: { id: true, name: true } },
+    },
+  });
   return sendSuccess(res, webhooks);
 }));
 

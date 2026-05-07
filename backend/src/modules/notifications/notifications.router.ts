@@ -55,7 +55,8 @@ router.post('/resend/:logId', authMiddleware, requirePermission('settings:update
 
 router.post('/friday-summary', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   try {
-    const results = await sendFridaySummary(req.user!.id);
+    const { webhookConfigId } = req.body;
+    const results = await sendFridaySummary(req.user!.id, webhookConfigId);
     return sendSuccess(res, { sent: results.length }, `Resumen enviado a ${results.length} webhook(s)`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al enviar resumen';
@@ -65,7 +66,8 @@ router.post('/friday-summary', authMiddleware, requirePermission('settings:updat
 
 router.post('/vacation-summary', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   try {
-    const results = await sendMondayVacationSummary(req.user!.id);
+    const { webhookConfigId } = req.body;
+    const results = await sendMondayVacationSummary(req.user!.id, webhookConfigId);
     return sendSuccess(res, { sent: results.length }, `Resumen de vacaciones enviado a ${results.length} webhook(s)`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al enviar resumen';
