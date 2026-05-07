@@ -95,15 +95,13 @@ describe('schedule-types.router', () => {
       expect(mockService.createScheduleType).toHaveBeenCalledTimes(1);
     });
 
-    it('creates schedule type for department_manager', async () => {
-      mockService.createScheduleType.mockResolvedValue({ id: 'st-1', value: 'nuevo', label: 'Nuevo', color: '#ff0000' } as any);
-
+    it('returns 403 for department_manager', async () => {
       const response = await request(app)
         .post('/api/schedule-types')
         .set('x-test-role', 'department_manager')
         .send({ value: 'nuevo', label: 'Nuevo', color: '#ff0000' });
-      expect(response.status).toBe(201);
-      expect(mockService.createScheduleType).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(403);
+      expect(mockService.createScheduleType).not.toHaveBeenCalled();
     });
 
     it('returns 403 for employee', async () => {

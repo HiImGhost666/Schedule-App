@@ -49,6 +49,21 @@ const extractIdsPreprocess = (data: any) => {
 
 export const createScheduleBodySchema = z.preprocess(extractIdsPreprocess, baseScheduleBodySchema);
 
+export const createScheduleBulkBodySchema = z.preprocess(
+  (data: any) => {
+    if (data && Array.isArray(data.items)) {
+      return {
+        ...data,
+        items: data.items.map((item: any) => extractIdsPreprocess(item)),
+      };
+    }
+    return data;
+  },
+  z.object({
+    items: z.array(baseScheduleBodySchema).min(1, 'Debe incluir al menos un turno'),
+  }),
+);
+
 export const updateScheduleBodySchema = z.preprocess(
   extractIdsPreprocess,
   baseScheduleBodySchema.partial().extend({
@@ -58,4 +73,27 @@ export const updateScheduleBodySchema = z.preprocess(
 
 export const deleteScheduleBodySchema = z.object({
   reason: z.string().optional(),
+});
+
+// ── Weekly Summary ──────────────────────────────────────────
+
+export const weeklySummaryParamsSchema = z.object({
+  userId: z.string().min(1),
+  year: z.coerce.number().int().min(2000).max(2100),
+  week: z.coerce.number().int().min(1).max(53),
+});
+
+export const weeklySummaryQuerySchema = z.object({
+  fromWeek: z.coerce.number().int().min(1).max(53).optional(),
+  toWeek: z.coerce.number().int().min(1).max(53).optional(),
+});
+
+export const teamWeeklySummaryParamsSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  week: z.coerce.number().int().min(1).max(53),
+});
+
+export const teamWeeklySummaryQuerySchema = z.object({
+  branchId: z.string().optional(),
+  departmentId: z.string().optional(),
 });

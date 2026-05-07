@@ -1,83 +1,30 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Shield, AlertTriangle, Clock, ExternalLink } from 'lucide-react';
+import { Calendar, Users, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
-import { cn, formatDateTime, formatRelative } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { isDarkThemePreset } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
-import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment, ScheduleType } from '@/types';
-import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date-fns';
+import type { WeekScheduleItem, WeekScheduleAssignee } from '@/types';
+import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useScheduleTypes } from '@/hooks/useScheduleTypes';
-
-const IRREVERSIBLE_ACTIONS = [
-  'LOGIN',
-  'LOGOUT',
-  'CHANGE_PASSWORD',
-  'RESET_PASSWORD',
-  'FAILED_LOGIN_ATTEMPT',
-  'ROLLBACK_PERFORMED',
-];
-
-function getTypeLabel(type: string, scheduleTypes: ScheduleType[]) {
-  return scheduleTypes.find((t) => t.value === type)?.label || type;
-}
-
-function getTypeColor(type: string, scheduleTypes: ScheduleType[]) {
-  return scheduleTypes.find((t) => t.value === type)?.color || '#1e3a5f';
-}
-
-function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
-  return {
-    id: item.id,
-    title: item.title,
-    description: item.notes ?? undefined,
-    startDatetime: item.startDatetime,
-    endDatetime: item.endDatetime,
-    type: item.type,
-    scheduleTypeId: item.scheduleTypeId,
-    color: item.color,
-    location: item.location ?? undefined,
-    notes: item.notes ?? undefined,
-    isLastMinute: item.isLastMinute,
-    hoursPerDay: item.hoursPerDay,
-    createdById: '',
-    createdBy: { id: '', name: 'Sistema' },
-    createdAt: item.startDatetime,
-    updatedAt: item.endDatetime,
-    assignments: item.assignees.map((assignee) => ({
-      scheduleId: item.id,
-      userId: assignee.id,
-      assignedAt: item.startDatetime,
-      user: {
-        id: assignee.id,
-        name: assignee.name,
-        email: assignee.email ?? '',
-        avatarUrl: assignee.avatarUrl ?? undefined,
-        department: assignee.department ?? undefined,
-        companyPhone: assignee.companyPhone ?? undefined,
-        auxiliaryPhone: assignee.auxiliaryPhone ?? undefined,
-      },
-    })),
-  };
-}
-
+import { TeamWeeklySummaryCard } from '@/components/schedule/TeamWeeklySummaryCard';
+import { MyWeeklySummaryCard } from '@/components/schedule/MyWeeklySummaryCard';
+import { WeekSchedulesWidget } from '@/components/schedule/WeekSchedulesWidget';
+import { RecentActivityWidget } from '@/components/audit/RecentActivityWidget';
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<WeekScheduleAssignee | null>(null);
   const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security'>('general');
 
   const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const isoWeek = getISOWeek(now);
   const isoWeekYear = getISOWeekYear(now);
 
@@ -86,7 +33,7 @@ export function DashboardPage() {
     queryFn: () =>
       api
         .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`)
-        .then((r) => r.data.data.items.map(mapWeekItemToSchedule)),
+        .then((r) => r.data.data.items),
   });
 
   const { data: usersData, isLoading: loadingUsers } = useQuery({
@@ -95,16 +42,8 @@ export function DashboardPage() {
     enabled: user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager',
   });
 
-  const { data: auditLogs } = useQuery({
-    queryKey: ['audit', 'recent'],
-    queryFn: () => api.get<{ data: AuditLog[] }>('/audit?limit=5').then((r) => r.data.data),
-    enabled: user?.role?.name === 'admin',
-  });
-
-  const { types: scheduleTypes = [] } = useScheduleTypes();
-
   const mySchedules = weekSchedules?.filter((s) =>
-    s.assignments.some((a) => a.userId === user?.id)
+    s.assignees?.some((a) => a.id === user?.id)
   ) || [];
 
   const lastMinuteCount = weekSchedules?.filter((s) => s.isLastMinute).length || 0;
@@ -121,12 +60,10 @@ export function DashboardPage() {
       : 'bg-white/90 hover:bg-white text-green-600 shadow-sm border border-green-200',
   );
 
-
   const navigateToScheduleWeek = () => {
     navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } });
   };
 
-  // Nuevo: abrir modal de perfil en pestaña 'schedules'
   const openMyProfileSchedules = () => {
     setSelectedProfileUser(user!);
     setProfileModalTab('schedules');
@@ -147,9 +84,16 @@ export function DashboardPage() {
     }
   };
 
+  const handleOpenProfile = (assignee: WeekScheduleAssignee) => {
+    setSelectedProfileUser(assignee);
+    setProfileModalOpen(true);
+  };
+
+  const isAdmin = user?.role?.name === 'admin';
+
   return (
     <div className="space-y-7 animate-fade-in">
-      {/* Header: altura mínima evita CLS al cargar la webfont */}
+      {/* Header */}
       <div className="min-h-14">
         <h1 className="text-2xl font-bold text-theme-primary">
           Bienvenido, {user?.name?.split(' ')[0]} 👋
@@ -252,149 +196,26 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Main grid: Week schedules + Activity log */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* This week schedule */}
-        <div className="lg:col-span-2 card p-7">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gold-500" />
-              Turnos de esta semana
-            </h2>
-
-            <span className="text-xs text-theme-muted">
-              {format(weekStart, 'dd/MM')} — {format(weekEnd, 'dd/MM')}
-            </span>
-          </div>
-
-          {loadingSchedules ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner size="md" />
-            </div>
-          ) : weekSchedules?.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-10 w-10 text-theme-muted mx-auto mb-2" />
-              <p className="text-sm text-theme-muted">No hay turnos programados esta semana</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {weekSchedules?.map((s) => (
-                <div
-                  key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() =>
-                    navigate(`/schedule/${s.id}`, {
-                      state: {
-                        initialView: 'dayGridMonth',
-                        initialDate: s.startDatetime,
-                      },
-                    })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      navigate(`/schedule/${s.id}`, {
-                        state: {
-                          initialView: 'dayGridMonth',
-                          initialDate: s.startDatetime,
-                        },
-                      });
-                    }
-                  }}
-                  className="flex items-center gap-3 px-5 py-4 rounded-xl border border-navy-100 hover:border-navy-200 hover:shadow-sm transition-all cursor-pointer text-left w-full"
-                >
-                  <div
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: getTypeColor(s.type, scheduleTypes) }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-theme-primary truncate">{s.title}</p>
-                    <p className="text-xs text-theme-muted">
-                      {formatDateTime(s.startDatetime)} — {format(new Date(s.endDatetime), 'HH:mm')}
-                    </p>
-                  </div>
-                  <div className="flex -space-x-1 shrink-0">
-                    {s.assignments.slice(0, 3).map((a) => (
-                      <div
-                        key={a.userId}
-                        title={a.user.name}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProfileUser(a.user);
-                          setProfileModalOpen(true);
-                        }}
-                        className="h-6 w-6 rounded-full bg-navy-200 border-2 border-white flex items-center justify-center text-xs font-medium text-navy-600 cursor-pointer hover:bg-navy-300 transition-colors"
-                      >
-                        {a.user.name[0]}
-                      </div>
-                    ))}
-                    {s.assignments.length > 3 && (
-                      <div className="h-6 w-6 rounded-full bg-navy-100 border-2 border-white flex items-center justify-center text-xs text-navy-500">
-                        +{s.assignments.length - 3}
-                      </div>
-                    )}
-                  </div>
-                  {s.isLastMinute && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium shrink-0">
-                      Urgente
-                    </span>
-                  )}
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full text-white flex-shrink-0"
-                    style={{ backgroundColor: getTypeColor(s.type, scheduleTypes) }}
-                  >
-                    {getTypeLabel(s.type, scheduleTypes)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className={isAdmin ? 'lg:col-span-2' : 'lg:col-span-3'}>
+          <WeekSchedulesWidget onOpenProfile={handleOpenProfile} />
         </div>
 
-        {/* Activity log */}
-        {user?.role?.name === 'admin' && (
-          <div className="card p-7 min-h-55">
-            <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
-              <Clock className="h-4 w-4 text-gold-500" />
-              Actividad Reciente
-            </h2>
-
-            {!auditLogs ? (
-              <LoadingSpinner size="sm" />
-            ) : auditLogs.length === 0 ? (
-              <p className="text-sm text-theme-muted">Sin actividad reciente</p>
-            ) : (
-              <div className="space-y-2">
-                {auditLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex gap-3 cursor-pointer hover:bg-navy-100/80 p-2 -m-2 rounded-lg transition-colors group"
-                    onClick={() => {
-                      const isIrreversible = IRREVERSIBLE_ACTIONS.includes(log.action);
-                      navigate('/admin/audit', {
-                        state: {
-                          selectedLogId: log.id,
-                          activeTab: isIrreversible ? 'irreversible' : 'reversible'
-                        }
-                      });
-                    }}
-                  >
-                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 shrink-0 group-hover:scale-125 transition-all" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-theme-primary group-hover:text-navy-800 transition-colors">
-                        {log.action.replace(/_/g, ' ')}
-                      </p>
-                      <p className="text-xs text-theme-muted mt-0.5">
-                        {log.user?.name || 'Sistema'} · {formatRelative(log.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {isAdmin && (
+          <div className="lg:col-span-1">
+            <RecentActivityWidget />
           </div>
         )}
       </div>
+
+      {/* My weekly summary (all users) */}
+      <MyWeeklySummaryCard />
+
+      {/* Team weekly summary (admin/manager view) */}
+      {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (
+        <TeamWeeklySummaryCard />
+      )}
 
       <UserProfileModal
         open={profileModalOpen}

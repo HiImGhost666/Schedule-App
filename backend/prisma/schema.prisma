@@ -35,14 +35,15 @@ model User {
   departmentId            String?  @map("department_id")
   department              Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-  refreshTokens       RefreshToken[]
-  createdSchedules    Schedule[]           @relation("ScheduleCreator")
-  scheduleAssignments ScheduleAssignment[]
-  auditLogs           AuditLog[]           @relation("AuditActor")
-  rolledBackAuditLogs AuditLog[]           @relation("AuditRollbackActor")
-  notificationsSent   NotificationLog[]    @relation("NotificationSender")
-  managedBranches     Branch[]             @relation("BranchManager")
-  managedDepartments  DepartmentManager[]
+  refreshTokens        RefreshToken[]
+  createdSchedules     Schedule[]           @relation("ScheduleCreator")
+  scheduleAssignments  ScheduleAssignment[]
+  weeklyWorkSummaries  WeeklyWorkSummary[]
+  auditLogs            AuditLog[]           @relation("AuditActor")
+  rolledBackAuditLogs  AuditLog[]           @relation("AuditRollbackActor")
+  notificationsSent    NotificationLog[]    @relation("NotificationSender")
+  managedBranches      Branch[]             @relation("BranchManager")
+  managedDepartments   DepartmentManager[]
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
@@ -271,6 +272,25 @@ model ScheduleAssignment {
   // MySQL no indexa automáticamente la segunda columna de un PK compuesto para búsquedas inversas.
   @@index([userId])
   @@map("schedule_assignments")
+}
+
+model WeeklyWorkSummary {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year            Int
+  week            Int
+  totalHours      Float    @default(0) @map("total_hours")
+  baseHours       Float    @default(40) @map("base_hours")
+  overtimeHours   Float    @default(0) @map("overtime_hours")
+  dailyBreakdown  String?  @map("daily_breakdown") @db.Text
+  calculatedAt    DateTime @default(now()) @map("calculated_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, year, week])
+  @@index([userId, year, week])
+  @@index([year, week])
+  @@map("weekly_work_summaries")
 }
 
 model ScheduleType {
