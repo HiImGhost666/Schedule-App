@@ -117,7 +117,7 @@ router.get('/theme', authMiddleware, async (_req: AuthRequest, res: Response) =>
   return sendSuccess(res, theme);
 });
 
-router.put('/theme', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
+router.put('/theme', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   const parsed = publishThemeSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendError(res, 'Configuracion de tema invalida', 400, parsed.error.flatten());
@@ -159,7 +159,7 @@ router.get('/theme/presets', authMiddleware, async (_req: AuthRequest, res: Resp
 
 // ── Custom preset CRUD ────────────────────────────────────────────
 
-router.post('/theme/presets', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
+router.post('/theme/presets', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   const parsed = createCustomPresetSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendError(res, 'Datos invalidos', 400, parsed.error.flatten());
@@ -193,7 +193,7 @@ router.post('/theme/presets', authMiddleware, requirePermission('settings:manage
   return sendSuccess(res, preset, 'Preset creado', 201);
 });
 
-router.patch('/theme/presets/:id', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
+router.patch('/theme/presets/:id', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de preset invalido', 400);
 
@@ -229,7 +229,7 @@ router.patch('/theme/presets/:id', authMiddleware, requirePermission('settings:m
   }
 });
 
-router.delete('/theme/presets/:id', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
+router.delete('/theme/presets/:id', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de preset invalido', 400);
 
@@ -288,7 +288,7 @@ const faviconUpload = multer({
 router.post(
   '/upload-favicon',
   authMiddleware,
-  requirePermission('settings:manage'),
+  requirePermission('settings:update'),
   faviconUpload.single('favicon'),
   (req: AuthRequest, res: Response) => {
     if (!req.file) {
@@ -343,7 +343,7 @@ const updateSiteSchema = z.object({
   faviconUrl: z.string().max(512).optional(),
 });
 
-router.put('/site', authMiddleware, requirePermission('settings:manage'), async (req: AuthRequest, res: Response) => {
+router.put('/site', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
   const parsed = updateSiteSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendError(res, 'Datos inválidos', 400, parsed.error.flatten());
