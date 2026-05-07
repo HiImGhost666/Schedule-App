@@ -211,11 +211,6 @@ export function SchedulePage() {
         .then((r) => r.data),
   });
 
-  // Reset selected department when branch changes to avoid stale filters
-  useEffect(() => {
-    setSelectedDeptId('');
-  }, [activeBranchId]);
-
   const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
   const branchNameById = useMemo(
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
@@ -510,6 +505,11 @@ export function SchedulePage() {
     });
   }, []);
 
+  const handleBranchChange = useCallback((branchId: string) => {
+    setActiveBranchId(branchId);
+    setSelectedDeptId('');
+  }, []);
+
   const handleEventClick = useCallback((info: EventClickArg) => {
     if (info.event.extendedProps.isHolidayBackground) return;
 
@@ -723,31 +723,15 @@ export function SchedulePage() {
               activeBranchId={activeBranchId}
               effectiveActiveBranchId={effectiveActiveBranchId}
               canViewAllBranches={canViewAllBranches}
-              onBranchChange={setActiveBranchId}
+              onBranchChange={handleBranchChange}
+              departments={departments?.data}
+              selectedDeptId={selectedDeptId}
+              onDepartmentChange={setSelectedDeptId}
               hiddenTypes={hiddenTypes}
               onToggleType={toggleType}
               typeCounts={typeCounts}
               holidayTypeCounts={holidayTypeCounts}
             />
-            <div className="p-6 pt-0 mt-auto">
-              <div className="pt-6 border-t border-theme-color">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-theme-muted mb-3">
-                  Filtrar por Departamento
-                </label>
-                <select
-                  value={selectedDeptId}
-                  onChange={(e) => setSelectedDeptId(e.target.value)}
-                  className="w-full text-sm border border-theme-border rounded-lg px-3 h-10 bg-theme-surface text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/20 transition-all"
-                >
-                  <option value="">Todos los departamentos</option>
-                  {departments?.data?.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </div>
 
           {/* Calendar */}

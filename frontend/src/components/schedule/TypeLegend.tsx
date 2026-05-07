@@ -29,7 +29,7 @@ export function TypeLegend({ hidden, onToggle, counts }: TypeLegendProps) {
       </div>
 
       {expanded && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col items-start gap-2">
           {scheduleTypes.map(({ value, label, color }) => {
             const active = !hidden.has(value);
             const count = counts[value] ?? 0;
@@ -45,11 +45,9 @@ export function TypeLegend({ hidden, onToggle, counts }: TypeLegendProps) {
               >
                 <span className="w-2 h-2 rounded-full shrink-0 flex-none" style={{ backgroundColor: active ? 'rgba(255,255,255,0.6)' : color }} />
                 <span className="leading-none">{label}</span>
-                {count > 0 && (
-                  <span className="rounded-full px-1 text-[10px] font-bold leading-none py-0.5"
-                    style={active ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' } : { backgroundColor: color, color: '#fff' }}
-                  >{count}</span>
-                )}
+                <span className="rounded-full min-w-5 px-1 text-center text-[10px] font-bold leading-none py-0.5"
+                  style={active ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' } : { backgroundColor: color, color: '#fff' }}
+                >{count}</span>
               </button>
             );
           })}

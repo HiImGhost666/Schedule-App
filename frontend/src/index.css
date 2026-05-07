@@ -468,7 +468,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .fc-google-like .fc .fc-timegrid-event {
   border-radius: 6px !important;
   border: none !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.18) inset !important;
 }
 .fc-google-like .fc .fc-timegrid-event .fc-event-main {
   padding: 0 !important;
