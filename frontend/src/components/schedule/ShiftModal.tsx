@@ -113,7 +113,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [customShiftTimes, setCustomShiftTimes] = useState<Record<string, { startTime: string; endTime: string }>>({});
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [shiftAnchorDate, setShiftAnchorDate] = useState<Date | null>(null);
-  const [shiftRangeDates, setShiftRangeDates] = useState<Date[]>([]);
+  const [shiftRangeDates] = useState<Date[]>([]);
   const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
 

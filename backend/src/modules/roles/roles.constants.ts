@@ -17,6 +17,7 @@ export const PERMISSIONS = [
   'schedules:create',
   'schedules:update',
   'schedules:delete',
+  'schedules:manage',
   'schedule_types:read',
   'schedule_types:create',
   'schedule_types:update',
@@ -27,6 +28,7 @@ export const PERMISSIONS = [
   'branches:delete',
   'settings:view',
   'settings:update',
+  'settings:manage',
   'audit:view',
 ] as const;
 export type PermissionName = typeof PERMISSIONS[number];
@@ -41,6 +43,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'schedules:create',
     'schedules:update',
     'schedules:delete',
+    'schedules:manage',
     'schedule_types:read',
     'schedule_types:create',
     'schedule_types:update',
@@ -51,6 +54,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'branches:delete',
     'settings:view',
     'settings:update',
+    'settings:manage',
     'audit:view',
   ],
   general_manager: [
@@ -65,6 +69,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'schedules:create',
     'schedules:update',
     'schedules:delete',
+    'schedules:manage',
     'schedule_types:read',
     'branches:view',
     'settings:view',
@@ -75,6 +80,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'schedules:create',
     'schedules:update',
     'schedules:delete',
+    'schedules:manage',
     'schedule_types:read',
     'branches:view',
   ],

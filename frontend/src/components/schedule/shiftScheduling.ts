@@ -13,12 +13,12 @@ export type ShiftChunk = {
 
 export function normalizeDate(value: Date): Date {
   const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 }
 
 export function toIsoDate(value: Date): string {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
 }
 
 export function parseTimeToMinutes(time: string): number {
@@ -29,7 +29,7 @@ export function parseTimeToMinutes(time: string): number {
 export function buildDateTime(day: Date, time: string): Date {
   const [hours, minutes] = time.split(':').map(Number);
   const date = normalizeDate(day);
-  date.setHours(hours || 0, minutes || 0, 0, 0);
+  date.setUTCHours(hours || 0, minutes || 0, 0, 0);
   return date;
 }
 
@@ -45,12 +45,12 @@ export function getPresetDurationHours(preset: ShiftPreset): number {
 
 export function buildDateRange(start: Date, end: Date): Date[] {
   const dates: Date[] = [];
-  let cursor = normalizeDate(start);
+  const cursor = normalizeDate(start);
   const endDay = normalizeDate(end);
 
   while (cursor.getTime() <= endDay.getTime()) {
     dates.push(new Date(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   return dates;
@@ -58,7 +58,7 @@ export function buildDateRange(start: Date, end: Date): Date[] {
 
 function isNextDay(prev: Date, next: Date): boolean {
   const nextExpected = normalizeDate(prev);
-  nextExpected.setDate(nextExpected.getDate() + 1);
+  nextExpected.setUTCDate(nextExpected.getUTCDate() + 1);
   return nextExpected.getTime() === normalizeDate(next).getTime();
 }
 

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { sendError, sendSuccess } from '../../utils/response';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { isAppError } from '../../common/errors/app-error';
+import { prisma } from '../../config/database';
 import {
   createScheduleEntry,
   createScheduleEntriesBulk,
@@ -11,6 +12,7 @@ import {
   listWeekSchedulesForActor,
   updateScheduleEntry,
 } from './schedules.service';
+import { getWeeklySummary, getWeeklySummaries, getTeamWeeklySummaries, recalculateWeeklySummary } from './weekly-summary.service';
 import {
   createScheduleBodySchema,
   createScheduleBulkBodySchema,
@@ -18,8 +20,12 @@ import {
   listSchedulesQuerySchema,
   listWeekSchedulesQuerySchema,
   scheduleIdParamsSchema,
+  teamWeeklySummaryParamsSchema,
+  teamWeeklySummaryQuerySchema,
   updateScheduleBodySchema,
   weekParamsSchema,
+  weeklySummaryParamsSchema,
+  weeklySummaryQuerySchema,
 } from './schedules.http.schemas';
 
 /**
@@ -201,6 +207,146 @@ export async function deleteScheduleController(req: AuthRequest, res: Response) 
       ipAddress: req.ip,
     });
     return sendSuccess(res, null, 'Guardia eliminada');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+/**
+ * @description Devuelve el resumen semanal de horas trabajadas para un usuario en una semana específica.
+ * @param req @param res
+ */
+export async function getWeeklySummaryController(req: AuthRequest, res: Response) {
+  const parsed = weeklySummaryParamsSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const summary = await getWeeklySummary(parsed.data.userId, parsed.data.year, parsed.data.week);
+    return sendSuccess(res, summary);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+/**
+ * @description Devuelve los resúmenes semanales de un usuario para un rango de semanas.
+ * @param req @param res
+ */
+export async function getWeeklySummariesController(req: AuthRequest, res: Response) {
+  const parsedParams = weeklySummaryParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const parsedQuery = weeklySummaryQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const { userId, year } = parsedParams.data;
+    const { fromWeek, toWeek } = parsedQuery.data;
+
+    if (fromWeek && toWeek) {
+      const summaries = await getWeeklySummaries(userId, year, fromWeek, toWeek);
+      return sendSuccess(res, summaries);
+    }
+
+    // Si no hay rango, devolver solo la semana especificada
+    const summary = await getWeeklySummary(userId, year, parsedParams.data.week);
+    return sendSuccess(res, summary ? [summary] : []);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+/**
+ * @description Devuelve el resumen semanal de horas de todo un equipo (departamento/sucursal).
+ * @param req @param res
+ */
+export async function getTeamWeeklySummaryController(req: AuthRequest, res: Response) {
+  const parsedParams = teamWeeklySummaryParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  }
+
+  const parsedQuery = teamWeeklySummaryQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const { year, week } = parsedParams.data;
+    const { branchId, departmentId } = parsedQuery.data;
+    const roleName = req.user!.roleName!;
+
+    // department_manager solo puede ver su propio departamento
+    if (roleName === 'department_manager') {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { departmentId: true },
+      });
+      const userDeptId = user?.departmentId;
+      if (!userDeptId) {
+        return sendError(res, 'No tienes un departamento asignado', 403, null, 'FORBIDDEN');
+      }
+      if (departmentId && departmentId !== userDeptId) {
+        return sendError(res, 'Solo puedes ver el resumen de tu departamento', 403, null, 'FORBIDDEN');
+      }
+      const summaries = await getTeamWeeklySummaries(year, week, { departmentId: userDeptId });
+      return sendSuccess(res, summaries);
+    }
+
+    // general_manager solo puede ver su sucursal
+    if (roleName === 'general_manager') {
+      const userBranchId = req.user!.branchId;
+      if (!userBranchId) {
+        return sendError(res, 'No tienes una sucursal asignada', 403, null, 'FORBIDDEN');
+      }
+      if (branchId && branchId !== userBranchId) {
+        return sendError(res, 'Solo puedes ver el resumen de tu sucursal', 403, null, 'FORBIDDEN');
+      }
+      const summaries = await getTeamWeeklySummaries(year, week, { branchId: userBranchId, departmentId });
+      return sendSuccess(res, summaries);
+    }
+
+    // admin puede filtrar por sucursal y/o departamento
+    const summaries = await getTeamWeeklySummaries(year, week, { branchId, departmentId });
+    return sendSuccess(res, summaries);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+/**
+ * @description Devuelve el resumen semanal de horas del usuario autenticado.
+ * Si no existe resumen en BD, lo recalcula sobre la marcha.
+ * @param req @param res
+ */
+export async function getMyWeeklySummaryController(req: AuthRequest, res: Response) {
+  const parsed = weekParamsSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const userId = req.user!.id;
+    const { year, week } = parsed.data;
+
+    let summary = await getWeeklySummary(userId, year, week);
+
+    // Si no existe, recalcular sobre la marcha
+    if (!summary) {
+      summary = await recalculateWeeklySummary(userId, year, week);
+    }
+
+    return sendSuccess(res, summary);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

@@ -22,6 +22,7 @@ import {
   isLastMinuteSchedule,
   parseOptionalDate,
 } from './domain/schedule.rules';
+import { recalculateWeeklySummariesForAssignees } from './weekly-summary.service';
 
 type Actor = { id: string; roleName: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
 const scheduleCreateInputSchema = z.object({
@@ -139,6 +140,11 @@ async function createScheduleEntryInternal(
 
   // Evitar bypass por nombre de rol si no es admin.
   if (actor.roleName !== 'admin') {
+    // Employee no puede crear schedules bajo ninguna circunstancia
+    if (actor.roleName === 'employee') {
+      throw createAppError('FORBIDDEN', 'No tienes permiso para crear turnos');
+    }
+
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
@@ -385,6 +391,13 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
 
   const result = await executeInTransaction((tx) => createScheduleEntryInternal(parsed.data, actor, tx));
 
+  // Recalcular resumen semanal de horas para los asignados (no-bloqueante)
+  recalculateWeeklySummariesForAssignees(
+    parsed.data.assigneeIds,
+    new Date(parsed.data.startDatetime),
+    new Date(parsed.data.endDatetime),
+  ).catch(() => {});
+
   notifyScheduleChange({
     type: 'schedule_created',
     schedule: result.schedule,
@@ -427,6 +440,17 @@ export async function createScheduleEntriesBulk(inputs: ScheduleCreateInput[], a
     }
     return created;
   });
+
+  // Recalcular resúmenes semanales para todos los asignados (no-bloqueante)
+  const allAssigneeIds = new Set<string>();
+  for (const item of parsedItems) {
+    for (const id of item.assigneeIds) {
+      allAssigneeIds.add(id);
+    }
+  }
+  const minStart = new Date(Math.min(...parsedItems.map(i => new Date(i.startDatetime).getTime())));
+  const maxEnd = new Date(Math.max(...parsedItems.map(i => new Date(i.endDatetime).getTime())));
+  recalculateWeeklySummariesForAssignees(Array.from(allAssigneeIds), minStart, maxEnd).catch(() => {});
 
   results.forEach((result) => {
     notifyScheduleChange({
@@ -563,6 +587,10 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     return updated;
   });
 
+  // Recalcular resumen semanal de horas para los asignados (no-bloqueante)
+  const affectedAssigneeIds = assigneeIds || existing.assignments.map(a => a.userId);
+  recalculateWeeklySummariesForAssignees(affectedAssigneeIds, startDt, endDt).catch(() => {});
+
   notifyScheduleChange({
     type: isLastMinute ? 'schedule_lastminute' : 'schedule_modified',
     schedule,
@@ -634,6 +662,13 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
       ipAddress: actor.ipAddress,
     }, tx);
   });
+
+  // Recalcular resumen semanal de horas para los asignados (no-bloqueante)
+  recalculateWeeklySummariesForAssignees(
+    schedule.assignments.map(a => a.userId),
+    schedule.startDatetime,
+    schedule.endDatetime,
+  ).catch(() => {});
 
   notifyScheduleChange({
     type: 'schedule_deleted',

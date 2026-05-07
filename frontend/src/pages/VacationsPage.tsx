@@ -50,20 +50,12 @@ function addOneDay(dateIso: string) {
   return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
-function isAllDayLike(startIso: string, endIso: string) {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-  return (
-    start.getHours() === 0 && start.getMinutes() === 0 &&
-    end.getHours() === 0 && end.getMinutes() === 0
-  );
-}
+// function isAllDayLike removed - unused
 
 function getDepartmentLabel(assignments: ScheduleAssignment[]) {
   const departments = new Set<string>();
   assignments.forEach((assignment) => {
-    const label = assignment.user.department?.trim();
+    const label = assignment.user.department?.name?.trim();
     if (label) departments.add(label);
   });
 
