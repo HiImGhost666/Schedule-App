@@ -103,7 +103,7 @@ export function ProfilePage() {
             <div className="flex items-center gap-2 mt-2">
               <span className={`badge-role-${user.role?.name}`}>{ROLE_LABELS[user.role?.name]}</span>
               {user.department && (
-                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">{user.department}</span>
+                <span className="text-xs text-navy-400 bg-navy-50 px-2 py-0.5 rounded-full">{user.department.name}</span>
               )}
             </div>
           </div>
