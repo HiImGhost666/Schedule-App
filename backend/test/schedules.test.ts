@@ -18,7 +18,7 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
 }));
 
 import * as schedulesRepo from '../src/modules/schedules/schedules.repository';
-import { createScheduleEntry } from '../src/modules/schedules/schedules.service';
+import { createScheduleEntriesBulk, createScheduleEntry } from '../src/modules/schedules/schedules.service';
 
 const mockRepo = schedulesRepo as jest.Mocked<typeof schedulesRepo>;
 
@@ -175,5 +175,41 @@ describe('createScheduleEntry', () => {
 
     await expect(createScheduleEntry(holidayInput as any, mockActor))
       .rejects.toThrow('No se puede asignar trabajo en días festivos');
+  });
+});
+
+describe('createScheduleEntriesBulk', () => {
+  beforeEach(() => {
+    mockRepo.findSchedules.mockResolvedValue([]);
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1', isActive: true } as any);
+    prismaMock.branchHoliday.findMany.mockResolvedValue([]);
+    prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' } as any);
+    mockRepo.createSchedule.mockResolvedValue(buildSchedule() as any);
+  });
+
+  it('crea multiples guardias en un solo lote', async () => {
+    const results = await createScheduleEntriesBulk([
+      baseInput as any,
+      {
+        ...baseInput,
+        startDatetime: '2026-06-02T08:00:00Z',
+        endDatetime: '2026-06-02T16:00:00Z',
+      } as any,
+    ], mockActor);
+
+    expect(results).toHaveLength(2);
+  });
+
+  it('rechaza overlaps dentro del lote', async () => {
+    await expect(
+      createScheduleEntriesBulk([
+        baseInput as any,
+        {
+          ...baseInput,
+          startDatetime: '2026-06-01T12:00:00Z',
+          endDatetime: '2026-06-01T20:00:00Z',
+        } as any,
+      ], mockActor)
+    ).rejects.toThrow('Conflicto de horarios dentro del lote');
   });
 });

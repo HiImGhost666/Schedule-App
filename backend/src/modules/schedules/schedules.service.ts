@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '../../config/database';
-import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import { executeInTransaction, type TransactionClient } from '../../common/transactions/transaction.utils';
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyScheduleChange } from '../notifications/notifications.service';
@@ -13,6 +13,7 @@ import {
   findSchedules,
   replaceAssignments,
   ScheduleWhere,
+  ScheduleWithRelations,
   updateSchedule,
 } from './schedules.repository';
 import {
@@ -46,6 +47,7 @@ const scheduleUpdateInputSchema = scheduleCreateInputSchema.partial().extend({
 
 type ScheduleCreateInput = z.infer<typeof scheduleCreateInputSchema>;
 type ScheduleUpdateInput = z.infer<typeof scheduleUpdateInputSchema>;
+type ScheduleCreateResult = { schedule: ScheduleWithRelations; reason?: string; isLastMinute: boolean };
 
 async function ensureActiveBranch(branchId: string) {
   const branch = await prisma.branch.findUnique({
@@ -54,6 +56,93 @@ async function ensureActiveBranch(branchId: string) {
   });
   if (!branch) throw createAppError('NOT_FOUND', 'Sucursal no encontrada');
   if (!branch.isActive) throw createAppError('BAD_REQUEST', 'La sucursal está desactivada');
+}
+
+function ensureNoBatchOverlaps(items: ScheduleCreateInput[]) {
+  const overlaps: string[] = [];
+  const assignedRanges = new Map<string, { start: Date; end: Date; index: number }[]>();
+
+  items.forEach((item, index) => {
+    const start = new Date(item.startDatetime);
+    const end = new Date(item.endDatetime);
+
+    item.assigneeIds.forEach((assigneeId) => {
+      const existing = assignedRanges.get(assigneeId) ?? [];
+      for (const range of existing) {
+        if (start < range.end && end > range.start) {
+          overlaps.push(`assignee:${assigneeId} items:${range.index + 1}-${index + 1}`);
+        }
+      }
+      existing.push({ start, end, index });
+      assignedRanges.set(assigneeId, existing);
+    });
+  });
+
+  if (overlaps.length > 0) {
+    throw createAppError('BAD_REQUEST', 'Conflicto de horarios dentro del lote', { conflicts: overlaps });
+  }
+}
+
+async function createScheduleEntryInternal(
+  input: ScheduleCreateInput,
+  actor: Actor,
+  tx: TransactionClient,
+): Promise<ScheduleCreateResult> {
+  const startDt = new Date(input.startDatetime);
+  const endDt = new Date(input.endDatetime);
+  ensureValidScheduleRange(startDt, endDt);
+
+  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...scheduleData } = input;
+  const targetBranchId = branchId ?? actor.branchId ?? undefined;
+
+  const scheduleType = await prisma.scheduleType.findUnique({ where: { id: scheduleTypeId } });
+  if (!scheduleType) throw createAppError('BAD_REQUEST', 'Tipo de turno no encontrado');
+
+  if (targetBranchId) {
+    await ensureActiveBranch(targetBranchId);
+    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
+  }
+
+  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (targetBranchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
+    }
+  }
+
+  await ensureNoOverlaps(assigneeIds, startDt, endDt);
+
+  const isLastMinute = isLastMinuteSchedule(startDt);
+
+  const schedule = await createSchedule({
+    ...scheduleData,
+    color: scheduleData.color || scheduleType.color,
+    type: scheduleType.value,
+    scheduleType: { connect: { id: scheduleTypeId } },
+    startDatetime: startDt,
+    endDatetime: endDt,
+    isLastMinute,
+    ...(targetBranchId ? { branch: { connect: { id: targetBranchId } } } : {}),
+    createdBy: { connect: { id: actor.id } },
+    assignments: { create: assigneeIds.map((userId) => ({ userId })) },
+  }, tx);
+
+  await logAuditOrThrow({
+    userId: actor.id,
+    action: 'CREATE_SCHEDULE',
+    entityType: 'Schedule',
+    entityId: schedule.id,
+    detailsJson: {
+      before: null,
+      after: sanitizeSnapshot({ ...schedule, assigneeIds }),
+      reason,
+    },
+    ipAddress: actor.ipAddress,
+  }, tx);
+
+  return { schedule, reason, isLastMinute };
 }
 
 export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string }) {
@@ -250,86 +339,74 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     throw createAppError('BAD_REQUEST', 'Datos inválidos', parsed.error.flatten());
   }
 
-  const startDt = new Date(parsed.data.startDatetime);
-  const endDt = new Date(parsed.data.endDatetime);
-  ensureValidScheduleRange(startDt, endDt);
-
-  const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...scheduleData } = parsed.data;
-  const targetBranchId = branchId ?? actor.branchId ?? undefined;
-
-  // Get schedule type early for validation and color
-  const scheduleType = await prisma.scheduleType.findUnique({ where: { id: scheduleTypeId } });
-  if (!scheduleType) throw createAppError('BAD_REQUEST', 'Tipo de turno no encontrado');
-
-  if (targetBranchId) {
-    await ensureActiveBranch(targetBranchId);
-    await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
-  }
-
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    if (targetBranchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
-    }
-  }
-
-  await ensureNoOverlaps(assigneeIds, startDt, endDt);
-
-  const isLastMinute = isLastMinuteSchedule(startDt);
-
-  const schedule = await executeInTransaction(async (tx) => {
-    const created = await createSchedule({
-      ...scheduleData,
-      color: scheduleData.color || scheduleType.color,
-      type: scheduleType.value,
-      scheduleType: { connect: { id: scheduleTypeId } },
-      startDatetime: startDt,
-      endDatetime: endDt,
-      isLastMinute,
-      ...(targetBranchId ? { branch: { connect: { id: targetBranchId } } } : {}),
-      createdBy: { connect: { id: actor.id } },
-      assignments: { create: assigneeIds.map((userId) => ({ userId })) },
-    }, tx);
-
-    await logAuditOrThrow({
-      userId: actor.id,
-      action: 'CREATE_SCHEDULE',
-      entityType: 'Schedule',
-      entityId: created.id,
-      detailsJson: {
-        before: null,
-        after: sanitizeSnapshot({ ...created, assigneeIds }),
-        reason
-      },
-      ipAddress: actor.ipAddress,
-    }, tx);
-
-    return created;
-  });
+  const result = await executeInTransaction((tx) => createScheduleEntryInternal(parsed.data, actor, tx));
 
   notifyScheduleChange({
     type: 'schedule_created',
-    schedule,
+    schedule: result.schedule,
     actor,
-    reason: reason || 'Nueva guardia programada',
-    isLastMinute,
+    reason: result.reason || 'Nueva guardia programada',
+    isLastMinute: result.isLastMinute,
   }).catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_CREATED, {
     entity: 'schedule',
     action: 'created',
-    id: schedule.id,
+    id: result.schedule.id,
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: schedule.scheduleType?.value || schedule.type,
-      isLastMinute,
+      type: result.schedule.scheduleType?.value || result.schedule.type,
+      isLastMinute: result.isLastMinute,
     },
   });
 
-  return schedule;
+  return result.schedule;
+}
+
+export async function createScheduleEntriesBulk(inputs: ScheduleCreateInput[], actor: Actor) {
+  const parsedItems = inputs.map((item) => {
+    const parsed = scheduleCreateInputSchema.safeParse(item);
+    if (!parsed.success) {
+      throw createAppError('BAD_REQUEST', 'Datos inválidos', parsed.error.flatten());
+    }
+    return parsed.data;
+  });
+
+  ensureNoBatchOverlaps(parsedItems);
+
+  const results = await executeInTransaction(async (tx) => {
+    const created: ScheduleCreateResult[] = [];
+    for (const item of parsedItems) {
+      const result = await createScheduleEntryInternal(item, actor, tx);
+      created.push(result);
+    }
+    return created;
+  });
+
+  results.forEach((result) => {
+    notifyScheduleChange({
+      type: 'schedule_created',
+      schedule: result.schedule,
+      actor,
+      reason: result.reason || 'Nueva guardia programada',
+      isLastMinute: result.isLastMinute,
+    }).catch(() => {});
+
+    publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_CREATED, {
+      entity: 'schedule',
+      action: 'created',
+      id: result.schedule.id,
+      changedAt: new Date().toISOString(),
+      actorId: actor.id,
+      meta: {
+        type: result.schedule.scheduleType?.value || result.schedule.type,
+        isLastMinute: result.isLastMinute,
+      },
+    });
+  });
+
+  return results.map((result) => result.schedule);
 }
 
 /**

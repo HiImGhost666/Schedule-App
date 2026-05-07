@@ -49,6 +49,21 @@ const extractIdsPreprocess = (data: any) => {
 
 export const createScheduleBodySchema = z.preprocess(extractIdsPreprocess, baseScheduleBodySchema);
 
+export const createScheduleBulkBodySchema = z.preprocess(
+  (data: any) => {
+    if (data && Array.isArray(data.items)) {
+      return {
+        ...data,
+        items: data.items.map((item: any) => extractIdsPreprocess(item)),
+      };
+    }
+    return data;
+  },
+  z.object({
+    items: z.array(baseScheduleBodySchema).min(1, 'Debe incluir al menos un turno'),
+  }),
+);
+
 export const updateScheduleBodySchema = z.preprocess(
   extractIdsPreprocess,
   baseScheduleBodySchema.partial().extend({

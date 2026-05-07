@@ -4,6 +4,7 @@ import { AuthRequest } from '../../middleware/auth.middleware';
 import { isAppError } from '../../common/errors/app-error';
 import {
   createScheduleEntry,
+  createScheduleEntriesBulk,
   deleteScheduleEntry,
   getScheduleByIdForActor,
   listSchedulesForActor,
@@ -12,6 +13,7 @@ import {
 } from './schedules.service';
 import {
   createScheduleBodySchema,
+  createScheduleBulkBodySchema,
   deleteScheduleBodySchema,
   listSchedulesQuerySchema,
   listWeekSchedulesQuerySchema,
@@ -111,6 +113,32 @@ export async function createScheduleController(req: AuthRequest, res: Response) 
       ipAddress: req.ip,
     });
     return sendSuccess(res, schedule, 'Guardia creada', 201);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+/**
+ * @description Crea multiples turnos en un solo request con validaciones comunes.
+ * @param req @param res
+ */
+export async function createScheduleBulkController(req: AuthRequest, res: Response) {
+  const parsedBody = createScheduleBulkBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
+  try {
+    const schedules = await createScheduleEntriesBulk(parsedBody.data.items, {
+      id: req.user!.id,
+      email: req.user!.email,
+      name: req.user!.name,
+      roleName: req.user!.roleName!,
+      branchId: req.user!.branchId,
+      ipAddress: req.ip,
+    });
+    return sendSuccess(res, schedules, 'Guardias creadas', 201);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

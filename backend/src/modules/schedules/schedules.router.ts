@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/permission.middleware';
 import {
+  createScheduleBulkController,
   createScheduleController,
   deleteScheduleController,
   getScheduleController,
@@ -23,6 +24,9 @@ router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getSched
 
 // Create schedule
 router.post('/', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => createScheduleController(req, res));
+
+// Bulk create schedules
+router.post('/bulk', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => createScheduleBulkController(req, res));
 
 // Update schedule
 router.patch('/:id', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => updateScheduleController(req, res));

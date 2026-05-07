@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Trash2, Clock, MapPin, FileText, Users, Info, AlertTriangle, CalendarDays } from 'lucide-react';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
@@ -16,6 +18,15 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
+import {
+  buildChunkRange,
+  buildDateRange,
+  buildScheduleChunks,
+  getPresetDurationHours,
+  normalizeDate,
+  toIsoDate,
+  type ShiftPreset,
+} from './shiftScheduling';
 
 const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
   nacional: '#dc2626',
@@ -35,42 +46,23 @@ const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   company: 'Empresa',
 };
 
-function toIsoDate(value: Date): string {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
-}
+const SHIFT_PRESETS: ShiftPreset[] = [
+  { id: 'morning', label: 'Turno manana', startTime: '08:00', endTime: '16:00' },
+  { id: 'evening', label: 'Turno tarde', startTime: '16:00', endTime: '23:00' },
+  { id: 'night', label: 'Turno noche', startTime: '00:00', endTime: '08:00' },
+];
 
-function countWorkingDaysWithHolidays(
-  start: Date,
-  end: Date,
-  excludeWeekends: boolean,
-  holidayDates: Set<string>,
-) {
-  let count = 0;
-  const cursor = new Date(start);
-  cursor.setHours(0, 0, 0, 0);
-  const endDay = new Date(end);
-  endDay.setHours(0, 0, 0, 0);
+const DEFAULT_SHIFT_PRESET_ID = SHIFT_PRESETS[0].id;
 
-  while (cursor <= endDay) {
-    const day = cursor.getDay();
-    const isWeekend = day === 0 || day === 6;
-    const isHoliday = holidayDates.has(toIsoDate(cursor));
-
-    if (!(excludeWeekends && isWeekend) && !isHoliday) {
-      count += 1;
-    }
-
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  return count;
+function findPresetByTimes(start: Date, end: Date) {
+  const startTime = format(start, 'HH:mm');
+  const endTime = format(end, 'HH:mm');
+  return SHIFT_PRESETS.find((preset) => preset.startTime === startTime && preset.endTime === endTime);
 }
 
 const shiftSchema = z.object({
   title: z.string().min(2, 'Mínimo 2 caracteres'),
   description: z.string().optional(),
-  startDatetime: z.string().min(1, 'Requerido'),
-  endDatetime: z.string().min(1, 'Requerido'),
   type: z.string().default('guardia'),
   scheduleTypeId: z.string().min(1, 'Requerido'),
   color: z.string().default('#2563eb'),
@@ -78,11 +70,18 @@ const shiftSchema = z.object({
   notes: z.string().optional(),
   branchId: z.string().min(1, 'Sucursal requerida'),
   reason: z.string().optional(),
-  hoursPerDay: z.coerce.number().min(0.5).max(24).default(8),
 });
 
 type ShiftForm = z.infer<typeof shiftSchema>;
 type ShiftFormInput = z.input<typeof shiftSchema>;
+type ShiftPayload = ShiftForm & {
+  startDatetime: string;
+  endDatetime: string;
+  hoursPerDay: number;
+  assigneeIds: string[];
+  confirmed?: boolean;
+};
+type ShiftBulkPayload = { items: ShiftPayload[] };
 
 interface ShiftModalProps {
   open: boolean;
@@ -99,14 +98,19 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [includeWeekends, setIncludeWeekends] = useState(false);
   const [holidayConflicts, setHolidayConflicts] = useState<BranchHoliday[]>([]);
-  const [pendingPayload, setPendingPayload] = useState<(ShiftForm & { assigneeIds: string[] }) | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<ShiftBulkPayload | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
   const [asideBranchFilter, setAsideBranchFilter] = useState('');
   const [asideDeptFilter, setAsideDeptFilter] = useState(''); // Corregido: Inicializado como string vacío
   const [asideSearchFilter, setAsideSearchFilter] = useState('');
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [defaultShiftPresetId, setDefaultShiftPresetId] = useState(DEFAULT_SHIFT_PRESET_ID);
+  const [dayShiftOverrides, setDayShiftOverrides] = useState<Record<string, string>>({});
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
+  const calendarPanelRef = useRef<HTMLDivElement | null>(null);
 
   const { types: scheduleTypes = [] } = useScheduleTypes();
 
@@ -122,11 +126,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     enabled: open && canEdit,
   });
 
-  const fmt = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm");
-  const toIsoFromLocalInput = (value: string) => {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
-  };
+  const toIsoFromLocalInput = (value: Date) => value.toISOString();
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<ShiftFormInput, unknown, ShiftForm>({
     resolver: zodResolver(shiftSchema),
@@ -134,50 +134,74 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       type: 'guardia',
       scheduleTypeId: '',
       color: '#2563eb',
-      hoursPerDay: 8,
       branchId: user?.branchId ?? defaultBranchId ?? '',
-      startDatetime: defaultStart ? fmt(defaultStart) : '',
-      endDatetime: defaultEnd ? fmt(defaultEnd) : '',
     },
   });
 
   useEffect(() => {
+    if (!open) return;
     if (schedule) {
       reset({
         title: schedule.title,
         description: schedule.description || '',
-        startDatetime: fmt(new Date(schedule.startDatetime)),
-        endDatetime: fmt(new Date(schedule.endDatetime)),
         type: schedule.type,
         scheduleTypeId: schedule.scheduleTypeId,
         color: schedule.color,
         location: schedule.location || '',
         notes: schedule.notes || '',
-        hoursPerDay: schedule.hoursPerDay ?? 8,
         branchId: schedule.branchId ?? defaultBranchId ?? '',
       });
       setSelectedUsers(schedule.assignments.map((a) => a.userId));
-      setIncludeWeekends(false);
     } else {
       reset({
         scheduleTypeId: scheduleTypes.find((t) => t.value === 'guardia')?.id || '',
         type: 'guardia',
         color: '#2563eb',
-        hoursPerDay: 8,
         branchId: user?.branchId ?? defaultBranchId ?? '',
-        startDatetime: defaultStart ? fmt(defaultStart) : '',
-        endDatetime: defaultEnd ? fmt(defaultEnd) : '',
       });
       setSelectedUsers([]);
-      setIncludeWeekends(false);
     }
-  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
+
+    const rangeStart = schedule ? new Date(schedule.startDatetime) : defaultStart;
+    const rangeEnd = schedule ? new Date(schedule.endDatetime) : defaultEnd;
+    if (rangeStart && rangeEnd) {
+      setSelectedDates(buildDateRange(rangeStart, rangeEnd));
+      const matchedPreset = findPresetByTimes(rangeStart, rangeEnd);
+      setDefaultShiftPresetId(matchedPreset?.id ?? DEFAULT_SHIFT_PRESET_ID);
+    } else {
+      setSelectedDates([]);
+      setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+    }
+
+    setDayShiftOverrides({});
+    setCalendarOpen(false);
+  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
 
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
-  const startVal = watch('startDatetime');
-  const endVal = watch('endDatetime');
   const isAllBranchesMode = !schedule && !defaultBranchId;
+  const presetById = useMemo(
+    () => Object.fromEntries(SHIFT_PRESETS.map((preset) => [preset.id, preset])),
+    [],
+  );
+
+  const sortedSelectedDates = useMemo(
+    () => [...selectedDates].sort((a, b) => normalizeDate(a).getTime() - normalizeDate(b).getTime()),
+    [selectedDates],
+  );
+  const effectiveDayShiftOverrides = useMemo(
+    () => Object.fromEntries(Object.entries(dayShiftOverrides).filter(([, id]) => Boolean(id))),
+    [dayShiftOverrides],
+  );
+  const selectedDateKeys = useMemo(() => sortedSelectedDates.map((d) => toIsoDate(d)), [sortedSelectedDates]);
+  const selectedDateSet = useMemo(() => new Set(selectedDateKeys), [selectedDateKeys]);
+  const selectedRange = useMemo(() => {
+    if (sortedSelectedDates.length === 0) return null;
+    const start = normalizeDate(sortedSelectedDates[0]);
+    const end = normalizeDate(sortedSelectedDates[sortedSelectedDates.length - 1]);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }, [sortedSelectedDates]);
 
   // Determine the base pool of assignees based on user role and target branch
   const availableAssignees = useMemo(() => {
@@ -223,23 +247,44 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     setValue('color', typeColor);
   }, [selectedType, setValue, scheduleTypes]);
 
+  useEffect(() => {
+    setDayShiftOverrides((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        if (!selectedDateSet.has(key)) {
+          delete next[key];
+        }
+      });
+      return next;
+    });
+  }, [selectedDateSet]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (calendarPanelRef.current?.contains(target)) return;
+      if (calendarButtonRef.current?.contains(target)) return;
+      setCalendarOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [calendarOpen]);
+
   const { data: branchRangeHolidays } = useQuery({
-    queryKey: ['branch-holidays-modal', selectedBranchId, startVal, endVal],
+    queryKey: ['branch-holidays-modal', selectedBranchId, selectedRange?.start?.toISOString(), selectedRange?.end?.toISOString()],
     queryFn: () =>
       api
         .get<{ data: BranchHoliday[] }>(`/branches/${selectedBranchId}/holidays`, {
           params: {
-            ...(startVal ? { from: new Date(startVal).toISOString() } : {}),
-            ...(endVal ? { to: new Date(endVal).toISOString() } : {}),
+            ...(selectedRange ? { from: selectedRange.start.toISOString() } : {}),
+            ...(selectedRange ? { to: selectedRange.end.toISOString() } : {}),
           },
         })
         .then((r) => r.data.data),
-    enabled: open && Boolean(selectedBranchId),
+    enabled: open && Boolean(selectedBranchId) && Boolean(selectedRange),
   });
-
-  // Live preview calculation
-  const hoursPerDayRaw = watch('hoursPerDay');
-  const hoursPerDay = typeof hoursPerDayRaw === 'number' ? hoursPerDayRaw : Number(hoursPerDayRaw ?? 8);
 
   const holidayDates = useMemo(
     () => new Set((branchRangeHolidays ?? []).map((h) => h.date.slice(0, 10))),
@@ -247,31 +292,36 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   );
 
   const preview = useMemo(() => {
-    if (!startVal || !endVal) return null;
-    try {
-      const start = new Date(startVal);
-      const end = new Date(endVal);
-      if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
-      const days = countWorkingDaysWithHolidays(start, end, !includeWeekends, holidayDates);
-      const totalHours = Math.round(days * hoursPerDay * 10) / 10;
-      return { days, totalHours };
-    } catch {
-      return null;
-    }
-  }, [startVal, endVal, hoursPerDay, includeWeekends, holidayDates]);
+    if (selectedDateKeys.length === 0) return null;
 
-  const createMutation = useMutation({
-    mutationFn: (data: ShiftForm & { assigneeIds: string[] }) => api.post('/schedules', data),
-    onSuccess: () => {
+    const totalHours = selectedDateKeys.reduce((acc, key) => {
+      const presetId = effectiveDayShiftOverrides[key] ?? defaultShiftPresetId;
+      const preset = presetById[presetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
+      return acc + (preset ? getPresetDurationHours(preset) : 0);
+    }, 0);
+
+    const holidayHits = selectedDateKeys.filter((key) => holidayDates.has(key)).length;
+
+    return {
+      days: selectedDateKeys.length,
+      totalHours: Math.round(totalHours * 10) / 10,
+      holidayHits,
+    };
+  }, [selectedDateKeys, effectiveDayShiftOverrides, defaultShiftPresetId, presetById, holidayDates]);
+
+  const createBulkMutation = useMutation({
+    mutationFn: (payload: ShiftBulkPayload) => api.post('/schedules/bulk', payload),
+    onSuccess: (response) => {
       qc.invalidateQueries({ queryKey: ['schedules'] });
-      toast.success('Turno creado');
+      const created = Array.isArray(response?.data?.data) ? response.data.data.length : 0;
+      toast.success(created > 1 ? `${created} turnos creados` : 'Turno creado');
       onClose();
     },
     onError: (e: unknown) => toast.error(getApiErrorMessage(e, 'Error')),
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: ShiftForm & { assigneeIds: string[] }) =>
+    mutationFn: (data: ShiftPayload) =>
       api.patch(`/schedules/${schedule!.id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedules'] });
@@ -290,29 +340,29 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     },
   });
 
-  const checkHolidayConflicts = useCallback((
-    start: Date,
-    end: Date,
-    holidays: BranchHoliday[],
-  ) => {
-    const rangeStart = new Date(start);
-    rangeStart.setHours(0, 0, 0, 0);
-    const rangeEnd = new Date(end);
-    rangeEnd.setHours(23, 59, 59, 999);
-
-    const hits = holidays.filter((holiday) => {
-      const holidayDate = new Date(holiday.date);
-      holidayDate.setHours(0, 0, 0, 0);
-
-      if (holidayDate < rangeStart || holidayDate > rangeEnd) return false;
-      if (includeWeekends) return true;
-
-      const day = holidayDate.getDay();
-      return day !== 0 && day !== 6;
-    });
-
+  const checkHolidayConflicts = useCallback((selectedDayKeys: Set<string>, holidays: BranchHoliday[]) => {
+    const hits = holidays.filter((holiday) => selectedDayKeys.has(holiday.date.slice(0, 10)));
     return hits.sort((a, b) => a.date.localeCompare(b.date));
-  }, [includeWeekends]);
+  }, []);
+
+  const buildPayloads = (data: ShiftForm) => {
+    const chunks = buildScheduleChunks(sortedSelectedDates, effectiveDayShiftOverrides, defaultShiftPresetId);
+    const items = chunks.map((chunk) => {
+      const preset = presetById[chunk.presetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
+      if (!preset) {
+        throw new Error('Preset de turno inválido');
+      }
+      const range = buildChunkRange(chunk, preset);
+      return {
+        ...data,
+        startDatetime: toIsoFromLocalInput(range.start),
+        endDatetime: toIsoFromLocalInput(range.end),
+        hoursPerDay: range.hoursPerDay,
+        assigneeIds: selectedUsers,
+      } satisfies ShiftPayload;
+    });
+    return { chunks, items };
+  };
 
   const onSubmit = (data: ShiftForm) => {
     if (selectedUsers.length === 0) {
@@ -330,34 +380,41 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       return;
     }
 
-    const payload = {
-      ...data,
-      startDatetime: toIsoFromLocalInput(data.startDatetime),
-      endDatetime: toIsoFromLocalInput(data.endDatetime),
-      assigneeIds: selectedUsers,
-    };
-
-    // Warn when branch holidays overlap selected period.
-    if (data.startDatetime && data.endDatetime) {
-      const start = new Date(data.startDatetime);
-      const end = new Date(data.endDatetime);
-      const conflicts = checkHolidayConflicts(start, end, branchRangeHolidays ?? []);
-      if (conflicts.length > 0) {
-        setHolidayConflicts(conflicts);
-        setPendingPayload(payload);
-        return; // Wait for user confirmation
-      }
+    if (sortedSelectedDates.length === 0) {
+      toast.error('Selecciona al menos un día');
+      return;
     }
 
-    if (schedule) updateMutation.mutate(payload);
-    else createMutation.mutate(payload);
+    let payloadData;
+    try {
+      payloadData = buildPayloads(data);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'No se pudo preparar los turnos'));
+      return;
+    }
+    if (schedule && payloadData.chunks.length > 1) {
+      toast.error('Para editar un turno se requiere un rango continuo');
+      return;
+    }
+
+    const conflicts = checkHolidayConflicts(selectedDateSet, branchRangeHolidays ?? []);
+    if (conflicts.length > 0) {
+      setHolidayConflicts(conflicts);
+      setPendingPayload({ items: payloadData.items });
+      return;
+    }
+
+    if (schedule) updateMutation.mutate(payloadData.items[0]);
+    else createBulkMutation.mutate({ items: payloadData.items });
   };
 
   const confirmDespiteHolidays = () => {
     if (!pendingPayload) return;
-    const payloadWithConfirmation = { ...pendingPayload, confirmed: true };
-    if (schedule) updateMutation.mutate(payloadWithConfirmation);
-    else createMutation.mutate(payloadWithConfirmation);
+    const payloadWithConfirmation = {
+      items: pendingPayload.items.map((item) => ({ ...item, confirmed: true })),
+    };
+    if (schedule) updateMutation.mutate(payloadWithConfirmation.items[0]);
+    else createBulkMutation.mutate(payloadWithConfirmation);
     setHolidayConflicts([]);
     setPendingPayload(null);
   };
@@ -394,7 +451,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     return result;
   }, [availableAssignees, user?.role?.name, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+  const isLoading = createBulkMutation.isPending || updateMutation.isPending;
   const assigneesContent = (
     <>
       {filteredUsers.map((u) => (
@@ -518,66 +575,133 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-navy-600 mb-1">
-                  <Clock className="inline h-3.5 w-3.5 mr-1" />Inicio *
+                  <CalendarDays className="inline h-3.5 w-3.5 mr-1" />Fechas *
                 </label>
                 <div className="relative">
-                  <input {...register('startDatetime')} type="datetime-local" className="input-field text-sm pr-9" disabled={!canEdit} />
-                  <CalendarDays className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted pointer-events-none" />
+                  <button
+                    ref={calendarButtonRef}
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() => setCalendarOpen((prev) => !prev)}
+                    className="input-field text-sm flex items-center justify-between"
+                  >
+                    <span className="truncate text-left">
+                      {selectedDateKeys.length === 0
+                        ? 'Seleccionar dias'
+                        : selectedDateKeys.length === 1
+                          ? format(sortedSelectedDates[0], 'dd/MM/yyyy')
+                          : `${format(sortedSelectedDates[0], 'dd/MM/yyyy')} - ${format(sortedSelectedDates[sortedSelectedDates.length - 1], 'dd/MM/yyyy')} (${selectedDateKeys.length} dias)`}
+                    </span>
+                    <CalendarDays className="h-4 w-4 text-theme-muted" />
+                  </button>
+                  {calendarOpen && (
+                    <div
+                      ref={calendarPanelRef}
+                      className="absolute z-50 mt-2 rounded-2xl border border-theme-color bg-white shadow-xl p-3"
+                    >
+                      <DayPicker
+                        mode="multiple"
+                        weekStartsOn={1}
+                        showOutsideDays
+                        selected={sortedSelectedDates}
+                        onSelect={(dates) => setSelectedDates((dates ?? []).map((d) => normalizeDate(d)))}
+                        classNames={{
+                          months: 'flex flex-col gap-3',
+                          month: 'space-y-2',
+                          caption: 'flex justify-between items-center px-2',
+                          caption_label: 'text-sm font-semibold text-theme-primary',
+                          nav: 'flex items-center gap-2',
+                          nav_button: 'h-7 w-7 rounded-lg border border-theme-color text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted',
+                          table: 'w-full border-collapse',
+                          head_row: 'flex',
+                          head_cell: 'w-9 text-[11px] uppercase tracking-wide text-theme-muted',
+                          row: 'flex w-full',
+                          cell: 'w-9 h-9 text-center',
+                          day: 'w-9 h-9 rounded-lg text-sm text-theme-primary hover:bg-theme-surface-muted',
+                          day_selected: 'bg-theme-primary text-white hover:bg-theme-primary',
+                          day_today: 'border border-theme-primary',
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-                {errors.startDatetime && <p className="text-xs text-red-500 mt-1">{errors.startDatetime.message}</p>}
+                {selectedDateKeys.length === 0 && (
+                  <p className="text-xs text-theme-muted mt-1">Elige uno o varios dias del calendario.</p>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-theme-muted mb-1">
-                  <Clock className="inline h-3.5 w-3.5 mr-1" />Fin *
-                </label>
-                <div className="relative">
-                  <input {...register('endDatetime')} type="datetime-local" className="input-field text-sm pr-9" disabled={!canEdit} />
-                  <CalendarDays className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted pointer-events-none" />
-                </div>
-                {errors.endDatetime && <p className="text-xs text-red-500 mt-1">{errors.endDatetime.message}</p>}
-              </div>
-            </div>
 
-
-            {/* Hours per day */}
-            <div>
               <div>
                 <label className="block text-sm font-medium text-navy-600 mb-1">
-                  <Clock className="inline h-3.5 w-3.5 mr-1" />Horas por día
+                  <Clock className="inline h-3.5 w-3.5 mr-1" />Turno base
                 </label>
-                <input
-                  {...register('hoursPerDay')}
-                  type="number"
-                  min="0.5"
-                  max="24"
-                  step="0.5"
-                  className="input-field text-sm"
+                <select
+                  value={defaultShiftPresetId}
+                  onChange={(event) => setDefaultShiftPresetId(event.target.value)}
                   disabled={!canEdit}
-                  placeholder="8"
-                />
+                  className="input-field text-sm"
+                >
+                  {SHIFT_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label} ({preset.startTime} - {preset.endTime})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-wider text-theme-muted">Ajustes por dia</p>
+                {sortedSelectedDates.length === 0 ? (
+                  <p className="text-xs text-theme-muted">Selecciona dias para definir turnos.</p>
+                ) : (
+                  sortedSelectedDates.map((date) => {
+                    const key = toIsoDate(date);
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="text-sm text-theme-primary w-32">
+                          {format(date, 'EEE dd/MM')}
+                        </span>
+                        <select
+                          value={dayShiftOverrides[key] ?? ''}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setDayShiftOverrides((prev) => {
+                              if (!value) {
+                                const next = { ...prev };
+                                delete next[key];
+                                return next;
+                              }
+                              return { ...prev, [key]: value };
+                            });
+                          }}
+                          disabled={!canEdit}
+                          className="input-field text-sm flex-1"
+                        >
+                          <option value="">Usar turno base</option>
+                          {SHIFT_PRESETS.map((preset) => (
+                            <option key={preset.id} value={preset.id}>
+                              {preset.label} ({preset.startTime} - {preset.endTime})
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDates((prev) => prev.filter((d) => toIsoDate(d) !== key))}
+                          className="p-1.5 text-theme-muted hover:text-theme-primary hover:bg-theme-surface-muted rounded-lg"
+                          title="Quitar dia"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
             {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
-
-            {/* Weekend checkbox */}
-            {canEdit && (
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={includeWeekends}
-                  onChange={(e) => setIncludeWeekends(e.target.checked)}
-                  className="rounded border-theme-color text-theme-primary focus:ring-theme-primary w-4 h-4"
-                />
-                <span className="text-sm text-theme-muted group-hover:text-theme-primary transition-colors">
-                  Extender turno al fin de semana
-                  <span className="text-xs text-theme-muted ml-1">(por defecto se excluyen)</span>
-                </span>
-              </label>
-            )}
 
             {/* Live preview */}
             {preview && (
@@ -585,14 +709,12 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                 <Info className="h-4 w-4 text-theme-primary shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-semibold text-theme-primary">
-                    {preview.days} día{preview.days !== 1 ? 's' : ''} laborable{preview.days !== 1 ? 's' : ''}
-                    {' '}&times; {hoursPerDay} h/día ={' '}
-                    <span className="text-navy-900 font-bold">{preview.totalHours} h totales</span>
+                    {preview.days} día{preview.days !== 1 ? 's' : ''} seleccionado{preview.days !== 1 ? 's' : ''}
+                    {' '}· <span className="text-navy-900 font-bold">{preview.totalHours} h totales</span>
                   </p>
                   <p className="text-xs text-theme-muted mt-0.5">
-                    {!includeWeekends ? 'Fines de semana excluidos' : 'Fines de semana incluidos'}
                     {selectedBranchName ? ` · Sucursal ${selectedBranchName}` : ''}
-                    {(branchRangeHolidays?.length ?? 0) > 0 ? ` · ${(branchRangeHolidays?.length ?? 0)} festivo(s) en rango` : ''}
+                    {preview.holidayHits > 0 ? ` · ${preview.holidayHits} festivo(s) en días seleccionados` : ''}
                   </p>
                 </div>
               </div>
