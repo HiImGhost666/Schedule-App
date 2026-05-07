@@ -9,4 +9,6 @@ export const webhookFormSchema = z.object({
   fridayReminderEnabled: z.boolean(),
   mondayVacationReminderEnabled: z.boolean(),
   fridayReminderTime: z.string().default('12:00'),
+  departmentId: z.string().optional(),
+  branchId: z.string().optional(),
 });
