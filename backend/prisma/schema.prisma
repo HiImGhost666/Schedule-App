@@ -286,6 +286,7 @@ model ScheduleType {
 
 enum VacationStatus {
   pending
+  colindante
   approved
   rejected
   cancelled

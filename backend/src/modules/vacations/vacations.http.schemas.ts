@@ -45,6 +45,10 @@ export const listVacationsQuerySchema = z.object({
   departmentId: z.string().optional(),
   from: z.string().optional(),
   to: z.string().optional(),
+  sortBy: z.enum(['createdAt', 'startDate', 'endDate', 'status']).optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
 
 export const vacationCalendarQuerySchema = z.object({
@@ -52,6 +56,7 @@ export const vacationCalendarQuerySchema = z.object({
   week: z.coerce.number().int().min(1).max(53),
   branchId: z.string().optional(),
   departmentId: z.string().optional(),
+  employeeId: z.string().optional(),
 });
 
 export type CreateVacationRequestInput = z.infer<typeof createVacationRequestSchema>;

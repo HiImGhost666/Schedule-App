@@ -7,6 +7,6 @@ const router = Router();
 
 router.get('/', authMiddleware, requirePermission('audit:view'), listAuditLogsController);
 router.get('/:id', authMiddleware, requirePermission('audit:view'), getAuditLogController);
-router.post('/:id/rollback', authMiddleware, requirePermission('audit:view'), rollbackAuditController);
+router.post('/:id/rollback', authMiddleware, requirePermission('settings:update'), rollbackAuditController);
 
 export default router;

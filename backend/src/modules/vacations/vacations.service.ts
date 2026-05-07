@@ -6,10 +6,12 @@ import { notifyVacationChange } from '../notifications/notifications.service';
 import { VACATION_PERMISSIONS } from './vacations.constants';
 import {
   findVacationRequests,
+  countVacationRequests,
   findVacationRequestById,
   createVacationRequest,
   updateVacationRequest,
   countPendingOverlap,
+  findDepartmentOverlap,
 } from './vacations.repository';
 import {
   ensureStartDateNotPast,
@@ -63,6 +65,7 @@ function buildVacationScope(actor: Actor, query: ListVacationsQuery): Record<str
 
 /**
  * Lista solicitudes de vacaciones según los permisos del actor
+ * Con soporte de paginación, ordenación y filtros
  */
 export async function listVacations(query: ListVacationsQuery, actor: Actor) {
   const where = buildVacationScope(actor, query);
@@ -77,7 +80,21 @@ export async function listVacations(query: ListVacationsQuery, actor: Actor) {
     where.startDate = dateFilter;
   }
 
-  return findVacationRequests(where as any);
+  const skip = (query.page - 1) * query.pageSize;
+  const take = query.pageSize;
+
+  const [items, total] = await Promise.all([
+    findVacationRequests(where as any, { sortBy: query.sortBy, sortOrder: query.sortOrder, skip, take }),
+    countVacationRequests(where as any),
+  ]);
+
+  return {
+    items,
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    totalPages: Math.ceil(total / query.pageSize),
+  };
 }
 
 /**
@@ -113,6 +130,11 @@ export async function getVacationById(id: string, actor: Actor) {
 /**
  * Crea una solicitud de vacaciones (Employee)
  * Atómica: creación + audit log en una sola transacción
+ *
+ * Si las fechas solicitadas se solapan con vacaciones de compañeros del mismo departamento,
+ * la solicitud se crea con estado 'colindante' en lugar de 'pending'.
+ * La respuesta incluye información sobre los compañeros afectados para que el frontend
+ * pueda mostrar una advertencia y pedir confirmación.
  */
 export async function createVacationEntry(input: CreateVacationRequestInput, actor: Actor) {
   const startDate = new Date(input.startDate);
@@ -134,12 +156,32 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
     select: { branchId: true, departmentId: true },
   });
 
+  // Detectar solapamiento con compañeros del mismo departamento
+  let overlappingEmployees: Array<{ id: string; name: string; email: string }> = [];
+  if (user?.departmentId) {
+    const overlaps = await findDepartmentOverlap(
+      user.departmentId,
+      actor.id,
+      startDate,
+      endDate,
+    );
+    overlappingEmployees = overlaps.map((o) => ({
+      id: o.employee.id,
+      name: o.employee.name,
+      email: o.employee.email,
+    }));
+  }
+
+  // Determinar estado: colindante si hay solapamiento, pending si no
+  const initialStatus = overlappingEmployees.length > 0 ? 'colindante' : 'pending';
+
   const vacation = await executeInTransaction(async (tx) => {
     const created = await createVacationRequest({
       employee: { connect: { id: actor.id } },
       startDate,
       endDate,
       note: input.note,
+      status: initialStatus as any,
       branch: user?.branchId ? { connect: { id: user.branchId } } : undefined,
       department: user?.departmentId ? { connect: { id: user.departmentId } } : undefined,
     }, tx);
@@ -157,6 +199,7 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
           endDate: created.endDate,
           note: created.note,
           status: created.status,
+          overlappingEmployees: overlappingEmployees.length > 0 ? overlappingEmployees : undefined,
         }),
       },
       ipAddress: actor.ipAddress,
@@ -172,7 +215,12 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
     actor,
   }).catch(() => {});
 
-  return vacation;
+  // Devolver la solicitud con información de solapamiento
+  return {
+    ...vacation,
+    hasOverlap: overlappingEmployees.length > 0,
+    overlappingEmployees,
+  };
 }
 
 /**
@@ -346,14 +394,23 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
 }
 
 /**
- * Obtiene el calendario de vacaciones aprobadas para una semana específica
- * Con validación de permisos por rol basada en permisos del actor
+ * Obtiene el calendario de vacaciones aprobadas para una semana específica.
+ *
+ * SCOPE (basado en permisos del actor):
+ * - employee / department_manager / general_manager: ve vacaciones de su sede (branchId del actor)
+ * - admin: ve todas las sedes
+ *
+ * FILTROS ADICIONALES (query params):
+ * - branchId: solo admin puede filtrar por sede distinta a la suya
+ * - departmentId: busca empleados del departamento (incluso en otras sedes vía DepartmentBranch)
+ * - employeeId: filtrar por usuario específico
  */
 export async function getVacationCalendar(
   year: number,
   week: number,
   branchId: string | undefined,
   departmentId: string | undefined,
+  employeeId: string | undefined,
   actor?: Actor,
 ) {
   const jan4 = new Date(year, 0, 4);
@@ -372,27 +429,58 @@ export async function getVacationCalendar(
     ],
   };
 
-  // Validación de permisos por rol basada en permisos del actor
   if (actor) {
     const hasReadAll = actor.permissions?.includes(VACATION_PERMISSIONS.READ_ALL) ?? false;
 
-    if (!hasReadAll) {
-      // Sin read-all: solo ve sus propias vacaciones aprobadas
-      where.employeeId = actor.id;
-    } else if (actor.roleName === 'department_manager') {
-      // Department manager: base = su departamento, puede filtrar por branch
-      where.departmentId = actor.departmentId;
+    if (hasReadAll && actor.roleName === 'admin') {
+      // Admin: puede filtrar por branchId explícito, o ve todo
       if (branchId) where.branchId = branchId;
-    } else if (actor.roleName === 'general_manager') {
-      // General manager: base = su branch, puede filtrar por departamento
+    } else {
+      // employee, department_manager, general_manager: scope base = su sede
       where.branchId = actor.branchId;
-      if (departmentId) where.departmentId = departmentId;
+
+      // Si el actor pidió un branchId explícito y NO es admin, lo ignoramos
+      // (no puede ver otras sedes)
     }
-    // admin: sin filtro, ve todo
   } else {
-    // Sin actor (llamada interna/sistema), aplicar filtros explícitos si vienen
+    // Sin actor (llamada interna/sistema)
     if (branchId) where.branchId = branchId;
-    if (departmentId) where.departmentId = departmentId;
+  }
+
+  // Filtro por departamento: soporta departamentos multi-sede
+  if (departmentId) {
+    // Obtener todas las branches donde existe este departamento
+    const departmentBranches = await prisma.departmentBranch.findMany({
+      where: { departmentId },
+      select: { branchId: true },
+    });
+
+    if (departmentBranches.length > 0) {
+      const branchIds = departmentBranches.map(db => db.branchId);
+      // Si ya hay un filtro de branchId, intersectar
+      if (where.branchId) {
+        const currentBranchId = where.branchId as string;
+        if (branchIds.includes(currentBranchId)) {
+          // El departamento existe en esta sede, mantener el filtro de branch
+          where.departmentId = departmentId;
+        } else {
+          // El departamento NO existe en esta sede, no mostrar resultados
+          where.id = '__none__';
+        }
+      } else {
+        // Sin filtro de branch: mostrar el departamento en todas sus sedes
+        where.branchId = { in: branchIds };
+        where.departmentId = departmentId;
+      }
+    } else {
+      // Departamento sin branches asociadas (no debería pasar)
+      where.departmentId = departmentId;
+    }
+  }
+
+  // Filtro por empleado específico
+  if (employeeId) {
+    where.employeeId = employeeId;
   }
 
   const vacations = await findVacationRequests(where as any);

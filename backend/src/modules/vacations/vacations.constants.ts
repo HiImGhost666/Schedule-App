@@ -9,6 +9,7 @@ export const VACATION_PERMISSIONS = {
 
 export const VACATION_STATUS = {
   PENDING: 'pending',
+  COLINDANTE: 'colindante',
   APPROVED: 'approved',
   REJECTED: 'rejected',
   CANCELLED: 'cancelled',

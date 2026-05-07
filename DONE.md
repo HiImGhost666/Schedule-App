@@ -1,6 +1,7 @@
 # DONE - Cambios Realizados
 
-> Registro de cambios aplicados durante la revisión del merge.
+> Registro de cambios aplicados durante la revisión del código.
+> **Última actualización:** 7 mayo 2026
 
 ---
 
@@ -40,14 +41,142 @@
 
 ---
 
-## [TODO.md] Revisión completa y actualización del inventario de issues
+## [VC-1] listVacations ahora filtra por employeeId
 
-**Archivo modificado**: `TODO.md`
+**Archivo**: `backend/src/modules/vacations/vacations.http.schemas.ts`
+**Estado**: ✅ Corregido — se añadió `employeeId: z.string().optional()` al schema y se aplica en el where del servicio.
 
-**Cambios realizados**:
-1. **Nueva sección "🧠 Modelo de Negocio"** al inicio con la matriz de permisos deseada y la lógica detrás de cada decisión.
-2. **SC-1 corregido**: Se verificó que la validación de branchId para `general_manager` **YA EXISTE** en `schedules.service.ts`. Se movió a "✅ Ya verificados como correctos".
-3. **US-1/RP-2 documentado**: Sigue siendo 🔴 Alta — la validación de branchId para GM **NO EXISTE** en `users.service.ts`. Es el único breach de seguridad real pendiente.
-4. **Sección "✅ Ya verificados como correctos"** al final.
-5. **Matriz de permisos final**: Schedule Types solo admin CRUD, managers solo lectura.
-6. **RP-1 marcado como correcto**: La matriz de permisos actual coincide con la deseada.
+---
+
+## [VC-2] getVacationCalendar ahora tiene validación de permisos por rol
+
+**Archivo**: `backend/src/modules/vacations/vacations.service.ts`
+**Estado**: ✅ Corregido — ahora recibe `actor` opcional y filtra según el rol:
+- `employee`: solo ve sus propias vacaciones aprobadas
+- `department_manager`: solo ve vacaciones de su departamento
+- `general_manager`: solo ve vacaciones de su sucursal
+- `admin`: ve todo
+
+---
+
+## [VC-3] createVacationEntry ahora usa transacción atómica
+
+**Archivo**: `backend/src/modules/vacations/vacations.service.ts`
+**Estado**: ✅ Corregido — creación + audit log envueltos en `executeInTransaction` con `logAuditOrThrow` (rollback si falla audit).
+
+---
+
+## [VC-4] approveVacationEntry y rejectVacationEntry ahora usan transacción atómica
+
+**Archivo**: `backend/src/modules/vacations/vacations.service.ts`
+**Estado**: ✅ Corregido — actualización + audit log envueltos en `executeInTransaction` con `logAuditOrThrow`.
+
+---
+
+## [VC-5] cancelVacationEntry ahora usa transacción atómica
+
+**Archivo**: `backend/src/modules/vacations/vacations.service.ts`
+**Estado**: ✅ Corregido — actualización + audit log envueltos en `executeInTransaction` con `logAuditOrThrow`.
+
+---
+
+## [VC-6] Repository ahora soporta TransactionClient opcional
+
+**Archivo**: `backend/src/modules/vacations/vacations.repository.ts`
+**Estado**: ✅ Corregido — todas las funciones aceptan `tx?: TransactionClient` y usan `getDb(tx)` para elegir entre la tx o prisma global.
+
+---
+
+## [VC-7] Controller refactorizado con buildActor() para evitar duplicación
+
+**Archivo**: `backend/src/modules/vacations/vacations.controller.ts`
+
+---
+
+## [SC-1] Schedules service ya valida branchId para GM
+
+**Archivo**: `backend/src/modules/schedules/schedules.service.ts`
+**Estado**: ✅ Verificado — las validaciones de branchId para `general_manager` ya existen en `createScheduleEntry()`, `updateScheduleEntry()` y `deleteScheduleEntry()`.
+
+---
+
+## [BR-1] general_manager NO tiene branches:manage
+
+**Archivo**: `backend/src/modules/roles/roles.constants.ts`
+**Estado**: ✅ Verificado — `general_manager` solo tiene `branches:view`.
+
+---
+
+## [BR-2] Branch CRUD solo para admin
+
+**Archivo**: `backend/src/modules/branches/branches.router.ts`
+**Estado**: ✅ Verificado — todas las rutas de creación/edición/borrado usan `requirePermission('branches:manage')`.
+
+---
+
+## [DP-1] Department CRUD solo para admin
+
+**Archivo**: `backend/src/modules/departments/departments.router.ts`
+**Estado**: ✅ Verificado — usa `settings:update` (solo admin).
+
+---
+
+## [DP-2] Departamentos multi-sucursal — GM no debe modificarlos
+
+**Archivo**: `backend/src/modules/departments/departments.service.ts`
+**Estado**: ✅ Verificado — ya implementado con `settings:update`.
+
+---
+
+## [SE-1] Settings/Webhooks solo para admin
+
+**Estado**: ✅ Verificado — la configuración global requiere `settings:update`.
+
+---
+
+## [RP-1] Matriz de permisos correcta
+
+**Archivo**: `backend/src/modules/roles/roles.constants.ts`
+**Estado**: ✅ Verificado — la matriz actual coincide con la deseada.
+
+---
+
+## [Roles Router] settings:manage → settings:update
+
+**Archivo**: `backend/src/modules/roles/roles.router.ts`
+**Estado**: ✅ Corregido — POST/PATCH/DELETE ahora usan `settings:update` en vez del antiguo `settings:manage`.
+
+---
+
+## [Audit Router] Rollback con permiso correcto
+
+**Archivo**: `backend/src/modules/audit/audit.router.ts`
+**Estado**: ✅ Corregido — `POST /:id/rollback` ahora usa `settings:update` (solo admin) en vez de `audit:view`.
+
+---
+
+## [PERMISOS.md] Matriz de permisos centralizada
+
+**Archivo creado**: `PERMISOS.md`
+**Estado**: ✅ Creado — matriz completa con tabla por rol, descripción de cada permiso, lógica de scopes y notas técnicas.
+
+---
+
+## [TODO.md] Limpieza de tabla de permisos duplicada
+
+**Archivo**: `TODO.md`
+**Estado**: ✅ Limpiado — se removió la tabla de permisos y se agregó referencia a `PERMISOS.md`.
+
+---
+
+## [Seed] Sincronización automática de permisos nuevos
+
+**Archivo**: `backend/prisma/seed.ts`
+**Estado**: ✅ Corregido — ahora sincroniza permisos incluso si la BD ya tiene datos (upsert + connect a roles existentes).
+
+---
+
+## [Roles API.md] Lista de permisos actualizada
+
+**Archivo**: `backend/src/modules/roles/API.md`
+**Estado**: ✅ Corregido — permisos antiguos `vacations:request`/`vacations:approve` reemplazados por los 6 nuevos permisos CRUD.

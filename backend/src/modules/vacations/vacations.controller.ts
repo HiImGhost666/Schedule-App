@@ -71,6 +71,8 @@ export async function getVacationController(req: AuthRequest, res: Response) {
 
 /**
  * Crea una solicitud de vacaciones (Employee)
+ * Si hay solapamiento con compañeros del departamento, la solicitud se crea
+ * con estado 'colindante' y se devuelve información de los afectados.
  */
 export async function createVacationController(req: AuthRequest, res: Response) {
   const parsed = createVacationRequestSchema.safeParse(req.body);
@@ -79,8 +81,19 @@ export async function createVacationController(req: AuthRequest, res: Response) 
   }
 
   try {
-    const vacation = await createVacationEntry(parsed.data, buildActor(req));
-    return sendSuccess(res, vacation, 'Solicitud de vacaciones creada', 201);
+    const result = await createVacationEntry(parsed.data, buildActor(req));
+
+    // Extraer metadatos de solapamiento para el mensaje
+    const { hasOverlap, overlappingEmployees, ...vacation } = result as any;
+    const message = hasOverlap
+      ? 'Solicitud de vacaciones creada con advertencia: coincide con las vacaciones de compañeros del departamento'
+      : 'Solicitud de vacaciones creada';
+
+    return sendSuccess(res, {
+      ...vacation,
+      hasOverlap,
+      overlappingEmployees,
+    }, message, 201);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
@@ -166,6 +179,7 @@ export async function getVacationCalendarController(req: AuthRequest, res: Respo
       parsed.data.week,
       parsed.data.branchId,
       parsed.data.departmentId,
+      parsed.data.employeeId,
       buildActor(req),
     );
     return sendSuccess(res, calendar);

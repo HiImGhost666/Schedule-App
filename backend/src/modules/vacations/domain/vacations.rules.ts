@@ -72,10 +72,10 @@ export function ensureCanCancel(status: string): void {
 }
 
 /**
- * Valida que la solicitud esté en estado pending para aprobar/rechazar
+ * Valida que la solicitud esté en estado pending o colindante para aprobar/rechazar
  */
 export function ensureIsPending(status: string): void {
-  if (status !== 'pending') {
+  if (status !== 'pending' && status !== 'colindante') {
     throw createAppError('BAD_REQUEST', 'La solicitud ya ha sido procesada');
   }
 }
