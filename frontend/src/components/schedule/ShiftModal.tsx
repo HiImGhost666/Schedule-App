@@ -21,9 +21,11 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import {
   buildChunkRange,
   buildDateRange,
+  buildDateTime,
   buildScheduleChunks,
   getPresetDurationHours,
   normalizeDate,
+  parseTimeToMinutes,
   toIsoDate,
   type ShiftPreset,
 } from './shiftScheduling';
@@ -108,7 +110,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [defaultShiftPresetId, setDefaultShiftPresetId] = useState(DEFAULT_SHIFT_PRESET_ID);
   const [dayShiftOverrides, setDayShiftOverrides] = useState<Record<string, string>>({});
+  const [customShiftTimes, setCustomShiftTimes] = useState<Record<string, { startTime: string; endTime: string }>>({});
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [shiftAnchorDate, setShiftAnchorDate] = useState<Date | null>(null);
+  const [shiftRangeDates, setShiftRangeDates] = useState<Date[]>([]);
   const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -167,14 +172,35 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     if (rangeStart && rangeEnd) {
       setSelectedDates(buildDateRange(rangeStart, rangeEnd));
       const matchedPreset = findPresetByTimes(rangeStart, rangeEnd);
-      setDefaultShiftPresetId(matchedPreset?.id ?? DEFAULT_SHIFT_PRESET_ID);
+      if (matchedPreset) {
+        setDefaultShiftPresetId(matchedPreset.id);
+        setDayShiftOverrides({});
+        setCustomShiftTimes({});
+      } else if (schedule) {
+        const dayKeys = buildDateRange(rangeStart, rangeEnd).map((d) => toIsoDate(d));
+        const overrides = Object.fromEntries(dayKeys.map((key) => [key, 'custom']));
+        const customTimes = Object.fromEntries(
+          dayKeys.map((key) => [key, {
+            startTime: format(rangeStart, 'HH:mm'),
+            endTime: format(rangeEnd, 'HH:mm'),
+          }]),
+        );
+        setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+        setDayShiftOverrides(overrides);
+        setCustomShiftTimes(customTimes);
+      } else {
+        setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+        setDayShiftOverrides({});
+        setCustomShiftTimes({});
+      }
     } else {
       setSelectedDates([]);
       setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+      setDayShiftOverrides({});
+      setCustomShiftTimes({});
     }
-
-    setDayShiftOverrides({});
     setCalendarOpen(false);
+        setShiftAnchorDate(null);
   }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
 
   const selectedType = watch('type');
@@ -189,10 +215,25 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     () => [...selectedDates].sort((a, b) => normalizeDate(a).getTime() - normalizeDate(b).getTime()),
     [selectedDates],
   );
-  const effectiveDayShiftOverrides = useMemo(
-    () => Object.fromEntries(Object.entries(dayShiftOverrides).filter(([, id]) => Boolean(id))),
-    [dayShiftOverrides],
-  );
+  const calendarSelectedDates = useMemo(() => {
+    const map = new Map<string, Date>();
+    selectedDates.forEach((date) => map.set(toIsoDate(date), date));
+    shiftRangeDates.forEach((date) => map.set(toIsoDate(date), date));
+    return [...map.values()].sort((a, b) => normalizeDate(a).getTime() - normalizeDate(b).getTime());
+  }, [selectedDates, shiftRangeDates]);
+  const effectiveDayShiftOverrides = useMemo(() => {
+    const entries = Object.entries(dayShiftOverrides)
+      .filter(([, id]) => Boolean(id))
+      .map(([key, id]) => {
+        if (id !== 'custom') return [key, id] as const;
+        const custom = customShiftTimes[key];
+        if (!custom?.startTime || !custom?.endTime) return [key, ''] as const;
+        return [key, `custom:${custom.startTime}-${custom.endTime}`] as const;
+      })
+      .filter(([, id]) => Boolean(id));
+
+    return Object.fromEntries(entries);
+  }, [dayShiftOverrides, customShiftTimes]);
   const selectedDateKeys = useMemo(() => sortedSelectedDates.map((d) => toIsoDate(d)), [sortedSelectedDates]);
   const selectedDateSet = useMemo(() => new Set(selectedDateKeys), [selectedDateKeys]);
   const selectedRange = useMemo(() => {
@@ -260,6 +301,18 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   }, [selectedDateSet]);
 
   useEffect(() => {
+    setCustomShiftTimes((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        if (!selectedDateSet.has(key)) {
+          delete next[key];
+        }
+      });
+      return next;
+    });
+  }, [selectedDateSet]);
+
+  useEffect(() => {
     if (!calendarOpen) return;
     const handleClick = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -271,6 +324,34 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [calendarOpen]);
+
+  const handleDayClick = useCallback((day: Date, modifiers: { selected?: boolean }, event: React.MouseEvent) => {
+    if (!canEdit) return;
+    const normalizedDay = normalizeDate(day);
+    const dayKey = toIsoDate(normalizedDay);
+
+    setSelectedDates((prev) => {
+      const selectedMap = new Map(prev.map((d) => [toIsoDate(d), d]));
+
+      if (event.shiftKey && shiftAnchorDate) {
+        const range = buildDateRange(shiftAnchorDate, normalizedDay);
+        range.forEach((rangeDay) => {
+          selectedMap.set(toIsoDate(rangeDay), rangeDay);
+        });
+        return Array.from(selectedMap.values());
+      }
+
+      if (modifiers.selected) {
+        selectedMap.delete(dayKey);
+      } else {
+        selectedMap.set(dayKey, normalizedDay);
+      }
+
+      return Array.from(selectedMap.values());
+    });
+
+    setShiftAnchorDate(normalizedDay);
+  }, [canEdit, shiftAnchorDate]);
 
   const { data: branchRangeHolidays } = useQuery({
     queryKey: ['branch-holidays-modal', selectedBranchId, selectedRange?.start?.toISOString(), selectedRange?.end?.toISOString()],
@@ -296,6 +377,17 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
     const totalHours = selectedDateKeys.reduce((acc, key) => {
       const presetId = effectiveDayShiftOverrides[key] ?? defaultShiftPresetId;
+      if (presetId.startsWith('custom:')) {
+        const signature = presetId.replace('custom:', '');
+        const [startTime, endTime] = signature.split('-');
+        const startMinutes = parseTimeToMinutes(startTime || '0:00');
+        const endMinutes = parseTimeToMinutes(endTime || '0:00');
+        const durationMinutes = endMinutes <= startMinutes
+          ? 24 * 60 - startMinutes + endMinutes
+          : endMinutes - startMinutes;
+        return acc + Math.round((durationMinutes / 60) * 10) / 10;
+      }
+
       const preset = presetById[presetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
       return acc + (preset ? getPresetDurationHours(preset) : 0);
     }, 0);
@@ -348,6 +440,33 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const buildPayloads = (data: ShiftForm) => {
     const chunks = buildScheduleChunks(sortedSelectedDates, effectiveDayShiftOverrides, defaultShiftPresetId);
     const items = chunks.map((chunk) => {
+      if (chunk.presetId.startsWith('custom:')) {
+        const signature = chunk.presetId.replace('custom:', '');
+        const [startTime, endTime] = signature.split('-');
+        if (!startTime || !endTime) {
+          throw new Error('Horario personalizado inválido');
+        }
+        const start = buildDateTime(chunk.startDate, startTime);
+        let end = buildDateTime(chunk.endDate, endTime);
+        if (end.getTime() <= start.getTime()) {
+          end = new Date(end.getTime());
+          end.setDate(end.getDate() + 1);
+        }
+        const startMinutes = parseTimeToMinutes(startTime);
+        const endMinutes = parseTimeToMinutes(endTime);
+        const durationMinutes = endMinutes <= startMinutes
+          ? 24 * 60 - startMinutes + endMinutes
+          : endMinutes - startMinutes;
+        const hoursPerDay = Math.round((durationMinutes / 60) * 10) / 10;
+        return {
+          ...data,
+          startDatetime: toIsoFromLocalInput(start),
+          endDatetime: toIsoFromLocalInput(end),
+          hoursPerDay,
+          assigneeIds: selectedUsers,
+        } satisfies ShiftPayload;
+      }
+
       const preset = presetById[chunk.presetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
       if (!preset) {
         throw new Error('Preset de turno inválido');
@@ -382,6 +501,15 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
     if (sortedSelectedDates.length === 0) {
       toast.error('Selecciona al menos un día');
+      return;
+    }
+
+    const invalidCustom = selectedDateKeys.find((key) =>
+      dayShiftOverrides[key] === 'custom'
+      && (!customShiftTimes[key]?.startTime || !customShiftTimes[key]?.endTime)
+    );
+    if (invalidCustom) {
+      toast.error('Completa la hora de entrada y salida del turno personalizado');
       return;
     }
 
@@ -606,8 +734,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                         mode="multiple"
                         weekStartsOn={1}
                         showOutsideDays
-                        selected={sortedSelectedDates}
-                        onSelect={(dates) => setSelectedDates((dates ?? []).map((d) => normalizeDate(d)))}
+                        selected={calendarSelectedDates}
+                        onDayClick={handleDayClick}
                         classNames={{
                           months: 'flex flex-col gap-3',
                           month: 'space-y-2',
@@ -628,7 +756,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                     </div>
                   )}
                 </div>
-                {selectedDateKeys.length === 0 && (
+                {calendarSelectedDates.length === 0 && (
                   <p className="text-xs text-theme-muted mt-1">Elige uno o varios dias del calendario.</p>
                 )}
               </div>
@@ -675,17 +803,71 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                               }
                               return { ...prev, [key]: value };
                             });
+                            setCustomShiftTimes((prev) => {
+                              if (value !== 'custom') {
+                                const next = { ...prev };
+                                delete next[key];
+                                return next;
+                              }
+                              if (prev[key]) return prev;
+                              const basePreset = presetById[defaultShiftPresetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
+                              return {
+                                ...prev,
+                                [key]: {
+                                  startTime: basePreset?.startTime ?? '08:00',
+                                  endTime: basePreset?.endTime ?? '16:00',
+                                },
+                              };
+                            });
                           }}
                           disabled={!canEdit}
                           className="input-field text-sm flex-1"
                         >
                           <option value="">Usar turno base</option>
+                          <option value="custom">Turno personalizado</option>
                           {SHIFT_PRESETS.map((preset) => (
                             <option key={preset.id} value={preset.id}>
                               {preset.label} ({preset.startTime} - {preset.endTime})
                             </option>
                           ))}
                         </select>
+                        {dayShiftOverrides[key] === 'custom' && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={customShiftTimes[key]?.startTime ?? ''}
+                              onChange={(event) => {
+                                const startTime = event.target.value;
+                                setCustomShiftTimes((prev) => ({
+                                  ...prev,
+                                  [key]: {
+                                    startTime,
+                                    endTime: prev[key]?.endTime ?? '',
+                                  },
+                                }));
+                              }}
+                              disabled={!canEdit}
+                              className="input-field text-sm w-28"
+                            />
+                            <span className="text-xs text-theme-muted">-</span>
+                            <input
+                              type="time"
+                              value={customShiftTimes[key]?.endTime ?? ''}
+                              onChange={(event) => {
+                                const endTime = event.target.value;
+                                setCustomShiftTimes((prev) => ({
+                                  ...prev,
+                                  [key]: {
+                                    startTime: prev[key]?.startTime ?? '',
+                                    endTime,
+                                  },
+                                }));
+                              }}
+                              disabled={!canEdit}
+                              className="input-field text-sm w-28"
+                            />
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => setSelectedDates((prev) => prev.filter((d) => toIsoDate(d) !== key))}
