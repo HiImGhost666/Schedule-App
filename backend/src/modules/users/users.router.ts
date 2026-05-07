@@ -55,29 +55,29 @@ router.get('/', authMiddleware, requirePermission('users:view'), (req: AuthReque
 router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getUserController(req, res));
 
 // Import CSV
-router.post('/import', authMiddleware, requirePermission('users:manage'), upload.single('file'), handleMulterError, (req: AuthRequest, res: Response) => importUsersCsvController(req, res));
+router.post('/import', authMiddleware, requirePermission('users:create'), upload.single('file'), handleMulterError, (req: AuthRequest, res: Response) => importUsersCsvController(req, res));
 
 
 // Create user
-router.post('/', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => createUserController(req, res));
+router.post('/', authMiddleware, requirePermission('users:create'), (req: AuthRequest, res: Response) => createUserController(req, res));
 
 // Update user
-router.patch('/:id', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => updateUserController(req, res));
+router.patch('/:id', authMiddleware, requirePermission('users:update'), (req: AuthRequest, res: Response) => updateUserController(req, res));
 
 // Change status
-router.patch('/:id/status', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => changeUserStatusController(req, res));
+router.patch('/:id/status', authMiddleware, requirePermission('users:update'), (req: AuthRequest, res: Response) => changeUserStatusController(req, res));
 
 // Change role
-router.patch('/:id/role', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => changeUserRoleController(req, res));
+router.patch('/:id/role', authMiddleware, requirePermission('users:update'), (req: AuthRequest, res: Response) => changeUserRoleController(req, res));
 
 // Reset password
-router.post('/:id/reset-password', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => resetPasswordController(req, res));
+router.post('/:id/reset-password', authMiddleware, requirePermission('users:update'), (req: AuthRequest, res: Response) => resetPasswordController(req, res));
 
 // Force password change without resetting password
-router.post('/:id/force-password-change', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => forcePasswordChangeController(req, res));
+router.post('/:id/force-password-change', authMiddleware, requirePermission('users:update'), (req: AuthRequest, res: Response) => forcePasswordChangeController(req, res));
 
 // Soft delete user
-router.delete('/:id', authMiddleware, requirePermission('users:manage'), (req: AuthRequest, res: Response) => deleteUserController(req, res));
+router.delete('/:id', authMiddleware, requirePermission('users:delete'), (req: AuthRequest, res: Response) => deleteUserController(req, res));
 
 // Get user schedules
 router.get('/:id/schedules', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => listUserSchedulesController(req, res));

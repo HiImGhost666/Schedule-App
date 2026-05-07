@@ -23,15 +23,15 @@ router.get('/week/:year/:week', authMiddleware, (req: AuthRequest, res: Response
 router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getScheduleController(req, res));
 
 // Create schedule
-router.post('/', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => createScheduleController(req, res));
+router.post('/', authMiddleware, requirePermission('schedules:create'), (req: AuthRequest, res: Response) => createScheduleController(req, res));
 
 // Bulk create schedules
 router.post('/bulk', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => createScheduleBulkController(req, res));
 
 // Update schedule
-router.patch('/:id', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => updateScheduleController(req, res));
+router.patch('/:id', authMiddleware, requirePermission('schedules:update'), (req: AuthRequest, res: Response) => updateScheduleController(req, res));
 
 // Delete schedule
-router.delete('/:id', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => deleteScheduleController(req, res));
+router.delete('/:id', authMiddleware, requirePermission('schedules:delete'), (req: AuthRequest, res: Response) => deleteScheduleController(req, res));
 
 export default router;

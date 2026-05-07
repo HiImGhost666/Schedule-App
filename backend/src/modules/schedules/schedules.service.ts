@@ -49,6 +49,40 @@ type ScheduleCreateInput = z.infer<typeof scheduleCreateInputSchema>;
 type ScheduleUpdateInput = z.infer<typeof scheduleUpdateInputSchema>;
 type ScheduleCreateResult = { schedule: ScheduleWithRelations; reason?: string; isLastMinute: boolean };
 
+async function getActorDepartmentId(actorId: string) {
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { departmentId: true },
+  });
+  return actor?.departmentId;
+}
+
+async function ensureDepartmentManagerAssignees(actorId: string, assigneeIds: string[]) {
+  const actorDepartmentId = await getActorDepartmentId(actorId);
+  if (!actorDepartmentId) {
+    throw createAppError('FORBIDDEN', 'No tienes un departamento asignado');
+  }
+
+  const assignees = await prisma.user.findMany({
+    where: { id: { in: assigneeIds } },
+    select: { id: true, departmentId: true },
+  });
+
+  if (assignees.length !== assigneeIds.length) {
+    throw createAppError('BAD_REQUEST', 'Al menos un usuario asignado no existe');
+  }
+
+  if (assignees.some((assignee) => assignee.departmentId !== actorDepartmentId)) {
+    throw createAppError('FORBIDDEN', 'Solo puedes crear guardias para tu departamento');
+  }
+}
+
+function ensureAssignmentsBelongToDepartment(actorDepartmentId: string, schedule: { assignments: Array<{ user: { department?: { id: string } | null } }> }) {
+  if (schedule.assignments.some((a) => a.user.department?.id !== actorDepartmentId)) {
+    throw createAppError('FORBIDDEN', 'Solo puedes modificar guardias de tu departamento');
+  }
+}
+
 async function ensureActiveBranch(branchId: string) {
   const branch = await prisma.branch.findUnique({
     where: { id: branchId },
@@ -103,12 +137,22 @@ async function createScheduleEntryInternal(
     await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
   }
 
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+  // Evitar bypass por nombre de rol si no es admin.
+  if (actor.roleName !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    if (targetBranchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
+
+    if (actor.roleName === 'general_manager') {
+      if (targetBranchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
+      }
+    } else if (actor.roleName === 'department_manager') {
+      await ensureDepartmentManagerAssignees(actor.id, assigneeIds);
+    } else {
+      if (targetBranchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'Solo puedes crear guardias en tu sucursal asignada');
+      }
     }
   }
 
@@ -426,17 +470,36 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const nextBranchId = branchId ?? existing.branchId;
   if (nextBranchId) await ensureActiveBranch(nextBranchId);
 
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+  if (actor.roleName !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
 
-    if (existing.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'Solo puedes editar guardias de tu sucursal asignada');
-    }
+    if (actor.roleName === 'general_manager') {
+      if (existing.branchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'Solo puedes editar guardias de tu sucursal asignada');
+      }
+      if (nextBranchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'No puedes mover una guardia fuera de tu sucursal asignada');
+      }
+    } else if (actor.roleName === 'department_manager') {
+      const actorDepartmentId = await getActorDepartmentId(actor.id);
+      if (!actorDepartmentId) {
+        throw createAppError('FORBIDDEN', 'No tienes un departamento asignado');
+      }
 
-    if (nextBranchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No puedes mover una guardia fuera de tu sucursal asignada');
+      if (assigneeIds) {
+        await ensureDepartmentManagerAssignees(actor.id, assigneeIds);
+      } else {
+        ensureAssignmentsBelongToDepartment(actorDepartmentId, existing);
+      }
+    } else {
+      if (existing.branchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'Solo puedes editar guardias de tu sucursal asignada');
+      }
+      if (nextBranchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'No puedes mover una guardia fuera de tu sucursal asignada');
+      }
     }
   }
 
@@ -531,12 +594,25 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+  if (actor.roleName !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    if (schedule.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'Solo puedes eliminar guardias de tu sucursal asignada');
+
+    if (actor.roleName === 'general_manager') {
+      if (schedule.branchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'Solo puedes eliminar guardias de tu sucursal asignada');
+      }
+    } else if (actor.roleName === 'department_manager') {
+      const actorDepartmentId = await getActorDepartmentId(actor.id);
+      if (!actorDepartmentId) {
+        throw createAppError('FORBIDDEN', 'No tienes un departamento asignado');
+      }
+      ensureAssignmentsBelongToDepartment(actorDepartmentId, schedule);
+    } else {
+      if (schedule.branchId !== actor.branchId) {
+        throw createAppError('FORBIDDEN', 'Solo puedes eliminar guardias de tu sucursal asignada');
+      }
     }
   }
 
