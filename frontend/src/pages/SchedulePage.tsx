@@ -25,7 +25,16 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Branch, BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem, ScheduleType } from '@/types';
+import type {
+  Branch,
+  BranchHoliday,
+  CalendarBranchHoliday,
+  Schedule,
+  ScheduleAssignment,
+  WeekScheduleItem,
+  ScheduleType,
+  Department,
+} from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
@@ -162,6 +171,7 @@ export function SchedulePage() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [activeBranchId, setActiveBranchId] = useState<string>('');
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [activeView, setActiveView] = useState(navState?.initialView || 'dayGridMonth');
   const [dateRange, setDateRange] = useState(() => {
     if (navState?.initialDate) {
@@ -190,6 +200,21 @@ export function SchedulePage() {
     assignedBranchId: undefined,
     fallbackStrategy: 'none',
   });
+
+  const { data: departments } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', 'schedule-page', effectiveActiveBranchId],
+    queryFn: () =>
+      api
+        .get('/departments', {
+          params: { includeInactive: false, branchId: effectiveActiveBranchId || undefined },
+        })
+        .then((r) => r.data),
+  });
+
+  // Reset selected department when branch changes to avoid stale filters
+  useEffect(() => {
+    setSelectedDeptId('');
+  }, [activeBranchId]);
 
   const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
   const branchNameById = useMemo(
@@ -379,9 +404,17 @@ export function SchedulePage() {
   }, [shouldUseWeekEndpoint]);
 
   /* derive color from type (ignore stale DB color field) */
-  const scheduleEvents =
-    schedules
-      ?.filter((s) => !hiddenTypes.has(s.type))
+  const scheduleEvents = useMemo(() => {
+    if (!schedules) return [];
+
+    return schedules
+      .filter((s) => {
+        if (hiddenTypes.has(s.type)) return false;
+        if (selectedDeptId) {
+          return s.assignments.some((a) => a.user.department?.id === selectedDeptId);
+        }
+        return true;
+      })
       .map((s) => {
         const { color } = getTypeInfo(s.type, scheduleTypes);
         return {
@@ -394,7 +427,8 @@ export function SchedulePage() {
           textColor: '#ffffff',
           extendedProps: { schedule: s, isLastMinute: s.isLastMinute },
         };
-      }) ?? [];
+      });
+  }, [schedules, hiddenTypes, selectedDeptId, scheduleTypes, normalizeWeekDayEnd]);
 
   const holidayBackgroundEvents = useMemo(() => {
     return (branchHolidays?.data ?? []).map((holiday) => ({
@@ -683,17 +717,38 @@ export function SchedulePage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <ScheduleSidebar
-            branches={availableBranches}
-            activeBranchId={activeBranchId}
-            effectiveActiveBranchId={effectiveActiveBranchId}
-            canViewAllBranches={canViewAllBranches}
-            onBranchChange={setActiveBranchId}
-            hiddenTypes={hiddenTypes}
-            onToggleType={toggleType}
-            typeCounts={typeCounts}
-            holidayTypeCounts={holidayTypeCounts}
-          />
+          <div className="flex flex-col border-r border-theme-color bg-theme-surface/5">
+            <ScheduleSidebar
+              branches={availableBranches}
+              activeBranchId={activeBranchId}
+              effectiveActiveBranchId={effectiveActiveBranchId}
+              canViewAllBranches={canViewAllBranches}
+              onBranchChange={setActiveBranchId}
+              hiddenTypes={hiddenTypes}
+              onToggleType={toggleType}
+              typeCounts={typeCounts}
+              holidayTypeCounts={holidayTypeCounts}
+            />
+            <div className="p-6 pt-0 mt-auto">
+              <div className="pt-6 border-t border-theme-color">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-theme-muted mb-3">
+                  Filtrar por Departamento
+                </label>
+                <select
+                  value={selectedDeptId}
+                  onChange={(e) => setSelectedDeptId(e.target.value)}
+                  className="w-full text-sm border border-theme-border rounded-lg px-3 h-10 bg-theme-surface text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/20 transition-all"
+                >
+                  <option value="">Todos los departamentos</option>
+                  {departments?.data?.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
 
           {/* Calendar */}
           <div className="p-6">
