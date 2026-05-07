@@ -124,19 +124,19 @@ describe('parseUserCsv', () => {
 
   it('parsea correctamente una fila válida completa', () => {
     const csv = buildCsv([
-      ['LAB-100', 'Juan Pérez', 'juan@test.com', 'viewer', 'active', 'Seguridad', '', '600111222', ''],
+      ['LAB-100', 'Juan Pérez', 'juan@test.com', 'employee', 'active', 'Seguridad', '', '600111222', ''],
     ]);
     const rows = parseUserCsv(csv);
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe('Juan Pérez');
     expect(rows[0].email).toBe('juan@test.com');
-    expect(rows[0].role).toBe('viewer');
+    expect(rows[0].role).toBe('employee');
     expect(rows[0].department).toBe('Seguridad');
   });
 
   it('elimina filas completamente vacías', () => {
     const csv = buildCsv([
-      ['LAB-100', 'Juan', 'juan@test.com', 'viewer', 'active', '', '', '', ''],
+      ['LAB-100', 'Juan', 'juan@test.com', 'employee', 'active', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
     ]);
     const rows = parseUserCsv(csv);
@@ -159,7 +159,7 @@ describe('parseUserCsv', () => {
   it('parsea múltiples filas correctamente', () => {
     const csv = buildCsv([
       ['LAB-100', 'Ana', 'ana@test.com', 'admin', 'active', 'Administración', '', '', ''],
-      ['LAB-101', 'Pedro', 'pedro@test.com', 'viewer', 'disabled', 'Seguridad', '', '', ''],
+      ['LAB-101', 'Pedro', 'pedro@test.com', 'employee', 'disabled', 'Seguridad', '', '', ''],
     ]);
     const rows = parseUserCsv(csv);
     expect(rows).toHaveLength(2);
@@ -190,7 +190,7 @@ describe('parseUserCsv', () => {
   });
 
   it('respeta delimitador dentro de comillas en CSV con punto y coma', () => {
-    const csv = `${CSV_HEADERS.join(';')}\nLAB-100;"Ana;María";ana@test.com;viewer;active;Operaciones;TFN;;`;
+    const csv = `${CSV_HEADERS.join(';')}\nLAB-100;"Ana;María";ana@test.com;employee;active;Operaciones;TFN;;`;
     const rows = parseUserCsv(csv);
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe('Ana;María');

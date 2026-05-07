@@ -7,12 +7,13 @@ import * as branchesRepository from '../src/modules/branches/branches.repository
 
 jest.mock('../src/modules/branches/branches.repository');
 jest.mock('../src/modules/audit/audit.service', () => ({
-  logAudit: jest.fn().mockResolvedValue(undefined),
+  logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn(async (operation: any) => operation({ tx: true })),
 }));
 
+import { prismaMock } from './singleton';
 const repo = branchesRepository as jest.Mocked<typeof branchesRepository>;
 
 const actor = {

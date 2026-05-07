@@ -26,7 +26,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Alan Guillén Perera',
     email: 'aguillen@laberit.com',
-    role: 'admin' as const,
+    role: 'admin',
     department: 'Administración',
     initialPassword: 'Laberit@Admin2025!',
     forcePasswordChange: true,
@@ -36,7 +36,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Adán Luis Senen Mora',
     email: 'asenen@laberit.com',
-    role: 'manager' as const,
+    role: 'general_manager',
     department: 'Operaciones',
     initialPassword: 'Lb@AS2025!',
     forcePasswordChange: true,
@@ -44,7 +44,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Eduardo Guerra Ortiz',
     email: 'eguerra@laberit.com',
-    role: 'manager' as const,
+    role: 'general_manager',
     department: 'Operaciones',
     initialPassword: 'Lb@EG2025!',
     forcePasswordChange: true,
@@ -52,7 +52,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Juan José Robaina Quintana',
     email: 'jrobaina@laberit.com',
-    role: 'manager' as const,
+    role: 'general_manager',
     department: 'Operaciones',
     initialPassword: 'Lb@JR2025!',
     forcePasswordChange: true,
@@ -62,7 +62,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Antonio Fernández López',
     email: 'afernandez@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@AF2025!',
     forcePasswordChange: true,
@@ -70,7 +70,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Eduardo Estevez Lemes',
     email: 'eestevez@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@EE2025!',
     forcePasswordChange: true,
@@ -78,7 +78,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Esther María Hernández Moreno',
     email: 'ehernandezm@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@EHM2025!',
     forcePasswordChange: true,
@@ -86,7 +86,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Fidel Cristo Cruz Pérez',
     email: 'fcruz@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@FC2025!',
     forcePasswordChange: true,
@@ -94,7 +94,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Francisco Javier González Pérez',
     email: 'fjgonzalez@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@FJG2025!',
     forcePasswordChange: true,
@@ -102,7 +102,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Héctor Neftalí Mesa Betancor',
     email: 'hmesa@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@HM2025!',
     forcePasswordChange: true,
@@ -110,7 +110,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Óscar José Cabrera Junquera',
     email: 'ocabrera@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@OC2025!',
     forcePasswordChange: true,
@@ -118,7 +118,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Zakaria Ait Atto',
     email: 'zait@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@ZA2025!',
     forcePasswordChange: true,
@@ -126,7 +126,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Carlos Cruz González',
     email: 'ccruz@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@CC2025!',
     forcePasswordChange: true,
@@ -134,7 +134,7 @@ const PRODUCTION_USERS = [
   {
     name: 'Fernando Javier Reges Freyre',
     email: 'freges@laberit.com',
-    role: 'viewer' as const,
+    role: 'employee',
     department: 'Seguridad',
     initialPassword: 'Lb@FR2025!',
     forcePasswordChange: true,
@@ -148,6 +148,7 @@ async function main() {
 
   const created: string[] = [];
   const skipped: string[] = [];
+  const dbRoles = await prisma.role.findMany({ select: { id: true, name: true } });
 
   for (const u of PRODUCTION_USERS) {
     const existing = await prisma.user.findUnique({ where: { email: u.email } });
@@ -159,15 +160,18 @@ async function main() {
     }
 
     const passwordHash = await bcrypt.hash(u.initialPassword, 12);
+    const departmentRecord = u.department
+      ? await prisma.department.findFirst({ where: { name: u.department }, select: { id: true } })
+      : null;
     await prisma.user.create({
       data: {
         name: u.name,
         email: u.email,
         derivedUsername: getDerivedUsername(u.email),
         passwordHash,
-        role: u.role,
+        roleId: dbRoles.find(r => r.name === u.role)?.id || null,
         status: 'active',
-        department: u.department,
+        departmentId: departmentRecord?.id ?? null,
         forcePasswordChange: u.forcePasswordChange,
       },
     });

@@ -16,23 +16,13 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn(async (fn: any) => await fn({})),
 }));
 
-// We mock the DB partially
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    branch: {
-      findUnique: jest.fn(),
-    },
-    user: {
-      findUnique: jest.fn(),
-    }
-  },
-}));
+import { prismaMock } from './singleton';
 
 const mockRepo = schedulesRepo as jest.Mocked<typeof schedulesRepo>;
 
 const mockActor = {
   id: 'admin-1',
-  role: 'admin',
+  roleName: 'admin',
   email: 'admin@test.com',
   name: 'Admin',
 };
@@ -44,14 +34,15 @@ describe('Holiday and Task Overlap Logic', () => {
 
   it('bloquea la creación de tarea de guardia en un día festivo', async () => {
     // Escenario: 1 de Junio es festivo en Sucursal A
-    (prisma.branch.findUnique as jest.Mock).mockResolvedValue({ id: 'b-1', isActive: true });
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'b-1', isActive: true } as any);
     
     // Simulamos que existe un festivo ese día
-    (prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([{
+    prismaMock.branchHoliday.findMany.mockResolvedValue([{
       id: 'h-1',
       name: 'Festivo Test',
       date: new Date('2026-06-01')
-    }]);
+    } as any]);
+    prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia' } as any);
 
     await expect(createScheduleEntry({
       title: 'Guardia de Festivo',
@@ -59,9 +50,10 @@ describe('Holiday and Task Overlap Logic', () => {
       endDatetime: new Date('2026-06-01T16:00:00Z'),
       branchId: 'b-1',
       assigneeIds: ['u-1'],
-      type: 'guardia',
+      scheduleTypeId: 'st-guardia',
       color: '#1e3a5f',
-      hoursPerDay: 8
+      hoursPerDay: 8,
+      confirmed: false,
     }, mockActor)).rejects.toMatchObject({
       code: 'BAD_REQUEST',
       message: expect.stringContaining('No se puede asignar trabajo en días festivos: Festivo Test')
@@ -69,12 +61,14 @@ describe('Holiday and Task Overlap Logic', () => {
   });
 
   it('permite crear una tarea de tipo "otro" en un día festivo (excepción)', async () => {
-    (prisma.branch.findUnique as jest.Mock).mockResolvedValue({ id: 'b-1', isActive: true });
-    (prisma.branchHoliday.findMany as jest.Mock).mockResolvedValue([{
+    prismaMock.branch.findUnique.mockResolvedValue({ id: 'b-1', isActive: true } as any);
+    prismaMock.branchHoliday.findMany.mockResolvedValue([{
       id: 'h-1',
       name: 'Festivo Test',
       date: new Date('2026-06-01')
-    }]);
+    } as any]);
+
+    prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-otro', value: 'otro' } as any);
 
     mockRepo.findSchedules.mockResolvedValue([]);
     mockRepo.createSchedule.mockResolvedValue({ id: 's-1', title: 'Tarea Excepcional', type: 'otro' } as any);
@@ -85,9 +79,10 @@ describe('Holiday and Task Overlap Logic', () => {
       endDatetime: new Date('2026-06-01T16:00:00Z'),
       branchId: 'b-1',
       assigneeIds: ['u-1'],
-      type: 'otro',
+      scheduleTypeId: 'st-otro',
       color: '#1e3a5f',
-      hoursPerDay: 8
+      hoursPerDay: 8,
+      confirmed: false,
     }, mockActor);
 
     expect(result).toBeDefined();

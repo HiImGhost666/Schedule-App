@@ -91,16 +91,27 @@ export function buildFridaySummaryCard(params: {
         spacing: 'Medium',
         color: 'accent',
       },
-      ...day.schedules.map((s) => ({
-        type: 'FactSet',
-        facts: [
-          { title: '📋 Guardia:', value: s.title },
-          { title: '🕐 Horario:', value: s.time },
-          { title: '👥 Personal:', value: s.assignees.join(', ') || 'Sin asignar' },
-          ...(s.location ? [{ title: '📍 Lugar:', value: s.location }] : []),
-        ],
-      })),
-      { type: 'Separator' },
+      ...day.schedules.flatMap((s, index) => [
+        {
+          type: 'FactSet',
+          facts: [
+            { title: '📋 Guardia:', value: s.title },
+            { title: '🕐 Horario:', value: s.time },
+            { title: '👥 Personal:', value: s.assignees.join(', ') || 'Sin asignar' },
+            ...(s.location ? [{ title: '📍 Lugar:', value: s.location }] : []),
+          ],
+        },
+        ...(index < day.schedules.length - 1
+          ? [
+              {
+                type: 'TextBlock',
+                text: '────────────────────',
+                isSubtle: true,
+                spacing: 'Small',
+              },
+            ]
+          : []),
+      ]),
     ];
   });
 
@@ -127,13 +138,12 @@ export function buildFridaySummaryCard(params: {
               size: 'Medium',
               isSubtle: true,
               wrap: true,
+              spacing: 'Small',
             },
-            { type: 'Separator' },
             ...(dayBlocks.length > 0
               ? dayBlocks
-              : [{ type: 'TextBlock', text: 'No hay guardias programadas para esta semana.', isSubtle: true }]),
+              : [{ type: 'TextBlock', text: 'No hay guardias programadas para esta semana.', isSubtle: true, wrap: true }]),
           ],
-          msteams: { width: 'Full' },
         },
       },
     ],
@@ -193,11 +203,10 @@ export function buildMondayVacationCard(params: {
               size: 'Medium',
               isSubtle: true,
               wrap: true,
+              spacing: 'Small',
             },
-            { type: 'Separator' },
             ...bodyBlocks,
           ],
-          msteams: { width: 'Full' },
         },
       },
     ],

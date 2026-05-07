@@ -6,11 +6,14 @@ import { errorHandler } from './middleware/errorHandler.middleware';
 import authRouter from './modules/auth/auth.router';
 import usersRouter from './modules/users/users.router';
 import schedulesRouter from './modules/schedules/schedules.router';
+import scheduleTypesRouter from './modules/schedule-types/schedule-types.router';
 import webhooksRouter from './modules/webhooks/webhooks.router';
 import notificationsRouter from './modules/notifications/notifications.router';
 import auditRouter from './modules/audit/audit.router';
 import settingsRouter from './modules/settings/settings.router';
 import branchesRouter from './modules/branches/branches.router';
+import departmentsRouter from './modules/departments/departments.router';
+import rolesRouter from './modules/roles/roles.router';
 import { sendSuccess } from './utils/response';
 import path from 'path';
 
@@ -48,11 +51,14 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/schedules', schedulesRouter);
+app.use('/api/schedule-types', scheduleTypesRouter);
 app.use('/api/branches', branchesRouter);
+app.use('/api/departments', departmentsRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/roles', rolesRouter);
 
 app.use(errorHandler);
 

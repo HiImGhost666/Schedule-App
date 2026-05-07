@@ -10,10 +10,10 @@ import api from '@/config/api';
 import { cn, formatDateTime, formatRelative } from '@/lib/utils';
 import { isDarkThemePreset } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
-import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment } from '@/types';
+import type { Schedule, AuditLog, WeekScheduleItem, ScheduleAssignment, ScheduleType } from '@/types';
 import { format, getISOWeek, getISOWeekYear, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { SCHEDULE_TYPES } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 
 const IRREVERSIBLE_ACTIONS = [
   'LOGIN',
@@ -24,12 +24,12 @@ const IRREVERSIBLE_ACTIONS = [
   'ROLLBACK_PERFORMED',
 ];
 
-function getTypeLabel(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type)?.label || type;
+function getTypeLabel(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((t) => t.value === type)?.label || type;
 }
 
-function getTypeColor(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type)?.color || '#1e3a5f';
+function getTypeColor(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((t) => t.value === type)?.color || '#1e3a5f';
 }
 
 function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
@@ -40,6 +40,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     startDatetime: item.startDatetime,
     endDatetime: item.endDatetime,
     type: item.type,
+    scheduleTypeId: item.scheduleTypeId,
     color: item.color,
     location: item.location ?? undefined,
     notes: item.notes ?? undefined,
@@ -72,9 +73,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
-  // Nuevo estado para la pestaña activa del modal
-  // null = default (general), 'schedules' = abrir en guardias
-  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security' | null>(null);
+  const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security'>('general');
 
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -93,14 +92,16 @@ export function DashboardPage() {
   const { data: usersData, isLoading: loadingUsers } = useQuery({
     queryKey: ['users', 'count', 'active'],
     queryFn: () => api.get('/users?limit=1&status=active').then((r) => r.data.pagination?.total || 0),
-    enabled: user?.role === 'admin' || user?.role === 'manager',
+    enabled: user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager',
   });
 
   const { data: auditLogs } = useQuery({
     queryKey: ['audit', 'recent'],
     queryFn: () => api.get<{ data: AuditLog[] }>('/audit?limit=5').then((r) => r.data.data),
-    enabled: user?.role === 'admin',
+    enabled: user?.role?.name === 'admin',
   });
+
+  const { types: scheduleTypes = [] } = useScheduleTypes();
 
   const mySchedules = weekSchedules?.filter((s) =>
     s.assignments.some((a) => a.userId === user?.id)
@@ -132,13 +133,6 @@ export function DashboardPage() {
     setProfileModalOpen(true);
   };
 
-  // Cuando se abre el modal desde otro lugar, profileModalTab debe ser null
-  const openProfileGeneral = (profileUser: ScheduleAssignment['user']) => {
-    setSelectedProfileUser(profileUser);
-    setProfileModalTab(null);
-    setProfileModalOpen(true);
-  };
-
   const navigateToActiveUsers = () => {
     navigate('/admin/users', { state: { status: 'active' } });
   };
@@ -156,7 +150,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-7 animate-fade-in">
       {/* Header: altura mínima evita CLS al cargar la webfont */}
-      <div className="min-h-[3.5rem]">
+      <div className="min-h-14">
         <h1 className="text-2xl font-bold text-theme-primary">
           Bienvenido, {user?.name?.split(' ')[0]} 👋
         </h1>
@@ -219,7 +213,7 @@ export function DashboardPage() {
           </button>
         </div>
 
-        {(user?.role === 'admin' || user?.role === 'manager') && (
+        {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (
           <div
             className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
             role="button"
@@ -311,7 +305,7 @@ export function DashboardPage() {
                 >
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: getTypeColor(s.type) }}
+                    style={{ backgroundColor: getTypeColor(s.type, scheduleTypes) }}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-theme-primary truncate">{s.title}</p>
@@ -319,7 +313,7 @@ export function DashboardPage() {
                       {formatDateTime(s.startDatetime)} — {format(new Date(s.endDatetime), 'HH:mm')}
                     </p>
                   </div>
-                  <div className="flex -space-x-1 flex-shrink-0">
+                  <div className="flex -space-x-1 shrink-0">
                     {s.assignments.slice(0, 3).map((a) => (
                       <div
                         key={a.userId}
@@ -341,15 +335,15 @@ export function DashboardPage() {
                     )}
                   </div>
                   {s.isLastMinute && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium shrink-0">
                       Urgente
                     </span>
                   )}
                   <span
                     className="text-xs px-2 py-0.5 rounded-full text-white flex-shrink-0"
-                    style={{ backgroundColor: getTypeColor(s.type) }}
+                    style={{ backgroundColor: getTypeColor(s.type, scheduleTypes) }}
                   >
-                    {getTypeLabel(s.type)}
+                    {getTypeLabel(s.type, scheduleTypes)}
                   </span>
                 </div>
               ))}
@@ -358,8 +352,8 @@ export function DashboardPage() {
         </div>
 
         {/* Activity log */}
-        {user?.role === 'admin' && (
-          <div className="card p-7 min-h-[220px]">
+        {user?.role?.name === 'admin' && (
+          <div className="card p-7 min-h-55">
             <h2 className="text-base font-semibold text-theme-primary flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-gold-500" />
               Actividad Reciente
@@ -372,20 +366,20 @@ export function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {auditLogs.map((log) => (
-                  <div 
-                    key={log.id} 
+                  <div
+                    key={log.id}
                     className="flex gap-3 cursor-pointer hover:bg-navy-100/80 p-2 -m-2 rounded-lg transition-colors group"
                     onClick={() => {
                       const isIrreversible = IRREVERSIBLE_ACTIONS.includes(log.action);
-                      navigate('/admin/audit', { 
-                        state: { 
+                      navigate('/admin/audit', {
+                        state: {
                           selectedLogId: log.id,
                           activeTab: isIrreversible ? 'irreversible' : 'reversible'
-                        } 
+                        }
                       });
                     }}
                   >
-                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 flex-shrink-0 group-hover:scale-125 transition-all" />
+                    <div className="h-2 w-2 rounded-full bg-gold-400 mt-1.5 shrink-0 group-hover:scale-125 transition-all" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-theme-primary group-hover:text-navy-800 transition-colors">
                         {log.action.replace(/_/g, ' ')}

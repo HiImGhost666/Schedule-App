@@ -1,16 +1,25 @@
 import { Prisma } from '@prisma/client';
 
-export const USER_RESPONSE_SELECT = {
+export const USER_RESPONSE_SELECT: Prisma.UserSelect = {
   id: true,
   employeeId: true,
   name: true,
   email: true,
   derivedUsername: true,
   passwordChangedAt: true,
-  role: true,
+  roleId: true,
+  role: {
+    select: {
+      name: true,
+      permissions: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
   status: true,
   avatarUrl: true,
-  department: true,
   createdAt: true,
   lastLoginAt: true,
   failedAttempts: true,
@@ -29,19 +38,35 @@ export const USER_RESPONSE_SELECT = {
       isActive: true,
     },
   },
+  department: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
 } as const;
 
-export const USER_SAFE_SELECT = {
+export const USER_SAFE_SELECT: Prisma.UserSelect = {
   id: true,
   employeeId: true,
   name: true,
   email: true,
   derivedUsername: true,
   passwordChangedAt: true,
-  role: true,
+  roleId: true,
+  role: {
+    select: {
+      name: true,
+      permissions: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
   status: true,
   avatarUrl: true,
-  department: true,
   createdAt: true,
   lastLoginAt: true,
   failedAttempts: true,
@@ -58,6 +83,13 @@ export const USER_SAFE_SELECT = {
       name: true,
       code: true,
       isActive: true,
+    },
+  },
+  department: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
     },
   },
 } as const;

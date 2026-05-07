@@ -1,22 +1,33 @@
 import express from 'express';
 import request from 'supertest';
 
-jest.mock('../src/middleware/auth.middleware', () => ({
-  authMiddleware: (req: any, res: any, next: any) => {
-    const role = req.header('x-test-role');
+jest.mock('../src/middleware/auth.middleware', () => {
+  const { DEFAULT_ROLE_PERMISSIONS } = require('../src/modules/roles/roles.constants');
+  return {
+    authMiddleware: (req: any, res: any, next: any) => {
+      const role = req.header('x-test-role') as any;
 
-    if (!role) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token de acceso requerido',
-        code: 'UNAUTHORIZED',
-      });
-    }
+      if (!role) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token de acceso requerido',
+          code: 'UNAUTHORIZED',
+        });
+      }
 
-    req.user = { id: 'test-user', role, name: 'Test User' };
-    next();
-  },
-}));
+      const permissions = DEFAULT_ROLE_PERMISSIONS[role] || [];
+      req.user = { 
+        id: 'test-user', 
+        roleName: role, 
+        permissions, 
+        name: 'Test User', 
+        email: 'test@example.com', 
+        status: 'active'
+      };
+      next();
+    },
+  };
+});
 
 jest.mock('../src/modules/notifications/notifications.service', () => ({
   resendNotification: jest.fn(),
@@ -32,33 +43,9 @@ jest.mock('../src/modules/notifications/notifications.templates', () => ({
   buildAnnouncementCard: jest.fn(() => ({ type: 'message', body: 'card' })),
 }));
 
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    notificationLog: {
-      findMany: jest.fn(),
-      count: jest.fn(),
-    },
-    webhookConfig: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-    },
-  },
-}));
-
 import notificationsRouter from '../src/modules/notifications/notifications.router';
-import { prisma } from '../src/config/database';
 import * as notificationsService from '../src/modules/notifications/notifications.service';
-
-const prismaMock = prisma as unknown as {
-  notificationLog: {
-    findMany: jest.Mock;
-    count: jest.Mock;
-  };
-  webhookConfig: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-  };
-};
+import { prismaMock } from './singleton';
 
 const app = express();
 app.use(express.json());
@@ -67,12 +54,12 @@ app.use('/api/notifications', notificationsRouter);
 describe('notifications.router', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    prismaMock.notificationLog.findMany.mockResolvedValue([]);
-    prismaMock.notificationLog.count.mockResolvedValue(0);
+    prismaMock.notificationLog.findMany.mockResolvedValue([] as any);
+    prismaMock.notificationLog.count.mockResolvedValue(0 as any);
     prismaMock.webhookConfig.findMany.mockResolvedValue([
       { id: 'wh-1', webhookUrl: 'https://example.com/wh1' },
       { id: 'wh-2', webhookUrl: 'https://example.com/wh2' },
-    ]);
+    ] as any);
     (notificationsService.sendToWebhook as jest.Mock).mockResolvedValue({ success: true });
     (notificationsService.resendNotification as jest.Mock).mockResolvedValue({ id: 'log-1', status: 'sent' });
   });
@@ -109,10 +96,10 @@ describe('notifications.router', () => {
     });
   });
 
-  it('returns 403 on announce for viewer', async () => {
+  it('returns 403 on announce for employee', async () => {
     const response = await request(app)
       .post('/api/notifications/announce')
-      .set('x-test-role', 'viewer')
+      .set('x-test-role', 'employee')
       .send({ message: 'Aviso' });
 
     expect(response.status).toBe(403);

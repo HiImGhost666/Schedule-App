@@ -25,12 +25,12 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import api from '@/config/api';
-import type { Branch, BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem } from '@/types';
-import { SCHEDULE_TYPES } from '@/types';
+import type { Branch, BranchHoliday, CalendarBranchHoliday, Schedule, ScheduleAssignment, WeekScheduleItem, ScheduleType } from '@/types';
 import { format, getISOWeek, getISOWeekYear } from 'date-fns';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
 import { isDarkThemePreset } from '@/config/theme';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 
 const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
   nacional: '#dc2626',
@@ -43,8 +43,12 @@ const HOLIDAY_COLORS: Record<BranchHoliday['type'], string> = {
 
 /* ─── helpers ──────────────────────────────────────────────────── */
 
-function getTypeInfo(type: string) {
-  return SCHEDULE_TYPES.find((t) => t.value === type) ?? SCHEDULE_TYPES[0];
+function getTypeInfo(type: string, scheduleTypes: ScheduleType[]) {
+  return scheduleTypes.find((t) => t.value === type) ?? scheduleTypes[0] ?? { 
+    value: type, 
+    label: type, 
+    color: '#1e3a5f' 
+  };
 }
 
 function computePopoverAnchorFromEventEl(
@@ -69,6 +73,7 @@ function mapWeekItemToSchedule(item: WeekScheduleItem): Schedule {
     startDatetime: item.startDatetime,
     endDatetime: item.endDatetime,
     type: item.type,
+    scheduleTypeId: item.scheduleTypeId,
     color: item.color,
     location: item.location ?? undefined,
     notes: item.notes ?? undefined,
@@ -136,9 +141,10 @@ export function SchedulePage() {
     ),
   );
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role?.name === 'admin';
   const canViewAllBranches = Boolean(user);
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
+
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
@@ -174,7 +180,7 @@ export function SchedulePage() {
   const isoWeek = getISOWeek(weekRefDate);
 
   const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'schedule-page', user?.id, user?.role],
+    queryKey: ['branches', 'schedule-page', user?.id, user?.role?.name],
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
@@ -252,6 +258,8 @@ export function SchedulePage() {
     queryFn: () => api.get<{ data: Schedule }>(`/schedules/${scheduleId}`).then((r) => r.data.data),
     enabled: Boolean(scheduleId),
   });
+
+  const { types: scheduleTypes = [] } = useScheduleTypes();
 
   const deleteScheduleMutation = useMutation({
     mutationFn: (schedule: Schedule) =>
@@ -375,7 +383,7 @@ export function SchedulePage() {
     schedules
       ?.filter((s) => !hiddenTypes.has(s.type))
       .map((s) => {
-        const { color } = getTypeInfo(s.type);
+        const { color } = getTypeInfo(s.type, scheduleTypes);
         return {
           id: s.id,
           title: s.title,

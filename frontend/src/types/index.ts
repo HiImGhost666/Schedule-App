@@ -3,10 +3,21 @@ export interface User {
   employeeId?: string | null;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'viewer';
+  role: {
+    name: string;
+    permissions?: Array<{ name: string }>;
+  };
+  roleId?: string | null;
+  permissions?: string[]; // Flattened permissions array for easier consumption
+
   status: 'active' | 'disabled' | 'locked';
   avatarUrl?: string;
-  department?: string;
+  departmentId?: string | null;
+  department?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   createdAt: string;
   passwordChangedAt?: string;
   lastLoginAt?: string;
@@ -27,6 +38,21 @@ export interface User {
   } | null;
 }
 
+export interface Role {
+  id: string;
+  name: string;
+  description?: string | null;
+  permissions?: Array<{ name: string }>;
+}
+
+export interface ScheduleType {
+  id: string;
+  value: string;
+  label: string;
+  color: string;
+}
+
+
 export interface Schedule {
   id: string;
   title: string;
@@ -34,6 +60,7 @@ export interface Schedule {
   startDatetime: string;
   endDatetime: string;
   type: string;
+  scheduleTypeId: string;
   color: string;
   location?: string;
   notes?: string;
@@ -61,7 +88,12 @@ export interface ScheduleAssignment {
     name: string;
     email: string;
     avatarUrl?: string;
-    department?: string;
+    department?: {
+      id: string;
+      name: string;
+      code: string;
+      branchId?: string;
+    } | null;
     companyPhone?: string;
     auxiliaryPhone?: string;
   };
@@ -73,7 +105,12 @@ export interface WeekScheduleAssignee {
   name: string;
   email: string;
   avatarUrl?: string | null;
-  department?: string | null;
+  department?: {
+    id: string;
+    name: string;
+    code: string;
+    branchId?: string;
+  } | null;
   companyPhone?: string | null;
   auxiliaryPhone?: string | null;
 }
@@ -84,6 +121,7 @@ export interface WeekScheduleItem {
   startDatetime: string;
   endDatetime: string;
   type: string;
+  scheduleTypeId: string;
   color: string;
   location?: string | null;
   notes?: string | null;
@@ -105,6 +143,30 @@ export interface Branch {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  managerId?: string | null;
+  manager?: User | null;
+}
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  branchId?: string;
+  branches?: Array<{
+    branch: {
+      id: string;
+      name: string;
+      code: string;
+      isActive: boolean;
+    };
+    createdAt?: string;
+  }>;
+  _count?: {
+    users: number;
+  };
 }
 
 export interface BranchHoliday {
@@ -196,7 +258,7 @@ export interface AuditLog {
   updatedAt: string;
   rolledBackAt?: string | null;
   rolledBackBy?: { id: string; name: string } | null;
-  user?: { id: string; name: string; email: string; department?: string | null } | null;
+  user?: { id: string; name: string; email: string; department?: { id: string; name: string; code: string } | null } | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -306,23 +368,17 @@ export interface ThemePreset {
   theme: ThemeConfig;
 }
 
-export const SCHEDULE_TYPES = [
-  { value: 'guardia', label: 'Guardia', color: '#2563eb' }, // blue
-  { value: 'ausencia', label: 'Ausencia', color: '#64748b' }, // slate
-  // Tonos ligeramente más oscuros: texto blanco 12px cumple contrast ratio 4.5:1
-  { value: 'vacaciones', label: 'Vacaciones', color: '#3f6212' }, // lime-800
-  { value: 'formacion', label: 'Formación', color: '#0e7490' }, // cyan-700
-  { value: 'otro', label: 'Otro', color: '#4b5563' }, // gray
-  { value: 'excepcion', label: 'Excepción', color: '#dc2626' }, // red
-];
+// Schedule types are now fetched from API - see useScheduleTypes hook
 
-export type ScheduleType = 'guardia' | 'ausencia' | 'vacaciones' | 'formacion' | 'otro' | 'excepcion';
+export type ScheduleTypeValue = 'guardia' | 'ausencia' | 'vacaciones' | 'formacion' | 'otro' | 'excepcion';
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
-  manager: 'Responsable',
-  viewer: 'Usuario',
+  general_manager: 'Gerente General',
+  department_manager: 'Responsable',
+  employee: 'Empleado',
 };
+
 
 export const STATUS_LABELS: Record<string, string> = {
   active: 'Activo',
@@ -346,6 +402,6 @@ export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_MINUTES = 15;
 
 // ── Shared sort types ──────────────────────────────────────────────
-export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'role' | 'status' | 'lastLoginAt' | 'department' | 'branch';
+export type UsersSortBy = 'createdAt' | 'name' | 'email' | 'roleId' | 'status' | 'lastLoginAt' | 'department' | 'branchId';
 export type AuditSortBy = 'createdAt' | 'action' | 'entityType' | 'userName' | 'userDepartment';
 export type SortOrder = 'asc' | 'desc';

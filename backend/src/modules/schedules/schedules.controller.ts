@@ -32,7 +32,7 @@ export async function listSchedulesController(req: AuthRequest, res: Response) {
 
   try {
     const schedules = await listSchedulesForActor(parsed.data, {
-      role: req.user!.role,
+      roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
     });
     return sendSuccess(res, schedules);
@@ -59,7 +59,7 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
 
   try {
     const result = await listWeekSchedulesForActor(parsed.data.year, parsed.data.week, parsedQuery.data.branchId, {
-      role: req.user!.role,
+      roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
     });
     return sendSuccess(res, result);
@@ -81,7 +81,7 @@ export async function getScheduleController(req: AuthRequest, res: Response) {
 
   try {
     const schedule = await getScheduleByIdForActor(parsed.data.id, {
-      role: req.user!.role,
+      roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
     });
     return sendSuccess(res, schedule);
@@ -106,7 +106,7 @@ export async function createScheduleController(req: AuthRequest, res: Response) 
       id: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,
-      role: req.user!.role,
+      roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
       ipAddress: req.ip,
     });
@@ -137,7 +137,7 @@ export async function updateScheduleController(req: AuthRequest, res: Response) 
       id: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,
-      role: req.user!.role,
+      roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
       ipAddress: req.ip,
     });
@@ -168,7 +168,7 @@ export async function deleteScheduleController(req: AuthRequest, res: Response) 
       id: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,
-      role: req.user!.role,
+      roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
       ipAddress: req.ip,
     });

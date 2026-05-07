@@ -1,11 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import { RoleName, PermissionName } from '../modules/roles/roles.constants';
 
 export interface AccessTokenPayload {
   sub: string;
   email: string;
-  role: string;
+  role: RoleName | string;
   name: string;
+  permissions: PermissionName[] | string[];
 }
 
 export interface RefreshTokenPayload {

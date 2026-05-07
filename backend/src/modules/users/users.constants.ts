@@ -1,9 +1,3 @@
-export const USER_DEPARTMENTS = ['seguridad', 'mantenimiento', 'operaciones', 'administración'] as const;
-export type UserDepartment = (typeof USER_DEPARTMENTS)[number];
-
-export const USER_ROLES = ['admin', 'manager', 'viewer'] as const;
-export type UserRole = (typeof USER_ROLES)[number];
-
 export const USER_STATUSES = ['active', 'disabled', 'locked'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 

@@ -1,12 +1,12 @@
 import { Router, Response, NextFunction, RequestHandler } from 'express';
 import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/role.middleware';
+import { requirePermission } from '../../middleware/permission.middleware';
 import { sendSuccess, sendError } from '../../utils/response';
 import { prisma } from '../../config/database';
 import { sendToWebhook } from '../notifications/notifications.service';
 import { buildTestCard } from '../notifications/notifications.templates';
-import { logAudit } from '../audit/audit.service';
+import { createWebhook, updateWebhook, deleteWebhook } from './webhooks.service';
 
 const router = Router();
 
@@ -73,66 +73,53 @@ const webhookSchema = z.object({
   fridayReminderTime: z.string().default('12:00'),
 });
 
-router.get('/', authMiddleware, requireRole('admin'), asyncRoute(async (_req: AuthRequest, res: Response) => {
+router.get('/', authMiddleware, requirePermission('settings:manage'), asyncRoute(async (_req: AuthRequest, res: Response) => {
   const webhooks = await prisma.webhookConfig.findMany({ orderBy: { createdAt: 'desc' } });
   return sendSuccess(res, webhooks);
 }));
 
-router.post('/', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', authMiddleware, requirePermission('settings:manage'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const parsed = webhookSchema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
-  let webhook;
   try {
-    webhook = await prisma.webhookConfig.create({ data: parsed.data });
+    const webhook = await createWebhook(parsed.data, req.user!.id, req.ip);
+    return sendSuccess(res, webhook, 'Webhook creado', 201);
   } catch (error) {
     if (handleWebhookPersistenceError(error, res)) {
       return;
     }
     return next(error);
   }
-
-  await logAudit({ userId: req.user!.id, action: 'CREATE_WEBHOOK', entityType: 'WebhookConfig', entityId: webhook.id, detailsJson: { before: null, after: webhook }, ipAddress: req.ip });
-  return sendSuccess(res, webhook, 'Webhook creado', 201);
 }));
 
-router.patch('/:id', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.patch('/:id', authMiddleware, requirePermission('settings:manage'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 
   const parsed = webhookSchema.partial().safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
-  const existing = await prisma.webhookConfig.findUnique({ where: { id } });
-  if (!existing) return sendError(res, 'Webhook no encontrado', 404);
-
-  let webhook;
   try {
-    webhook = await prisma.webhookConfig.update({ where: { id }, data: parsed.data });
+    const webhook = await updateWebhook(id, parsed.data, req.user!.id, req.ip);
+    return sendSuccess(res, webhook, 'Webhook actualizado');
   } catch (error) {
     if (handleWebhookPersistenceError(error, res)) {
       return;
     }
     return next(error);
   }
-
-  await logAudit({ userId: req.user!.id, action: 'UPDATE_WEBHOOK', entityType: 'WebhookConfig', entityId: id, detailsJson: { before: existing, after: webhook }, ipAddress: req.ip });
-  return sendSuccess(res, webhook, 'Webhook actualizado');
 }));
 
-router.delete('/:id', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authMiddleware, requirePermission('settings:manage'), asyncRoute(async (req: AuthRequest, res: Response) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 
-  const existing = await prisma.webhookConfig.findUnique({ where: { id } });
-  if (!existing) return sendError(res, 'Webhook no encontrado', 404);
-
-  await prisma.webhookConfig.delete({ where: { id } });
-  await logAudit({ userId: req.user!.id, action: 'DELETE_WEBHOOK', entityType: 'WebhookConfig', entityId: id, detailsJson: { before: existing, after: null }, ipAddress: req.ip });
+  await deleteWebhook(id, req.user!.id, req.ip);
   return sendSuccess(res, null, 'Webhook eliminado');
 }));
 
-router.post('/:id/test', authMiddleware, requireRole('admin'), asyncRoute(async (req: AuthRequest, res: Response) => {
+router.post('/:id/test', authMiddleware, requirePermission('settings:manage'), asyncRoute(async (req: AuthRequest, res: Response) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 

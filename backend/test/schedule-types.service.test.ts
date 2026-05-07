@@ -1,0 +1,171 @@
+/**
+ * @file schedule-types.service.test.ts
+ * Verifica la lógica de negocio de tipos de turno: CRUD, conflictos de valor, y protección de borrado.
+ */
+
+// Mock PrismaClient antes de cualquier import
+const mockScheduleType = {
+  findMany: jest.fn(),
+  findUnique: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+};
+
+const mockSchedule = {
+  count: jest.fn(),
+};
+
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn().mockImplementation(() => ({
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+    $on: jest.fn(),
+    $use: jest.fn(),
+    $transaction: jest.fn(),
+    $extends: jest.fn(),
+    scheduleType: mockScheduleType,
+    schedule: mockSchedule,
+  })),
+  Prisma: {
+    PrismaClientKnownRequestError: class extends Error {
+      code: string;
+      constructor(message: string, { code }: { code: string }) {
+        super(message);
+        this.code = code;
+        this.name = 'PrismaClientKnownRequestError';
+      }
+    },
+  },
+}));
+
+import {
+  getScheduleTypes,
+  getScheduleTypeById,
+  getScheduleTypeByValue,
+  createScheduleType,
+  updateScheduleType,
+  deleteScheduleType,
+} from '../src/modules/schedule-types/schedule-types.service';
+
+describe('schedule-types.service', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getScheduleTypes', () => {
+    it('retorna solo tipos activos ordenados por createdAt', async () => {
+      const mockTypes = [
+        { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true, createdAt: new Date('2026-01-01') },
+        { id: 'st-2', value: 'turno', label: 'Turno', color: '#00ff00', isActive: true, createdAt: new Date('2026-01-02') },
+      ];
+      mockScheduleType.findMany.mockResolvedValue(mockTypes);
+
+      const result = await getScheduleTypes();
+
+      expect(result).toEqual(mockTypes);
+      expect(mockScheduleType.findMany).toHaveBeenCalledWith({
+        where: { isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+  });
+
+  describe('getScheduleTypeById', () => {
+    it('retorna el tipo si existe y está activo', async () => {
+      const mockType = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
+      mockScheduleType.findUnique.mockResolvedValue(mockType);
+
+      const result = await getScheduleTypeById('st-1');
+      expect(result).toEqual(mockType);
+    });
+
+    it('lanza error si no existe', async () => {
+      mockScheduleType.findUnique.mockResolvedValue(null);
+
+      await expect(getScheduleTypeById('st-invalid')).rejects.toThrow('Schedule type not found');
+    });
+  });
+
+  describe('getScheduleTypeByValue', () => {
+    it('retorna el tipo si existe por value', async () => {
+      const mockType = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
+      mockScheduleType.findUnique.mockResolvedValue(mockType);
+
+      const result = await getScheduleTypeByValue('guardia');
+      expect(result).toEqual(mockType);
+    });
+
+    it('lanza error si no existe', async () => {
+      mockScheduleType.findUnique.mockResolvedValue(null);
+
+      await expect(getScheduleTypeByValue('inexistente')).rejects.toThrow('Schedule type not found');
+    });
+  });
+
+  describe('createScheduleType', () => {
+    it('crea un nuevo tipo de turno', async () => {
+      mockScheduleType.findUnique.mockResolvedValue(null);
+      const created = { id: 'st-1', value: 'nuevo', label: 'Nuevo', color: '#ff0000', isActive: true };
+      mockScheduleType.create.mockResolvedValue(created);
+
+      const result = await createScheduleType({ value: 'nuevo', label: 'Nuevo', color: '#ff0000' });
+      expect(result).toEqual(created);
+    });
+
+    it('lanza error si el value ya existe', async () => {
+      mockScheduleType.findUnique.mockResolvedValue({ id: 'st-existing', value: 'nuevo' });
+
+      await expect(
+        createScheduleType({ value: 'nuevo', label: 'Nuevo', color: '#ff0000' }),
+      ).rejects.toThrow('Schedule type with this value already exists');
+    });
+  });
+
+  describe('updateScheduleType', () => {
+    it('actualiza un tipo existente', async () => {
+      const existing = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
+      mockScheduleType.findUnique.mockResolvedValueOnce(existing);
+      const updated = { ...existing, label: 'Guardia Nocturna' };
+      mockScheduleType.update.mockResolvedValue(updated);
+
+      const result = await updateScheduleType('st-1', { label: 'Guardia Nocturna' });
+      expect(result.label).toBe('Guardia Nocturna');
+    });
+
+    it('lanza error si el value nuevo ya existe en otro registro', async () => {
+      const existing = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
+      // getScheduleTypeById -> findUnique({ where: { id: 'st-1', isActive: true } })
+      mockScheduleType.findUnique.mockResolvedValueOnce(existing);
+      // check value conflict -> findUnique({ where: { value: 'nuevo' } })
+      mockScheduleType.findUnique.mockResolvedValueOnce({ id: 'st-2', value: 'nuevo' });
+
+      await expect(
+        updateScheduleType('st-1', { value: 'nuevo' }),
+      ).rejects.toThrow('Schedule type with this value already exists');
+    });
+  });
+
+  describe('deleteScheduleType', () => {
+    it('desactiva un tipo si no tiene schedules asociados', async () => {
+      const existing = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
+      mockScheduleType.findUnique.mockResolvedValue(existing);
+      mockSchedule.count.mockResolvedValue(0);
+      mockScheduleType.update.mockResolvedValue({ ...existing, isActive: false });
+
+      await deleteScheduleType('st-1');
+      expect(mockScheduleType.update).toHaveBeenCalledWith(
+        { where: { id: 'st-1' }, data: { isActive: false } },
+      );
+    });
+
+    it('lanza error si tiene schedules asociados', async () => {
+      const existing = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
+      mockScheduleType.findUnique.mockResolvedValue(existing);
+      mockSchedule.count.mockResolvedValue(5);
+
+      await expect(deleteScheduleType('st-1')).rejects.toThrow(
+        'Cannot delete schedule type that is being used by existing schedules',
+      );
+    });
+  });
+});

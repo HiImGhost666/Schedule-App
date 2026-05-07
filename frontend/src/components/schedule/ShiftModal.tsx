@@ -6,7 +6,9 @@ import { X, Trash2, Clock, MapPin, FileText, Users, Info, AlertTriangle, Calenda
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import { SCHEDULE_TYPES, type BranchHoliday, type Schedule, type User } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
+import type { BranchHoliday, Schedule, User } from '@/types';
+import type { FullScheduleType } from './scheduleTypesApi';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -70,6 +72,7 @@ const shiftSchema = z.object({
   startDatetime: z.string().min(1, 'Requerido'),
   endDatetime: z.string().min(1, 'Requerido'),
   type: z.string().default('guardia'),
+  scheduleTypeId: z.string().min(1, 'Requerido'),
   color: z.string().default('#2563eb'),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -93,7 +96,7 @@ interface ShiftModalProps {
 export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, defaultBranchId }: ShiftModalProps) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [includeWeekends, setIncludeWeekends] = useState(false);
@@ -102,8 +105,10 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
   const [asideBranchFilter, setAsideBranchFilter] = useState('');
-  const [asideDeptFilter, setAsideDeptFilter] = useState('');
+  const [asideDeptFilter, setAsideDeptFilter] = useState(''); // Corregido: Inicializado como string vacío
   const [asideSearchFilter, setAsideSearchFilter] = useState('');
+
+  const { types: scheduleTypes = [] } = useScheduleTypes();
 
   const { data: users } = useQuery({
     queryKey: ['users', 'all'],
@@ -127,6 +132,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     resolver: zodResolver(shiftSchema),
     defaultValues: {
       type: 'guardia',
+      scheduleTypeId: '',
       color: '#2563eb',
       hoursPerDay: 8,
       branchId: user?.branchId ?? defaultBranchId ?? '',
@@ -143,6 +149,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         startDatetime: fmt(new Date(schedule.startDatetime)),
         endDatetime: fmt(new Date(schedule.endDatetime)),
         type: schedule.type,
+        scheduleTypeId: schedule.scheduleTypeId,
         color: schedule.color,
         location: schedule.location || '',
         notes: schedule.notes || '',
@@ -153,6 +160,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       setIncludeWeekends(false);
     } else {
       reset({
+        scheduleTypeId: scheduleTypes.find((t) => t.value === 'guardia')?.id || '',
         type: 'guardia',
         color: '#2563eb',
         hoursPerDay: 8,
@@ -163,7 +171,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       setSelectedUsers([]);
       setIncludeWeekends(false);
     }
-  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId]);
+  }, [schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
 
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
@@ -171,13 +179,15 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const endVal = watch('endDatetime');
   const isAllBranchesMode = !schedule && !defaultBranchId;
 
+  // Determine the base pool of assignees based on user role and target branch
   const availableAssignees = useMemo(() => {
     const sourceUsers = users ?? [];
-    if (schedule) return sourceUsers;
-    if (!defaultBranchId) return sourceUsers;
-    return sourceUsers.filter((candidate) => candidate.branchId === defaultBranchId);
-  }, [users, schedule, defaultBranchId]);
-
+    if (user?.role?.name === 'admin') {
+      return sourceUsers; // Admin ve todos los usuarios inicialmente
+    }
+    // Para roles no-admin, restringir a usuarios en la sucursal del turno (nueva o existente)
+    return sourceUsers.filter((candidate) => candidate.branchId === (schedule?.branchId || defaultBranchId));
+  }, [users, user?.role?.name, schedule?.branchId, defaultBranchId]);
   const selectedAssigneeUsers = useMemo(() => {
     const sourceUsers = users ?? [];
     if (sourceUsers.length === 0 || selectedUsers.length === 0) return [];
@@ -209,9 +219,9 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   }, [open, canEdit, autoBranchId, getValues, setValue]);
 
   useEffect(() => {
-    const typeColor = SCHEDULE_TYPES.find((t) => t.value === selectedType)?.color || '#1e3a5f';
+    const typeColor = scheduleTypes.find((t: FullScheduleType) => t.value === selectedType)?.color || '#1e3a5f';
     setValue('color', typeColor);
-  }, [selectedType, setValue]);
+  }, [selectedType, setValue, scheduleTypes]);
 
   const { data: branchRangeHolidays } = useQuery({
     queryKey: ['branch-holidays-modal', selectedBranchId, startVal, endVal],
@@ -366,18 +376,23 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
   const filteredUsers = useMemo(() => {
     let result = availableAssignees;
-    if (asideBranchFilter) {
+
+    // El filtro de sucursal solo se aplica si el usuario es admin y el filtro está activo
+    if (user?.role?.name === 'admin' && asideBranchFilter) {
       result = result.filter((u) => u.branchId === asideBranchFilter);
     }
     if (asideDeptFilter) {
-      result = result.filter((u) => (u.department ?? '').toLowerCase() === asideDeptFilter);
+      result = result.filter((u) => {
+        const departmentCode = u.department?.code ?? '';
+        return departmentCode.toLowerCase() === asideDeptFilter;
+      });
     }
     if (asideSearchFilter) {
       const q = asideSearchFilter.toLowerCase();
       result = result.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
     }
     return result;
-  }, [availableAssignees, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
+  }, [availableAssignees, user?.role?.name, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const assigneesContent = (
@@ -395,7 +410,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
-            <p className="text-xs text-theme-muted truncate">{u.department || u.email}</p>
+            <p className="text-xs text-theme-muted truncate">{u.department?.name || u.email}</p>
             {isAllBranchesMode && (
               <p className="text-[10px] text-theme-muted truncate mt-0.5">
                 Sucursal: {u.branch?.name ?? 'Sin sucursal'}
@@ -464,14 +479,19 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-2">Tipo</label>
               <div className="grid grid-cols-2 gap-1.5">
-                {SCHEDULE_TYPES.map((t) => {
+                {scheduleTypes.map((t: FullScheduleType) => {
                   const active = selectedType === t.value;
                   return (
                     <button
                       key={t.value}
                       type="button"
                       disabled={!canEdit}
-                      onClick={() => canEdit && setValue('type', t.value)}
+                    onClick={() => {
+                      if (canEdit) {
+                        setValue('type', t.value);
+                        setValue('scheduleTypeId', t.id, { shouldValidate: true });
+                      }
+                    }}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs font-medium transition-all"
                       style={
                         active
@@ -493,6 +513,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                 })}
               </div>
               <input type="hidden" {...register('type')} />
+              <input type="hidden" {...register('scheduleTypeId')} />
               <input type="hidden" {...register('branchId')} />
             </div>
 
@@ -639,46 +660,31 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                     <span className="ml-1 text-xs text-theme-muted">({selectedUsers.length} seleccionados)</span>
                   </p>
                   {/* Filtros */}
-                  {isAllBranchesMode && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={asideBranchFilter}
-                        onChange={(e) => setAsideBranchFilter(e.target.value)}
-                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
-                      >
-                        <option value="">Todas las sucursales</option>
-                        {(branches ?? []).map((b: { id: string; name: string }) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={asideDeptFilter}
-                        onChange={(e) => setAsideDeptFilter(e.target.value)}
-                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
-                      >
-                        <option value="">Todos los dptos.</option>
-                        <option value="seguridad">Seguridad</option>
-                        <option value="mantenimiento">Mantenimiento</option>
-                        <option value="operaciones">Operaciones</option>
-                        <option value="administración">Administración</option>
-                      </select>
-                    </div>
+                <div className={`grid gap-2 ${user?.role?.name === 'admin' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {user?.role?.name === 'admin' && (
+                    <select
+                      value={asideBranchFilter}
+                      onChange={(e) => setAsideBranchFilter(e.target.value)}
+                      className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                    >
+                      <option value="">Todas las sucursales</option>
+                      {(branches ?? []).map((b: { id: string; name: string }) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
                   )}
-                  {!isAllBranchesMode && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={asideDeptFilter}
-                        onChange={(e) => setAsideDeptFilter(e.target.value)}
-                        className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300 col-span-2"
-                      >
-                        <option value="">Todos los departamentos</option>
-                        <option value="seguridad">Seguridad</option>
-                        <option value="mantenimiento">Mantenimiento</option>
-                        <option value="operaciones">Operaciones</option>
-                        <option value="administración">Administración</option>
-                      </select>
-                    </div>
-                  )}
+                  <select
+                    value={asideDeptFilter}
+                    onChange={(e) => setAsideDeptFilter(e.target.value)}
+                    className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                  >
+                    <option value="">Todos los dptos.</option>
+                    <option value="seguridad">Seguridad</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                    <option value="operaciones">Operaciones</option>
+                    <option value="administración">Administración</option>
+                  </select>
+                </div>
                   <input
                     type="text"
                     value={asideSearchFilter}

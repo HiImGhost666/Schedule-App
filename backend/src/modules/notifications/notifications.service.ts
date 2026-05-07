@@ -66,11 +66,13 @@ export async function sendToWebhook(params: {
   let errorMessage: string | undefined;
 
   try {
-    await axios.post(params.webhookUrl, params.payload, {
+    const response = await axios.post(params.webhookUrl, params.payload, {
       timeout: 8000,
       headers: { 'Content-Type': 'application/json' },
     });
-    logger.info(`Webhook sent: ${params.type} → ${params.webhookUrl}`);
+    const responseBody = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    logger.info(`Webhook sent: ${params.type} → ${params.webhookUrl} (${response.status})`);
+    logger.info(`Webhook response body: ${responseBody.slice(0, 200)}`);
   } catch (err: unknown) {
     status = 'failed';
     errorMessage = err instanceof Error ? err.message : 'Unknown error';

@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { MemoryRouter } from 'react-router-dom';
 import { BranchesPage } from '@/pages/admin/BranchesPage';
 
 const getMock = vi.fn();
@@ -35,9 +36,11 @@ function renderPage() {
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <BranchesPage />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <BranchesPage />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 

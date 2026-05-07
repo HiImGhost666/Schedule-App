@@ -158,7 +158,10 @@ export async function listAuditLogs(params: {
   }
   // Filtro por departamento del usuario que realizó la acción
   if (params.userDepartment) {
-    auditWhere.user = { ...(auditWhere.user as Record<string, unknown> || {}), department: params.userDepartment };
+    auditWhere.user = {
+      ...(auditWhere.user as Record<string, unknown> || {}),
+      departmentId: params.userDepartment,
+    };
   }
   // Filtro por sucursal del usuario que realizó la acción
   if (params.branchId) {
@@ -247,14 +250,13 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
         await scheduleRepository.deleteSchedule(entityId, tx);
       } else if (details?.before && (action === 'UPDATE_SCHEDULE' || action === 'DELETE_SCHEDULE')) {
         const beforeState = details.before as Record<string, unknown>;
-        const { assigneeIds, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, assignments, branch, createdBy, ...rawScalars } = beforeState;
+        const { assigneeIds, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rawScalars } = beforeState;
         // Convertir tipos: los snapshots vienen como JSON (strings, no Date)
         const upsertData: Record<string, unknown> = {
           title: rawScalars.title,
           description: rawScalars.description ?? null,
           startDatetime: new Date(rawScalars.startDatetime as string),
           endDatetime: new Date(rawScalars.endDatetime as string),
-          type: rawScalars.type,
           color: rawScalars.color,
           location: rawScalars.location ?? null,
           notes: rawScalars.notes ?? null,
@@ -262,6 +264,7 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
           hoursPerDay: typeof rawScalars.hoursPerDay === 'number' ? rawScalars.hoursPerDay : Number(rawScalars.hoursPerDay ?? 8),
           branchId: rawScalars.branchId ?? null,
           createdById: rawScalars.createdById as string,
+          scheduleTypeId: rawScalars.scheduleTypeId as string,
         };
         rollbackResult = await tx.schedule.upsert({
           where: { id: entityId },
@@ -367,6 +370,41 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
             isActive: beforeState.isActive as boolean,
           },
         });
+      }
+    } else if (entityType === 'Department') {
+      if (action === 'CREATE_DEPARTMENT') {
+        await tx.departmentBranch.deleteMany({ where: { departmentId: entityId } });
+        rollbackResult = await tx.department.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        const branchIds = Array.isArray(beforeState.branchIds)
+          ? beforeState.branchIds.filter((branchId): branchId is string => typeof branchId === 'string')
+          : [];
+        const { branchIds: _branchIds, userCount: _userCount, id: _id, ...departmentData } = beforeState;
+
+        rollbackResult = await tx.department.upsert({
+          where: { id: entityId },
+          create: {
+            id: entityId,
+            name: departmentData.name as string,
+            code: departmentData.code as string,
+            description: departmentData.description as string | null,
+            isActive: departmentData.isActive as boolean,
+          },
+          update: {
+            name: departmentData.name as string,
+            code: departmentData.code as string,
+            description: departmentData.description as string | null,
+            isActive: departmentData.isActive as boolean,
+          },
+        });
+
+        await tx.departmentBranch.deleteMany({ where: { departmentId: entityId } });
+        if (branchIds.length > 0) {
+          await tx.departmentBranch.createMany({
+            data: branchIds.map((branchId) => ({ departmentId: entityId, branchId })),
+          });
+        }
       }
     } else {
       throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);

@@ -1,41 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import type { Branch, User } from '@/types';
+import type { Branch, Department, User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
-
-const DEPARTMENT_VALUES = ['seguridad', 'mantenimiento', 'operaciones', 'administración'] as const;
-
-const DEPARTMENT_OPTIONS = [
-  { value: 'seguridad', label: 'Seguridad' },
-  { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'operaciones', label: 'Operaciones' },
-  { value: 'administración', label: 'Administración' },
-] as const;
-
-type DepartmentValue = (typeof DEPARTMENT_VALUES)[number];
-const DEPARTMENT_LOOKUP = new Map<string, DepartmentValue>(
-  DEPARTMENT_VALUES.map((department) => [department.toLowerCase(), department]),
-);
-
-function normalizeDepartment(value?: string | null): DepartmentValue | '' {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) return '';
-  return DEPARTMENT_LOOKUP.get(trimmed.toLowerCase()) ?? '';
-}
 
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8).optional().or(z.literal('')),
-  role: z.enum(['admin', 'manager', 'viewer']),
-  department: z.enum(DEPARTMENT_VALUES).optional().or(z.literal('')),
+  role: z.enum(['admin', 'general_manager', 'department_manager', 'employee']),
+  departmentId: z.string().min(1, 'Debes seleccionar un departamento'),
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1, 'La sucursal es obligatoria'),
@@ -65,20 +45,30 @@ export function UserFormModal({ open, user, onClose }: Props) {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormDataInput, unknown, FormData>({
     resolver: zodResolver(schema),
   });
 
+  const selectedBranchId = watch('branchId');
+
+  const { data: departmentsData, isLoading: departmentsLoading } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', 'user-form', selectedBranchId],
+    queryFn: () => api.get('/departments', { params: { branchId: selectedBranchId, includeInactive: false } }).then((r) => r.data),
+    enabled: open && Boolean(selectedBranchId),
+  });
+  const departments = useMemo(() => departmentsData?.data ?? [], [departmentsData?.data]);
+
   useEffect(() => {
     if (user) {
-      const department = normalizeDepartment(user.department);
-
+      const currentDepartment = user.department;
       reset({
         name: user.name,
         email: user.email,
-        role: user.role,
-        department,
+        role: (user.role?.name ?? 'employee') as FormData['role'],
+        departmentId: currentDepartment?.id ?? '',
         companyPhone: user.companyPhone || '',
         auxiliaryPhone: user.auxiliaryPhone || '',
         branchId: user.branchId || '',
@@ -90,19 +80,31 @@ export function UserFormModal({ open, user, onClose }: Props) {
       name: '',
       email: '',
       password: '',
-      role: 'viewer',
-      department: '',
+      role: 'employee',
+      departmentId: '',
       companyPhone: '',
       auxiliaryPhone: '',
       branchId: '',
     });
   }, [user, reset]);
 
+  useEffect(() => {
+    if (!selectedBranchId) {
+      setValue('departmentId', '', { shouldDirty: true });
+      return;
+    }
+    const currentDepartmentId = watch('departmentId');
+    if (!currentDepartmentId) return;
+    if (!departments.some((department) => department.id === currentDepartmentId)) {
+      setValue('departmentId', '', { shouldDirty: true });
+    }
+  }, [selectedBranchId, departments, setValue, watch]);
+
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
       const payload = {
         ...data,
-        department: data.department || undefined,
+        departmentIds: data.departmentId ? [data.departmentId] : [],
         branchId: data.branchId,
       };
 
@@ -114,7 +116,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
       const updatePayload = { ...rest };
       if (!updatePayload.password) delete updatePayload.password;
       await api.patch(`/users/${user!.id}`, updatePayload);
-      if (role !== user!.role) {
+      if (role !== user!.role?.name) {
         await api.patch(`/users/${user!.id}/role`, { role });
       }
     },
@@ -131,7 +133,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
       <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up max-h-[calc(100vh-2rem)] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-color shrink-0">
           <h2 className="text-lg font-semibold text-theme-primary">{isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
           <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">
             <X className="h-4 w-4" />
@@ -165,19 +167,24 @@ export function UserFormModal({ open, user, onClose }: Props) {
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Rol *</label>
               <select {...register('role')} className="input-field">
-                <option value="viewer">Usuario</option>
-                <option value="manager">Responsable</option>
+                <option value="employee">Empleado</option>
+                <option value="department_manager">Responsable</option>
+                <option value="general_manager">Gerente General</option>
                 <option value="admin">Administrador</option>
               </select>
+
             </div>
             <div>
-              <label className="block text-sm font-medium text-theme-muted mb-1">Departamento</label>
-                <select {...register('department')} className="input-field">
-                  <option value="">Sin departamento</option>
-                  {DEPARTMENT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+              <label className="block text-sm font-medium text-theme-muted mb-1">Departamento *</label>
+              <select {...register('departmentId')} className="input-field" disabled={departmentsLoading || !selectedBranchId}>
+                <option value="" disabled>Selecciona un departamento</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name} ({department.code})
+                  </option>
+                ))}
+              </select>
+              {errors.departmentId && <p className="text-xs text-red-500 mt-1">{errors.departmentId.message}</p>}
             </div>
           </div>
 

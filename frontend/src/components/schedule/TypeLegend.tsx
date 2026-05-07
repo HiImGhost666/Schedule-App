@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { SCHEDULE_TYPES } from '@/types';
+import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -17,6 +17,7 @@ interface TypeLegendProps {
 
 export function TypeLegend({ hidden, onToggle, counts }: TypeLegendProps) {
   const [expanded, setExpanded] = useState(true);
+  const { data: scheduleTypes = [] } = useScheduleTypes();
 
   return (
     <div className="px-5 py-4">
@@ -29,7 +30,7 @@ export function TypeLegend({ hidden, onToggle, counts }: TypeLegendProps) {
 
       {expanded && (
         <div className="flex flex-wrap gap-2">
-          {SCHEDULE_TYPES.map(({ value, label, color }) => {
+          {scheduleTypes.map(({ value, label, color }) => {
             const active = !hidden.has(value);
             const count = counts[value] ?? 0;
             return (

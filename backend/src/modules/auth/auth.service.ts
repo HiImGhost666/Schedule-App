@@ -22,6 +22,7 @@ import {
 } from './auth.repository';
 import { createAppError } from '../../common/errors/error-catalog';
 import { hashPassword } from '../../utils/bcrypt';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import {
   buildClearedPasswordChangeFields,
   getPolicyTransitionPatch,
@@ -84,38 +85,52 @@ export async function login(identifier: string, password: string, ipAddress?: st
     ...(policyUpgradePatch ?? {}),
   };
 
-  // Reset failed attempts on success and normalize password-change policy transitions.
-  const updatedUser = await updateUserById(user.id, successfulLoginPatch);
-
   const tokenId = crypto.randomUUID();
-  const accessToken = signAccessToken({
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-    name: user.name,
-  });
   const refreshToken = signRefreshToken({ sub: user.id, jti: tokenId });
 
   const refreshExpiry = new Date();
   refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
-  await createRefreshToken({
-    id: tokenId,
-    token: refreshToken,
-    userId: user.id,
-    expiresAt: refreshExpiry,
-    ipAddress,
-    userAgent,
+  // Atomicidad: reset de intentos fallidos + creación de refresh token en una sola transacción
+  const updatedUser = await executeInTransaction(async (tx) => {
+    const updated = await updateUserById(user.id, successfulLoginPatch, tx);
+
+    await createRefreshToken({
+      id: tokenId,
+      token: refreshToken,
+      userId: user.id,
+      expiresAt: refreshExpiry,
+      ipAddress,
+      userAgent,
+    }, tx);
+
+    return updated;
+  });
+
+  const userWithRole = updatedUser as any;
+  const permissions = userWithRole.role?.permissions?.map((p: any) => p.name) || [];
+
+  const accessToken = signAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: userWithRole.role?.name || 'employee',
+    name: user.name,
+    permissions,
   });
 
   const safeUser = {
     id: updatedUser.id,
     name: updatedUser.name,
     email: updatedUser.email,
-    role: updatedUser.role,
+    role: {
+      name: userWithRole.role?.name || 'employee',
+      permissions: userWithRole.role?.permissions || []
+    },
+
+    permissions,
     status: updatedUser.status,
     avatarUrl: updatedUser.avatarUrl,
-    department: updatedUser.department,
+    department: updatedUser.department ?? null,
     createdAt: updatedUser.createdAt,
     lastLoginAt: updatedUser.lastLoginAt,
     failedAttempts: updatedUser.failedAttempts,
@@ -153,26 +168,31 @@ export async function refreshTokens(token: string) {
     throw createAppError('UNAUTHORIZED', 'Usuario no disponible');
   }
 
-  // Revoke old token
-  await revokeRefreshTokenById(storedToken.id);
-
   const newTokenId = crypto.randomUUID();
+  const userWithRole = user as any;
+  const permissions = userWithRole.role?.permissions?.map((p: any) => p.name) || [];
+
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    role: user.role,
+    role: userWithRole.role?.name || 'employee',
     name: user.name,
+    permissions,
   });
   const newRefreshToken = signRefreshToken({ sub: user.id, jti: newTokenId });
 
   const refreshExpiry = new Date();
   refreshExpiry.setDate(refreshExpiry.getDate() + 7);
 
-  await createRefreshToken({
-    id: newTokenId,
-    token: newRefreshToken,
-    userId: user.id,
-    expiresAt: refreshExpiry,
+  // Atomicidad: revocar token viejo + crear token nuevo en una sola transacción
+  await executeInTransaction(async (tx) => {
+    await revokeRefreshTokenById(storedToken.id, tx);
+    await createRefreshToken({
+      id: newTokenId,
+      token: newRefreshToken,
+      userId: user.id,
+      expiresAt: refreshExpiry,
+    }, tx);
   });
 
   return { accessToken, refreshToken: newRefreshToken };
@@ -208,8 +228,15 @@ export async function getMe(userId: string) {
     user = refreshedProfile;
   }
 
+  const userWithRole = user as any;
   return {
     ...user,
+    role: {
+      name: userWithRole.role?.name || 'employee',
+      permissions: userWithRole.role?.permissions || []
+    },
+
+    permissions: userWithRole.role?.permissions?.map((p: any) => p.name) || [],
     forcePasswordChange: resolvePasswordChangeState(user) === 'required',
     passwordChangeState: resolvePasswordChangeState(user),
   };
@@ -240,9 +267,11 @@ export async function changePassword(userId: string, currentPassword: string | u
   }
 
   const newHash = await hashPassword(newPassword);
-  await updateUserById(user.id, {
-    passwordHash: newHash,
-    passwordChangedAt: new Date(),
-    ...buildClearedPasswordChangeFields(),
+  await executeInTransaction(async (tx) => {
+    await updateUserById(user.id, {
+      passwordHash: newHash,
+      passwordChangedAt: new Date(),
+      ...buildClearedPasswordChangeFields(),
+    }, tx);
   });
 }

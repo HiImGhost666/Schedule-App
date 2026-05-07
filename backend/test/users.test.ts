@@ -9,13 +9,6 @@ jest.mock('../src/modules/audit/audit.service', () => ({
   logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
   sanitizeSnapshot: jest.fn((x) => x),
 }));
-jest.mock('../src/config/database', () => ({
-  prisma: {
-    branch: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'branch-1' }),
-    },
-  },
-}));
 jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }));
 jest.mock('../src/utils/bcrypt', () => ({
   hashPassword: jest.fn().mockResolvedValue('hashed_password'),
@@ -25,8 +18,8 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn((fn: any) => fn({})),
 }));
 
-import * as usersRepo from '../src/modules/users/users.repository';
-import { prisma } from '../src/config/database';
+import * as usersRepo from '../src/modules/users/users.repository'; // Keep this import
+import { prismaMock } from './singleton'; // Import prismaMock
 import {
   createUser,
   updateUser,
@@ -38,11 +31,7 @@ import {
 } from '../src/modules/users/users.service';
 
 const mockRepo = usersRepo as jest.Mocked<typeof usersRepo>;
-
-const mockActor = { id: 'admin-id-1', ipAddress: '127.0.0.1' };
-const mockPrisma = prisma as unknown as {
-  branch: { findUnique: jest.Mock };
-};
+const mockActor = { id: 'admin-id-1', roleName: 'admin', email: 'admin@test.com', name: 'Admin', ipAddress: '127.0.0.1' };
 
 // ── Helper para crear un usuario ficticio compatible ────────────────────────
 const buildUser = (overrides: Record<string, any> = {}) => ({
@@ -50,13 +39,30 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
   employeeId: 'LAB-0001',
   email: 'test@example.com',
   name: 'Test User',
-  role: 'viewer',
+  roleId: 'role-viewer-id',
+  departmentId: 'dept-1', // Add default departmentId for consistency
+  branchId: 'branch-1', // Add default branchId for consistency
   status: 'active',
   failedAttempts: 0,
   passwordHash: 'hashed',
   lockedUntil: null,
   forcePasswordChange: false,
   ...overrides,
+});
+
+beforeEach(() => {
+  prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1' } as any);
+  prismaMock.department.findUnique.mockResolvedValue({
+    id: 'dept-1',
+    branches: [{ branchId: 'branch-1' }, { branchId: 'branch-2' }]
+  } as any);
+  prismaMock.role.findFirst.mockImplementation((async (args: any) => {
+    if (args?.where?.name === 'employee') return { id: 'role-employee-id', name: 'employee' } as any;
+    if (args?.where?.name === 'admin') return { id: 'role-admin-id', name: 'admin' } as any;
+    if (args?.where?.name === 'general_manager') return { id: 'role-general-manager-id', name: 'general_manager' } as any;
+    if (args?.where?.name === 'department_manager') return { id: 'role-department-manager-id', name: 'department_manager' } as any;
+    return null;
+  }) as any);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -66,14 +72,22 @@ describe('createUser', () => {
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
     mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-0002');
-    mockPrisma.branch.findUnique.mockResolvedValue({ id: 'branch-1' });
     mockRepo.updateUserRecord.mockResolvedValue(buildUser({ id: 'existing-id' }) as any);
   });
-
   // ── Caso: branchId obligatorio ───────────────────────────────────────────────
-  it('rechaza la creación si no se envía sucursal', async () => {
+  it('rechaza la creación si no se envía sucursal, departamento o rol', async () => {
+    // Missing branchId
     await expect(
-      createUser({ email: 'nuevo@example.com', password: 'Secure123!', name: 'Test' } as any, mockActor)
+      createUser({ email: 'nuevo@example.com', password: 'Secure123!', name: 'Test', departmentId: 'dept-1', role: 'employee' } as any, mockActor)
+    ).rejects.toThrow();
+
+    // Missing departmentId
+    await expect(
+      createUser({ email: 'nuevo@example.com', password: 'Secure123!', name: 'Test', branchId: 'branch-1', role: 'employee' } as any, mockActor)
+    ).rejects.toThrow();
+    // Missing role
+    await expect(
+      createUser({ email: 'nuevo@example.com', password: 'Secure123!', name: 'Test', branchId: 'branch-1', departmentId: 'dept-1' } as any, mockActor)
     ).rejects.toThrow();
   });
 
@@ -88,6 +102,7 @@ describe('createUser', () => {
           email: 'TEST@example.com',
           password: 'Secure123!',
           name: 'Test Updated',
+          departmentId: 'dept-1',
           branchId: 'branch-1',
         },
         mockActor
@@ -101,11 +116,11 @@ describe('createUser', () => {
   it('rechaza la creación cuando el employeeId ya existe', async () => {
     const existing = buildUser({ id: 'existing-id', employeeId: 'LAB-0007', email: 'otro@example.com' });
     mockRepo.findUserByEmployeeId.mockResolvedValue(existing as any);
-
     await expect(
       createUser(
         {
           email: 'nuevo@example.com',
+          departmentId: 'dept-1',
           employeeId: 'LAB-0007',
           password: 'Secure123!',
           name: 'Test Updated',
@@ -137,14 +152,14 @@ describe('createUser', () => {
     )).rejects.toThrow('El email ya está registrado');
   });
 
-  // ── Caso: Username derivado duplicado (mismo prefijo antes del @) ───────────
+  // ── Caso: Username derivado duplicado (mismo prefijo antes del @) ──────────
   it('rechaza la creación si el username derivado del email ya existe', async () => {
     mockRepo.findUserByDerivedUsername.mockResolvedValue(
       buildUser({ id: 'other-id', email: 'otro@dominio.com' }) as any
     );
 
     await expect(
-      createUser({ email: 'libre@dominio.com', password: 'Secure123!', name: 'Test', branchId: 'branch-1' }, mockActor)
+      createUser({ email: 'libre@dominio.com', password: 'Secure123!', name: 'Test', branchId: 'branch-1', departmentId: 'dept-1', role: 'employee' }, mockActor)
     ).rejects.toThrow('El username ya está registrado');
   });
 
@@ -153,7 +168,7 @@ describe('createUser', () => {
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
 
     await expect(
-      createUser({ email: 'nuevo@example.com', password: 'Only7!x', name: 'Test', branchId: 'branch-1' }, mockActor)
+      createUser({ email: 'nuevo@example.com', password: 'Only7!x', name: 'Test', branchId: 'branch-1', departmentId: 'dept-1', role: 'employee' }, mockActor)
     ).rejects.toThrow(); // Zod valida min(8)
   });
 
@@ -162,7 +177,7 @@ describe('createUser', () => {
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
     mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id', employeeId: 'LAB-0002' }) as any);
 
-    const user = await createUser(
+    const user = await createUser( // Ensure all mandatory fields are provided
       { email: 'nuevo@example.com', password: 'Secure123!', name: 'Nuevo User', branchId: 'branch-1' },
       mockActor
     );
@@ -174,12 +189,14 @@ describe('createUser', () => {
     mockRepo.findUserByEmail.mockResolvedValue(null as any);
     mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id', employeeId: 'LAB-0002' }) as any);
 
-    await createUser(
+    await createUser( // Ensure all mandatory fields are provided
       {
         email: 'nuevo2@example.com',
         password: 'Secure123!',
         name: 'Nuevo User 2',
         branchId: 'branch-1',
+        departmentId: 'dept-1',
+        role: 'employee',
         forcePasswordChange: true,
       },
       mockActor
@@ -195,22 +212,46 @@ describe('createUser', () => {
   });
 });
 
+const mockUserUpdateInput = {
+  name: 'Updated Name',
+  email: 'updated@example.com',
+  departmentId: 'dept-2',
+  branchId: 'branch-2',
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 describe('updateUser', () => {
   beforeEach(() => {
     mockRepo.findUserById.mockResolvedValue(buildUser() as any);
     mockRepo.findUserIdentityConflict.mockResolvedValue(null as any);
-    mockRepo.updateUserRecord.mockResolvedValue(buildUser() as any);
+    mockRepo.updateUserRecord.mockResolvedValue(buildUser(mockUserUpdateInput) as any); // Use mockUserUpdateInput
   });
 
   it('rechaza la actualización si el nuevo email genera un username derivado en conflicto', async () => {
     mockRepo.findUserIdentityConflict.mockResolvedValue({ id: 'other-user', email: 'conflicto@otrodominio.com' } as any);
 
-    await expect(
-      updateUser('user-id-1', { email: 'conflicto@dominio.com' }, mockActor)
+    await expect( // Ensure all mandatory fields are provided for the update input
+      updateUser('user-id-1', { email: 'conflicto@dominio.com', departmentId: 'dept-1', branchId: 'branch-1' }, mockActor)
     ).rejects.toThrow('El username ya está registrado');
   });
 
+  it('actualiza correctamente el usuario con nuevos datos de departamento, sucursal y rol', async () => {
+    // Mock findUserById to return a user with default department and branch
+    mockRepo.findUserById.mockResolvedValue(buildUser({
+      departmentId: 'dept-1',
+      branchId: 'branch-1',
+      role: 'employee', // Assuming a default role
+    }) as any);
+    const updatedUser = await updateUser('user-id-1', mockUserUpdateInput, mockActor);
+
+    expect(mockRepo.updateUserRecord).toHaveBeenCalledWith('user-id-1', expect.objectContaining({
+      name: 'Updated Name',
+      email: 'updated@example.com',
+      branchId: 'branch-2',
+    }), expect.anything());
+    expect(mockRepo.updateUserRecord).toHaveBeenCalledWith('user-id-1', expect.objectContaining({ departmentId: 'dept-2' }), expect.anything());
+    expect(updatedUser).toMatchObject(mockUserUpdateInput);
+  });
   it('actualiza el derivedUsername cuando se cambia el email', async () => {
     await updateUser('user-id-1', { email: 'nuevo.email@example.com' }, mockActor);
 

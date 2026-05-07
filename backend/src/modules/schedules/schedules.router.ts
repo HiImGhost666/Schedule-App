@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/role.middleware';
+import { requirePermission } from '../../middleware/permission.middleware';
 import {
   createScheduleController,
   deleteScheduleController,
@@ -22,12 +22,12 @@ router.get('/week/:year/:week', authMiddleware, (req: AuthRequest, res: Response
 router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getScheduleController(req, res));
 
 // Create schedule
-router.post('/', authMiddleware, requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => createScheduleController(req, res));
+router.post('/', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => createScheduleController(req, res));
 
 // Update schedule
-router.patch('/:id', authMiddleware, requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => updateScheduleController(req, res));
+router.patch('/:id', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => updateScheduleController(req, res));
 
 // Delete schedule
-router.delete('/:id', authMiddleware, requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => deleteScheduleController(req, res));
+router.delete('/:id', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => deleteScheduleController(req, res));
 
 export default router;

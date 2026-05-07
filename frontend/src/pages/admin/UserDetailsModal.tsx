@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Calendar, X } from 'lucide-react';
 import api from '@/config/api';
 import type { Schedule, User } from '@/types';
+import { ROLE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { formatDateTime } from '@/lib/utils';
 import { getApiErrorCode, getApiErrorMessage } from '@/lib/apiError';
@@ -117,7 +118,7 @@ export function UserDetailsModal({ open, userId, userName, onClose }: UserDetail
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4">
                     <p className="text-xs text-navy-400 mb-1">Rol</p>
-                    <p className="text-sm font-medium text-navy-700">{user.role}</p>
+                    <p className="text-sm font-medium text-navy-700">{ROLE_LABELS[user.role?.name] || user.role?.name}</p>
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4">
                     <p className="text-xs text-navy-400 mb-1">Estado</p>
@@ -125,7 +126,9 @@ export function UserDetailsModal({ open, userId, userName, onClose }: UserDetail
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4 md:col-span-2">
                     <p className="text-xs text-navy-400 mb-1">Departamento</p>
-                    <p className="text-sm font-medium text-navy-700">{user.department || 'Sin departamento'}</p>
+                    <p className="text-sm font-medium text-navy-700">
+                      {user.department?.name || 'Sin departamento'}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-navy-100 p-4 md:col-span-2">
                     <p className="text-xs text-navy-400 mb-1">Sucursal</p>

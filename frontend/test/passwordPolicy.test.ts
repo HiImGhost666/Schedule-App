@@ -10,7 +10,7 @@ const baseUser: User = {
   id: 'u1',
   name: 'Test',
   email: 't@test.com',
-  role: 'viewer',
+  role: { name: 'employee' },
   status: 'active',
   createdAt: '2026-01-01T00:00:00Z',
 };

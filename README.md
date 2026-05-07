@@ -313,6 +313,13 @@ A continuación se detallan todas las acciones disponibles en cada página de la
 | Ver historial de notificaciones enviadas | ✅ | ✅ | ❌ |
 | Ver detalles de cada notificación | ✅ | ✅ | ❌ |
 
+### 📅 Gestión de Tipos de Evento (`/admin/event-types`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver listado de tipos de evento | ✅ | ✅ | ✅ |
+| Crear y editar tipos de evento (nombre, color) | ✅ | ✅ | ❌ |
+
 ### ⚙️ Webhooks (`/admin/webhooks`)
 
 | Acción | Admin | Manager | Viewer |
@@ -345,5 +352,3 @@ A continuación se detallan todas las acciones disponibles en cada página de la
 ---
 
 ¡Bienvenido al futuro de la gestión de guardias! 🚀
-
-

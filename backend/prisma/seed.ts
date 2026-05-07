@@ -2,26 +2,41 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
+import { DEPARTMENT_CATALOG } from '../src/config/constants';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
 import { createUser } from '../src/modules/users/users.service';
 import { env } from '../src/config/env';
-import type { UserDepartment, UserRole } from '../src/modules/users/users.constants';
+import { DEFAULT_ROLE_PERMISSIONS, ROLE_NAMES } from '../src/modules/roles/roles.constants';
 
 // Configuración de Entorno
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const prisma = new PrismaClient();
+
+async function databaseHasAnyData() {
+  const [userCount, roleCount, branchCount] = await Promise.all([
+    prisma.user.count(),
+    prisma.role.count(),
+    prisma.branch.count(),
+  ]);
+  return userCount > 0 || roleCount > 0 || branchCount > 0;
+}
 
 // ============================================================================
 // BLOQUE 1: FUNCIONES DE AYUDA (HELPERS)
 // ============================================================================
 
 async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
-  const user = await createUser(input, undefined, { upsertExisting: true });
-  console.log(`[USER] ${label} synced: ${input.email}`);
-  return user;
+  try {
+    const user = await createUser(input, undefined, { upsertExisting: true });
+    console.log(`[USER] ${label} synced: ${input.email}`);
+    return user;
+  } catch (error) {
+    console.error(`[ERROR] Failed to sync user ${label} (${input.email}):`, error);
+    throw error;
+  }
 }
 
-async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, type: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
+async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, scheduleTypeId: string, typeValue: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
   const existing = await prisma.schedule.findFirst({
     where: { title, createdById: adminId, startDatetime: startAt, endDatetime: endAt }
   });
@@ -55,7 +70,8 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
   const schedule = await prisma.schedule.create({
     data: {
       title,
-      type,
+      scheduleTypeId,
+      type: typeValue,
       color,
       isLastMinute,
       startDatetime: startAt,
@@ -72,6 +88,32 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
   return schedule;
 }
 
+async function ensureSeedDepartment(name: string, code: string, branchIds: string[]) {
+  const existing = await prisma.department.findUnique({ where: { code } });
+
+  const department = existing ?? await prisma.department.create({
+    data: {
+      name,
+      code,
+      isActive: true,
+    },
+  });
+
+  if (existing && existing.name !== name) {
+    await prisma.department.update({
+      where: { id: existing.id },
+      data: { name },
+    });
+  }
+
+  await prisma.departmentBranch.createMany({
+    data: branchIds.map((branchId) => ({ departmentId: department.id, branchId })),
+    skipDuplicates: true,
+  });
+
+  return department;
+}
+
 // ============================================================================
 // BLOQUE 2: FUNCIÓN PRINCIPAL DE SEEDING
 // ============================================================================
@@ -84,6 +126,12 @@ async function main() {
   console.log('# [CAMBIO PRODUCCIÓN]: Cambia esta URL por la de tu servidor MySQL de producción.');
   console.log('# Si usas el docker-compose.yml incluido, déjalo como está.');
   console.log('----------------------------------------------------');
+
+  const alreadySeeded = await databaseHasAnyData();
+  if (alreadySeeded) {
+    console.log('La base de datos ya contiene datos. Seed omitido.');
+    return;
+  }
 
   // --- BLOQUE 2.1: TEMA GLOBAL ---
   console.log('BLOQUE: TEMAS');
@@ -134,9 +182,15 @@ async function main() {
     });
   }
 
+  const allBranchIds = [mainBranch.id, secondBranch.id];
+  const departments = await Promise.all(
+    DEPARTMENT_CATALOG.map((dept) => ensureSeedDepartment(dept.name, dept.code, allBranchIds)),
+  );
+  const departmentsByCode = new Map(DEPARTMENT_CATALOG.map((dept, index) => [dept.key, departments[index].id]));
+
   // --- BLOQUE 2.1.1: FERIADOS POR SEDE ---
   console.log('BLOQUE: FERIADOS (Limpieza y Seeding)');
-  
+
   // Limpieza previa para evitar duplicados y asegurar estado limpio
   await prisma.scheduleAssignment.deleteMany();
   await prisma.schedule.deleteMany();
@@ -179,9 +233,9 @@ async function main() {
 
   for (const h of holidays_2026) {
     for (const b of allBranches) {
-      const isApplicable = h.targetRegion === 'all' || 
-                          h.targetRegion === 'Canarias' || 
-                          b.region === h.targetRegion;
+      const isApplicable = h.targetRegion === 'all' ||
+        h.targetRegion === 'Canarias' ||
+        b.region === h.targetRegion;
 
       if (isApplicable) {
         await prisma.branchHoliday.create({
@@ -218,6 +272,75 @@ async function main() {
   }
   console.log(`[HOLIDAY] ${holidays_2026.length} holidays and ${partial_days_2026.length} partial days seeded.`);
 
+  // --- BLOQUE 2.1.2: ROLES Y PERMISOS ---
+  console.log('BLOQUE: ROLES Y PERMISOS');
+
+  const rolesData = ROLE_NAMES.map(name => ({
+    name,
+    permissions: DEFAULT_ROLE_PERMISSIONS[name]
+  }));
+
+  const dbRoles: Record<string, string> = {};
+  const allPermissions = new Set(rolesData.flatMap(r => r.permissions));
+
+  for (const perm of allPermissions) {
+    await prisma.permission.upsert({
+      where: { name: perm },
+      create: { name: perm },
+      update: {},
+    });
+  }
+
+  for (const roleDef of rolesData) {
+    let role = await prisma.role.findUnique({ where: { name: roleDef.name } });
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          name: roleDef.name,
+          permissions: {
+            connect: roleDef.permissions.map(name => ({ name }))
+          }
+        }
+      });
+      console.log(`[ROLE] Created role ${roleDef.name}`);
+    } else {
+      // Si ya existe, nos aseguramos de que los permisos estén conectados
+      role = await prisma.role.update({
+        where: { id: role.id },
+        data: {
+          permissions: {
+            connect: roleDef.permissions.map(name => ({ name }))
+          }
+        }
+      });
+      console.log(`[ROLE] Role ${roleDef.name} already exists`);
+    }
+    dbRoles[roleDef.name] = role.id;
+  }
+
+  // --- BLOQUE 2.1.3: SCHEDULE TYPES ---
+  console.log('BLOQUE: SCHEDULE TYPES');
+
+  const scheduleTypesData = [
+    { value: 'guardia', label: 'Guardia', color: '#2563eb' },
+    { value: 'ausencia', label: 'Ausencia', color: '#64748b' },
+    { value: 'vacaciones', label: 'Vacaciones', color: '#3f6212' },
+    { value: 'formacion', label: 'Formación', color: '#0e7490' },
+    { value: 'otro', label: 'Otro', color: '#4b5563' },
+    { value: 'excepcion', label: 'Excepción', color: '#dc2626' },
+  ];
+
+  const scheduleTypesByValue = new Map<string, string>();
+  for (const typeData of scheduleTypesData) {
+    const synced = await prisma.scheduleType.upsert({
+      where: { value: typeData.value },
+      create: typeData,
+      update: typeData,
+    });
+    scheduleTypesByValue.set(typeData.value, synced.id);
+    console.log(`[SCHEDULE_TYPE] Synced ${typeData.label}`);
+  }
+
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
   const adminEmail = env.SEED_ADMIN_EMAIL || 'admin@company.com';
@@ -229,48 +352,53 @@ async function main() {
       name: adminName,
       email: adminEmail,
       password: adminPassword,
-      role: 'admin',
+      roleId: dbRoles['admin'],
       status: 'active',
-      department: 'administración',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
+      departmentId: departmentsByCode.get('administracion'),
     },
     'Admin'
   );
 
+  // Este manager ahora solo podrá gestionar guardias de 'mainBranch' (TFN)
   const managerUser = await ensureSeedUser(
     {
       name: 'María García',
       email: 'manager@company.com',
       password: 'Manager123!',
-      role: 'manager',
+      roleId: dbRoles['general_manager'],
       status: 'active',
-      department: 'operaciones',
       companyPhone: '900200200',
       auxiliaryPhone: '600200200',
       branchId: mainBranch.id,
       forcePasswordChange: false,
+      departmentId: departmentsByCode.get('operaciones'),
     },
     'Demo manager'
   );
 
-  const demoUsers: Array<{ name: string; email: string; department: UserDepartment; branchId: string }> = [
-    { name: 'Carlos López', email: 'carlos@company.com', department: 'seguridad', branchId: mainBranch.id },
-    { name: 'Ana Martínez', email: 'ana@company.com', department: 'seguridad', branchId: mainBranch.id },
-    { name: 'Pedro Sánchez', email: 'pedro@company.com', department: 'mantenimiento', branchId: secondBranch.id },
-    { name: 'Laura Fernández', email: 'laura@company.com', department: 'seguridad', branchId: secondBranch.id },
+  type DepartmentKey = (typeof DEPARTMENT_CATALOG)[number]['key'];
+  const demoUsers: Array<{ name: string; email: string; departmentKey: DepartmentKey; branchId: string }> = [
+    { name: 'Carlos López', email: 'carlos@company.com', departmentKey: 'seguridad', branchId: mainBranch.id },
+    { name: 'Ana Martínez', email: 'ana@company.com', departmentKey: 'seguridad', branchId: mainBranch.id },
+    { name: 'Pedro Sánchez', email: 'pedro@company.com', departmentKey: 'mantenimiento', branchId: secondBranch.id },
+    { name: 'Laura Fernández', email: 'laura@company.com', departmentKey: 'seguridad', branchId: secondBranch.id },
   ];
 
   const createdUsers = [];
   for (const u of demoUsers) {
     const user = await ensureSeedUser(
       {
-        ...u,
+        name: u.name,
+        email: u.email,
+        branchId: u.branchId,
         password: 'User123!',
-        role: (u.email === 'pedro@company.com' ? 'manager' : 'viewer') as UserRole,
+        roleId: u.email === 'pedro@company.com' ? dbRoles['department_manager'] : dbRoles['employee'],
         status: 'active',
         forcePasswordChange: true,
+        departmentId: departmentsByCode.get(u.departmentKey),
       },
       'Demo user'
     );
@@ -293,6 +421,7 @@ async function main() {
       carlosInfo.id,
       mainBranch.id,
       'Vacaciones Carlos',
+      scheduleTypesByValue.get('vacaciones')!,
       'vacaciones',
       '#65a30d',
       false,
@@ -306,6 +435,7 @@ async function main() {
       anaInfo.id,
       mainBranch.id,
       'Guardia General',
+      scheduleTypesByValue.get('guardia')!,
       'guardia',
       '#2563eb',
       false,
@@ -319,6 +449,7 @@ async function main() {
       anaInfo.id,
       mainBranch.id,
       'Guardia Extraordinaria',
+      scheduleTypesByValue.get('guardia')!,
       'guardia',
       '#db2777',
       true,
@@ -348,6 +479,7 @@ async function main() {
           task.user.id,
           (task as any).branchId,
           task.title,
+          scheduleTypesByValue.get(task.type)!,
           task.type,
           task.color,
           false,
@@ -378,7 +510,11 @@ async function main() {
 
 main()
   .catch((e) => {
+    console.error('!!! SEED ERROR !!!');
     console.error(e);
+    if (e instanceof Error) {
+      console.error('Stack:', e.stack);
+    }
     process.exit(1);
   })
   .finally(async () => {
