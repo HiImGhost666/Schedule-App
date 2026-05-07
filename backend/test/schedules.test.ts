@@ -159,6 +159,24 @@ describe('createScheduleEntry', () => {
     );
   });
 
+  it('permite a department_manager crear guardias en otra sucursal para su departamento', async () => {
+    const departmentActor = {
+      ...mockActor,
+      roleName: 'department_manager',
+      branchId: 'branch-1',
+    };
+
+    prismaMock.user.findUnique.mockResolvedValue({ departmentId: 'dept-1' } as any);
+    prismaMock.user.findMany.mockResolvedValue([{ id: 'user-1', departmentId: 'dept-1' } as any]);
+
+    await expect(
+      createScheduleEntry(
+        { ...baseInput, branchId: 'branch-2' } as any,
+        departmentActor as any
+      )
+    ).resolves.toBeDefined();
+  });
+
   // ── Caso: Creación en día festivo (bloqueado) ───────────────────────────
   it('rechaza crear un turno de tipo "guardia" en un día festivo', async () => {
     // Escenario: El 1 de Mayo es festivo. Intentamos crear turno ese día.
