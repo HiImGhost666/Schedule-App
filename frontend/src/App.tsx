@@ -19,6 +19,7 @@ const QueryInvalidationBridge = lazy(() =>
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const SchedulePage = lazy(() => import('@/pages/SchedulePage').then((m) => ({ default: m.SchedulePage })));
+const VacationsPage = lazy(() => import('@/pages/VacationsPage').then((m) => ({ default: m.VacationsPage })));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage').then((m) => ({ default: m.UsersPage })));
 const WebhooksPage = lazy(() => import('@/pages/admin/WebhooksPage').then((m) => ({ default: m.WebhooksPage })));
@@ -154,6 +155,7 @@ function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="schedule" element={<SchedulePage />} />
                 <Route path="schedule/:scheduleId" element={<SchedulePage />} />
+                <Route path="vacaciones" element={<VacationsPage />} />
                 <Route path="profile" element={<ProfilePage />} />
 
                 {/* Admin routes */}

@@ -104,15 +104,15 @@ export interface WeekScheduleAssignee {
   id: string;
   name: string;
   email: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string;
   department?: {
     id: string;
     name: string;
     code: string;
     branchId?: string;
   } | null;
-  companyPhone?: string | null;
-  auxiliaryPhone?: string | null;
+  companyPhone?: string;
+  auxiliaryPhone?: string;
 }
 
 export interface WeekScheduleItem {
