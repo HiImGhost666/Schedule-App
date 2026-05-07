@@ -35,14 +35,16 @@ model User {
   departmentId            String?  @map("department_id")
   department              Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-  refreshTokens       RefreshToken[]
-  createdSchedules    Schedule[]           @relation("ScheduleCreator")
-  scheduleAssignments ScheduleAssignment[]
-  auditLogs           AuditLog[]           @relation("AuditActor")
-  rolledBackAuditLogs AuditLog[]           @relation("AuditRollbackActor")
-  notificationsSent   NotificationLog[]    @relation("NotificationSender")
-  managedBranches     Branch[]             @relation("BranchManager")
-  managedDepartments  Department[]         @relation("DepartmentManager")
+  refreshTokens        RefreshToken[]
+  createdSchedules     Schedule[]           @relation("ScheduleCreator")
+  scheduleAssignments  ScheduleAssignment[]
+  vacationRequests     VacationRequest[]    @relation("VacationEmployee")
+  reviewedVacations    VacationRequest[]    @relation("VacationReviewer")
+  auditLogs            AuditLog[]           @relation("AuditActor")
+  rolledBackAuditLogs  AuditLog[]           @relation("AuditRollbackActor")
+  notificationsSent    NotificationLog[]    @relation("NotificationSender")
+  managedBranches      Branch[]             @relation("BranchManager")
+  managedDepartments   Department[]         @relation("DepartmentManager")
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
@@ -109,6 +111,7 @@ model Branch {
   schedules          Schedule[]
   holidays           BranchHoliday[]
   departmentBranches  DepartmentBranch[]
+  vacationRequests   VacationRequest[] @relation("BranchVacationRequests")
 
   // -- ÍNDICES --
   // isActive: listBranches filtra por activas constantemente
@@ -128,9 +131,10 @@ model Department {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  manager     User?             @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
-  branches    DepartmentBranch[]
-  users       User[]
+  manager          User?             @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  branches         DepartmentBranch[]
+  users            User[]
+  vacationRequests VacationRequest[] @relation("DepartmentVacationRequests")
 
   @@index([isActive])
   @@index([code])
@@ -278,6 +282,46 @@ model ScheduleType {
   // isActive: filtrar tipos activos
   @@index([isActive])
   @@map("schedule_types")
+}
+
+enum VacationStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+model VacationRequest {
+  id              String          @id @default(cuid())
+  employeeId      String          @map("employee_id")
+  employee        User            @relation("VacationEmployee", fields: [employeeId], references: [id])
+  status          VacationStatus  @default(pending)
+  startDate       DateTime        @map("start_date")
+  endDate         DateTime        @map("end_date")
+  note            String?         @db.Text
+  reviewedBy      String?         @map("reviewed_by")
+  reviewer        User?           @relation("VacationReviewer", fields: [reviewedBy], references: [id])
+  reviewedAt      DateTime?       @map("reviewed_at")
+  rejectionReason String?         @map("rejection_reason") @db.Text
+  branchId        String?         @map("branch_id")
+  branch          Branch?         @relation("BranchVacationRequests", fields: [branchId], references: [id])
+  departmentId    String?         @map("department_id")
+  department      Department?     @relation("DepartmentVacationRequests", fields: [departmentId], references: [id])
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // -- ÍNDICES --
+  // employeeId: buscar solicitudes de un empleado
+  @@index([employeeId])
+  // status: filtrar por estado (pending, approved, etc.)
+  @@index([status])
+  // (branchId, status): filtrar por sucursal y estado
+  @@index([branchId, status])
+  // (departmentId, status): filtrar por departamento y estado
+  @@index([departmentId, status])
+  // (startDate, endDate): búsquedas por rango de fechas (calendario)
+  @@index([startDate, endDate])
+  @@map("vacation_requests")
 }
 
 model WebhookConfig {

@@ -129,7 +129,41 @@ async function main() {
 
   const alreadySeeded = await databaseHasAnyData();
   if (alreadySeeded) {
-    console.log('La base de datos ya contiene datos. Seed omitido.');
+    console.log('La base de datos ya contiene datos. Sincronizando permisos faltantes...');
+
+    // Siempre sincronizar permisos (incluso si la BD ya tiene datos)
+    // Esto asegura que permisos nuevos (ej: vacations:create, vacations:read-all, etc.)
+    // se creen en la tabla permissions aunque el seed principal se omita.
+    const rolesData = ROLE_NAMES.map(name => ({
+      name,
+      permissions: DEFAULT_ROLE_PERMISSIONS[name]
+    }));
+    const allPermissions = new Set(rolesData.flatMap(r => r.permissions));
+
+    for (const perm of allPermissions) {
+      await prisma.permission.upsert({
+        where: { name: perm },
+        create: { name: perm },
+        update: {},
+      });
+    }
+
+    // También sincronizar permisos en roles existentes (por si se añadieron nuevos permisos a un rol)
+    for (const roleDef of rolesData) {
+      const role = await prisma.role.findUnique({ where: { name: roleDef.name } });
+      if (role) {
+        await prisma.role.update({
+          where: { id: role.id },
+          data: {
+            permissions: {
+              connect: roleDef.permissions.map(name => ({ name })),
+            },
+          },
+        });
+      }
+    }
+
+    console.log('Permisos sincronizados correctamente.');
     return;
   }
 

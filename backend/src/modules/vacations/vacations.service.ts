@@ -1,0 +1,423 @@
+import { prisma } from '../../config/database';
+import { createAppError } from '../../common/errors/error-catalog';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
+import { notifyVacationChange } from '../notifications/notifications.service';
+import { VACATION_PERMISSIONS } from './vacations.constants';
+import {
+  findVacationRequests,
+  findVacationRequestById,
+  createVacationRequest,
+  updateVacationRequest,
+  countPendingOverlap,
+} from './vacations.repository';
+import {
+  ensureStartDateNotPast,
+  ensureValidDateRange,
+  ensureCanReview,
+  ensureCanCancel,
+  ensureIsPending,
+} from './domain/vacations.rules';
+import type { CreateVacationRequestInput, ApproveVacationInput, RejectVacationInput, ListVacationsQuery } from './vacations.http.schemas';
+
+type Actor = {
+  id: string;
+  roleName: string;
+  email: string;
+  name: string;
+  branchId?: string | null;
+  departmentId?: string | null;
+  ipAddress?: string;
+  permissions?: string[];
+};
+
+/**
+ * Determina el scope de visibilidad según los permisos del actor.
+ * Si tiene `read-all`, aplica el scope de su rol (branch para GM, depto para DM, global para admin).
+ * Si no tiene `read-all`, solo ve sus propias solicitudes.
+ */
+function buildVacationScope(actor: Actor, query: ListVacationsQuery): Record<string, unknown> {
+  const where: Record<string, unknown> = {};
+  const hasReadAll = actor.permissions?.includes(VACATION_PERMISSIONS.READ_ALL) ?? false;
+
+  if (!hasReadAll) {
+    // Sin read-all: solo ve sus propias solicitudes
+    where.employeeId = actor.id;
+    return where;
+  }
+
+  // Con read-all: aplicar scope según rol
+  if (actor.roleName === 'department_manager') {
+    // Department manager: base = su departamento, puede filtrar por branch
+    where.departmentId = actor.departmentId;
+    if (query.branchId) where.branchId = query.branchId;
+  } else if (actor.roleName === 'general_manager') {
+    // General manager: base = su branch, puede filtrar por departamento
+    where.branchId = actor.branchId;
+    if (query.departmentId) where.departmentId = query.departmentId;
+  }
+  // admin: sin filtro base, ve todo (puede filtrar por branchId/departmentId explícitos)
+
+  return where;
+}
+
+/**
+ * Lista solicitudes de vacaciones según los permisos del actor
+ */
+export async function listVacations(query: ListVacationsQuery, actor: Actor) {
+  const where = buildVacationScope(actor, query);
+
+  // Filtros adicionales del query (se aplican sobre el filtro base del rol)
+  if (query.status) where.status = query.status;
+  if (query.employeeId) where.employeeId = query.employeeId;
+  if (query.from || query.to) {
+    const dateFilter: Record<string, Date> = {};
+    if (query.from) dateFilter.gte = new Date(query.from);
+    if (query.to) dateFilter.lte = new Date(query.to);
+    where.startDate = dateFilter;
+  }
+
+  return findVacationRequests(where as any);
+}
+
+/**
+ * Obtiene una solicitud por ID con validación de permisos
+ */
+export async function getVacationById(id: string, actor: Actor) {
+  const vacation = await findVacationRequestById(id);
+  if (!vacation) {
+    throw createAppError('NOT_FOUND', 'Solicitud de vacaciones no encontrada');
+  }
+
+  const hasReadAll = actor.permissions?.includes(VACATION_PERMISSIONS.READ_ALL) ?? false;
+
+  if (!hasReadAll) {
+    // Sin read-all: solo puede ver sus propias solicitudes
+    if (vacation.employeeId !== actor.id) {
+      throw createAppError('FORBIDDEN', 'No puedes ver solicitudes de otros empleados');
+    }
+    return vacation;
+  }
+
+  // Con read-all: validar scope según rol
+  if (actor.roleName === 'department_manager' && vacation.departmentId !== actor.departmentId) {
+    throw createAppError('FORBIDDEN', 'No puedes ver solicitudes de otros departamentos');
+  }
+  if (actor.roleName === 'general_manager' && vacation.branchId !== actor.branchId) {
+    throw createAppError('FORBIDDEN', 'No puedes ver solicitudes de otras sucursales');
+  }
+
+  return vacation;
+}
+
+/**
+ * Crea una solicitud de vacaciones (Employee)
+ * Atómica: creación + audit log en una sola transacción
+ */
+export async function createVacationEntry(input: CreateVacationRequestInput, actor: Actor) {
+  const startDate = new Date(input.startDate);
+  const endDate = new Date(input.endDate);
+
+  // Validaciones de negocio
+  ensureStartDateNotPast(startDate);
+  ensureValidDateRange(startDate, endDate);
+
+  // Validar que no tenga otra solicitud pending con fechas solapadas
+  const pendingOverlap = await countPendingOverlap(actor.id, startDate, endDate);
+  if (pendingOverlap > 0) {
+    throw createAppError('BAD_REQUEST', 'Ya tienes una solicitud pendiente con fechas solapadas');
+  }
+
+  // Obtener branch y department del usuario
+  const user = await prisma.user.findUnique({
+    where: { id: actor.id },
+    select: { branchId: true, departmentId: true },
+  });
+
+  const vacation = await executeInTransaction(async (tx) => {
+    const created = await createVacationRequest({
+      employee: { connect: { id: actor.id } },
+      startDate,
+      endDate,
+      note: input.note,
+      branch: user?.branchId ? { connect: { id: user.branchId } } : undefined,
+      department: user?.departmentId ? { connect: { id: user.departmentId } } : undefined,
+    }, tx);
+
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'CREATE_VACATION_REQUEST',
+      entityType: 'VacationRequest',
+      entityId: created.id,
+      detailsJson: {
+        before: null,
+        after: sanitizeSnapshot({
+          id: created.id,
+          startDate: created.startDate,
+          endDate: created.endDate,
+          note: created.note,
+          status: created.status,
+        }),
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return created;
+  });
+
+  // Notificación por webhook (fuera de transacción, no debe causar rollback)
+  notifyVacationChange({
+    type: 'vacation_requested',
+    vacation,
+    actor,
+  }).catch(() => {});
+
+  return vacation;
+}
+
+/**
+ * Aprueba una solicitud de vacaciones (Manager)
+ * Atómica: actualización + audit log en una sola transacción
+ */
+export async function approveVacationEntry(id: string, input: ApproveVacationInput, actor: Actor) {
+  const vacation = await findVacationRequestById(id);
+  if (!vacation) {
+    throw createAppError('NOT_FOUND', 'Solicitud de vacaciones no encontrada');
+  }
+
+  ensureIsPending(vacation.status);
+  ensureCanReview(
+    actor.roleName,
+    actor.branchId,
+    actor.departmentId,
+    vacation.branchId,
+    vacation.departmentId,
+  );
+
+  const updated = await executeInTransaction(async (tx) => {
+    const result = await updateVacationRequest(id, {
+      status: 'approved',
+      reviewer: { connect: { id: actor.id } },
+      reviewedAt: new Date(),
+    }, tx);
+
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'APPROVE_VACATION',
+      entityType: 'VacationRequest',
+      entityId: id,
+      detailsJson: {
+        before: sanitizeSnapshot({ status: vacation.status }),
+        after: sanitizeSnapshot({ status: 'approved', reviewedBy: actor.id, reviewedAt: new Date().toISOString() }),
+        note: input.note,
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return result;
+  });
+
+  // Notificación por webhook (fuera de transacción)
+  notifyVacationChange({
+    type: 'vacation_approved',
+    vacation: updated,
+    actor,
+  }).catch(() => {});
+
+  return updated;
+}
+
+/**
+ * Rechaza una solicitud de vacaciones (Manager)
+ * Atómica: actualización + audit log en una sola transacción
+ */
+export async function rejectVacationEntry(id: string, input: RejectVacationInput, actor: Actor) {
+  const vacation = await findVacationRequestById(id);
+  if (!vacation) {
+    throw createAppError('NOT_FOUND', 'Solicitud de vacaciones no encontrada');
+  }
+
+  ensureIsPending(vacation.status);
+  ensureCanReview(
+    actor.roleName,
+    actor.branchId,
+    actor.departmentId,
+    vacation.branchId,
+    vacation.departmentId,
+  );
+
+  const updated = await executeInTransaction(async (tx) => {
+    const result = await updateVacationRequest(id, {
+      status: 'rejected',
+      reviewer: { connect: { id: actor.id } },
+      reviewedAt: new Date(),
+      rejectionReason: input.rejectionReason,
+    }, tx);
+
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'REJECT_VACATION',
+      entityType: 'VacationRequest',
+      entityId: id,
+      detailsJson: {
+        before: sanitizeSnapshot({ status: vacation.status }),
+        after: sanitizeSnapshot({
+          status: 'rejected',
+          reviewedBy: actor.id,
+          reviewedAt: new Date().toISOString(),
+          rejectionReason: input.rejectionReason,
+        }),
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return result;
+  });
+
+  // Notificación por webhook (fuera de transacción)
+  notifyVacationChange({
+    type: 'vacation_rejected',
+    vacation: updated,
+    actor,
+  }).catch(() => {});
+
+  return updated;
+}
+
+/**
+ * Cancela una solicitud de vacaciones
+ * - Employee: solo puede cancelar sus propias solicitudes pendientes
+ * - Manager/Admin: puede cancelar cualquier solicitud de su scope
+ */
+export async function cancelVacationEntry(id: string, actor: Actor) {
+  const vacation = await findVacationRequestById(id);
+  if (!vacation) {
+    throw createAppError('NOT_FOUND', 'Solicitud de vacaciones no encontrada');
+  }
+
+  const hasCancelAll = actor.permissions?.includes(VACATION_PERMISSIONS.APPROVE) ?? false;
+
+  if (!hasCancelAll) {
+    // Sin permiso de approve: solo puede cancelar sus propias solicitudes
+    if (vacation.employeeId !== actor.id) {
+      throw createAppError('FORBIDDEN', 'Solo puedes cancelar tus propias solicitudes');
+    }
+    ensureCanCancel(vacation.status);
+  } else {
+    // Con permiso de approve (manager/admin): validar scope
+    ensureCanReview(
+      actor.roleName,
+      actor.branchId,
+      actor.departmentId,
+      vacation.branchId,
+      vacation.departmentId,
+    );
+    // Puede cancelar en cualquier estado (no solo pending)
+  }
+
+  const updated = await executeInTransaction(async (tx) => {
+    const result = await updateVacationRequest(id, {
+      status: 'cancelled',
+    }, tx);
+
+    await logAuditOrThrow({
+      userId: actor.id,
+      action: 'CANCEL_VACATION',
+      entityType: 'VacationRequest',
+      entityId: id,
+      detailsJson: {
+        before: sanitizeSnapshot({ status: vacation.status }),
+        after: sanitizeSnapshot({ status: 'cancelled' }),
+      },
+      ipAddress: actor.ipAddress,
+    }, tx);
+
+    return result;
+  });
+
+  // Notificación por webhook (fuera de transacción)
+  notifyVacationChange({
+    type: 'vacation_cancelled',
+    vacation: updated,
+    actor,
+  }).catch(() => {});
+
+  return updated;
+}
+
+/**
+ * Obtiene el calendario de vacaciones aprobadas para una semana específica
+ * Con validación de permisos por rol basada en permisos del actor
+ */
+export async function getVacationCalendar(
+  year: number,
+  week: number,
+  branchId: string | undefined,
+  departmentId: string | undefined,
+  actor?: Actor,
+) {
+  const jan4 = new Date(year, 0, 4);
+  const weekStart = new Date(jan4);
+  weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  const where: Record<string, unknown> = {
+    status: 'approved',
+    AND: [
+      { startDate: { lte: weekEnd } },
+      { endDate: { gte: weekStart } },
+    ],
+  };
+
+  // Validación de permisos por rol basada en permisos del actor
+  if (actor) {
+    const hasReadAll = actor.permissions?.includes(VACATION_PERMISSIONS.READ_ALL) ?? false;
+
+    if (!hasReadAll) {
+      // Sin read-all: solo ve sus propias vacaciones aprobadas
+      where.employeeId = actor.id;
+    } else if (actor.roleName === 'department_manager') {
+      // Department manager: base = su departamento, puede filtrar por branch
+      where.departmentId = actor.departmentId;
+      if (branchId) where.branchId = branchId;
+    } else if (actor.roleName === 'general_manager') {
+      // General manager: base = su branch, puede filtrar por departamento
+      where.branchId = actor.branchId;
+      if (departmentId) where.departmentId = departmentId;
+    }
+    // admin: sin filtro, ve todo
+  } else {
+    // Sin actor (llamada interna/sistema), aplicar filtros explícitos si vienen
+    if (branchId) where.branchId = branchId;
+    if (departmentId) where.departmentId = departmentId;
+  }
+
+  const vacations = await findVacationRequests(where as any);
+
+  const items = vacations.map((v) => ({
+    id: v.id,
+    employeeId: v.employeeId,
+    employeeName: v.employee.name,
+    employeeEmail: v.employee.email,
+    employeeAvatarUrl: v.employee.avatarUrl,
+    employeeDepartment: v.employee.department,
+    employeeBranch: v.employee.branch,
+    startDate: v.startDate,
+    endDate: v.endDate,
+    note: v.note,
+    branchId: v.branchId,
+    departmentId: v.departmentId,
+  }));
+
+  return {
+    year,
+    week,
+    weekStart,
+    weekEnd,
+    total: items.length,
+    items,
+  };
+}
