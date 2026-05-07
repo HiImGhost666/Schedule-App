@@ -108,6 +108,7 @@ model Branch {
   manager            User?     @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
   schedules          Schedule[]
   holidays           BranchHoliday[]
+  webhooks           WebhookConfig[]
   departmentBranches  DepartmentBranch[]
 
   // -- ÍNDICES --
@@ -129,6 +130,7 @@ model Department {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   manager     User?             @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  webhooks    WebhookConfig[]
   branches    DepartmentBranch[]
   users       User[]
 
@@ -290,6 +292,10 @@ model WebhookConfig {
   fridayReminderEnabled         Boolean  @default(true) @map("friday_reminder_enabled")
   mondayVacationReminderEnabled Boolean  @default(true) @map("monday_vacation_reminder_enabled")
   fridayReminderTime            String   @default("12:00") @map("friday_reminder_time")
+  departmentId                  String?  @map("department_id")
+  department                    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  branchId                      String?  @map("branch_id")
+  branch                        Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt                     DateTime @default(now()) @map("created_at")
   updatedAt                     DateTime @updatedAt @map("updated_at")
 
@@ -306,6 +312,10 @@ model WebhookConfig {
   @@index([enabled, fridayReminderEnabled])
   // (enabled, mondayVacationReminderEnabled): scheduler del lunes
   @@index([enabled, mondayVacationReminderEnabled])
+  // Índices para las relaciones con departamento y sede
+  @@index([departmentId])
+  @@index([branchId])
+
   @@map("webhook_configs")
 }
 
