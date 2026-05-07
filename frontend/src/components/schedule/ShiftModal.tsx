@@ -179,15 +179,34 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const endVal = watch('endDatetime');
   const isAllBranchesMode = !schedule && !defaultBranchId;
 
-  // Determine the base pool of assignees based on user role and target branch
+  const canFilterBranch = user?.role?.name === 'admin' || user?.role?.name === 'department_manager';
+  const canFilterDepartment = user?.role?.name === 'admin' || user?.role?.name === 'general_manager';
+
+  const departmentOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    (users ?? []).forEach((u) => {
+      if (u.department?.id && u.department?.name) {
+        options.set(u.department.id, u.department.name);
+      }
+    });
+    return Array.from(options, ([id, name]) => ({ id, name }));
+  }, [users]);
+
+  // Determine the base pool of assignees based on user role and target branch/department
   const availableAssignees = useMemo(() => {
     const sourceUsers = users ?? [];
     if (user?.role?.name === 'admin') {
-      return sourceUsers; // Admin ve todos los usuarios inicialmente
+      return sourceUsers;
     }
-    // Para roles no-admin, restringir a usuarios en la sucursal del turno (nueva o existente)
-    return sourceUsers.filter((candidate) => candidate.branchId === (schedule?.branchId || defaultBranchId));
-  }, [users, user?.role?.name, schedule?.branchId, defaultBranchId]);
+    if (user?.role?.name === 'general_manager') {
+      const targetBranchId = schedule?.branchId || defaultBranchId || user.branchId || '';
+      return sourceUsers.filter((candidate) => candidate.branchId === targetBranchId);
+    }
+    if (user?.role?.name === 'department_manager') {
+      return sourceUsers.filter((candidate) => candidate.department?.id === user.department?.id);
+    }
+    return [];
+  }, [users, user?.role?.name, user?.branchId, user?.department?.id, schedule?.branchId, defaultBranchId]);
   const selectedAssigneeUsers = useMemo(() => {
     const sourceUsers = users ?? [];
     if (sourceUsers.length === 0 || selectedUsers.length === 0) return [];
@@ -377,22 +396,18 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const filteredUsers = useMemo(() => {
     let result = availableAssignees;
 
-    // El filtro de sucursal solo se aplica si el usuario es admin y el filtro está activo
-    if (user?.role?.name === 'admin' && asideBranchFilter) {
+    if (canFilterBranch && asideBranchFilter) {
       result = result.filter((u) => u.branchId === asideBranchFilter);
     }
-    if (asideDeptFilter) {
-      result = result.filter((u) => {
-        const departmentCode = u.department?.code ?? '';
-        return departmentCode.toLowerCase() === asideDeptFilter;
-      });
+    if (canFilterDepartment && asideDeptFilter) {
+      result = result.filter((u) => u.department?.id === asideDeptFilter);
     }
     if (asideSearchFilter) {
       const q = asideSearchFilter.toLowerCase();
       result = result.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
     }
     return result;
-  }, [availableAssignees, user?.role?.name, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
+  }, [availableAssignees, canFilterBranch, canFilterDepartment, asideBranchFilter, asideDeptFilter, asideSearchFilter]);
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const assigneesContent = (
@@ -660,8 +675,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                     <span className="ml-1 text-xs text-theme-muted">({selectedUsers.length} seleccionados)</span>
                   </p>
                   {/* Filtros */}
-                <div className={`grid gap-2 ${user?.role?.name === 'admin' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {user?.role?.name === 'admin' && (
+                <div className={`grid gap-2 ${canFilterBranch && canFilterDepartment ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {canFilterBranch && (
                     <select
                       value={asideBranchFilter}
                       onChange={(e) => setAsideBranchFilter(e.target.value)}
@@ -673,17 +688,18 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                       ))}
                     </select>
                   )}
-                  <select
-                    value={asideDeptFilter}
-                    onChange={(e) => setAsideDeptFilter(e.target.value)}
-                    className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
-                  >
-                    <option value="">Todos los dptos.</option>
-                    <option value="seguridad">Seguridad</option>
-                    <option value="mantenimiento">Mantenimiento</option>
-                    <option value="operaciones">Operaciones</option>
-                    <option value="administración">Administración</option>
-                  </select>
+                  {canFilterDepartment && (
+                    <select
+                      value={asideDeptFilter}
+                      onChange={(e) => setAsideDeptFilter(e.target.value)}
+                      className="text-xs border border-theme-color rounded-lg px-2 py-1.5 text-theme-primary bg-white focus:outline-none focus:ring-1 focus:ring-navy-300"
+                    >
+                      <option value="">Todos los dptos.</option>
+                      {departmentOptions.map((department) => (
+                        <option key={department.id} value={department.id}>{department.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                   <input
                     type="text"
