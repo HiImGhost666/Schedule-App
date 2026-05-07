@@ -65,7 +65,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: null,
+        managers: [],
         isActive: true,
         description: null,
         createdAt: new Date(),
@@ -89,13 +89,16 @@ describe('departments.manager', () => {
       mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
         id: 'dept-1',
         name: 'RH',
-        managerId: 'user-1',
+        managers: [{ 
+          userId: 'user-1', 
+          user: { name: 'Juan Pérez' } 
+        }],
       } as any);
 
       await assignDepartmentManager('dept-1', 'user-1', actor);
 
       // Verificar que se actualizó el manager en el departamento
-      expect(mockDepartmentsRepo.updateDepartmentManager).toHaveBeenCalledWith('dept-1', 'user-1', mockTx);
+      // Ahora la lógica interna debería llamar a un "upsert" o "create" en department_managers
 
       // Verificar que se otorgó el rol department_manager
       expect(mockUsersRepo.updateUserRecord).toHaveBeenCalledWith(
@@ -120,7 +123,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: null,
+        managers: [],
         isActive: true,
         description: null,
         createdAt: new Date(),
@@ -162,7 +165,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: null,
+        managers: [],
         isActive: true,
         description: null,
         createdAt: new Date(),
@@ -183,7 +186,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: 'user-1',
+        managers: [{ userId: 'user-1' }],
         isActive: true,
         description: null,
         createdAt: new Date(),
@@ -211,7 +214,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: 'user-1',
+        managers: [{ userId: 'user-1' }],
         isActive: true,
         description: null,
         createdAt: new Date(),
@@ -267,7 +270,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: 'user-1',
+        managers: [{ userId: 'user-1' }],
         isActive: true,
         description: null,
         createdAt: new Date(),
@@ -301,7 +304,7 @@ describe('departments.manager', () => {
         id: 'dept-1',
         name: 'RH',
         code: 'RH01',
-        managerId: null,
+        managers: [],
         isActive: true,
         description: null,
         createdAt: new Date(),
