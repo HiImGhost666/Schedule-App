@@ -11,17 +11,23 @@ Los **Schedule Types** son un catálogo **global** (no asociados a una sucursal 
 | Permiso | admin | general_manager | department_manager | employee |
 |---|---|---|---|---|
 | `users:view` | ✅ | ✅ | ✅ | ❌ |
-| `users:manage` | ✅ | ✅ (solo su branch) | ❌ | ❌ |
+| `users:create` | ✅ | ✅ (solo su branch) | ❌ | ❌ |
+| `users:update` | ✅ | ✅ (solo su branch) | ❌ | ❌ |
+| `users:delete` | ✅ | ✅ (solo su branch) | ❌ | ❌ |
 | `schedules:view` | ✅ | ✅ | ✅ | ✅ |
-| `schedules:manage` | ✅ | ✅ (solo su branch) | ✅ (solo su depto) | ❌ |
+| `schedules:create` | ✅ | ✅ (solo su branch) | ✅ (solo su depto) | ❌ |
+| `schedules:update` | ✅ | ✅ (solo su branch) | ✅ (solo su depto) | ❌ |
+| `schedules:delete` | ✅ | ✅ (solo su branch) | ✅ (solo su depto) | ❌ |
 | `schedule_types:read` | ✅ | ✅ | ✅ | ✅ |
 | `schedule_types:create` | ✅ | ❌ | ❌ | ❌ |
 | `schedule_types:update` | ✅ | ❌ | ❌ | ❌ |
 | `schedule_types:delete` | ✅ | ❌ | ❌ | ❌ |
 | `branches:view` | ✅ | ✅ | ✅ | ✅ |
-| `branches:manage` | ✅ | ❌ | ❌ | ❌ |
+| `branches:create` | ✅ | ❌ | ❌ | ❌ |
+| `branches:update` | ✅ | ❌ | ❌ | ❌ |
+| `branches:delete` | ✅ | ❌ | ❌ | ❌ |
 | `settings:view` | ✅ | ✅ | ❌ | ❌ |
-| `settings:manage` | ✅ | ❌ | ❌ | ❌ |
+| `settings:update` | ✅ | ❌ | ❌ | ❌ |
 | `audit:view` | ✅ | ❌ | ❌ | ❌ |
 
 ### Lógica detrás de cada decisión:

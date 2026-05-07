@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 import { Plus, Edit2, Trash2, Palette } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
 import type { CreateScheduleTypeInput, FullScheduleType } from '@/components/schedule/scheduleTypesApi';
 
 export default function EventTypesPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const { types, isLoading, createMutation, updateMutation, deleteMutation } = useScheduleTypes();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<FullScheduleType | null>(null);
+
+  const isAdmin = currentUser?.role?.name === 'admin';
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,12 +39,14 @@ export default function EventTypesPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Gestión de Tipos de Evento</h1>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition"
-        >
-          <Plus size={18} /> Nuevo Tipo
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition"
+          >
+            <Plus size={18} /> Nuevo Tipo
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
@@ -50,7 +56,7 @@ export default function EventTypesPage() {
               <th className="px-6 py-4 font-semibold text-gray-600">Etiqueta</th>
               <th className="px-6 py-4 font-semibold text-gray-600">Color</th>
               <th className="px-6 py-4 font-semibold text-gray-600">Identificador</th>
-              <th className="px-6 py-4 text-right">Acciones</th>
+              {isAdmin && <th className="px-6 py-4 text-right">Acciones</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -64,14 +70,16 @@ export default function EventTypesPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-gray-500">{type.value}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => { setEditingType(type); setIsModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                    <Edit2 size={16} />
-                  </button>
-                  <button onClick={() => confirm('¿Borrar?') && deleteMutation.mutate(type.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                    <Trash2 size={16} />
-                  </button>
-                </td>
+                {isAdmin && (
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => { setEditingType(type); setIsModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                      <Edit2 size={16} />
+                    </button>
+                    <button onClick={() => confirm('¿Borrar?') && deleteMutation.mutate(type.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

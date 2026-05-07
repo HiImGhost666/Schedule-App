@@ -266,7 +266,8 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
   }
 
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+  // Evitar bypass por nombre de rol si no es admin. 
+  if (actor.roleName !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
@@ -349,7 +350,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   const nextBranchId = branchId ?? existing.branchId;
   if (nextBranchId) await ensureActiveBranch(nextBranchId);
 
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+  if (actor.roleName !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
@@ -454,7 +455,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');
 
-  if (actor.roleName !== 'admin' && actor.roleName !== 'general_manager') {
+  if (actor.roleName !== 'admin') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
