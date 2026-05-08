@@ -141,7 +141,8 @@ describe('departments.manager', () => {
 
       mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
         id: 'dept-1',
-        managerId: 'user-1',
+        name: 'RH',
+        managers: [{ userId: 'user-1' }],
       } as any);
 
       await assignDepartmentManager('dept-1', 'user-1', actor);
@@ -239,7 +240,7 @@ describe('departments.manager', () => {
       mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
         id: 'dept-1',
         name: 'RH',
-        managerId: null,
+        managers: [],
       } as any);
 
       await removeDepartmentManager('dept-1', actor);
@@ -290,7 +291,8 @@ describe('departments.manager', () => {
 
       mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
         id: 'dept-1',
-        managerId: null,
+        name: 'RH',
+        managers: [],
       } as any);
 
       await removeDepartmentManager('dept-1', actor);

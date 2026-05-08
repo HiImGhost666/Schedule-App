@@ -265,13 +265,14 @@ export async function assignDepartmentManager(
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
 
-  if (department.managerId === userId) {
+  if (department.managers?.some((m) => m.userId === userId)) {
     throw createAppError('BAD_REQUEST', 'Este usuario ya es manager de este departamento');
   }
 
   return executeInTransaction(async (tx) => {
     // 1. Actualizar departamento
     const updatedDepartment = await updateDepartmentManager(departmentId, userId, tx);
+    if (!updatedDepartment) throw createAppError('NOT_FOUND', 'Departamento no encontrado tras asignar manager');
 
     // 2. Otorgar rol si no lo tiene
     if (getRoleName((user as any).role) !== 'department_manager') {
@@ -307,17 +308,19 @@ export async function removeDepartmentManager(
   actor: DepartmentActor,
 ) {
   const department = await ensureDepartment(departmentId);
-  if (!department.managerId) {
+  const currentManager = department.managers?.[0];
+  if (!currentManager) {
     throw createAppError('BAD_REQUEST', 'Este departamento no tiene un manager asignado');
   }
 
-  const managerId = department.managerId;
+  const managerId = currentManager.userId;
   const manager = await findUserById(managerId);
   if (!manager) throw createAppError('NOT_FOUND', 'Manager no encontrado');
 
   return executeInTransaction(async (tx) => {
     // 1. Remover manager del departamento
     const updatedDepartment = await updateDepartmentManager(departmentId, null, tx);
+    if (!updatedDepartment) throw createAppError('NOT_FOUND', 'Departamento no encontrado tras remover manager');
 
     // 2. Verificar si sigue siendo manager de otros departamentos
     const remainingDepartments = await countDepartmentsForManager(managerId, tx);
