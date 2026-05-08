@@ -98,7 +98,7 @@
 - Schedule Types solo lectura (solo admin crea/edita/borra para evitar errores).
 - NO gestiona departments, branches, ni settings.
 - Vacaciones: ve y gestiona las de su branch.
-- Webhooks: solo lectura (ve los de su branch/departamento).
+- Webhooks: solo admin gestiona webhooks.
 - Resumen semanal: ve el de su equipo.
 
 ### `department_manager`

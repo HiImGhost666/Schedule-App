@@ -23,18 +23,18 @@ Alcance:
 
 ## 2) Constantes por Modulo
 
-- src/modules/users/users.constants.ts
-  - USER_DEPARTMENTS
-  - USER_ROLES
-  - USER_STATUSES
-  - CSV_IMPORT_DEFAULT_PASSWORD
-  - CSV_IMPORT_MAX_FILE_SIZE_BYTES
+- src/config/constants.ts
+  - ROLES (catálogo de roles del sistema)
+  - USER_STATUS
+  - DEPARTMENT_CATALOG (catálogo de departamentos)
+  - NOTIFICATION_TYPES
+  - NOTIFICATION_STATUS
+  - MAX_FAILED_ATTEMPTS
+  - LOCKOUT_MINUTES
 - src/modules/branches/branches.constants.ts
   - HOLIDAY_TYPES
   - HOLIDAY_SCOPES
   - BRANCH_CODES
-- src/modules/schedules/schedules.constants.ts
-  - SCHEDULE_TYPES
 - src/modules/settings/theme.presets.ts
   - BASE_PRESET_IDS
   - BUILT_IN_THEME_PRESETS
@@ -56,17 +56,17 @@ Estos archivos no son "constantes de negocio" puras, pero actuan como contrato e
 
 Mantener estos pares alineados:
 - Roles/Estados:
-  - backend/src/config/constants.ts
-  - backend/src/modules/users/users.constants.ts
+  - backend/src/config/constants.ts (ROLES, USER_STATUS)
+  - backend/src/modules/roles/roles.constants.ts (ROLE_NAMES, ROLE_LABELS, PERMISSIONS)
   - frontend/src/types/index.ts
 - Seguridad login:
   - backend/src/config/constants.ts (MAX_FAILED_ATTEMPTS, LOCKOUT_MINUTES)
   - frontend/src/types/index.ts
 - Tipos de schedule:
-  - backend/src/modules/schedules/schedules.constants.ts
+  - backend/prisma/schema.prisma (entidad ScheduleType)
   - frontend/src/types/index.ts
 - Departamentos:
-  - backend/src/modules/users/users.constants.ts (minusculas)
+  - backend/src/config/constants.ts (DEPARTMENT_CATALOG)
   - frontend/src/pages/admin/UsersPage.tsx y UserFormModal.tsx (normalizacion visual)
 - Codigos de sucursal:
   - backend/src/modules/branches/branches.constants.ts

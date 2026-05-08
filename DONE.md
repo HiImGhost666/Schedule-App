@@ -186,12 +186,13 @@
 ## [DB] Migraciones unificadas en un solo init.sql
 
 **Archivos**: `backend/prisma/migrations/`
-**Estado**: ✅ Completado — las 5 migraciones posteriores se fusionaron en el `migration.sql` inicial. Se eliminaron las carpetas redundantes:
+**Estado**: ✅ Completado — las migraciones posteriores se fusionaron en el `migration.sql` inicial. Se eliminaron las carpetas redundantes:
 - `20260507085700_add_vacation_requests`
 - `20260507093500_add_colindante_status`
 - `20260507101414_webhook_categories`
 - `20260507105111_remove_webhook_scope`
 - `20260507120000_add_weekly_work_summary`
+- `202605081233_remove_type_column_from_schedules`
 
 **Modelos añadidos al init.sql**:
 - `VacationRequest` con enum `VacationStatus` (pending, colindante, approved, rejected, cancelled)
@@ -199,6 +200,9 @@
 - `DepartmentManager` (relación many-to-many departamento-usuario)
 - `WebhookConfig` con relaciones a `Department` y `Branch`
 - `HolidayType` enum con valores: nacional, autonomica, local, mejora, regional, company
+
+**Cambios en init.sql**:
+- Eliminada columna `type` y su índice `schedules_type_idx` de la tabla `schedules`
 
 ---
 
@@ -295,7 +299,7 @@
 ## [Webhooks] Corrección schema PATCH
 
 **Archivo**: `backend/src/modules/webhooks/webhooks.router.ts`
-**Estado**: ✅ Corregido — el schema de validación para PATCH ahora usa `webhookPartialSchema` con `superRefine` en lugar de `webhookSchema.partial()`, lo que permite validar correctamente las relaciones condicionales entre `scope`, `departmentId` y `branchId` incluso en actualizaciones parciales.
+**Estado**: ✅ Corregido — se creó `webhookUpdateSchema` separado sin `superRefine` para las actualizaciones PATCH, ya que `.partial()` en un schema con `superRefine` causaba errores cuando `scope` es undefined.
 
 ---
 
@@ -359,13 +363,6 @@ Se añadió `validateDmUpdateRestrictions(updateData)` que impide que un DM camb
 - `assignDepartmentManager` usa `upsertDepartmentManager()` en la tabla `department_managers`
 - `removeDepartmentManager` usa `deleteDepartmentManager()` en la tabla `department_managers`
 - `countDepartmentsForManager` cuenta en `departmentManager` en vez de `department`
-
----
-
-## [Webhooks] PATCH validation fix (superRefine con .partial())
-
-**Archivo**: `backend/src/modules/webhooks/webhooks.router.ts`
-**Estado**: ✅ Corregido — `webhookSchema.partial().safeParse()` fallaba porque `.partial()` en un schema con `superRefine` causa errores cuando `scope` es undefined. Se creó `webhookUpdateSchema` separado sin `superRefine` para las actualizaciones PATCH.
 
 ---
 

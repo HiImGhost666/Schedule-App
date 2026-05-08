@@ -12,7 +12,7 @@
 
 **`GET /api/roles`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `settings:view`
 
 ### Response (200)
 
@@ -24,7 +24,7 @@
       "id": "role_admin",
       "name": "admin",
       "description": "Administrador del sistema",
-      "permissions": ["users:view", "users:manage", "schedules:view", ...],
+      "permissions": ["users:view", "users:create", "schedules:view", ...],
       "isSystem": true,
       "createdAt": "2026-01-01T00:00:00.000Z"
     }
@@ -38,7 +38,7 @@
 
 **`GET /api/roles/:id`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `settings:view`
 
 ### Response (200)
 
@@ -49,7 +49,7 @@
     "id": "role_admin",
     "name": "admin",
     "description": "Administrador del sistema",
-    "permissions": ["users:view", "users:manage", ...],
+    "permissions": ["users:view", "users:create", ...],
     "isSystem": true,
     "createdAt": "2026-01-01T00:00:00.000Z"
   }
@@ -62,7 +62,7 @@
 
 **`GET /api/roles/permissions`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `settings:view`
 
 ### Response (200)
 
@@ -109,7 +109,7 @@
 
 **`POST /api/roles`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `settings:update`
 
 ### Request Body
 
@@ -117,7 +117,7 @@
 {
   "name": "supervisor",
   "description": "Supervisor de turnos",
-  "permissions": ["schedules:view", "schedules:manage", "users:view"]
+  "permissions": ["schedules:view", "schedules:create", "users:view"]
 }
 ```
 
@@ -137,14 +137,14 @@
 
 **`PATCH /api/roles/:id`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `settings:update`
 
 ### Request Body (todos opcionales)
 
 ```json
 {
   "name": "supervisor_avanzado",
-  "permissions": ["schedules:view", "schedules:manage", "users:view", "audit:view"]
+  "permissions": ["schedules:view", "schedules:create", "users:view", "audit:view"]
 }
 ```
 
@@ -164,7 +164,7 @@
 
 **`DELETE /api/roles/:id`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `settings:update`
 
 > No se pueden eliminar roles del sistema (`isSystem: true`).
 
