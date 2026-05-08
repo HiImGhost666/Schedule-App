@@ -73,6 +73,46 @@ async function assertGmBranchScope(actorId: string, targetBranchId: string | nul
   }
 }
 
+/**
+ * Verifica que si el actor es un department_manager, el usuario objetivo pertenezca a su departamento.
+ * El DM solo puede modificar usuarios de su propio departamento.
+ * No puede cambiar branchId ni role del usuario.
+ */
+async function assertDmUserScope(actorId: string, targetUserId: string, updateData: Record<string, unknown>) {
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { roleId: true, departmentId: true },
+  });
+  if (!actor) throw createAppError('NOT_FOUND', 'Usuario actor no encontrado');
+  if (!actor.roleId) return;
+
+  const role = await prisma.role.findUnique({
+    where: { id: actor.roleId },
+    select: { name: true },
+  });
+
+  if (role?.name !== 'department_manager') return;
+
+  // DM no puede cambiar branchId ni role
+  if (updateData.branchId !== undefined) {
+    throw createAppError('FORBIDDEN', 'No tienes permiso para cambiar la sucursal de un usuario');
+  }
+  if (updateData.roleId !== undefined || updateData.role !== undefined) {
+    throw createAppError('FORBIDDEN', 'No tienes permiso para cambiar el rol de un usuario');
+  }
+
+  // DM solo puede modificar usuarios de su departamento
+  const targetUser = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: { departmentId: true },
+  });
+  if (!targetUser) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+
+  if (targetUser.departmentId !== actor.departmentId) {
+    throw createAppError('FORBIDDEN', 'Solo puedes modificar usuarios de tu departamento');
+  }
+}
+
 
 const createUserInputSchema = z.object({
   name: z.string().min(2),
@@ -512,6 +552,7 @@ export async function updateUser(userId: string, data: {
 
   const targetBranchId = parsed.data.branchId ?? (user as { branchId?: string | null }).branchId ?? null;
   await assertGmBranchScope(actor.id, targetBranchId);
+  await assertDmUserScope(actor.id, userId, parsed.data as Record<string, unknown>);
   const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds);
   if (selectedDepartmentId) {
     await ensureDepartmentExists(selectedDepartmentId, targetBranchId);

@@ -14,13 +14,13 @@ import {
 
 const router = Router();
 
-router.get('/', authMiddleware, requirePermission('settings:view'), (req: AuthRequest, res: Response) => listDepartmentsController(req, res));
-router.get('/:departmentId/branches', authMiddleware, requirePermission('settings:view'), (req: AuthRequest, res: Response) => listDepartmentBranchesController(req, res));
-router.post('/', authMiddleware, requirePermission('settings:update'), (req: AuthRequest, res: Response) => createDepartmentController(req, res));
-router.patch('/:departmentId', authMiddleware, requirePermission('settings:update'), (req: AuthRequest, res: Response) => updateDepartmentController(req, res));
-router.delete('/:departmentId', authMiddleware, requirePermission('settings:update'), (req: AuthRequest, res: Response) => deleteDepartmentController(req, res));
-router.delete('/:departmentId/permanent', authMiddleware, requirePermission('settings:update'), (req: AuthRequest, res: Response) => hardDeleteDepartmentController(req, res));
-router.patch('/:departmentId/manager', authMiddleware, requirePermission('settings:update'), (req: AuthRequest, res: Response) => assignDepartmentManagerController(req, res));
-router.delete('/:departmentId/manager', authMiddleware, requirePermission('settings:update'), (req: AuthRequest, res: Response) => removeDepartmentManagerController(req, res));
+router.get('/', authMiddleware, requirePermission('departments:view'), (req: AuthRequest, res: Response) => listDepartmentsController(req, res));
+router.get('/:departmentId/branches', authMiddleware, requirePermission('departments:view'), (req: AuthRequest, res: Response) => listDepartmentBranchesController(req, res));
+router.post('/', authMiddleware, requirePermission('departments:create'), (req: AuthRequest, res: Response) => createDepartmentController(req, res));
+router.patch('/:departmentId', authMiddleware, requirePermission('departments:update'), (req: AuthRequest, res: Response) => updateDepartmentController(req, res));
+router.delete('/:departmentId', authMiddleware, requirePermission('departments:delete'), (req: AuthRequest, res: Response) => deleteDepartmentController(req, res));
+router.delete('/:departmentId/permanent', authMiddleware, requirePermission('departments:delete'), (req: AuthRequest, res: Response) => hardDeleteDepartmentController(req, res));
+router.patch('/:departmentId/manager', authMiddleware, requirePermission('departments:update'), (req: AuthRequest, res: Response) => assignDepartmentManagerController(req, res));
+router.delete('/:departmentId/manager', authMiddleware, requirePermission('departments:update'), (req: AuthRequest, res: Response) => removeDepartmentManagerController(req, res));
 
 export default router;

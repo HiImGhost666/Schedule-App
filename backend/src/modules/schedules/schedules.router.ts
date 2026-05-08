@@ -42,7 +42,7 @@ router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getSched
 router.post('/', authMiddleware, requirePermission('schedules:create'), (req: AuthRequest, res: Response) => createScheduleController(req, res));
 
 // Bulk create schedules
-router.post('/bulk', authMiddleware, requirePermission('schedules:manage'), (req: AuthRequest, res: Response) => createScheduleBulkController(req, res));
+router.post('/bulk', authMiddleware, requirePermission('schedules:create'), (req: AuthRequest, res: Response) => createScheduleBulkController(req, res));
 
 // Update schedule
 router.patch('/:id', authMiddleware, requirePermission('schedules:update'), (req: AuthRequest, res: Response) => updateScheduleController(req, res));

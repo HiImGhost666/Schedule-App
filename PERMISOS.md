@@ -25,7 +25,11 @@
 | `branches:create` | Crear sucursales |
 | `branches:update` | Editar sucursales |
 | `branches:delete` | Eliminar sucursales |
-| `settings:view` | Ver configuración global (roles, departamentos, temas) |
+| `departments:view` | Ver departamentos |
+| `departments:create` | Crear departamentos |
+| `departments:update` | Editar departamentos |
+| `departments:delete` | Eliminar departamentos |
+| `settings:view` | Ver configuración global (roles, temas) |
 | `settings:update` | Modificar configuración global |
 | `audit:view` | Ver registros de auditoría |
 | `vacations:create` | Solicitar vacaciones |
@@ -50,7 +54,7 @@
 |---|---|---|---|---|
 | `users:view` | ✅ | ✅ | ✅ | ❌ |
 | `users:create` | ✅ | ✅ (scope: su branch) | ❌ | ❌ |
-| `users:update` | ✅ | ✅ (scope: su branch) | ❌ | ❌ |
+| `users:update` | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ❌ |
 | `users:delete` | ✅ | ✅ (scope: su branch) | ❌ | ❌ |
 | `schedules:view` | ✅ | ✅ | ✅ | ✅ |
 | `schedules:create` | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ❌ |
@@ -64,6 +68,10 @@
 | `branches:create` | ✅ | ❌ | ❌ | ❌ |
 | `branches:update` | ✅ | ❌ | ❌ | ❌ |
 | `branches:delete` | ✅ | ❌ | ❌ | ❌ |
+| `departments:view` | ✅ | ✅ | ✅ | ❌ |
+| `departments:create` | ✅ | ❌ | ❌ | ❌ |
+| `departments:update` | ✅ | ❌ | ❌ | ❌ |
+| `departments:delete` | ✅ | ❌ | ❌ | ❌ |
 | `settings:view` | ✅ | ✅ | ❌ | ❌ |
 | `settings:update` | ✅ | ❌ | ❌ | ❌ |
 | `audit:view` | ✅ | ❌ | ❌ | ❌ |
@@ -94,9 +102,9 @@
 - Resumen semanal: ve el de su equipo.
 
 ### `department_manager`
-- Gestiona **su departamento**: turnos de su depto.
+- Gestiona **su departamento**: turnos de su depto, usuarios de su depto (solo editar nombre/email/teléfono, no puede cambiar branch ni rol).
 - Schedule Types solo lectura.
-- NO gestiona usuarios (solo ve la lista), ni branches, ni settings.
+- NO gestiona branches ni settings.
 - Vacaciones: ve y gestiona las de su departamento.
 - Resumen semanal: ve el de su equipo.
 

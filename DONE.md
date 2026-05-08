@@ -299,3 +299,121 @@ Se aplica en:
 
 **Archivos**: `backend/test/departments.manager.test.ts`, `backend/test/departments.router.test.ts`
 **Estado**: ✅ Corregido — se actualizaron mocks y assertions para usar `upsertDepartmentManager`/`deleteDepartmentManager` en vez del antiguo `updateDepartmentManager`. Se corrigió expectativa de status code para `department_manager` en GET /api/departments.
+
+---
+
+## [Tareas completadas del análisis] 8 mayo 2026
+
+Las siguientes tareas de la lista original ya estaban implementadas en el código:
+
+### Selección de días al crear turnos (Media)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `ShiftModal.tsx` ya tiene mini calendario multi-select con `DayPicker`
+- `shiftScheduling.ts` tiene `buildScheduleChunks`, `buildDateRange`, etc.
+- Backend tiene `POST /schedules/bulk` para creación masiva
+- Tests en `frontend/test/shiftScheduling.test.ts`
+
+### Tipos de turno personalizados (Media)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `ScheduleType` es una entidad en Prisma con `value`, `label`, `color`
+- CRUD completo en `schedule-types.router.ts`
+- Frontend: `EventTypesPage.tsx` para gestión
+- `useScheduleTypes` hook para consumo
+
+### Planificación semanal estructurada (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- Vista semanal en `SchedulePage.tsx` con `timeGridWeek`
+- `WeekSchedulesWidget` en Dashboard
+- `listWeekSchedules` en backend
+- Sidebar con filtros por sucursal/departamento/tipo
+
+### Gestión de usuarios (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- CRUD completo en `UsersPage.tsx`
+- Importación CSV
+- Filtros por sucursal, departamento, estado
+- Gestión de roles y permisos
+
+### Responsables de departamento (Media)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `DepartmentManager` es una entidad en Prisma (tabla intermedia `department_managers`)
+- `assignDepartmentManager` / `removeDepartmentManager` en `departments.service.ts`
+- Frontend: `ManagerAssignmentModal` en componentes de departamentos
+
+### Permisos para Department Manager (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `roles.constants.ts` tiene permisos específicos para `department_manager`
+- `schedules.service.ts` valida scope de department_manager
+- `vacations.service.ts` valida scope de department_manager
+- `PERMISOS.md` documenta matriz completa
+
+### Nuevo rol: Department Manager (Media)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `department_manager` en `ROLE_NAMES`
+- `ROLE_LABELS` con 'Responsable de Departamento'
+- Permisos asignados en `DEFAULT_ROLE_PERMISSIONS`
+
+### Refactorizando roles en el backend (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- Roles como entidad `Role` en Prisma con tabla `permissions`
+- `roles.constants.ts` define permisos por rol
+- `roles.service.ts` para gestión CRUD
+- Seed sincroniza permisos automáticamente
+
+### Refactorizando Eventos en el backend (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `ScheduleType` es entidad en Prisma
+- `Schedule.scheduleTypeId` FK a `ScheduleType`
+- CRUD completo con permisos
+
+### Creando Departamento en el Backend (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `Department` entidad en Prisma
+- `DepartmentBranch` tabla intermedia (many-to-many Department-Branch)
+- `DepartmentManager` tabla intermedia (many-to-many Department-User)
+- CRUD completo con transacciones y auditoría
+
+### Añadir flujo de solicitud de vacaciones (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `VacationRequest` entidad en Prisma
+- CRUD completo: `createVacationEntry`, `approveVacationEntry`, `rejectVacationEntry`, `cancelVacationEntry`
+- Frontend: `VacationsPage.tsx`, `VacationRequestModal`, `VacationCreateModal`, `VacationTable`
+- Detección de solapamientos (estado `colindante`)
+
+### Añadir aviso en caso de día de vacaciones ocupado (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `findDepartmentOverlap` detecta solapamientos
+- Estado `colindante` cuando hay solapamiento
+- Frontend muestra advertencia
+
+### Remover lógica de 'desde' - 'hasta' y hacer más robusto el sistema de creación de schedules (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `ShiftModal.tsx` usa mini calendario multi-select
+- `shiftScheduling.ts` maneja agrupación de días consecutivos
+- Backend bulk creation con validaciones
+
+### Crear página de vacaciones con gestión por branch (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `VacationsPage.tsx` completa
+- `VacationCalendar` con filtros por branch/department
+- `VacationTable` con acciones de approve/reject
+- Scope por rol implementado en backend
+
+### Separar "Vacaciones" del ScheduleType y hacerlo como entidad (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `VacationRequest` es entidad independiente en Prisma
+- No depende de `ScheduleType`
+- Flujo completo de solicitud/aprobación/rechazo
+
+### Hacer que el calendario de Vacaciones llame a esa entidad (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `VacationCalendar` usa `GET /vacations/calendar`
+- `getVacationCalendar` en `vacations.service.ts` consulta `VacationRequest`
+- Filtros por branch, department, employee
+
+### Cambiar la selección de fechas en Calendario (Alta)
+- **Estado**: ✅ YA IMPLEMENTADO
+- `ShiftModal.tsx` usa `DayPicker` con modo multi-select
+- Soporta Shift+Click para rangos
+- Presets por día y horarios personalizados
+- Vista previa en vivo
