@@ -236,6 +236,73 @@
 
 ---
 
+## 7. Resumen semanal de horas (propias)
+
+**`GET /api/schedules/weekly-summary/:year/:week`**
+
+- **Permiso:** `weekly_summary:view`
+- **Roles:** todos
+
+### Response (200)
+
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "user_abc",
+    "year": 2026,
+    "week": 25,
+    "totalHours": 42.5,
+    "baseHours": 40,
+    "overtimeHours": 2.5,
+    "dailyBreakdown": "{\"2026-06-15\":8,\"2026-06-16\":8.5,\"2026-06-17\":8,\"2026-06-18\":9,\"2026-06-19\":9}",
+    "calculatedAt": "2026-06-20T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+## 8. Resumen semanal del equipo
+
+**`GET /api/schedules/weekly-summary/team/:year/:week`**
+
+- **Permiso:** `weekly_summary:view-all`
+- **Roles:** admin, general_manager (scope: su branch), department_manager (scope: su depto)
+
+### Query Parameters
+
+| Parámetro      | Tipo   | Obligatorio | Descripción |
+|----------------|--------|-------------|-------------|
+| `branchId`     | string | No          | Filtrar por sucursal (solo admin) |
+| `departmentId` | string | No          | Filtrar por departamento |
+
+### Response (200)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "userId": "user_abc",
+      "userName": "Juan Pérez",
+      "totalHours": 42.5,
+      "baseHours": 40,
+      "overtimeHours": 2.5
+    },
+    {
+      "userId": "user_def",
+      "userName": "María García",
+      "totalHours": 38,
+      "baseHours": 40,
+      "overtimeHours": 0
+    }
+  ]
+}
+```
+
+---
+
 ## Reglas de negocio
 
 1. **Solapamiento**: No se permite crear/actualizar un turno si alguno de los asignados ya tiene otro turno en el mismo rango horario.
@@ -245,3 +312,4 @@
 5. **Auditoría**: Cada operación (crear, actualizar, eliminar) genera un registro de auditoría.
 6. **Notificaciones**: Los cambios disparan notificaciones a los webhooks configurados.
 7. **Tiempo real**: Los cambios se publican vía WebSocket para actualización en vivo del frontend.
+8. **Resumen semanal**: Se calcula automáticamente al crear/modificar turnos. El desglose diario se almacena como JSON.

@@ -1,6 +1,6 @@
 # Matriz de Permisos — Schedule App
 
-> **Última actualización:** 7 mayo 2026
+> **Última actualización:** 8 mayo 2026
 > **Fuente:** `backend/src/modules/roles/roles.constants.ts`
 
 ---
@@ -34,6 +34,13 @@
 | `vacations:approve` | Aprobar/rechazar solicitudes (scope según rol) |
 | `vacations:cancel` | Cancelar solicitudes (propias o del scope) |
 | `vacations:delete` | Eliminar registros de vacaciones permanentemente |
+| `webhooks:view` | Ver webhooks configurados |
+| `webhooks:create` | Crear webhooks |
+| `webhooks:update` | Editar webhooks |
+| `webhooks:delete` | Eliminar webhooks |
+| `notifications:view` | Ver historial de notificaciones |
+| `weekly_summary:view` | Ver resumen semanal de horas (propias) |
+| `weekly_summary:view-all` | Ver resumen semanal de todo el equipo |
 
 ---
 
@@ -66,6 +73,13 @@
 | `vacations:approve` | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ❌ |
 | `vacations:cancel` | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ✅ (solo propias) |
 | `vacations:delete` | ✅ | ❌ | ❌ | ❌ |
+| `webhooks:view` | ✅ | ❌ | ❌ | ❌ |
+| `webhooks:create` | ✅ | ❌ | ❌ | ❌ |
+| `webhooks:update` | ✅ | ❌ | ❌ | ❌ |
+| `webhooks:delete` | ✅ | ❌ | ❌ | ❌ |
+| `notifications:view` | ✅ | ✅ | ❌ | ❌ |
+| `weekly_summary:view` | ✅ | ✅ | ✅ | ✅ |
+| `weekly_summary:view-all` | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ❌ |
 
 ---
 
@@ -76,16 +90,20 @@
 - Schedule Types solo lectura (solo admin crea/edita/borra para evitar errores).
 - NO gestiona departments, branches, ni settings.
 - Vacaciones: ve y gestiona las de su branch.
+- Webhooks: solo lectura (ve los de su branch/departamento).
+- Resumen semanal: ve el de su equipo.
 
 ### `department_manager`
 - Gestiona **su departamento**: turnos de su depto.
 - Schedule Types solo lectura.
 - NO gestiona usuarios (solo ve la lista), ni branches, ni settings.
 - Vacaciones: ve y gestiona las de su departamento.
+- Resumen semanal: ve el de su equipo.
 
 ### `employee`
 - Solo ve turnos, tipos de turno y sucursales.
 - Vacaciones: puede crear solicitudes, ver las suyas propias, cancelar las suyas propias (solo si están en estado `pending`).
+- Resumen semanal: solo el suyo propio.
 
 ### `admin`
 - Control total sobre todos los recursos.

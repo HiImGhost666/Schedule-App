@@ -96,7 +96,7 @@ export function DashboardPage() {
       {/* Header */}
       <div className="min-h-14">
         <h1 className="text-2xl font-bold text-theme-primary">
-          Bienvenido, {user?.name?.split(' ')[0]} 👋
+          Bienvenido, {user?.name?.split(' ')[0]}
         </h1>
         <p className="text-theme-muted text-sm mt-1.5 capitalize">
           {format(now, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })}

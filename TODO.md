@@ -1,7 +1,7 @@
 # TODO - Issues Pendientes por Resolver
 
 > Organizado por dominio/módulo. Cada tarea especifica archivo, problema y solución propuesta.
-> **Actualizado tras revisión de código fuente (7 mayo 2026).**
+> **Actualizado tras revisión de código fuente (8 mayo 2026).**
 
 ---
 

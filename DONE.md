@@ -1,7 +1,7 @@
 # DONE - Cambios Realizados
 
 > Registro de cambios aplicados durante la revisión del código.
-> **Última actualización:** 7 mayo 2026
+> **Última actualización:** 8 mayo 2026
 
 ---
 
@@ -180,3 +180,68 @@
 
 **Archivo**: `backend/src/modules/roles/API.md`
 **Estado**: ✅ Corregido — permisos antiguos `vacations:request`/`vacations:approve` reemplazados por los 6 nuevos permisos CRUD.
+
+---
+
+## [DB] Migraciones unificadas en un solo init.sql
+
+**Archivos**: `backend/prisma/migrations/`
+**Estado**: ✅ Completado — las 5 migraciones posteriores se fusionaron en el `migration.sql` inicial. Se eliminaron las carpetas redundantes:
+- `20260507085700_add_vacation_requests`
+- `20260507093500_add_colindante_status`
+- `20260507101414_webhook_categories`
+- `20260507105111_remove_webhook_scope`
+- `20260507120000_add_weekly_work_summary`
+
+**Modelos añadidos al init.sql**:
+- `VacationRequest` con enum `VacationStatus` (pending, colindante, approved, rejected, cancelled)
+- `WeeklyWorkSummary` con desglose diario y horas extra
+- `DepartmentManager` (relación many-to-many departamento-usuario)
+- `WebhookConfig` con relaciones a `Department` y `Branch`
+- `HolidayType` enum con valores: nacional, autonomica, local, mejora, regional, company
+
+---
+
+## [Webhooks] Scope por departamento y sede
+
+**Archivos**: `backend/src/modules/webhooks/`, `backend/src/modules/notifications/`, `frontend/src/pages/admin/WebhooksPage.tsx`
+**Estado**: ✅ Completado — los webhooks ahora pueden filtrar por departamento y/o sucursal. Las notificaciones respetan el scope configurado.
+
+---
+
+## [WeeklyWorkSummary] Resumen semanal de horas
+
+**Archivos**: `backend/src/modules/schedules/weekly-summary.service.ts`, `backend/src/modules/schedules/schedules.service.ts`
+**Estado**: ✅ Completado — nuevo servicio que calcula horas totales, base y extra por semana. Se actualiza automáticamente al crear/modificar turnos.
+
+---
+
+## [Dashboard] Rediseño con widgets
+
+**Archivos**: `frontend/src/pages/DashboardPage.tsx`, `frontend/src/components/schedule/`, `frontend/src/components/audit/`
+**Estado**: ✅ Completado — nuevo Dashboard con:
+- `WeekSchedulesWidget`: vista semanal de turnos con navegación
+- `MyWeeklySummaryCard`: resumen personal de horas semanales
+- `TeamWeeklySummaryCard`: resumen del equipo para managers
+- `RecentActivityWidget`: actividad reciente del sistema
+- `shiftScheduling.ts`: lógica de turnos multi-día
+
+---
+
+## [Vacaciones] Página completa
+
+**Archivos**: `frontend/src/pages/VacationsPage.tsx`, `frontend/src/components/vacations/`, `frontend/src/hooks/useVacations.ts`
+**Estado**: ✅ Completado — nueva página de vacaciones con:
+- `VacationCalendar`: calendario con eventos de vacaciones
+- `VacationRequestModal`: modal para solicitar vacaciones
+- `VacationCreateModal`: modal para admin/manager crear vacaciones
+- `VacationTable`: listado paginado de solicitudes
+- `VacationStatusBadge`: badge con color según estado
+- Hook `useVacations` con queries y mutaciones
+
+---
+
+## [Tests] Tests de Dashboard, Vacaciones y turnos
+
+**Archivos**: `frontend/test/DashboardPage.test.tsx`, `frontend/test/VacationsPage.test.tsx`, `frontend/test/shiftScheduling.test.ts`
+**Estado**: ✅ Completado — tests unitarios y de integración para los nuevos componentes.

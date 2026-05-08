@@ -12,7 +12,14 @@
 
 **`GET /api/webhooks`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:view`
+
+### Query Parameters
+
+| Parámetro      | Tipo   | Obligatorio | Descripción |
+|----------------|--------|-------------|-------------|
+| `departmentId` | string | No          | Filtrar por departamento |
+| `branchId`     | string | No          | Filtrar por sucursal |
 
 ### Response (200)
 
@@ -30,6 +37,10 @@
       "fridayReminderEnabled": true,
       "mondayVacationReminderEnabled": true,
       "fridayReminderTime": "12:00",
+      "departmentId": null,
+      "branchId": "branch_xyz",
+      "department": null,
+      "branch": { "id": "branch_xyz", "name": "Sucursal Centro" },
       "createdAt": "2026-01-01T00:00:00.000Z"
     }
   ]
@@ -42,7 +53,7 @@
 
 **`POST /api/webhooks`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:create`
 
 ### Request Body
 
@@ -55,16 +66,37 @@
   "notifyLastMinute": true,
   "fridayReminderEnabled": true,
   "mondayVacationReminderEnabled": true,
-  "fridayReminderTime": "12:00"
+  "fridayReminderTime": "12:00",
+  "departmentId": null,
+  "branchId": "branch_xyz"
 }
 ```
+
+- `departmentId` (opcional): Si se especifica, el webhook solo notificará eventos de ese departamento.
+- `branchId` (opcional): Si se especifica, el webhook solo notificará eventos de esa sucursal.
+- Si ambos son `null`, el webhook es global (notifica todos los eventos).
 
 ### Response (201)
 
 ```json
 {
   "success": true,
-  "data": { ... },
+  "data": {
+    "id": "wh_123",
+    "name": "Teams RRHH",
+    "webhookUrl": "https://outlook.office.com/webhook/...",
+    "enabled": true,
+    "notifyModifications": true,
+    "notifyLastMinute": true,
+    "fridayReminderEnabled": true,
+    "mondayVacationReminderEnabled": true,
+    "fridayReminderTime": "12:00",
+    "departmentId": null,
+    "branchId": "branch_xyz",
+    "department": null,
+    "branch": { "id": "branch_xyz", "name": "Sucursal Centro" },
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
   "message": "Webhook creado"
 }
 ```
