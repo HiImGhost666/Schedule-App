@@ -245,3 +245,57 @@
 
 **Archivos**: `frontend/test/DashboardPage.test.tsx`, `frontend/test/VacationsPage.test.tsx`, `frontend/test/shiftScheduling.test.ts`
 **Estado**: ✅ Completado — tests unitarios y de integración para los nuevos componentes.
+
+---
+
+## [ST-1] Schedule-types service usa prisma singleton
+
+**Archivo**: `backend/src/modules/schedule-types/schedule-types.service.ts`
+**Estado**: ✅ Corregido — se reemplazó `import { PrismaClient } from '@prisma/client'` + `const prisma = new PrismaClient()` por `import { prisma } from '../../config/database'`.
+
+---
+
+## [US-1] / [RP-2] GM branch scope validation en users.service.ts
+
+**Archivo**: `backend/src/modules/users/users.service.ts`
+**Estado**: ✅ Corregido — se añadió función `assertGmBranchScope(actorId, targetBranchId)` que:
+- Obtiene el usuario actor de la BD
+- Si su rol es `general_manager`, verifica que `targetBranchId === actor.branchId`
+- Si no coincide, lanza `createAppError('FORBIDDEN', ...)`
+- Si el rol no es GM, pasa libre
+
+Se aplica en:
+- `createUser()` — valida contra `parsed.data.branchId`
+- `updateUser()` — valida contra `user.branchId` del usuario existente
+- `changeUserStatus()` — valida contra `user.branchId`
+- `changeUserRole()` — valida contra `user.branchId`
+- `deleteUser()` — valida contra `user.branchId`
+- `getUsersList()` — si actor es GM, fuerza `params.branchId = actor.branchId`
+
+**Archivo**: `backend/src/modules/users/users.controller.ts`
+**Estado**: ✅ Corregido — `listUsersController` ahora pasa `req.user` como actor a `getUsersList()`.
+
+---
+
+## [Departments] Manager relation fix (managerId → DepartmentManager join table)
+
+**Archivos**: `backend/src/modules/departments/departments.repository.ts`, `backend/src/modules/departments/departments.service.ts`
+**Estado**: ✅ Corregido — el modelo Prisma usa una tabla intermedia `DepartmentManager` (relación `managers`), no un campo `managerId` directo. Se corrigió:
+- `findDepartmentById` incluye `managers` (plural) en vez de `manager` (singular)
+- `assignDepartmentManager` usa `upsertDepartmentManager()` en la tabla `department_managers`
+- `removeDepartmentManager` usa `deleteDepartmentManager()` en la tabla `department_managers`
+- `countDepartmentsForManager` cuenta en `departmentManager` en vez de `department`
+
+---
+
+## [Webhooks] PATCH validation fix (superRefine con .partial())
+
+**Archivo**: `backend/src/modules/webhooks/webhooks.router.ts`
+**Estado**: ✅ Corregido — `webhookSchema.partial().safeParse()` fallaba porque `.partial()` en un schema con `superRefine` causa errores cuando `scope` es undefined. Se creó `webhookUpdateSchema` separado sin `superRefine` para las actualizaciones PATCH.
+
+---
+
+## [Tests] Tests actualizados para cambios en departments y webhooks
+
+**Archivos**: `backend/test/departments.manager.test.ts`, `backend/test/departments.router.test.ts`
+**Estado**: ✅ Corregido — se actualizaron mocks y assertions para usar `upsertDepartmentManager`/`deleteDepartmentManager` en vez del antiguo `updateDepartmentManager`. Se corrigió expectativa de status code para `department_manager` en GET /api/departments.

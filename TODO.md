@@ -12,12 +12,6 @@
 
 ## 📦 Módulo: Schedule Types (Tipos de Turno)
 
-### [ST-1] 🔴 BACKEND: Schedule-types service crea su propio PrismaClient
-- **Archivo**: `backend/src/modules/schedule-types/schedule-types.service.ts` (línea 5)
-- **Problema**: Crea `const prisma = new PrismaClient()` en vez de importar la instancia compartida.
-- **Severidad**: 🔴 Alta — puede causar agotamiento del pool de conexiones.
-- **Solución**: Importar `prisma` desde `../../config/database`.
-
 ### [ST-2] 🟡 BACKEND: Schedule-types router no delega en un controller
 - **Archivo**: `backend/src/modules/schedule-types/schedule-types.router.ts`
 - **Problema**: La lógica de los handlers está inline en el router, no hay un archivo `schedule-types.controller.ts`.
@@ -37,12 +31,6 @@
 ---
 
 ## 📦 Módulo: Users (Usuarios)
-
-### [US-1] 🔴 BACKEND: `general_manager` tiene `users:manage` — falta validación de sucursal
-- **Archivo**: `backend/src/modules/users/users.service.ts`
-- **Problema**: `general_manager` tiene `users:manage`, lo que le permite crear/editar/borrar **cualquier** usuario. La nota en `roles.constants.ts` dice que "la lógica de negocio en el servicio restringe sus acciones CRUD a su propia sucursal", pero **esa validación no existe** en `users.service.ts`.
-- **Severidad**: 🔴 Alta — un GM podría gestionar usuarios de otras sucursales.
-- **Solución**: Añadir validación en `createUser()`, `updateUser()`, `deleteUser()`, `changeUserStatus()`, `changeUserRole()` que, si el actor es GM, solo permita operar sobre usuarios de su misma `branchId`. También en `getUsersList()` filtrar automáticamente por `actor.branchId` si el actor es GM.
 
 ### [US-2] 🟡 FRONTEND: UsersPage usa colores navy hardcodeados
 - **Archivo**: `frontend/src/pages/admin/UsersPage.tsx`
@@ -122,22 +110,6 @@
 
 ---
 
-## 📦 Módulo: Roles y Permisos
-
-### [RP-2] 🔴 BACKEND: Falta validación de sucursal en `users.service.ts` para `general_manager`
-- **Archivo**: `backend/src/modules/users/users.service.ts`
-- **Problema**: Aunque el permiso `users:manage` está asignado a `general_manager`, no hay lógica que restrinja sus operaciones a su propia sucursal. La nota en `roles.constants.ts` dice que "la lógica de negocio en el servicio restringe sus acciones", pero esa lógica **no existe** en `users.service.ts`.
-- **Severidad**: 🔴 Alta — breach de seguridad potencial.
-- **Solución**: Añadir validación en:
-  - `createUser()`: Si actor es GM, forzar `branchId` a la del actor.
-  - `updateUser()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `deleteUser()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `changeUserStatus()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `changeUserRole()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `getUsersList()`: Si actor es GM, filtrar automáticamente por su `branchId`.
-
----
-
 ## 📦 Módulo: Frontend Types / Data Model
 
 ### [TY-1] 🟡 FRONTEND: Tipo `User` no incluye campo `departments` array
@@ -156,9 +128,9 @@
 
 ## 📋 Resumen por Prioridad
 
-### 🔴 Alta (debe resolverse antes de producción)
-1. **[US-1] / [RP-2]** Restringir `users:manage` de GM a su sucursal — falta lógica en `users.service.ts`
-2. **[ST-1]** Schedule-types service crea su propio PrismaClient
+### 🔴 Alta (resuelto — ver DONE.md)
+1. ~~**[US-1] / [RP-2]** Restringir `users:manage` de GM a su sucursal~~ ✅ Resuelto
+2. ~~**[ST-1]** Schedule-types service crea su propio PrismaClient~~ ✅ Resuelto
 
 ### 🟡 Media
 3. **[ST-2]** Schedule-types router sin controller
