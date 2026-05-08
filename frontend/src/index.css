@@ -416,6 +416,43 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   white-space: nowrap;
 }
 
+.fc-google-like .fc .fc-vacation-event {
+  border-radius: 4px !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+.fc-google-like .fc .fc-vacation-event .fc-event-main {
+  padding: 0 2px;
+}
+
+.vacation-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.vacation-bar-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vacation-bar-dept {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 /* Time grid overlap behavior */
 .fc-google-like .fc .fc-timegrid-slot {
   height: 48px;
