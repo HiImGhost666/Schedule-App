@@ -40,11 +40,12 @@ model User {
   scheduleAssignments  ScheduleAssignment[]
   vacationRequests     VacationRequest[]    @relation("VacationEmployee")
   reviewedVacations    VacationRequest[]    @relation("VacationReviewer")
+  weeklyWorkSummaries  WeeklyWorkSummary[]
   auditLogs            AuditLog[]           @relation("AuditActor")
   rolledBackAuditLogs  AuditLog[]           @relation("AuditRollbackActor")
   notificationsSent    NotificationLog[]    @relation("NotificationSender")
   managedBranches      Branch[]             @relation("BranchManager")
-  managedDepartments   Department[]         @relation("DepartmentManager")
+  managedDepartments   DepartmentManager[]
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
@@ -110,6 +111,7 @@ model Branch {
   manager            User?     @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
   schedules          Schedule[]
   holidays           BranchHoliday[]
+  webhooks           WebhookConfig[]
   departmentBranches  DepartmentBranch[]
   vacationRequests   VacationRequest[] @relation("BranchVacationRequests")
 
@@ -127,18 +129,17 @@ model Department {
   code        String   @unique
   description String?
   isActive    Boolean  @default(true) @map("is_active")
-  managerId   String?  @map("manager_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  manager          User?             @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managers         DepartmentManager[]
+  webhooks         WebhookConfig[]
   branches         DepartmentBranch[]
   users            User[]
   vacationRequests VacationRequest[] @relation("DepartmentVacationRequests")
 
   @@index([isActive])
   @@index([code])
-  @@index([managerId])
 
   @@map("departments")
 }
@@ -153,6 +154,18 @@ model DepartmentBranch {
   @@id([departmentId, branchId])
   @@index([branchId])
   @@map("department_branches")
+}
+
+model DepartmentManager {
+  departmentId String     @map("department_id")
+  userId       String     @map("user_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime   @default(now()) @map("assigned_at")
+
+  @@id([departmentId, userId])
+  @@index([userId])
+  @@map("department_managers")
 }
 
 enum HolidayType {
@@ -265,6 +278,25 @@ model ScheduleAssignment {
   @@map("schedule_assignments")
 }
 
+model WeeklyWorkSummary {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year            Int
+  week            Int
+  totalHours      Float    @default(0) @map("total_hours")
+  baseHours       Float    @default(40) @map("base_hours")
+  overtimeHours   Float    @default(0) @map("overtime_hours")
+  dailyBreakdown  String?  @map("daily_breakdown") @db.Text
+  calculatedAt    DateTime @default(now()) @map("calculated_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, year, week])
+  @@index([userId, year, week])
+  @@index([year, week])
+  @@map("weekly_work_summaries")
+}
+
 model ScheduleType {
   id        String   @id @default(cuid())
   value     String   @unique
@@ -335,6 +367,10 @@ model WebhookConfig {
   fridayReminderEnabled         Boolean  @default(true) @map("friday_reminder_enabled")
   mondayVacationReminderEnabled Boolean  @default(true) @map("monday_vacation_reminder_enabled")
   fridayReminderTime            String   @default("12:00") @map("friday_reminder_time")
+  departmentId                  String?  @map("department_id")
+  department                    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  branchId                      String?  @map("branch_id")
+  branch                        Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt                     DateTime @default(now()) @map("created_at")
   updatedAt                     DateTime @updatedAt @map("updated_at")
 
@@ -351,6 +387,10 @@ model WebhookConfig {
   @@index([enabled, fridayReminderEnabled])
   // (enabled, mondayVacationReminderEnabled): scheduler del lunes
   @@index([enabled, mondayVacationReminderEnabled])
+  // Índices para las relaciones con departamento y sede
+  @@index([departmentId])
+  @@index([branchId])
+
   @@map("webhook_configs")
 }
 
