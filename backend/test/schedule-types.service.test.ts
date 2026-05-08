@@ -4,40 +4,31 @@
  */
 
 // Mock PrismaClient antes de cualquier import
-const mockScheduleType = {
-  findMany: jest.fn(),
-  findUnique: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-};
-
-const mockSchedule = {
-  count: jest.fn(),
-};
-
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
-    $connect: jest.fn(),
-    $disconnect: jest.fn(),
-    $on: jest.fn(),
-    $use: jest.fn(),
-    $transaction: jest.fn(),
-    $extends: jest.fn(),
-    scheduleType: mockScheduleType,
-    schedule: mockSchedule,
-  })),
-  Prisma: {
-    PrismaClientKnownRequestError: class extends Error {
-      code: string;
-      constructor(message: string, { code }: { code: string }) {
-        super(message);
-        this.code = code;
-        this.name = 'PrismaClientKnownRequestError';
-      }
+jest.mock('../src/config/database', () => {
+  const scheduleType = {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  };
+  const schedule = {
+    count: jest.fn(),
+  };
+  return {
+    prisma: {
+      $connect: jest.fn(),
+      $disconnect: jest.fn(),
+      $on: jest.fn(),
+      $use: jest.fn(),
+      $transaction: jest.fn(),
+      $extends: jest.fn(),
+      scheduleType,
+      schedule,
     },
-  },
-}));
+  };
+});
 
+import { prisma } from '../src/config/database';
 import {
   getScheduleTypes,
   getScheduleTypeById,
@@ -46,6 +37,16 @@ import {
   updateScheduleType,
   deleteScheduleType,
 } from '../src/modules/schedule-types/schedule-types.service';
+
+const mockScheduleType = prisma.scheduleType as unknown as {
+  findMany: jest.Mock;
+  findUnique: jest.Mock;
+  create: jest.Mock;
+  update: jest.Mock;
+};
+const mockSchedule = prisma.schedule as unknown as {
+  count: jest.Mock;
+};
 
 describe('schedule-types.service', () => {
   beforeEach(() => {
