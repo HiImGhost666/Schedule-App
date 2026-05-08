@@ -2,9 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { addDays, startOfWeek, setHours, setMinutes } from 'date-fns';
+import bcrypt from 'bcryptjs';
 import { DEPARTMENT_CATALOG } from '../src/config/constants';
 import { DEFAULT_THEME } from '../src/modules/settings/theme.presets';
-import { createUser } from '../src/modules/users/users.service';
+// Evitamos importar el servicio para reducir dependencias y efectos secundarios durante el seed
+// import { createUser } from '../src/modules/users/users.service';
 import { env } from '../src/config/env';
 import { DEFAULT_ROLE_PERMISSIONS, ROLE_NAMES } from '../src/modules/roles/roles.constants';
 
@@ -12,23 +14,34 @@ import { DEFAULT_ROLE_PERMISSIONS, ROLE_NAMES } from '../src/modules/roles/roles
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const prisma = new PrismaClient();
 
-async function databaseHasAnyData() {
-  const [userCount, roleCount, branchCount] = await Promise.all([
-    prisma.user.count(),
-    prisma.role.count(),
-    prisma.branch.count(),
-  ]);
-  return userCount > 0 || roleCount > 0 || branchCount > 0;
+// ============================================================================
+// BLOQUE 0: FUNCIÓN DE DETECCIÓN DE DATOS EXISTENTES
+// ============================================================================
+
+async function databaseHasAnyData(): Promise<boolean> {
+  const userCount = await prisma.user.count();
+  return userCount > 0;
 }
 
 // ============================================================================
 // BLOQUE 1: FUNCIONES DE AYUDA (HELPERS)
 // ============================================================================
 
-async function ensureSeedUser(input: Parameters<typeof createUser>[0], label: string) {
+async function ensureSeedUser(input: any, label: string) {
   try {
-    const user = await createUser(input, undefined, { upsertExisting: true });
-    console.log(`[USER] ${label} synced: ${input.email}`);
+    const { password, ...userData } = input;
+    const passwordHash = await bcrypt.hash(password || 'User123!', 10);
+    
+    const user = await prisma.user.upsert({
+      where: { email: userData.email },
+      update: userData,
+      create: {
+        ...userData,
+        passwordHash,
+        derivedUsername: userData.email.split('@')[0],
+      },
+    });
+    console.log(`[USER] ${label} synced: ${userData.email}`);
     return user;
   } catch (error) {
     console.error(`[ERROR] Failed to sync user ${label} (${input.email}):`, error);
@@ -311,11 +324,11 @@ async function main() {
 
   const rolesData = ROLE_NAMES.map(name => ({
     name,
-    permissions: DEFAULT_ROLE_PERMISSIONS[name]
+    permissions: DEFAULT_ROLE_PERMISSIONS[name] || []
   }));
 
   const dbRoles: Record<string, string> = {};
-  const allPermissions = new Set(rolesData.flatMap(r => r.permissions));
+  const allPermissions = new Set(rolesData.flatMap(r => r.permissions || []));
 
   for (const perm of allPermissions) {
     await prisma.permission.upsert({

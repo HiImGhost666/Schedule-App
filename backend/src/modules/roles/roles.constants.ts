@@ -100,6 +100,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'schedules:manage',
     'schedule_types:read',
     'branches:view',
+    'settings:view',
     'vacations:create',
     'vacations:read',
     'vacations:read-all',

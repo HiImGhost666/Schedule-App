@@ -1,5 +1,5 @@
 import { CalendarDays } from 'lucide-react';
-import type { Branch } from '@/types';
+import type { Branch, Department } from '@/types';
 
 interface BranchSelectorProps {
   branches: Branch[];
@@ -7,10 +7,29 @@ interface BranchSelectorProps {
   effectiveActiveBranchId: string;
   canViewAllBranches: boolean;
   onChange: (branchId: string) => void;
+  departments?: Department[];
+  selectedDeptId: string;
+  onDepartmentChange: (departmentId: string) => void;
 }
 
-export function BranchSelector({ branches, activeBranchId, effectiveActiveBranchId, canViewAllBranches, onChange }: BranchSelectorProps) {
+export function BranchSelector({
+  branches,
+  activeBranchId,
+  effectiveActiveBranchId,
+  canViewAllBranches,
+  onChange,
+  departments = [],
+  selectedDeptId,
+  onDepartmentChange,
+}: BranchSelectorProps) {
   const shouldUseBranchDropdown = canViewAllBranches && (branches.length + 1 > 3);
+  const departmentSelector = (
+    <DepartmentSelector
+      departments={departments}
+      selectedDeptId={selectedDeptId}
+      onChange={onDepartmentChange}
+    />
+  );
 
   return (
     <div className="px-5 py-4 border-b border-theme-color">
@@ -29,17 +48,22 @@ export function BranchSelector({ branches, activeBranchId, effectiveActiveBranch
                   <option key={branch.id} value={branch.id}>{`${branch.name} (${branch.code})${branch.isActive ? '' : ' - Inactiva'}`}</option>
                 ))}
               </select>
+              {departmentSelector}
             </div>
           ) : (
             <>
               <BranchButton label="Todas las sucursales" isActive={!effectiveActiveBranchId} onClick={() => onChange('')} />
+              {!effectiveActiveBranchId && departmentSelector}
               {branches.map((branch) => (
-                <BranchButton key={branch.id}
-                  label={branch.name}
-                  isActive={effectiveActiveBranchId === branch.id}
-                  onClick={() => onChange(branch.id)}
-                  badge={!branch.isActive ? 'Inactiva' : undefined}
-                />
+                <div key={branch.id} className="space-y-2">
+                  <BranchButton
+                    label={branch.name}
+                    isActive={effectiveActiveBranchId === branch.id}
+                    onClick={() => onChange(branch.id)}
+                    badge={!branch.isActive ? 'Inactiva' : undefined}
+                  />
+                  {effectiveActiveBranchId === branch.id && departmentSelector}
+                </div>
               ))}
             </>
           )
@@ -49,6 +73,42 @@ export function BranchSelector({ branches, activeBranchId, effectiveActiveBranch
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function DepartmentSelector({
+  departments,
+  selectedDeptId,
+  onChange,
+}: {
+  departments: Department[];
+  selectedDeptId: string;
+  onChange: (departmentId: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border px-3 py-2 transition-colors"
+      style={{
+        backgroundColor: 'var(--theme-surface)',
+        color: 'var(--theme-text-muted)',
+        borderColor: 'var(--theme-border-color)',
+      }}
+    >
+      <label className="block text-[10px] font-semibold uppercase tracking-wider text-theme-muted mb-1.5">
+        Filtrar por departamento
+      </label>
+      <select
+        value={selectedDeptId}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full text-xs font-medium border-0 rounded-md px-0 h-6 bg-transparent text-theme-primary focus:outline-none focus:ring-0"
+      >
+        <option value="">Todos los departamentos</option>
+        {departments.map((dept) => (
+          <option key={dept.id} value={dept.id}>
+            {dept.name}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
