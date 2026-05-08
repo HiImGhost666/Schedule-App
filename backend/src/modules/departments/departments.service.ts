@@ -6,6 +6,7 @@ import { findRoleByName } from '../roles/roles.repository';
 import {
   countDepartmentsForManager,
   createDepartmentRecord,
+  deleteDepartmentManager,
   findDepartmentByCode,
   findDepartmentByName,
   findDepartmentById,
@@ -19,7 +20,7 @@ import {
   removeDepartmentBranches,
   softDeleteDepartmentRecord,
   setDepartmentBranches,
-  updateDepartmentManager,
+  upsertDepartmentManager,
   updateDepartmentRecord,
 } from './departments.repository';
 import {
@@ -265,13 +266,14 @@ export async function assignDepartmentManager(
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
 
-  if (department.managerId === userId) {
+  const isAlreadyManager = department.managers?.some((m) => m.userId === userId);
+  if (isAlreadyManager) {
     throw createAppError('BAD_REQUEST', 'Este usuario ya es manager de este departamento');
   }
 
   return executeInTransaction(async (tx) => {
-    // 1. Actualizar departamento
-    const updatedDepartment = await updateDepartmentManager(departmentId, userId, tx);
+    // 1. Asignar manager mediante la tabla intermedia
+    await upsertDepartmentManager(departmentId, userId, tx);
 
     // 2. Otorgar rol si no lo tiene
     if (getRoleName((user as any).role) !== 'department_manager') {
@@ -286,14 +288,14 @@ export async function assignDepartmentManager(
       entityType: 'Department',
       entityId: departmentId,
       detailsJson: {
-        departmentName: updatedDepartment.name,
+        departmentName: department.name,
         managerName: user.name,
         managerId: userId,
       },
       ipAddress: actor.ipAddress,
     }, tx);
 
-    return updatedDepartment;
+    return department;
   });
 }
 
@@ -307,17 +309,18 @@ export async function removeDepartmentManager(
   actor: DepartmentActor,
 ) {
   const department = await ensureDepartment(departmentId);
-  if (!department.managerId) {
+  const firstManager = department.managers?.[0];
+  if (!firstManager) {
     throw createAppError('BAD_REQUEST', 'Este departamento no tiene un manager asignado');
   }
 
-  const managerId = department.managerId;
+  const managerId = firstManager.userId;
   const manager = await findUserById(managerId);
   if (!manager) throw createAppError('NOT_FOUND', 'Manager no encontrado');
 
   return executeInTransaction(async (tx) => {
     // 1. Remover manager del departamento
-    const updatedDepartment = await updateDepartmentManager(departmentId, null, tx);
+    await deleteDepartmentManager(departmentId, managerId, tx);
 
     // 2. Verificar si sigue siendo manager de otros departamentos
     const remainingDepartments = await countDepartmentsForManager(managerId, tx);
@@ -335,14 +338,12 @@ export async function removeDepartmentManager(
       entityType: 'Department',
       entityId: departmentId,
       detailsJson: {
-        departmentName: updatedDepartment.name,
+        departmentName: department.name,
         formerManagerName: manager.name,
         formerManagerId: managerId,
         stillManagerOfOtherDepartments: remainingDepartments > 0,
       },
       ipAddress: actor.ipAddress,
     }, tx);
-
-    return updatedDepartment;
   });
 }

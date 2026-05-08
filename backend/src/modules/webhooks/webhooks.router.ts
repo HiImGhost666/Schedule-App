@@ -105,6 +105,22 @@ const webhookSchema = z.object({
   }
 });
 
+// Schema separado para actualizaciones (PATCH) — sin superRefine para evitar
+// errores cuando scope no está presente en la actualización parcial
+const webhookUpdateSchema = z.object({
+  name: z.string().min(2).optional(),
+  webhookUrl: z.string().url('URL inválida').optional(),
+  enabled: z.boolean().optional(),
+  notifyModifications: z.boolean().optional(),
+  notifyLastMinute: z.boolean().optional(),
+  fridayReminderEnabled: z.boolean().optional(),
+  mondayVacationReminderEnabled: z.boolean().optional(),
+  fridayReminderTime: z.string().optional(),
+  scope: z.enum(['general', 'department', 'branch']).optional(),
+  departmentId: z.string().optional(),
+  branchId: z.string().optional(),
+});
+
 router.get('/', authMiddleware, requirePermission('settings:view'), asyncRoute(async (_req: AuthRequest, res: Response) => {
   const webhooks = await prisma.webhookConfig.findMany({
     orderBy: { createdAt: 'desc' },
@@ -135,7 +151,7 @@ router.patch('/:id', authMiddleware, requirePermission('settings:update'), async
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 
-  const parsed = webhookSchema.partial().safeParse(req.body);
+  const parsed = webhookUpdateSchema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {

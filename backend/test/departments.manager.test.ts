@@ -35,7 +35,8 @@ jest.mock('../src/modules/users/users.repository', () => ({
 jest.mock('../src/modules/departments/departments.repository', () => ({
   findDepartmentById: jest.fn(),
   countDepartmentsForManager: jest.fn(),
-  updateDepartmentManager: jest.fn(),
+  upsertDepartmentManager: jest.fn(),
+  deleteDepartmentManager: jest.fn(),
 }));
 
 import { logAuditOrThrow } from '../src/modules/audit/audit.service';
@@ -86,19 +87,16 @@ describe('departments.manager', () => {
         name: 'department_manager',
       } as any);
 
-      mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
-        id: 'dept-1',
-        name: 'RH',
-        managers: [{ 
-          userId: 'user-1', 
-          user: { name: 'Juan Pérez' } 
-        }],
+      mockDepartmentsRepo.upsertDepartmentManager.mockResolvedValue({
+        departmentId: 'dept-1',
+        userId: 'user-1',
+        assignedAt: new Date(),
       } as any);
 
       await assignDepartmentManager('dept-1', 'user-1', actor);
 
-      // Verificar que se actualizó el manager en el departamento
-      // Ahora la lógica interna debería llamar a un "upsert" o "create" en department_managers
+      // Verificar que se asignó el manager mediante la tabla intermedia
+      expect(mockDepartmentsRepo.upsertDepartmentManager).toHaveBeenCalledWith('dept-1', 'user-1', mockTx);
 
       // Verificar que se otorgó el rol department_manager
       expect(mockUsersRepo.updateUserRecord).toHaveBeenCalledWith(
@@ -139,9 +137,10 @@ describe('departments.manager', () => {
         role: { name: 'department_manager' },
       } as any);
 
-      mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
-        id: 'dept-1',
-        managerId: 'user-1',
+      mockDepartmentsRepo.upsertDepartmentManager.mockResolvedValue({
+        departmentId: 'dept-1',
+        userId: 'user-1',
+        assignedAt: new Date(),
       } as any);
 
       await assignDepartmentManager('dept-1', 'user-1', actor);
@@ -157,7 +156,7 @@ describe('departments.manager', () => {
         assignDepartmentManager('dept-invalid', 'user-1', actor),
       ).rejects.toThrow('Departamento no encontrado');
 
-      expect(mockDepartmentsRepo.updateDepartmentManager).not.toHaveBeenCalled();
+      expect(mockDepartmentsRepo.upsertDepartmentManager).not.toHaveBeenCalled();
     });
 
     it('lanza error si el usuario no existe', async () => {
@@ -236,16 +235,16 @@ describe('departments.manager', () => {
         name: 'employee',
       } as any);
 
-      mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
-        id: 'dept-1',
-        name: 'RH',
-        managerId: null,
+      mockDepartmentsRepo.deleteDepartmentManager.mockResolvedValue({
+        departmentId: 'dept-1',
+        userId: 'user-1',
+        assignedAt: new Date(),
       } as any);
 
       await removeDepartmentManager('dept-1', actor);
 
       // Verificar que se removió el manager
-      expect(mockDepartmentsRepo.updateDepartmentManager).toHaveBeenCalledWith('dept-1', null, mockTx);
+      expect(mockDepartmentsRepo.deleteDepartmentManager).toHaveBeenCalledWith('dept-1', 'user-1', mockTx);
 
       // Verificar downgrade a employee
       expect(mockUsersRepo.updateUserRecord).toHaveBeenCalledWith(
@@ -288,9 +287,10 @@ describe('departments.manager', () => {
 
       mockDepartmentsRepo.countDepartmentsForManager.mockResolvedValue(2);
 
-      mockDepartmentsRepo.updateDepartmentManager.mockResolvedValue({
-        id: 'dept-1',
-        managerId: null,
+      mockDepartmentsRepo.deleteDepartmentManager.mockResolvedValue({
+        departmentId: 'dept-1',
+        userId: 'user-1',
+        assignedAt: new Date(),
       } as any);
 
       await removeDepartmentManager('dept-1', actor);

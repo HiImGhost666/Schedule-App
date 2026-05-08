@@ -21,8 +21,12 @@ export function findDepartmentById(id: string, tx?: TransactionClient) {
           },
         },
       },
-      manager: {
-        select: { id: true, name: true, email: true },
+      managers: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
       },
       _count: { select: { users: true } },
     },
@@ -144,14 +148,21 @@ export function findDepartmentBranches(departmentId: string, tx?: TransactionCli
 }
 
 export function countDepartmentsForManager(managerId: string, tx?: TransactionClient) {
-  return getDb(tx).department.count({
-    where: { managerId },
+  return getDb(tx).departmentManager.count({
+    where: { userId: managerId },
   });
 }
 
-export function updateDepartmentManager(departmentId: string, managerId: string | null, tx?: TransactionClient) {
-  return getDb(tx).department.update({
-    where: { id: departmentId },
-    data: { managerId },
+export function upsertDepartmentManager(departmentId: string, userId: string, tx: TransactionClient) {
+  return tx.departmentManager.upsert({
+    where: { departmentId_userId: { departmentId, userId } },
+    create: { departmentId, userId },
+    update: { assignedAt: new Date() },
+  });
+}
+
+export function deleteDepartmentManager(departmentId: string, userId: string, tx: TransactionClient) {
+  return tx.departmentManager.delete({
+    where: { departmentId_userId: { departmentId, userId } },
   });
 }
