@@ -151,8 +151,13 @@ export function SchedulePage() {
   );
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isAdmin = user?.role?.name === 'admin';
-  const canViewAllBranches = Boolean(user);
-  const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
+  const isGeneralManager = user?.role?.name === 'general_manager';
+  const isDepartmentManager = user?.role?.name === 'department_manager';
+  const isEmployee = user?.role?.name === 'employee';
+  // Solo admin puede ver y seleccionar todas las sucursales.
+  // Los demás roles están restringidos a su sucursal asignada.
+  const canViewAllBranches = isAdmin;
+  const canEdit = isAdmin || isGeneralManager || isDepartmentManager;
 
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
@@ -197,7 +202,7 @@ export function SchedulePage() {
   const effectiveActiveBranchId = getEffectiveBranchId({
     branches: branches?.data,
     selectedBranchId: canViewAllBranches ? activeBranchId : undefined,
-    assignedBranchId: undefined,
+    assignedBranchId: canViewAllBranches ? undefined : (user?.branchId ?? undefined),
     fallbackStrategy: 'none',
   });
 
