@@ -162,7 +162,7 @@ async function createScheduleEntryInternal(
     }
   }
 
-  await ensureNoOverlaps(assigneeIds, startDt, endDt);
+  await ensureNoOverlaps(assigneeIds, startDt, endDt, undefined, tx);
 
   const isLastMinute = isLastMinuteSchedule(startDt);
 
@@ -218,13 +218,41 @@ export function listSchedulesForActor(
   if (params.type) where.scheduleType = { value: params.type };
   if (params.userId) where.assignments = { some: { userId: params.userId } };
 
-  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
-  if (!canViewAllBranches) {
-    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
+  // Admin: puede ver todas las sucursales, o filtrar por branchId explícito
+  if (actor.roleName === 'admin') {
+    if (params.branchId) where.branchId = params.branchId;
+    return findSchedules(where);
   }
-  if (params.branchId) where.branchId = params.branchId;
 
-  return findSchedules(where);
+  // General manager: solo ve su sucursal
+  if (actor.roleName === 'general_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    where.branchId = actor.branchId;
+    return findSchedules(where);
+  }
+
+  // Department manager: solo ve su sucursal (puede filtrar por departamento vía query params)
+  if (actor.roleName === 'department_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    where.branchId = actor.branchId;
+    return findSchedules(where);
+  }
+
+  // Employee: solo ve schedules de su sucursal donde está asignado
+  if (actor.roleName === 'employee') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    where.branchId = actor.branchId;
+    where.assignments = { some: { userId: params.userId || '__self__' } };
+    return findSchedules(where);
+  }
+
+  throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
 }
 
 /**
@@ -293,15 +321,40 @@ export async function listWeekSchedulesForActor(
   userId: string | undefined,
   actor: Pick<Actor, 'roleName' | 'branchId'>,
 ) {
-  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
-  if (!canViewAllBranches) {
-    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
+  // Admin: puede ver cualquier sucursal, o filtrar por branchId explícito
+  if (actor.roleName === 'admin') {
+    return listWeekSchedules(year, week, branchId, departmentId, userId);
   }
-  return listWeekSchedules(year, week, branchId, departmentId, userId);
+
+  // General manager: solo ve su sucursal
+  if (actor.roleName === 'general_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
+  }
+
+  // Department manager: solo ve su sucursal
+  if (actor.roleName === 'department_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
+  }
+
+  // Employee: solo ve su sucursal y sus propios turnos
+  if (actor.roleName === 'employee') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    return listWeekSchedules(year, week, actor.branchId, departmentId, userId || actor.branchId);
+  }
+
+  throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
 }
 
 /** Evita empalmes validando que la constelación de asignados esté libre en la brecha dt_ini a dt_fin. */
-async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Date, excludeScheduleId?: string) {
+async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Date, excludeScheduleId?: string, tx?: TransactionClient) {
   const overlapping = await findSchedules({
     ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
     assignments: {
@@ -313,7 +366,7 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
       { startDatetime: { lt: endDt } },
       { endDatetime: { gt: startDt } },
     ],
-  });
+  }, tx);
 
   if (overlapping.length > 0) {
     const conflicts = overlapping.flatMap((s) => {
@@ -375,12 +428,45 @@ export async function getScheduleById(scheduleId: string) {
 export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'roleName' | 'branchId'>) {
   const schedule = await getScheduleById(scheduleId);
 
-  const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
-  if (!canViewAllBranches) {
-    throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar guardias');
+  // Admin: puede ver cualquier schedule
+  if (actor.roleName === 'admin') {
+    return schedule;
   }
 
-  return schedule;
+  // General manager: solo puede ver schedules de su sucursal
+  if (actor.roleName === 'general_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (schedule.branchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No puedes ver guardias de otras sucursales');
+    }
+    return schedule;
+  }
+
+  // Department manager: solo puede ver schedules de su sucursal
+  if (actor.roleName === 'department_manager') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (schedule.branchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No puedes ver guardias de otras sucursales');
+    }
+    return schedule;
+  }
+
+  // Employee: solo puede ver schedules de su sucursal
+  if (actor.roleName === 'employee') {
+    if (!actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (schedule.branchId !== actor.branchId) {
+      throw createAppError('FORBIDDEN', 'No puedes ver guardias de otras sucursales');
+    }
+    return schedule;
+  }
+
+  throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar guardias');
 }
 
 /**

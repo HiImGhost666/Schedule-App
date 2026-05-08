@@ -45,10 +45,10 @@ export async function updateWebhook(id: string, data: Partial<{
   departmentId?: string | null;
   branchId?: string | null;
 }>, actorId: string, ipAddress?: string) {
-  const existing = await prisma.webhookConfig.findUnique({ where: { id } });
-  if (!existing) throw createAppError('NOT_FOUND', 'Webhook no encontrado');
-
   return executeInTransaction(async (tx) => {
+    const existing = await tx.webhookConfig.findUnique({ where: { id } });
+    if (!existing) throw createAppError('NOT_FOUND', 'Webhook no encontrado');
+
     const webhook = await tx.webhookConfig.update({ where: { id }, data });
 
     await logAuditOrThrow({
@@ -65,10 +65,10 @@ export async function updateWebhook(id: string, data: Partial<{
 }
 
 export async function deleteWebhook(id: string, actorId: string, ipAddress?: string) {
-  const existing = await prisma.webhookConfig.findUnique({ where: { id } });
-  if (!existing) throw createAppError('NOT_FOUND', 'Webhook no encontrado');
-
   return executeInTransaction(async (tx) => {
+    const existing = await tx.webhookConfig.findUnique({ where: { id } });
+    if (!existing) throw createAppError('NOT_FOUND', 'Webhook no encontrado');
+
     await tx.webhookConfig.delete({ where: { id } });
 
     await logAuditOrThrow({
