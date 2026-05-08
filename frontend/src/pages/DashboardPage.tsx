@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Users, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
@@ -28,12 +28,30 @@ export function DashboardPage() {
   const isoWeek = getISOWeek(now);
   const isoWeekYear = getISOWeekYear(now);
 
+  // department_manager: filtrar por su departamento
+  // general_manager: filtrar por su sucursal
+  // admin: sin filtro (ve todo)
+  const weekQueryParams = useMemo(() => {
+    const params: Record<string, string> = {};
+    const roleName = user?.role?.name;
+    if (roleName === 'department_manager' && user?.department?.id) {
+      params.departmentId = user.department.id;
+    } else if (roleName === 'general_manager' && user?.branchId) {
+      params.branchId = user.branchId;
+    }
+    return params;
+  }, [user]);
+
   const { data: weekSchedules, isLoading: loadingSchedules } = useQuery({
-    queryKey: ['schedules', 'week', isoWeekYear, isoWeek],
-    queryFn: () =>
-      api
-        .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`)
-        .then((r) => r.data.data.items),
+    queryKey: ['schedules', 'week', isoWeekYear, isoWeek, weekQueryParams],
+    queryFn: () => {
+      const searchParams = new URLSearchParams(weekQueryParams);
+      const qs = searchParams.toString();
+      const url = `/schedules/week/${isoWeekYear}/${isoWeek}${qs ? `?${qs}` : ''}`;
+      return api
+        .get<{ data: { items: WeekScheduleItem[] } }>(url)
+        .then((r) => r.data.data.items);
+    },
   });
 
   const { data: usersData, isLoading: loadingUsers } = useQuery({
