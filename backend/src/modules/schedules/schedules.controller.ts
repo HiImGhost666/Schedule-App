@@ -66,11 +66,12 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
   }
 
   try {
-    const result = await listWeekSchedulesForActor(parsed.data.year, parsed.data.week, parsedQuery.data.branchId, {
+    const result = await listWeekSchedulesForActor(parsed.data.year, parsed.data.week, parsedQuery.data.branchId, parsedQuery.data.departmentId, parsedQuery.data.userId, {
       roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
     });
     return sendSuccess(res, result);
+
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;
