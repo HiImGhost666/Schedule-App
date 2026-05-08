@@ -7,6 +7,7 @@
 
 > **📋 Matriz de permisos completa en [`PERMISOS.md`](./PERMISOS.md)**
 > **✅ Cambios ya realizados en [`DONE.md`](./DONE.md)**
+> **🔐 `assertUserScope(actorId, targetScope)` — función genérica de validación por rol (admin, general_manager, department_manager, employee). Ver `DONE.md` para detalles.**
 
 ---
 

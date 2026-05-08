@@ -64,7 +64,7 @@ beforeEach(() => {
     if (args?.where?.name === 'department_manager') return { id: 'role-department-manager-id', name: 'department_manager' } as any;
     return null;
   }) as any);
-  // Mock para assertGmBranchScope: el actor por defecto (admin) existe y no es GM
+  // Mock para assertUserScope: el actor por defecto (admin) existe y no es GM
   (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
     if (args?.where?.id === 'admin-id-1') return { id: 'admin-id-1', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
     return buildUser() as any;
@@ -549,5 +549,98 @@ describe('GM branch scope validation', () => {
     await expect(
       updateUser('user-id-1', { name: 'Updated' }, adminActor)
     ).resolves.toBeDefined();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+describe('DM department scope validation', () => {
+  const dmActor = { id: 'dm-id', ipAddress: '127.0.0.1' };
+  const dmUser = { id: 'dm-id', roleId: 'role-department-manager-id', branchId: 'branch-1' };
+  const dmRole = { id: 'role-department-manager-id', name: 'department_manager' };
+
+  beforeEach(() => {
+    // Default: actor is DM
+    (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'dm-id') return dmUser as any;
+      if (args?.where?.id === 'admin-id-1') return { id: 'admin-id-1', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+      return buildUser() as any;
+    });
+    (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'role-department-manager-id') return dmRole as any;
+      if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+      return null;
+    });
+    // DM is manager of 'dept-1'
+    (prismaMock.departmentManager.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.departmentId_userId?.departmentId === 'dept-1' && args?.where?.departmentId_userId?.userId === 'dm-id') {
+        return { departmentId: 'dept-1', userId: 'dm-id' } as any;
+      }
+      return null;
+    });
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+    mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
+    mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-9999');
+    mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id' }) as any);
+    mockRepo.updateUserRecord.mockResolvedValue(buildUser() as any);
+    mockRepo.findUserIdentityConflict.mockResolvedValue(null as any);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // ── updateUser: DM actualizando usuario de su departamento → OK ─────────────
+  it('updateUser: DM puede actualizar usuario de su departamento', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+
+    await expect(
+      updateUser('user-id-1', { name: 'Updated Name' }, dmActor)
+    ).resolves.toBeDefined();
+  });
+
+  // ── updateUser: DM no puede cambiar branchId → FORBIDDEN ────────────────────
+  it('updateUser: DM no puede cambiar la sucursal de un usuario', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+
+    await expect(
+      updateUser('user-id-1', { branchId: 'branch-2' }, dmActor)
+    ).rejects.toThrow('No tienes permiso para cambiar la sucursal de un usuario');
+  });
+
+  // ── updateUser: DM no puede cambiar roleId → FORBIDDEN ──────────────────────
+  it('updateUser: DM no puede cambiar el rol de un usuario', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+
+    await expect(
+      updateUser('user-id-1', { roleId: 'role-admin-id' } as any, dmActor)
+    ).rejects.toThrow('No tienes permiso para cambiar el rol de un usuario');
+  });
+
+  // ── updateUser: DM no puede cambiar role (por nombre) → FORBIDDEN ───────────
+  it('updateUser: DM no puede cambiar el rol (por nombre) de un usuario', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+
+    await expect(
+      updateUser('user-id-1', { role: 'admin' } as any, dmActor)
+    ).rejects.toThrow('No tienes permiso para cambiar el rol de un usuario');
+  });
+
+  // ── changeUserStatus: DM puede cambiar estado de usuario de su departamento → OK ──
+  it('changeUserStatus: DM puede cambiar estado de usuario de su departamento', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+
+    await expect(
+      changeUserStatus('user-id-1', 'disabled', dmActor)
+    ).resolves.not.toThrow();
+  });
+
+  // ── changeUserRole: DM puede cambiar rol de usuario de su sucursal (el middleware de ruta bloquea a nivel router) ──
+  it('changeUserRole: DM puede cambiar rol de usuario de su sucursal', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'branch-1', departmentId: 'dept-1' }) as any);
+
+    await expect(
+      changeUserRole('user-id-1', { role: 'admin' }, dmActor)
+    ).resolves.not.toThrow();
   });
 });

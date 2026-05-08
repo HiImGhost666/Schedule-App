@@ -100,7 +100,7 @@ describe('importUsersCsv — validación de payload', () => {
       { id: 'role-admin-id', name: 'admin' } as any,
     ]);
     prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
-    // Mock para assertGmBranchScope: el actor admin existe y no es GM
+    // Mock para assertUserScope: el actor admin existe y no es GM
     (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
       if (args?.where?.id === 'admin-id') return { id: 'admin-id', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
       return null;

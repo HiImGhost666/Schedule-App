@@ -170,7 +170,6 @@ CREATE TABLE `schedules` (
     `description` TEXT NULL,
     `start_datetime` DATETIME(3) NOT NULL,
     `end_datetime` DATETIME(3) NOT NULL,
-    `type` VARCHAR(191) NOT NULL DEFAULT 'guardia',
     `schedule_type_id` VARCHAR(191) NULL,
     `color` VARCHAR(191) NOT NULL DEFAULT '#1e3a5f',
     `location` VARCHAR(191) NULL,
@@ -184,7 +183,6 @@ CREATE TABLE `schedules` (
 
     INDEX `schedules_start_datetime_end_datetime_idx`(`start_datetime`, `end_datetime`),
     INDEX `schedules_branch_id_start_datetime_end_datetime_idx`(`branch_id`, `start_datetime`, `end_datetime`),
-    INDEX `schedules_type_idx`(`type`),
     INDEX `schedules_schedule_type_id_idx`(`schedule_type_id`),
     INDEX `schedules_is_last_minute_idx`(`is_last_minute`),
     INDEX `schedules_created_by_idx`(`created_by`),

@@ -49,39 +49,25 @@ async function resolveRoleId(roleId?: string, roleName?: string): Promise<string
   return role?.id ?? null;
 }
 
+type UserScope = {
+  branchId?: string | null;
+  departmentId?: string | null;
+};
+
 /**
- * Verifica que si el actor es un general_manager, el targetBranchId coincida con su sucursal.
- * Si el actor no es GM, o targetBranchId es null/undefined, la validación pasa sin errores.
+ * Valida que el actor tenga permiso para operar sobre el scope (branchId / departmentId) indicado.
+ * - admin → siempre pasa
+ * - general_manager → debe coincidir branchId
+ * - department_manager → debe ser manager del departmentId indicado
+ * - employee → pasa (ya bloqueado por middleware de permisos)
+ * - roles desconocidos → pasan libre (extensible)
  */
-async function assertGmBranchScope(actorId: string, targetBranchId: string | null | undefined) {
-  if (!targetBranchId) return;
+async function assertUserScope(actorId: string, targetScope: UserScope): Promise<void> {
+  if (!targetScope.branchId && !targetScope.departmentId) return;
 
   const actor = await prisma.user.findUnique({
     where: { id: actorId },
     select: { roleId: true, branchId: true },
-  });
-  if (!actor) throw createAppError('NOT_FOUND', 'Usuario actor no encontrado');
-  if (!actor.roleId) return; // Sin rol asignado, no hay validación de GM
-
-  const role = await prisma.role.findUnique({
-    where: { id: actor.roleId },
-    select: { name: true },
-  });
-
-  if (role?.name === 'general_manager' && actor.branchId !== targetBranchId) {
-    throw createAppError('FORBIDDEN', 'No tienes permiso para gestionar usuarios de otra sucursal');
-  }
-}
-
-/**
- * Verifica que si el actor es un department_manager, el usuario objetivo pertenezca a su departamento.
- * El DM solo puede modificar usuarios de su propio departamento.
- * No puede cambiar branchId ni role del usuario.
- */
-async function assertDmUserScope(actorId: string, targetUserId: string, updateData: Record<string, unknown>) {
-  const actor = await prisma.user.findUnique({
-    where: { id: actorId },
-    select: { roleId: true, departmentId: true },
   });
   if (!actor) throw createAppError('NOT_FOUND', 'Usuario actor no encontrado');
   if (!actor.roleId) return;
@@ -91,25 +77,42 @@ async function assertDmUserScope(actorId: string, targetUserId: string, updateDa
     select: { name: true },
   });
 
-  if (role?.name !== 'department_manager') return;
+  switch (role?.name) {
+    case 'admin':
+      return; // admin siempre pasa
 
-  // DM no puede cambiar branchId ni role
+    case 'general_manager':
+      if (targetScope.branchId && actor.branchId !== targetScope.branchId) {
+        throw createAppError('FORBIDDEN', 'No tienes permiso para gestionar usuarios de otra sucursal');
+      }
+      return;
+
+    case 'department_manager':
+      if (targetScope.departmentId) {
+        const isManager = await prisma.departmentManager.findUnique({
+          where: { departmentId_userId: { departmentId: targetScope.departmentId, userId: actorId } },
+        });
+        if (!isManager) {
+          throw createAppError('FORBIDDEN', 'No tienes permiso para gestionar usuarios de otro departamento');
+        }
+      }
+      return;
+
+    default:
+      return; // roles desconocidos pasan libre (extensible)
+  }
+}
+
+/**
+ * Valida restricciones específicas de negocio para department_manager en operaciones de update.
+ * El DM no puede cambiar branchId ni role del usuario.
+ */
+function validateDmUpdateRestrictions(updateData: Record<string, unknown>): void {
   if (updateData.branchId !== undefined) {
     throw createAppError('FORBIDDEN', 'No tienes permiso para cambiar la sucursal de un usuario');
   }
   if (updateData.roleId !== undefined || updateData.role !== undefined) {
     throw createAppError('FORBIDDEN', 'No tienes permiso para cambiar el rol de un usuario');
-  }
-
-  // DM solo puede modificar usuarios de su departamento
-  const targetUser = await prisma.user.findUnique({
-    where: { id: targetUserId },
-    select: { departmentId: true },
-  });
-  if (!targetUser) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
-
-  if (targetUser.departmentId !== actor.departmentId) {
-    throw createAppError('FORBIDDEN', 'Solo puedes modificar usuarios de tu departamento');
   }
 }
 
@@ -332,7 +335,7 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
   const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds) ?? undefined;
   await ensureBranchExists(parsed.data.branchId);
   if (actor?.id) {
-    await assertGmBranchScope(actor.id, parsed.data.branchId);
+    await assertUserScope(actor.id, { branchId: parsed.data.branchId });
   }
   if (selectedDepartmentId) {
     await ensureDepartmentExists(selectedDepartmentId, parsed.data.branchId);
@@ -452,7 +455,7 @@ export async function getUsersList(params: {
   sortOrder?: SortOrder;
   role?: string;
 }, actor?: ActorContext) {
-  // Si el actor es GM, forzar filtro por su sucursal
+  // Forzar filtros según el rol del actor
   if (actor?.id) {
     const actorUser = await prisma.user.findUnique({
       where: { id: actor.id },
@@ -463,8 +466,14 @@ export async function getUsersList(params: {
         where: { id: actorUser.roleId },
         select: { name: true },
       });
-      if (role?.name === 'general_manager' && actorUser.branchId) {
-        params.branchId = actorUser.branchId;
+      switch (role?.name) {
+        case 'general_manager':
+          if (actorUser.branchId) {
+            params.branchId = actorUser.branchId;
+          }
+          break;
+        // department_manager: podría forzar departmentId en el futuro
+        // admin: sin restricciones
       }
     }
   }
@@ -551,9 +560,23 @@ export async function updateUser(userId: string, data: {
   }
 
   const targetBranchId = parsed.data.branchId ?? (user as { branchId?: string | null }).branchId ?? null;
-  await assertGmBranchScope(actor.id, targetBranchId);
-  await assertDmUserScope(actor.id, userId, parsed.data as Record<string, unknown>);
   const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds);
+  await assertUserScope(actor.id, { branchId: targetBranchId, departmentId: selectedDepartmentId ?? undefined });
+
+  // Solo aplicar restricciones de DM si el actor es department_manager
+  const actorUser = await prisma.user.findUnique({
+    where: { id: actor.id },
+    select: { roleId: true },
+  });
+  if (actorUser?.roleId) {
+    const actorRole = await prisma.role.findUnique({
+      where: { id: actorUser.roleId },
+      select: { name: true },
+    });
+    if (actorRole?.name === 'department_manager') {
+      validateDmUpdateRestrictions(parsed.data as Record<string, unknown>);
+    }
+  }
   if (selectedDepartmentId) {
     await ensureDepartmentExists(selectedDepartmentId, targetBranchId);
   }
@@ -642,7 +665,7 @@ export async function changeUserStatus(userId: string, status: 'active' | 'disab
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes cambiar tu propio estado');
-  await assertGmBranchScope(actor.id, user.branchId);
+  await assertUserScope(actor.id, { branchId: user.branchId });
 
   const updateData: Parameters<typeof updateUserRecord>[1] = { status };
   if (status === 'active') {
@@ -687,7 +710,7 @@ export async function changeUserRole(userId: string, roleInfo: { roleId?: string
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes cambiar tu propio rol');
-  await assertGmBranchScope(actor.id, user.branchId);
+  await assertUserScope(actor.id, { branchId: user.branchId });
 
   const roleId = await resolveRoleId(roleInfo.roleId, roleInfo.role);
   if (!roleId) throw createAppError('BAD_REQUEST', 'Rol inválido');
@@ -781,7 +804,7 @@ export async function deleteUser(userId: string, actor: ActorContext) {
   const user = await findUserById(userId);
   if (!user) throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   if (userId === actor.id) throw createAppError('BAD_REQUEST', 'No puedes eliminar tu propia cuenta');
-  await assertGmBranchScope(actor.id, user.branchId);
+  await assertUserScope(actor.id, { branchId: user.branchId });
 
   await executeInTransaction(async (tx) => {
     const newEmail = `deleted_${Date.now()}_${user.email}`;

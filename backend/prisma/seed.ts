@@ -49,7 +49,7 @@ async function ensureSeedUser(input: any, label: string) {
   }
 }
 
-async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, scheduleTypeId: string, typeValue: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
+async function ensureSeedSchedule(adminId: string, userId: string, branchId: string, title: string, scheduleTypeId: string, color: string, isLastMinute: boolean, startAt: Date, endAt: Date) {
   const existing = await prisma.schedule.findFirst({
     where: { title, createdById: adminId, startDatetime: startAt, endDatetime: endAt }
   });
@@ -84,7 +84,6 @@ async function ensureSeedSchedule(adminId: string, userId: string, branchId: str
     data: {
       title,
       scheduleTypeId,
-      type: typeValue,
       color,
       isLastMinute,
       startDatetime: startAt,
@@ -546,7 +545,6 @@ async function main() {
       mainBranch.id,
       'Guardia General',
       scheduleTypesByValue.get('guardia')!,
-      'guardia',
       '#2563eb',
       false,
       setHours(setMinutes(addDays(monday, 1), 0), 8), // Martes 8:00
@@ -560,7 +558,6 @@ async function main() {
       mainBranch.id,
       'Guardia Extraordinaria',
       scheduleTypesByValue.get('guardia')!,
-      'guardia',
       '#db2777',
       true,
       setHours(setMinutes(addDays(monday, 3), 0), 14), // Jueves 14:00
@@ -590,7 +587,6 @@ async function main() {
           (task as any).branchId,
           task.title,
           scheduleTypesByValue.get(task.type)!,
-          task.type,
           task.color,
           false,
           stressStart,

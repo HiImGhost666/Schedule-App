@@ -74,20 +74,6 @@ const webhookSchema = z.object({
   scope: z.enum(['general', 'department', 'branch']).default('general'),
   departmentId: z.string().optional(),
   branchId: z.string().optional(),
-});
-
-const webhookPartialSchema = z.object({
-  name: z.string().min(2).optional(),
-  webhookUrl: z.string().url('URL inválida').optional(),
-  enabled: z.boolean().optional(),
-  notifyModifications: z.boolean().optional(),
-  notifyLastMinute: z.boolean().optional(),
-  fridayReminderEnabled: z.boolean().optional(),
-  mondayVacationReminderEnabled: z.boolean().optional(),
-  fridayReminderTime: z.string().optional(),
-  scope: z.enum(['general', 'department', 'branch']).optional(),
-  departmentId: z.string().optional(),
-  branchId: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.scope === 'department' && !data.departmentId) {
     ctx.addIssue({

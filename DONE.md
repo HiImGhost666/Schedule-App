@@ -325,25 +325,29 @@
 
 ---
 
-## [US-1] / [RP-2] GM branch scope validation en users.service.ts
+## [US-1] / [RP-2] Refactor: assertGmBranchScope → assertUserScope genérico
 
 **Archivo**: `backend/src/modules/users/users.service.ts`
-**Estado**: ✅ Corregido — se añadió función `assertGmBranchScope(actorId, targetBranchId)` que:
-- Obtiene el usuario actor de la BD
-- Si su rol es `general_manager`, verifica que `targetBranchId === actor.branchId`
-- Si no coincide, lanza `createAppError('FORBIDDEN', ...)`
-- Si el rol no es GM, pasa libre
+**Estado**: ✅ Corregido — se reemplazó `assertGmBranchScope(actorId, targetBranchId)` por `assertUserScope(actorId, targetScope)` que usa un `switch` por nombre de rol:
 
-Se aplica en:
-- `createUser()` — valida contra `parsed.data.branchId`
-- `updateUser()` — valida contra `user.branchId` del usuario existente
-- `changeUserStatus()` — valida contra `user.branchId`
-- `changeUserRole()` — valida contra `user.branchId`
-- `deleteUser()` — valida contra `user.branchId`
-- `getUsersList()` — si actor es GM, fuerza `params.branchId = actor.branchId`
+- **admin** → siempre pasa
+- **general_manager** → valida que `branchId` coincida
+- **department_manager** → valida que sea manager del `departmentId` (vía `DepartmentManager`)
+- **employee** / roles desconocidos → pasan libre (extensible)
 
-**Archivo**: `backend/src/modules/users/users.controller.ts`
-**Estado**: ✅ Corregido — `listUsersController` ahora pasa `req.user` como actor a `getUsersList()`.
+Se añadió `validateDmUpdateRestrictions(updateData)` que impide que un DM cambie `branchId` o `role` de un usuario (solo se ejecuta si el actor es `department_manager`).
+
+**Llamadas actualizadas**:
+- `createUser()` → `assertUserScope(actor.id, { branchId: parsed.data.branchId })`
+- `updateUser()` → `assertUserScope(actor.id, { branchId: targetBranchId, departmentId: selectedDepartmentId })`
+- `changeUserStatus()` → `assertUserScope(actor.id, { branchId: user.branchId })`
+- `changeUserRole()` → `assertUserScope(actor.id, { branchId: user.branchId })`
+- `deleteUser()` → `assertUserScope(actor.id, { branchId: user.branchId })`
+- `getUsersList()` → usa `switch` en lugar de lógica inline
+
+**Tests actualizados**:
+- `backend/test/users.test.ts` — mocks actualizados, 6 nuevos tests para DM (scope de departamento, restricciones de branch/role)
+- `backend/test/users.import.test.ts` — mocks actualizados
 
 ---
 
