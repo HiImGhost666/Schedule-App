@@ -6,7 +6,7 @@ import { logger } from '../../utils/logger';
 import { buildFridaySummaryCard, buildMondayVacationCard } from './notifications.templates';
 import { sendToWebhook } from './notifications.service';
 
-export async function sendFridaySummary(sentByUserId?: string) {
+export async function sendFridaySummary(sentByUserId?: string, webhookConfigId?: string) {
   logger.info('Sending Friday schedule summary...');
 
   const nextWeekStart = startOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
@@ -49,9 +49,16 @@ export async function sendFridaySummary(sentByUserId?: string) {
   const weekLabel = `${format(nextWeekStart, "dd 'de' MMMM", { locale: es })} — ${format(nextWeekEnd, "dd 'de' MMMM yyyy", { locale: es })}`;
   const card = buildFridaySummaryCard({ weekLabel, days });
 
-  const webhooks = await prisma.webhookConfig.findMany({
-    where: { enabled: true, fridayReminderEnabled: true },
-  });
+  let webhooks;
+  if (webhookConfigId) {
+    const wh = await prisma.webhookConfig.findUnique({ where: { id: webhookConfigId } });
+    if (!wh) throw new Error('Webhook no encontrado');
+    webhooks = [wh];
+  } else {
+    webhooks = await prisma.webhookConfig.findMany({
+      where: { enabled: true, fridayReminderEnabled: true },
+    });
+  }
 
   const results = [];
   for (const webhook of webhooks) {
@@ -70,7 +77,7 @@ export async function sendFridaySummary(sentByUserId?: string) {
   return results;
 }
 
-export async function sendMondayVacationSummary(sentByUserId?: string) {
+export async function sendMondayVacationSummary(sentByUserId?: string, webhookConfigId?: string) {
   logger.info('Sending Monday vacation summary...');
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -105,9 +112,16 @@ export async function sendMondayVacationSummary(sentByUserId?: string) {
   const weekLabel = `${format(weekStart, "dd 'de' MMMM", { locale: es })} — ${format(weekEnd, "dd 'de' MMMM yyyy", { locale: es })}`;
   const card = buildMondayVacationCard({ weekLabel, vacations });
 
-  const webhooks = await prisma.webhookConfig.findMany({
-    where: { enabled: true, mondayVacationReminderEnabled: true },
-  });
+  let webhooks;
+  if (webhookConfigId) {
+    const wh = await prisma.webhookConfig.findUnique({ where: { id: webhookConfigId } });
+    if (!wh) throw new Error('Webhook no encontrado');
+    webhooks = [wh];
+  } else {
+    webhooks = await prisma.webhookConfig.findMany({
+      where: { enabled: true, mondayVacationReminderEnabled: true },
+    });
+  }
 
   const results = [];
   for (const webhook of webhooks) {

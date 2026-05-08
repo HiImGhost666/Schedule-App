@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Bell, RefreshCw, Send, Calendar, CheckCircle, XCircle, Clock, Umbrella } from 'lucide-react';
 import api from '@/config/api';
-import type { NotificationLog } from '@/types';
+import type { NotificationLog, WebhookConfig } from '@/types';
 import { NOTIFICATION_TYPE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -17,9 +17,39 @@ function StatusIcon({ status }: { status: string }) {
   return <Clock className="h-4 w-4 text-amber-400" />;
 }
 
+function WebhookSelect({
+  value,
+  onChange,
+  webhooks,
+  placeholder = "Seleccionar webhook...",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  webhooks?: WebhookConfig[];
+  placeholder?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="input-field text-sm"
+    >
+      <option value="">{placeholder}</option>
+      {webhooks?.map((wh) => (
+        <option key={wh.id} value={wh.id}>
+          {wh.name} ({wh.scope === 'general' ? 'General' : wh.scope === 'department' ? `Dept: ${wh.department?.name}` : `Suc: ${wh.branch?.name}`})
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [announcement, setAnnouncement] = useState('');
+  const [vacationWebhookId, setVacationWebhookId] = useState('');
+  const [fridayWebhookId, setFridayWebhookId] = useState('');
+  const [announceWebhookId, setAnnounceWebhookId] = useState('');
   const activeTheme = useUIStore(
     (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
   );
@@ -37,21 +67,26 @@ export function NotificationsPage() {
   });
 
   const fridayMutation = useMutation({
-    mutationFn: () => api.post('/notifications/friday-summary'),
+    mutationFn: () => api.post('/notifications/friday-summary', { webhookConfigId: fridayWebhookId || undefined }),
     onSuccess: (res) => { toast.success(res.data.message || 'Resumen enviado'); refetch(); },
     onError: () => toast.error('Error al enviar resumen'),
   });
 
   const vacationMutation = useMutation({
-    mutationFn: () => api.post('/notifications/vacation-summary'),
+    mutationFn: () => api.post('/notifications/vacation-summary', { webhookConfigId: vacationWebhookId || undefined }),
     onSuccess: (res) => { toast.success(res.data.message || 'Resumen vacaciones enviado'); refetch(); },
     onError: () => toast.error('Error al enviar resumen de vacaciones'),
   });
 
   const announceMutation = useMutation({
-    mutationFn: () => api.post('/notifications/announce', { message: announcement }),
+    mutationFn: () => api.post('/notifications/announce', { message: announcement, webhookConfigId: announceWebhookId || undefined }),
     onSuccess: () => { toast.success('Anuncio enviado'); setAnnouncement(''); refetch(); },
     onError: () => toast.error('Error al enviar anuncio'),
+  });
+
+  const { data: webhooks } = useQuery<WebhookConfig[]>({
+    queryKey: ['webhooks'],
+    queryFn: () => api.get<{ data: WebhookConfig[] }>('/webhooks').then((r) => r.data.data),
   });
 
   return (
@@ -76,10 +111,16 @@ export function NotificationsPage() {
               <p className="text-xs text-theme-muted">Automático cada lunes a las 8:30h</p>
             </div>
           </div>
+          <WebhookSelect
+            value={vacationWebhookId}
+            onChange={setVacationWebhookId}
+            webhooks={webhooks}
+            placeholder="Todos los webhooks habilitados"
+          />
           <button
             onClick={() => vacationMutation.mutate()}
             disabled={vacationMutation.isPending}
-            className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60 bg-green-600 hover:bg-green-700 border-green-600"
+            className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60 bg-green-600 hover:bg-green-700 border-green-600 mt-3"
           >
             {vacationMutation.isPending ? <LoadingSpinner size="sm" className="border-white border-t-white/30" /> : <Umbrella className="h-3.5 w-3.5" />}
             Enviar resumen ahora
@@ -97,10 +138,16 @@ export function NotificationsPage() {
               <p className="text-xs text-theme-muted">Enviar planificación de la semana siguiente</p>
             </div>
           </div>
+          <WebhookSelect
+            value={fridayWebhookId}
+            onChange={setFridayWebhookId}
+            webhooks={webhooks}
+            placeholder="Todos los webhooks habilitados"
+          />
           <button
             onClick={() => fridayMutation.mutate()}
             disabled={fridayMutation.isPending}
-            className="w-full btn-gold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full btn-gold text-sm flex items-center justify-center gap-2 disabled:opacity-60 mt-3"
           >
             {fridayMutation.isPending ? <LoadingSpinner size="sm" /> : <Calendar className="h-3.5 w-3.5" />}
             Enviar resumen ahora
@@ -115,13 +162,19 @@ export function NotificationsPage() {
             </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Anuncio Manual</p>
-              <p className="text-xs text-theme-muted">Enviar mensaje personalizado a todos los webhooks</p>
+              <p className="text-xs text-theme-muted">Enviar mensaje personalizado</p>
             </div>
           </div>
+          <WebhookSelect
+            value={announceWebhookId}
+            onChange={setAnnounceWebhookId}
+            webhooks={webhooks}
+            placeholder="Todos los webhooks habilitados"
+          />
           <textarea
             value={announcement}
             onChange={(e) => setAnnouncement(e.target.value)}
-            className="input-field resize-none text-sm mb-3"
+            className="input-field resize-none text-sm mb-3 mt-3"
             rows={2}
             placeholder="Escribe tu anuncio..."
           />

@@ -18,6 +18,13 @@ export interface User {
     name: string;
     code: string;
   } | null;
+  managedDepartments?: Array<{
+    departmentId: string;
+    assignedAt: string;
+    id: string;
+    name: string;
+    code: string;
+  }> | null;
   createdAt: string;
   passwordChangedAt?: string;
   lastLoginAt?: string;
@@ -104,15 +111,15 @@ export interface WeekScheduleAssignee {
   id: string;
   name: string;
   email: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string;
   department?: {
     id: string;
     name: string;
     code: string;
     branchId?: string;
   } | null;
-  companyPhone?: string | null;
-  auxiliaryPhone?: string | null;
+  companyPhone?: string;
+  auxiliaryPhone?: string;
 }
 
 export interface WeekScheduleItem {
@@ -164,6 +171,15 @@ export interface Department {
     };
     createdAt?: string;
   }>;
+    managers?: Array<{
+      user: {
+        id: string;
+        name: string;
+        email: string;
+        avatarUrl?: string | null;
+      };
+      assignedAt: string;
+    }>;
   _count?: {
     users: number;
   };
@@ -231,6 +247,11 @@ export interface WebhookConfig {
   fridayReminderEnabled: boolean;
   mondayVacationReminderEnabled: boolean;
   fridayReminderTime: string;
+  scope: 'general' | 'department' | 'branch';
+  departmentId?: string | null;
+  department?: { id: string; name: string } | null;
+  branchId?: string | null;
+  branch?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -396,6 +417,69 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   monday_vacation_summary: 'Vacaciones Semana',
   test: 'Prueba',
 };
+
+// ── Vacation types ──────────────────────────────────────────────
+export type VacationStatus = 'pending' | 'colindante' | 'approved' | 'rejected' | 'cancelled';
+
+export interface VacationRequest {
+  id: string;
+  employeeId: string;
+  status: VacationStatus;
+  startDate: string;
+  endDate: string;
+  note?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  branchId: string;
+  departmentId: string;
+  createdAt: string;
+  updatedAt: string;
+  employee: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+    employeeId?: string | null;
+    department: { id: string; name: string } | null;
+    branch: { id: string; name: string } | null;
+  };
+  reviewer?: { id: string; name: string; email: string } | null;
+  branch: { id: string; name: string; code: string };
+  department: { id: string; name: string; code: string };
+}
+
+export interface VacationCalendarItem {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeEmail: string;
+  employeeAvatarUrl?: string | null;
+  employeeDepartment: { id: string; name: string } | null;
+  employeeBranch: { id: string; name: string } | null;
+  startDate: string;
+  endDate: string;
+  note?: string | null;
+  branchId: string;
+  departmentId: string;
+}
+
+export interface PaginatedVacations {
+  items: VacationRequest[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface VacationCalendarResponse {
+  year: number;
+  week: number;
+  weekStart: string;
+  weekEnd: string;
+  total: number;
+  items: VacationCalendarItem[];
+}
 
 // Security Constants (Sync with backend/src/config/constants.ts)
 export const MAX_FAILED_ATTEMPTS = 5;

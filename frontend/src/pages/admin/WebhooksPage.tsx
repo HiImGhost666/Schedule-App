@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosResponse } from 'axios';
 import { Plus, Webhook, Trash2, Edit, Play, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import api from '@/config/api';
-import type { WebhookConfig } from '@/types';
+import type { Branch, Department, WebhookConfig } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -17,12 +17,29 @@ import { webhookFormSchema } from '@/pages/admin/webhooks.schema';
 type FormData = z.infer<typeof webhookFormSchema>;
 type FormDataInput = z.input<typeof webhookFormSchema>;
 
+function getWebhookScope(wh: WebhookConfig): { type: number; label: string } {
+  if (!wh.departmentId && !wh.branchId) {
+    return { type: 0, label: 'General' };
+  }
+  if (wh.departmentId && !wh.branchId) {
+    return { type: 1, label: `Departamento: ${wh.department?.name ?? wh.departmentId}` };
+  }
+  if (!wh.departmentId && wh.branchId) {
+    return { type: 2, label: `Sucursal: ${wh.branch?.name ?? wh.branchId}` };
+  }
+  return { type: 3, label: `${wh.department?.name ?? wh.departmentId} en ${wh.branch?.name ?? wh.branchId}` };
+}
+
 function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: () => void }) {
   const qc = useQueryClient();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
     resolver: zodResolver(webhookFormSchema),
     defaultValues: webhook
-      ? { ...webhook }
+      ? {
+          ...webhook,
+          departmentId: webhook.departmentId ?? '',
+          branchId: webhook.branchId ?? '',
+        }
       : {
           enabled: true,
           notifyModifications: true,
@@ -30,12 +47,43 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
           fridayReminderEnabled: true,
           mondayVacationReminderEnabled: true,
           fridayReminderTime: '12:00',
+          departmentId: '',
+          branchId: '',
         },
   });
 
+  const branchesData = useQuery<Branch[]>({
+    queryKey: ['branches', 'webhooks-form'],
+    queryFn: () => api.get<{ data: Branch[] }>('/branches', { params: { includeInactive: true } }).then((r) => r.data.data),
+    enabled: true,
+  });
+
+  const departmentsData = useQuery<Department[]>({
+    queryKey: ['departments', 'webhooks-form'],
+    queryFn: () => api.get<{ data: Department[] }>('/departments', { params: { includeInactive: false } }).then((r) => r.data.data),
+    enabled: true,
+  });
+
+  const branches = useMemo(() => branchesData.data ?? [], [branchesData.data]);
+  const departments = useMemo(() => departmentsData.data ?? [], [departmentsData.data]);
+
+  const selectedBranchId = watch('branchId');
+  const filteredDepartments = useMemo(() => {
+    if (!selectedBranchId) return departments;
+    return departments.filter(dept => 
+      dept.branches?.some(b => b.branch.id === selectedBranchId)
+    );
+  }, [departments, selectedBranchId]);
+
   const mutation = useMutation({
-    mutationFn: (data: FormData) =>
-      webhook ? api.patch(`/webhooks/${webhook.id}`, data) : api.post('/webhooks', data),
+    mutationFn: (data: FormData) => {
+      const payload = {
+        ...data,
+        departmentId: data.departmentId || undefined,
+        branchId: data.branchId || undefined,
+      };
+      return webhook ? api.patch(`/webhooks/${webhook.id}`, payload) : api.post('/webhooks', payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['webhooks'] });
       toast.success(webhook ? 'Webhook actualizado' : 'Webhook creado');
@@ -65,6 +113,34 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
               placeholder="https://outlook.office.com/webhook/..."
             />
             {errors.webhookUrl && <p className="text-xs text-red-500 mt-1">{errors.webhookUrl.message}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Alcance</label>
+            <p className="text-xs text-theme-muted mb-3">Selecciona a quién enviar notificaciones (puedes elegir ambos para ser más específico)</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal (Opcional)</label>
+                <select {...register('branchId')} className="input-field">
+                  <option value="">General - Todas las sucursales</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-theme-muted mb-1">Departamento (Opcional)</label>
+                <select {...register('departmentId')} className="input-field">
+                  <option value="">General - Todos los departamentos</option>
+                  {filteredDepartments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2">
@@ -111,6 +187,17 @@ export function WebhooksPage() {
     queryFn: () => api.get<{ data: WebhookConfig[] }>('/webhooks').then((r: AxiosResponse<{ data: WebhookConfig[] }>) => r.data.data),
   });
 
+  const sortedWebhooks = useMemo(() => {
+    if (!webhooks) return [];
+    return [...webhooks].sort((a, b) => {
+      const aScope = getWebhookScope(a);
+      const bScope = getWebhookScope(b);
+      if (aScope.type !== bScope.type) return aScope.type - bScope.type;
+      if (aScope.label !== bScope.label) return aScope.label.localeCompare(bScope.label);
+      return a.name.localeCompare(b.name);
+    });
+  }, [webhooks]);
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/webhooks/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['webhooks'] }); toast.success('Webhook eliminado'); setDeleteConfirm(null); },
@@ -147,7 +234,7 @@ export function WebhooksPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {webhooks.map((wh: WebhookConfig) => (
+          {sortedWebhooks.map((wh: WebhookConfig) => (
             <div key={wh.id} className="card p-7 space-y-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -156,6 +243,7 @@ export function WebhooksPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-navy-800 text-sm">{wh.name}</p>
+                    <p className="text-xs text-theme-muted">{getWebhookScope(wh).label}</p>
                     <p className="text-xs text-navy-400 truncate max-w-48">{wh.webhookUrl.slice(0, 40)}...</p>
                   </div>
                 </div>
