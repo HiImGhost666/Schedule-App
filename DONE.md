@@ -245,3 +245,73 @@
 
 **Archivos**: `frontend/test/DashboardPage.test.tsx`, `frontend/test/VacationsPage.test.tsx`, `frontend/test/shiftScheduling.test.ts`
 **Estado**: ✅ Completado — tests unitarios y de integración para los nuevos componentes.
+
+---
+
+## [Filtros] Filtros por departamento/sucursal/empleado en WeekSchedulesWidget
+
+**Archivos**: `frontend/src/components/schedule/WeekSchedulesWidget.tsx`
+**Estado**: ✅ Completado — el widget de turnos semanales ahora incluye filtros interactivos:
+- **admin**: filtros de sucursal, departamento y empleado
+- **general_manager**: filtros de departamento (de su sucursal) y empleado
+- **department_manager**: filtro de empleado (de su departamento)
+- **employee**: filtro de departamento (de su sucursal)
+- Filtros adicionales: tipo de turno, solo mis turnos, solo urgentes
+- Paginación inline (5 items por página)
+- Botón "Limpiar" cuando hay filtros activos
+
+---
+
+## [Filtros] Filtro por departamento en SchedulePage
+
+**Archivos**: `frontend/src/pages/SchedulePage.tsx`
+**Estado**: ✅ Completado — la página de calendario ahora incluye un selector de departamento que:
+- Filtra los turnos visibles en el calendario por `departmentId`
+- Incluye `selectedDeptId` en la `queryKey` para refetch automático
+- Disponible para todos los roles (cada uno ve los departamentos según su scope)
+
+---
+
+## [Filtros] Filtro automático por rol en DashboardPage
+
+**Archivos**: `frontend/src/pages/DashboardPage.tsx`
+**Estado**: ✅ Completado — el Dashboard ahora filtra automáticamente los turnos de la semana según el rol:
+- **department_manager**: solo ve turnos de su departamento
+- **general_manager**: solo ve turnos de su sucursal
+- **admin**: ve todos los turnos (sin filtro)
+
+---
+
+## [Backend] Filtro `userId` en listWeekSchedules
+
+**Archivos**: 
+- `backend/src/modules/schedules/schedules.http.schemas.ts`
+- `backend/src/modules/schedules/schedules.controller.ts`
+- `backend/src/modules/schedules/schedules.service.ts`
+**Estado**: ✅ Completado — el endpoint `GET /schedules/week/:year/:week` ahora acepta `userId` como query param opcional para filtrar turnos por empleado específico.
+
+---
+
+## [Webhooks] Corrección schema PATCH
+
+**Archivo**: `backend/src/modules/webhooks/webhooks.router.ts`
+**Estado**: ✅ Corregido — el schema de validación para PATCH ahora usa `webhookPartialSchema` con `superRefine` en lugar de `webhookSchema.partial()`, lo que permite validar correctamente las relaciones condicionales entre `scope`, `departmentId` y `branchId` incluso en actualizaciones parciales.
+
+---
+
+## [Departamentos] Corrección tipos de retorno en service
+
+**Archivos**: 
+- `backend/src/modules/departments/departments.service.ts`
+- `backend/src/modules/departments/departments.repository.ts`
+**Estado**: ✅ Corregido — `assignDepartmentManager` y `removeDepartmentManager` ahora devuelven el departamento actualizado mediante `findUnique` (con `managers` incluido) en lugar de `updateDepartmentManager`, que solo devolvía `id` y `managerId`. Se actualizaron los tests correspondientes.
+
+---
+
+## [Lint] Correcciones de lint
+
+**Archivos**: 
+- `frontend/src/components/schedule/MyWeeklySummaryCard.tsx`
+- `frontend/src/components/schedule/WeekSchedulesWidget.tsx`
+- `frontend/src/pages/DashboardPage.tsx`
+**Estado**: ✅ Corregido — se eliminaron imports/variables no usados y se corrigieron dependencias de `useMemo` para compatibilidad con React Compiler.

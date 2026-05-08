@@ -77,8 +77,8 @@ Integración con **Microsoft Teams** vía Webhooks. Configura resúmenes automá
 ### 🏖️ Gestión de Vacaciones
 Solicitud, aprobación/rechazo y calendario de vacaciones con detección de solapamientos (estado `colindante`). Los managers pueden gestionar las vacaciones de su equipo según su scope.
 
-### 📊 Dashboard con Widgets
-Vista semanal de turnos, resumen personal de horas, resumen del equipo y actividad reciente, todo en una sola página.
+### 📊 Dashboard con Widgets y Filtros por Rol
+Vista semanal de turnos con filtros interactivos por sucursal, departamento y empleado según el rol del usuario. Incluye resumen personal de horas, resumen del equipo y actividad reciente, todo en una sola página. Los turnos se filtran automáticamente según el alcance del usuario (department_manager ve solo su departamento, general_manager ve solo su sucursal).
 
 ### 📈 Resumen Semanal de Horas
 Cálculo automático de horas totales, base y extra por semana con desglose diario. Visible para cada usuario y para managers de su equipo.
