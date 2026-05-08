@@ -32,8 +32,8 @@ function getDb(tx?: TransactionClient) {
   return tx ?? prisma;
 }
 
-export function findSchedules(where: ScheduleWhere): Promise<ScheduleWithRelations[]> {
-  return prisma.schedule.findMany({
+export function findSchedules(where: ScheduleWhere, tx?: TransactionClient): Promise<ScheduleWithRelations[]> {
+  return getDb(tx).schedule.findMany({
     where,
     include: assigneeInclude,
     orderBy: { startDatetime: 'asc' },

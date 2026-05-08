@@ -13,6 +13,11 @@
 **`GET /api/schedules`**
 
 - **Permiso:** Autenticación sola
+- **Roles y alcance:**
+  - `admin`: ve todas las sucursales (puede filtrar por `branchId`)
+  - `general_manager`: solo ve su sucursal asignada
+  - `department_manager`: solo ve su sucursal asignada
+  - `employee`: solo ve su sucursal y sus propios turnos asignados
 
 ### Query Parameters
 
@@ -22,7 +27,7 @@
 | `to`      | string | No          | Fecha fin del rango (ISO) |
 | `userId`  | string | No          | Filtrar por usuario asignado |
 | `type`    | string | No          | Filtrar por tipo (value del scheduleType) |
-| `branchId`| string | No          | Filtrar por sucursal |
+| `branchId`| string | No          | Filtrar por sucursal (solo admin) |
 
 ### Response (200)
 
@@ -74,6 +79,11 @@
 **`GET /api/schedules/:id`**
 
 - **Permiso:** Autenticación sola
+- **Roles y alcance:**
+  - `admin`: puede ver cualquier turno
+  - `general_manager`: solo turnos de su sucursal
+  - `department_manager`: solo turnos de su sucursal
+  - `employee`: solo turnos de su sucursal
 
 ### Response (200)
 
@@ -91,12 +101,19 @@
 **`GET /api/schedules/week/:year/:week`**
 
 - **Permiso:** Autenticación sola
+- **Roles y alcance:**
+  - `admin`: ve todas las sucursales (puede filtrar por `branchId`)
+  - `general_manager`: solo ve su sucursal asignada
+  - `department_manager`: solo ve su sucursal asignada
+  - `employee`: solo ve su sucursal y sus propios turnos
 
 ### Query Parameters
 
-| Parámetro | Tipo   | Obligatorio | Descripción |
-|-----------|--------|-------------|-------------|
-| `branchId`| string | No          | Filtrar por sucursal |
+| Parámetro      | Tipo   | Obligatorio | Descripción |
+|----------------|--------|-------------|-------------|
+| `branchId`     | string | No          | Filtrar por sucursal (solo admin) |
+| `departmentId` | string | No          | Filtrar por departamento |
+| `userId`       | string | No          | Filtrar por usuario asignado |
 
 ### Response (200)
 
