@@ -100,6 +100,15 @@ describe('importUsersCsv — validación de payload', () => {
       { id: 'role-admin-id', name: 'admin' } as any,
     ]);
     prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
+    // Mock para assertGmBranchScope: el actor admin existe y no es GM
+    (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'admin-id') return { id: 'admin-id', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+      return null;
+    });
+    (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+      return null;
+    });
   });
 
   it('lanza BAD_REQUEST si el array de filas está vacío', async () => {
@@ -182,6 +191,15 @@ describe('importUsersCsv — creación de nuevo usuario (path CREATE)', () => {
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
     mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-0002');
     mockRepo.createUserRecord.mockResolvedValue(buildDbUser() as any);
+    // Mock para assertGmBranchScope: el actor admin existe y no es GM
+    (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'admin-id') return { id: 'admin-id', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+      return null;
+    });
+    (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+      return null;
+    });
   });
 
   it('incrementa el contador created en 1', async () => {
@@ -240,6 +258,15 @@ describe('importUsersCsv — actualización de usuario existente (path UPDATE)',
     mockRepo.updateUserRecord.mockResolvedValue({ ...existing, name: 'Nombre Nuevo' } as any);
     // para la lógica de findUserByEmailOrUsername con @
     mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
+    // Mock para assertGmBranchScope: el actor admin existe y no es GM
+    (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'admin-id') return { id: 'admin-id', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+      return null;
+    });
+    (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+      return null;
+    });
   });
 
   it.skip('incrementa el contador updated si hay cambios', async () => {
@@ -283,6 +310,15 @@ describe('importUsersCsv — procesamiento mixto (no propaga excepciones)', () =
       { id: 'role-admin-id', name: 'admin' } as any,
     ]);
     prismaMock.department.findFirst.mockResolvedValue(null as any); // Default mock for department
+    // Mock para assertGmBranchScope: el actor admin existe y no es GM
+    (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'admin-id') return { id: 'admin-id', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+      return null;
+    });
+    (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+      return null;
+    });
   });
 
   it('continúa procesando filas tras un fallo en una de ellas', async () => {
