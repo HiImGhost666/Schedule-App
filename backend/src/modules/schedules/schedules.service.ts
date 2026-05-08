@@ -169,7 +169,6 @@ async function createScheduleEntryInternal(
   const schedule = await createSchedule({
     ...scheduleData,
     color: scheduleData.color || scheduleType.color,
-    type: scheduleType.value,
     scheduleType: { connect: { id: scheduleTypeId } },
     startDatetime: startDt,
     endDatetime: endDt,
@@ -257,7 +256,7 @@ export async function listWeekSchedules(year: number, week: number, branchId?: s
     title: schedule.title,
     startDatetime: schedule.startDatetime,
     endDatetime: schedule.endDatetime,
-    type: schedule.scheduleType?.value || schedule.type,
+    type: schedule.scheduleType?.value ?? 'unknown',
     color: schedule.color,
     scheduleTypeId: schedule.scheduleTypeId,
     location: schedule.location,
@@ -322,7 +321,7 @@ async function ensureNoOverlaps(assigneeIds: string[], startDt: Date, endDt: Dat
         .filter((a) => assigneeIds.includes(a.userId))
         .map((a) => a.user.name);
       
-      const typeValue = s.scheduleType?.value || s.type;
+      const typeValue = s.scheduleType?.value ?? 'unknown';
       const typeDesc = typeValue === 'vacaciones' ? 'está de vacaciones' : 
                       typeValue === 'ausencia' ? 'está ausente' : 
                       `ya tiene el turno "${s.title}"`;
@@ -418,7 +417,7 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: result.schedule.scheduleType?.value || result.schedule.type,
+      type: result.schedule.scheduleType?.value ?? 'unknown',
       isLastMinute: result.isLastMinute,
     },
   });
@@ -473,7 +472,7 @@ export async function createScheduleEntriesBulk(inputs: ScheduleCreateInput[], a
       changedAt: new Date().toISOString(),
       actorId: actor.id,
       meta: {
-        type: result.schedule.scheduleType?.value || result.schedule.type,
+        type: result.schedule.scheduleType?.value ?? 'unknown',
         isLastMinute: result.isLastMinute,
       },
     });
@@ -540,7 +539,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   if (nextBranchId) {
     const typeValue = scheduleTypeId
       ? (await prisma.scheduleType.findUnique({ where: { id: scheduleTypeId } }))?.value
-      : existing.scheduleType?.value || existing.type;
+      : existing.scheduleType?.value ?? 'unknown';
     if (!typeValue) throw createAppError('BAD_REQUEST', 'Tipo de turno no encontrado');
     await ensureNoHolidayOverlap(nextBranchId, startDt, endDt, typeValue, confirmed);
   }
@@ -562,7 +561,6 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     const updated = await updateSchedule(scheduleId, {
       ...updateData,
       color: updateData.color || scheduleTypeForColor?.color || existing.color,
-      ...(scheduleTypeForColor && { type: scheduleTypeForColor.value }),
       ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
       ...(scheduleTypeId ? { scheduleType: { connect: { id: scheduleTypeId } } } : {}),
       ...(updateData.startDatetime && { startDatetime: new Date(updateData.startDatetime) }),
@@ -611,7 +609,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: schedule.scheduleType?.value || schedule.type,
+      type: schedule.scheduleType?.value ?? 'unknown',
       isLastMinute,
     },
   });
@@ -690,7 +688,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
     changedAt: new Date().toISOString(),
     actorId: actor.id,
     meta: {
-      type: schedule.scheduleType?.value || schedule.type,
+      type: schedule.scheduleType?.value ?? 'unknown',
     },
   });
 }

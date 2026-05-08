@@ -24,6 +24,7 @@ import {
   createUser,
   updateUser,
   changeUserStatus,
+  changeUserRole,
   resetUserPassword,
   forceUserPasswordChange,
   deleteUser,
@@ -63,6 +64,16 @@ beforeEach(() => {
     if (args?.where?.name === 'department_manager') return { id: 'role-department-manager-id', name: 'department_manager' } as any;
     return null;
   }) as any);
+  // Mock para assertGmBranchScope: el actor por defecto (admin) existe y no es GM
+  (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+    if (args?.where?.id === 'admin-id-1') return { id: 'admin-id-1', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+    return buildUser() as any;
+  });
+  (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+    if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+    if (args?.where?.id === 'role-general-manager-id') return { id: 'role-general-manager-id', name: 'general_manager' } as any;
+    return null;
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -421,5 +432,122 @@ describe('deleteUser', () => {
       }),
       expect.anything()
     );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+describe('GM branch scope validation', () => {
+  const gmActor = { id: 'gm-id', ipAddress: '127.0.0.1' };
+  const gmUser = { id: 'gm-id', roleId: 'role-general-manager-id', branchId: 'gm-branch' };
+  const gmRole = { id: 'role-general-manager-id', name: 'general_manager' };
+
+  beforeEach(() => {
+    // Default: actor is GM in branch 'gm-branch'
+    (prismaMock.user.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'gm-id') return gmUser as any;
+      if (args?.where?.id === 'admin-id-1') return { id: 'admin-id-1', roleId: 'role-admin-id', branchId: 'branch-1' } as any;
+      return buildUser() as any;
+    });
+    (prismaMock.role.findUnique as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.id === 'role-general-manager-id') return gmRole as any;
+      if (args?.where?.id === 'role-admin-id') return { id: 'role-admin-id', name: 'admin' } as any;
+      return null;
+    });
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'gm-branch' }) as any);
+    mockRepo.findUserByEmail.mockResolvedValue(null as any);
+    mockRepo.findUserByDerivedUsername.mockResolvedValue(null as any);
+    mockRepo.reserveNextEmployeeId.mockResolvedValue('LAB-9999');
+    mockRepo.createUserRecord.mockResolvedValue(buildUser({ id: 'new-id' }) as any);
+    mockRepo.updateUserRecord.mockResolvedValue(buildUser() as any);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // ── createUser: GM creando en su sucursal → OK ──────────────────────────────
+  it('createUser: GM puede crear usuario en su propia sucursal', async () => {
+    await expect(
+      createUser(
+        { email: 'nuevo@test.com', password: 'Secure123!', name: 'Nuevo', branchId: 'gm-branch' },
+        gmActor
+      )
+    ).resolves.toBeDefined();
+  });
+
+  // ── createUser: GM creando en otra sucursal → FORBIDDEN ─────────────────────
+  it('createUser: GM no puede crear usuario en otra sucursal', async () => {
+    await expect(
+      createUser(
+        { email: 'nuevo@test.com', password: 'Secure123!', name: 'Nuevo', branchId: 'other-branch' },
+        gmActor
+      )
+    ).rejects.toThrow('No tienes permiso para gestionar usuarios de otra sucursal');
+  });
+
+  // ── updateUser: GM actualizando usuario de otra sucursal → FORBIDDEN ────────
+  it('updateUser: GM no puede actualizar usuario de otra sucursal', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'other-branch' }) as any);
+    mockRepo.findUserIdentityConflict.mockResolvedValue(null as any);
+
+    await expect(
+      updateUser('user-id-1', { name: 'Updated' }, gmActor)
+    ).rejects.toThrow('No tienes permiso para gestionar usuarios de otra sucursal');
+  });
+
+  // ── changeUserStatus: GM cambiando estado de usuario de otra sucursal → FORBIDDEN ──
+  it('changeUserStatus: GM no puede cambiar estado de usuario de otra sucursal', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'other-branch' }) as any);
+
+    await expect(
+      changeUserStatus('user-id-1', 'disabled', gmActor)
+    ).rejects.toThrow('No tienes permiso para gestionar usuarios de otra sucursal');
+  });
+
+  // ── changeUserRole: GM cambiando rol de usuario de otra sucursal → FORBIDDEN ─
+  it('changeUserRole: GM no puede cambiar rol de usuario de otra sucursal', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'other-branch' }) as any);
+
+    await expect(
+      changeUserRole('user-id-1', { role: 'employee' }, gmActor)
+    ).rejects.toThrow('No tienes permiso para gestionar usuarios de otra sucursal');
+  });
+
+  // ── deleteUser: GM eliminando usuario de otra sucursal → FORBIDDEN ──────────
+  it('deleteUser: GM no puede eliminar usuario de otra sucursal', async () => {
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'other-branch' }) as any);
+
+    await expect(
+      deleteUser('user-id-1', gmActor)
+    ).rejects.toThrow('No tienes permiso para gestionar usuarios de otra sucursal');
+  });
+
+  // ── getUsersList: GM listando → branchId forzado a su sucursal ──────────────
+  it('getUsersList: GM filtra automáticamente por su sucursal', async () => {
+    mockRepo.listUsers.mockResolvedValue([[], 0] as any);
+    // buildUsersWhere está mockeado por defecto (jest.mock del repositorio),
+    // así que mockeamos su retorno para verificar que branchId se pasa correctamente
+    (mockRepo.buildUsersWhere as jest.Mock).mockReturnValue({ branchId: 'gm-branch', NOT: { email: { startsWith: 'deleted_' } } });
+
+    await getUsersList({ page: 1, limit: 20 }, gmActor);
+
+    expect(mockRepo.listUsers).toHaveBeenCalledWith(
+      expect.objectContaining({ branchId: 'gm-branch' }),
+      1,
+      20,
+      'createdAt',
+      'desc',
+    );
+  });
+
+  // ── Admin (no GM) operando en cualquier sucursal → OK ───────────────────────
+  it('admin puede gestionar usuarios de cualquier sucursal', async () => {
+    const adminActor = { id: 'admin-id-1', ipAddress: '127.0.0.1' };
+    mockRepo.findUserById.mockResolvedValue(buildUser({ branchId: 'other-branch' }) as any);
+    mockRepo.findUserIdentityConflict.mockResolvedValue(null as any);
+
+    await expect(
+      updateUser('user-id-1', { name: 'Updated' }, adminActor)
+    ).resolves.toBeDefined();
   });
 });

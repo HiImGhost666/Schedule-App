@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database';
 import { createAppError } from '../../common/errors/error-catalog';
 import type { CreateScheduleTypeInput, UpdateScheduleTypeInput } from './schedule-types.http.schemas';
-
-const prisma = new PrismaClient();
 
 export async function getScheduleTypes() {
   return prisma.scheduleType.findMany({

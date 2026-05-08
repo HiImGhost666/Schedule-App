@@ -66,7 +66,7 @@ describe('departments.router', () => {
       expect(departmentsController.listDepartmentsController).not.toHaveBeenCalled();
     });
 
-    it('returns 200 for department_manager (has settings:view)', async () => {
+    it('returns 200 for department_manager (tiene permiso settings:view)', async () => {
       const response = await request(app).get('/api/departments').set('x-test-role', 'department_manager');
       expect(response.status).toBe(200);
       expect(departmentsController.listDepartmentsController).toHaveBeenCalledTimes(1);

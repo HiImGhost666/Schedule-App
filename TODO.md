@@ -10,13 +10,28 @@
 
 ---
 
-## 📦 Módulo: Schedule Types (Tipos de Turno)
+## 🔴 Alta Prioridad
 
-### [ST-1] 🔴 BACKEND: Schedule-types service crea su propio PrismaClient
-- **Archivo**: `backend/src/modules/schedule-types/schedule-types.service.ts` (línea 5)
-- **Problema**: Crea `const prisma = new PrismaClient()` en vez de importar la instancia compartida.
-- **Severidad**: 🔴 Alta — puede causar agotamiento del pool de conexiones.
-- **Solución**: Importar `prisma` desde `../../config/database`.
+### [AL-1] Tarde descubierta / Turno solitario — Alertas visuales automáticas
+- **Problema**: No hay alertas visuales cuando un turno no tiene personal asignado o solo hay un técnico trabajando.
+- **Severidad**: 🔴 Alta
+- **Solución**: Sistema de detección de turnos sin personal o con personal único. Alertas visuales en Dashboard/Calendario. Backend endpoint que analice schedules próximos y devuelva alertas. Frontend widget/badge que muestre las alertas.
+
+### [AL-2] Notificaciones de vacaciones rotas — sendMondayVacationSummary busca en tabla Schedule
+- **Archivo**: `backend/src/modules/notifications/notifications.scheduler.ts` (líneas 87-101)
+- **Problema**: `sendMondayVacationSummary` busca schedules con `scheduleType.value === 'vacaciones'`, pero ahora las vacaciones son entidad `VacationRequest`, no `Schedule`.
+- **Severidad**: 🔴 Alta
+- **Solución**: Cambiar la query para que busque en `VacationRequest` con `status === 'approved'` en vez de en `Schedule`.
+
+### [AL-3] Dashboard → Evento específico no abre popup en el calendario
+- **Archivo**: `frontend/src/pages/DashboardPage.tsx`, `frontend/src/pages/SchedulePage.tsx`
+- **Problema**: Al hacer clic en un evento desde Dashboard, navega a `/schedule` con `state: { initialView, initialDate }` pero NO abre el popup de detalle automáticamente. Falta pasar el `scheduleId`.
+- **Severidad**: 🔴 Alta
+- **Solución**: Pasar `scheduleId` en el state de navegación desde Dashboard. En SchedulePage, detectar el `scheduleId` y abrir el popup automáticamente.
+
+---
+
+## 📦 Módulo: Schedule Types (Tipos de Turno)
 
 ### [ST-2] 🟡 BACKEND: Schedule-types router no delega en un controller
 - **Archivo**: `backend/src/modules/schedule-types/schedule-types.router.ts`
@@ -37,12 +52,6 @@
 ---
 
 ## 📦 Módulo: Users (Usuarios)
-
-### [US-1] 🔴 BACKEND: `general_manager` tiene `users:manage` — falta validación de sucursal
-- **Archivo**: `backend/src/modules/users/users.service.ts`
-- **Problema**: `general_manager` tiene `users:manage`, lo que le permite crear/editar/borrar **cualquier** usuario. La nota en `roles.constants.ts` dice que "la lógica de negocio en el servicio restringe sus acciones CRUD a su propia sucursal", pero **esa validación no existe** en `users.service.ts`.
-- **Severidad**: 🔴 Alta — un GM podría gestionar usuarios de otras sucursales.
-- **Solución**: Añadir validación en `createUser()`, `updateUser()`, `deleteUser()`, `changeUserStatus()`, `changeUserRole()` que, si el actor es GM, solo permita operar sobre usuarios de su misma `branchId`. También en `getUsersList()` filtrar automáticamente por `actor.branchId` si el actor es GM.
 
 ### [US-2] 🟡 FRONTEND: UsersPage usa colores navy hardcodeados
 - **Archivo**: `frontend/src/pages/admin/UsersPage.tsx`
@@ -122,22 +131,6 @@
 
 ---
 
-## 📦 Módulo: Roles y Permisos
-
-### [RP-2] 🔴 BACKEND: Falta validación de sucursal en `users.service.ts` para `general_manager`
-- **Archivo**: `backend/src/modules/users/users.service.ts`
-- **Problema**: Aunque el permiso `users:manage` está asignado a `general_manager`, no hay lógica que restrinja sus operaciones a su propia sucursal. La nota en `roles.constants.ts` dice que "la lógica de negocio en el servicio restringe sus acciones", pero esa lógica **no existe** en `users.service.ts`.
-- **Severidad**: 🔴 Alta — breach de seguridad potencial.
-- **Solución**: Añadir validación en:
-  - `createUser()`: Si actor es GM, forzar `branchId` a la del actor.
-  - `updateUser()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `deleteUser()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `changeUserStatus()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `changeUserRole()`: Si actor es GM, verificar que el usuario pertenece a su branch.
-  - `getUsersList()`: Si actor es GM, filtrar automáticamente por su `branchId`.
-
----
-
 ## 📦 Módulo: Frontend Types / Data Model
 
 ### [TY-1] 🟡 FRONTEND: Tipo `User` no incluye campo `departments` array
@@ -154,26 +147,48 @@
 
 ---
 
+## 📦 Módulo: Shift Presets (Turnos Preconfigurados)
+
+### [SP-1] 🟡 Convertir presets hardcodeados en entidad ShiftPreset
+- **Archivo**: `frontend/src/components/schedule/ShiftModal.tsx` (líneas 51-55)
+- **Problema**: `SHIFT_PRESETS` están hardcodeados en el frontend (morning, evening, night). No son configurables por el usuario.
+- **Severidad**: 🟡 Media
+- **Solución**: Crear entidad `ShiftPreset` en Prisma, CRUD en backend, página de gestión en admin, reemplazar hardcode por llamada API.
+
+---
+
+## 📦 Módulo: Calendario de Turnos
+
+### [CA-1] 🟡 Eliminar tipo "Vacaciones" del Calendario Turnos
+- **Problema**: Las vacaciones ya no se crean como `Schedule` con type='vacaciones' (son `VacationRequest`), pero puede haber schedules antiguos con ese type en BD. El calendario de turnos podría mostrarlos.
+- **Severidad**: 🟡 Media
+- **Solución**: Asegurar que el calendario de turnos (`SchedulePage`) filtre schedules con type='vacaciones'. Opcionalmente migrar datos antiguos.
+
+---
+
 ## 📋 Resumen por Prioridad
 
-### 🔴 Alta (debe resolverse antes de producción)
-1. **[US-1] / [RP-2]** Restringir `users:manage` de GM a su sucursal — falta lógica en `users.service.ts`
-2. **[ST-1]** Schedule-types service crea su propio PrismaClient
+### 🔴 Alta
+1. **[AL-1]** Tarde descubierta / Turno solitario — Alertas visuales
+2. **[AL-2]** Notificaciones de vacaciones rotas (scheduler busca en tabla equivocada)
+3. **[AL-3]** Dashboard → Evento específico no abre popup en calendario
 
 ### 🟡 Media
-3. **[ST-2]** Schedule-types router sin controller
-4. **[BR-3]** GM no puede gestionar festivos de su sucursal
-5. **[US-2]** UsersPage colores navy hardcodeados
-6. **[US-3]** UserDetailsModal colores navy hardcodeados
-7. **[SE-2]** WebhooksPage colores navy hardcodeados
-8. **[SE-3]** NotificationsPage colores navy hardcodeados
-9. **[EV-1]** EventTypesPage estilos legacy
-10. **[HL-1]** HolidaysPage colores navy hardcodeados
-11. **[AU-1]** AuditLogPage colores navy hardcodeados
-12. **[TY-1]** Tipo User sin campo departments array
-13. **[TY-2]** Desalineación modelo datos User-Department
+4. **[ST-2]** Schedule-types router sin controller
+5. **[BR-3]** GM no puede gestionar festivos de su sucursal
+6. **[US-2]** UsersPage colores navy hardcodeados
+7. **[US-3]** UserDetailsModal colores navy hardcodeados
+8. **[SE-2]** WebhooksPage colores navy hardcodeados
+9. **[SE-3]** NotificationsPage colores navy hardcodeados
+10. **[EV-1]** EventTypesPage estilos legacy
+11. **[HL-1]** HolidaysPage colores navy hardcodeados
+12. **[AU-1]** AuditLogPage colores navy hardcodeados
+13. **[TY-1]** Tipo User sin campo departments array
+14. **[TY-2]** Desalineación modelo datos User-Department
+15. **[SP-1]** Turnos preconfigurados como plantillas (entidad ShiftPreset)
+16. **[CA-1]** Eliminar tipo "Vacaciones" del Calendario Turnos
 
 ### 🟢 Baja
-14. **[US-4]** UserDetailsModal sin fallback departments array
-15. **[EV-2]** EventTypesPage usa confirm() nativo
-16. **[EV-3]** EventTypesPage usa default export
+17. **[US-4]** UserDetailsModal sin fallback departments array
+18. **[EV-2]** EventTypesPage usa confirm() nativo
+19. **[EV-3]** EventTypesPage usa default export

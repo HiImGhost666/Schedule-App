@@ -150,27 +150,32 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
     throw createAppError('BAD_REQUEST', 'Ya tienes una solicitud pendiente con fechas solapadas');
   }
 
-  // Obtener branch y department del usuario
+  // Obtener branch y department del usuario (obligatorios para crear vacaciones)
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
     select: { branchId: true, departmentId: true },
   });
 
+  if (!user?.branchId) {
+    throw createAppError('BAD_REQUEST', 'No tienes una sucursal asignada para solicitar vacaciones');
+  }
+  if (!user?.departmentId) {
+    throw createAppError('BAD_REQUEST', 'No tienes un departamento asignado para solicitar vacaciones');
+  }
+
   // Detectar solapamiento con compañeros del mismo departamento
   let overlappingEmployees: Array<{ id: string; name: string; email: string }> = [];
-  if (user?.departmentId) {
-    const overlaps = await findDepartmentOverlap(
-      user.departmentId,
-      actor.id,
-      startDate,
-      endDate,
-    );
-    overlappingEmployees = overlaps.map((o) => ({
-      id: o.employee.id,
-      name: o.employee.name,
-      email: o.employee.email,
-    }));
-  }
+  const overlaps = await findDepartmentOverlap(
+    user.departmentId,
+    actor.id,
+    startDate,
+    endDate,
+  );
+  overlappingEmployees = overlaps.map((o) => ({
+    id: o.employee.id,
+    name: o.employee.name,
+    email: o.employee.email,
+  }));
 
   // Determinar estado: colindante si hay solapamiento, pending si no
   const initialStatus = overlappingEmployees.length > 0 ? 'colindante' : 'pending';
@@ -182,8 +187,8 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
       endDate,
       note: input.note,
       status: initialStatus as any,
-      branch: user?.branchId ? { connect: { id: user.branchId } } : undefined,
-      department: user?.departmentId ? { connect: { id: user.departmentId } } : undefined,
+      branch: { connect: { id: user.branchId! } },
+      department: { connect: { id: user.departmentId! } },
     }, tx);
 
     await logAuditOrThrow({

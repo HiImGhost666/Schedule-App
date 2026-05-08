@@ -228,7 +228,6 @@ model Schedule {
   description   String?  @db.Text
   startDatetime DateTime @map("start_datetime")
   endDatetime   DateTime @map("end_datetime")
-  type          String   @default("guardia") // Legacy field, will be deprecated
   scheduleTypeId String? @map("schedule_type_id")
   scheduleType  ScheduleType? @relation(fields: [scheduleTypeId], references: [id], onDelete: SetNull)
   color         String   @default("#1e3a5f")
@@ -251,8 +250,6 @@ model Schedule {
   // (branchId, startDatetime, endDatetime): CLAVE — overlap check + listado por sede + rango
   // Es el índice más importante: ensureNoOverlaps y listSchedulesForActor lo explotan constantemente
   @@index([branchId, startDatetime, endDatetime])
-  // type: filtros por tipo de turno (guardia, vacaciones, ausencia...)
-  @@index([type])
   // scheduleTypeId: nuevo índice para tipos configurables
   @@index([scheduleTypeId])
   // isLastMinute: notificaciones y filtros de urgencia
@@ -336,10 +333,10 @@ model VacationRequest {
   reviewer        User?           @relation("VacationReviewer", fields: [reviewedBy], references: [id])
   reviewedAt      DateTime?       @map("reviewed_at")
   rejectionReason String?         @map("rejection_reason") @db.Text
-  branchId        String?         @map("branch_id")
-  branch          Branch?         @relation("BranchVacationRequests", fields: [branchId], references: [id])
-  departmentId    String?         @map("department_id")
-  department      Department?     @relation("DepartmentVacationRequests", fields: [departmentId], references: [id])
+  branchId        String          @map("branch_id")
+  branch          Branch          @relation("BranchVacationRequests", fields: [branchId], references: [id])
+  departmentId    String          @map("department_id")
+  department      Department      @relation("DepartmentVacationRequests", fields: [departmentId], references: [id])
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
