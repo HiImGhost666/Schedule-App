@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { prisma } from '../../config/database';
 import { logger } from '../../utils/logger';
-import { buildScheduleCard } from './notifications.templates';
+import { buildScheduleCard, buildVacationCard } from './notifications.templates';
 
 interface ScheduleChangeParams {
   type: string;
@@ -16,6 +16,46 @@ interface ScheduleChangeParams {
   actor: { name: string; id?: string };
   reason: string;
   isLastMinute: boolean;
+}
+
+interface VacationChangeParams {
+  type: string;
+  vacation: {
+    id: string;
+    employee: { name: string };
+    startDate: Date;
+    endDate: Date;
+    note?: string | null;
+    rejectionReason?: string | null;
+  };
+  actor: { name: string; id?: string };
+}
+
+export async function notifyVacationChange(params: VacationChangeParams) {
+  const card = buildVacationCard({
+    type: params.type,
+    employeeName: params.vacation.employee.name,
+    startDate: params.vacation.startDate,
+    endDate: params.vacation.endDate,
+    note: params.vacation.note,
+    actor: params.actor.name,
+    rejectionReason: params.vacation.rejectionReason,
+  });
+
+  const webhooks = await prisma.webhookConfig.findMany({
+    where: { enabled: true, notifyModifications: true },
+  });
+
+  for (const webhook of webhooks) {
+    await sendToWebhook({
+      webhookConfigId: webhook.id,
+      webhookUrl: webhook.webhookUrl,
+      payload: card,
+      type: params.type,
+      message: `${params.type}: ${params.vacation.employee.name}`,
+      sentByUserId: params.actor.id,
+    });
+  }
 }
 
 export async function notifyScheduleChange(params: ScheduleChangeParams) {

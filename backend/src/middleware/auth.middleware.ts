@@ -15,6 +15,7 @@ export interface AuthRequest extends Request {
     name: string;
     status: string;
     branchId: string | null;
+    departmentId: string | null;
   };
   file?: Express.Multer.File;
   files?: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
@@ -47,6 +48,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
         name: true,
         status: true,
         branchId: true,
+        departmentId: true,
       },
     });
 
@@ -67,6 +69,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       name: user.name,
       status: user.status,
       branchId: user.branchId,
+      departmentId: user.departmentId,
     };
 
     return next();

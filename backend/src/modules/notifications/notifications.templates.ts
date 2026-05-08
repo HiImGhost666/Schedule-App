@@ -234,6 +234,64 @@ export function buildTestCard(webhookName: string) {
   };
 }
 
+export function buildVacationCard(params: {
+  type: string;
+  employeeName: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  note?: string | null;
+  actor: string;
+  rejectionReason?: string | null;
+}) {
+  const typeLabels: Record<string, string> = {
+    vacation_requested: '🏖️ NUEVA SOLICITUD DE VACACIONES',
+    vacation_approved: '✅ VACACIONES APROBADAS',
+    vacation_rejected: '❌ VACACIONES RECHAZADAS',
+    vacation_cancelled: '🗑️ VACACIONES CANCELADAS',
+  };
+
+  const titleText = typeLabels[params.type] || '📅 ACTUALIZACIÓN DE VACACIONES';
+  const color = params.type === 'vacation_approved' ? 'good' : params.type === 'vacation_rejected' ? 'attention' : 'accent';
+
+  const facts: Array<{ title: string; value: string }> = [
+    { title: '👤 Empleado:', value: params.employeeName },
+    { title: '📅 Desde:', value: formatDt(params.startDate) },
+    { title: '📅 Hasta:', value: formatDt(params.endDate) },
+    ...(params.note ? [{ title: '📝 Nota:', value: params.note }] : []),
+    ...(params.rejectionReason ? [{ title: '❌ Motivo de rechazo:', value: params.rejectionReason }] : []),
+    { title: '👤 Gestionado por:', value: params.actor },
+  ];
+
+  return {
+    type: 'message',
+    attachments: [
+      {
+        contentType: 'application/vnd.microsoft.card.adaptive',
+        content: {
+          $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+          type: 'AdaptiveCard',
+          version: '1.4',
+          body: [
+            {
+              type: 'TextBlock',
+              text: titleText,
+              size: 'Large',
+              weight: 'Bolder',
+              color,
+              wrap: true,
+            },
+            {
+              type: 'FactSet',
+              facts,
+            },
+          ].filter(Boolean),
+          msteams: { width: 'Full' },
+        },
+      },
+    ],
+  };
+}
+
 export function buildAnnouncementCard(message: string, sentBy: string) {
   return {
     type: 'message',

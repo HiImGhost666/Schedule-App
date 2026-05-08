@@ -15,6 +15,15 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const prisma = new PrismaClient();
 
 // ============================================================================
+// BLOQUE 0: FUNCIÓN DE DETECCIÓN DE DATOS EXISTENTES
+// ============================================================================
+
+async function databaseHasAnyData(): Promise<boolean> {
+  const userCount = await prisma.user.count();
+  return userCount > 0;
+}
+
+// ============================================================================
 // BLOQUE 1: FUNCIONES DE AYUDA (HELPERS)
 // ============================================================================
 
@@ -130,6 +139,46 @@ async function main() {
   console.log('# [CAMBIO PRODUCCIÓN]: Cambia esta URL por la de tu servidor MySQL de producción.');
   console.log('# Si usas el docker-compose.yml incluido, déjalo como está.');
   console.log('----------------------------------------------------');
+
+  const alreadySeeded = await databaseHasAnyData();
+  if (alreadySeeded) {
+    console.log('La base de datos ya contiene datos. Sincronizando permisos faltantes...');
+
+    // Siempre sincronizar permisos (incluso si la BD ya tiene datos)
+    // Esto asegura que permisos nuevos (ej: vacations:create, vacations:read-all, etc.)
+    // se creen en la tabla permissions aunque el seed principal se omita.
+    const rolesData = ROLE_NAMES.map(name => ({
+      name,
+      permissions: DEFAULT_ROLE_PERMISSIONS[name]
+    }));
+    const allPermissions = new Set(rolesData.flatMap(r => r.permissions));
+
+    for (const perm of allPermissions) {
+      await prisma.permission.upsert({
+        where: { name: perm },
+        create: { name: perm },
+        update: {},
+      });
+    }
+
+    // También sincronizar permisos en roles existentes (por si se añadieron nuevos permisos a un rol)
+    for (const roleDef of rolesData) {
+      const role = await prisma.role.findUnique({ where: { name: roleDef.name } });
+      if (role) {
+        await prisma.role.update({
+          where: { id: role.id },
+          data: {
+            permissions: {
+              connect: roleDef.permissions.map(name => ({ name })),
+            },
+          },
+        });
+      }
+    }
+
+    console.log('Permisos sincronizados correctamente.');
+    return;
+  }
 
   // --- BLOQUE 2.1: TEMA GLOBAL ---
   console.log('BLOQUE: TEMAS');
@@ -322,7 +371,6 @@ async function main() {
   const scheduleTypesData = [
     { value: 'guardia', label: 'Guardia', color: '#2563eb' },
     { value: 'ausencia', label: 'Ausencia', color: '#64748b' },
-    { value: 'vacaciones', label: 'Vacaciones', color: '#3f6212' },
     { value: 'formacion', label: 'Formación', color: '#0e7490' },
     { value: 'otro', label: 'Otro', color: '#4b5563' },
     { value: 'excepcion', label: 'Excepción', color: '#dc2626' },
@@ -412,20 +460,84 @@ async function main() {
 
     const carlosInfo = createdUsers.find(u => u.email === 'carlos@company.com')!;
     const anaInfo = createdUsers.find(u => u.email === 'ana@company.com')!;
+    const pedroInfo = createdUsers.find(u => u.email === 'pedro@company.com')!;
+    const lauraInfo = createdUsers.find(u => u.email === 'laura@company.com')!;
 
-    // Carlos: Vacaciones (Toda la semana)
-    await ensureSeedSchedule(
-      adminUser.id,
-      carlosInfo.id,
-      mainBranch.id,
-      'Vacaciones Carlos',
-      scheduleTypesByValue.get('vacaciones')!,
-      'vacaciones',
-      '#65a30d',
-      false,
-      monday,
-      addDays(monday, 7) // + 7 dias
-    );
+    // --- VACATION REQUESTS DE EJEMPLO ---
+    async function ensureVacationRequest(data: {
+      employeeId: string;
+      status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+      startDate: Date;
+      endDate: Date;
+      note?: string;
+      reviewedBy?: string;
+      reviewedAt?: Date;
+      rejectionReason?: string;
+      branchId: string;
+      departmentId?: string | null;
+    }) {
+      const existing = await prisma.vacationRequest.findFirst({
+        where: { employeeId: data.employeeId, startDate: data.startDate },
+      });
+      if (existing) {
+        console.log(`[VACATION] Request already exists for ${data.employeeId} on ${data.startDate}`);
+        return existing;
+      }
+      const created = await prisma.vacationRequest.create({ data });
+      console.log(`[VACATION] Created ${data.status} request for ${data.employeeId}`);
+      return created;
+    }
+
+    // Carlos: Vacaciones aprobadas (toda la semana)
+    await ensureVacationRequest({
+      employeeId: carlosInfo.id,
+      status: 'approved',
+      startDate: monday,
+      endDate: addDays(monday, 4), // lunes a viernes
+      note: 'Vacaciones familiares aprobadas',
+      reviewedBy: adminUser.id,
+      reviewedAt: new Date(),
+      branchId: mainBranch.id,
+      departmentId: carlosInfo.departmentId,
+    });
+
+    // Ana: Solicitud pendiente (semana siguiente)
+    await ensureVacationRequest({
+      employeeId: anaInfo.id,
+      status: 'pending',
+      startDate: addDays(monday, 7),
+      endDate: addDays(monday, 11), // lunes a viernes de la semana siguiente
+      note: 'Solicito días libres la semana que viene',
+      branchId: mainBranch.id,
+      departmentId: anaInfo.departmentId,
+    });
+
+    // Pedro: Vacaciones rechazadas (semana actual, martes-miércoles)
+    await ensureVacationRequest({
+      employeeId: pedroInfo.id,
+      status: 'rejected',
+      startDate: addDays(monday, 1),
+      endDate: addDays(monday, 2),
+      note: 'Necesito cubrir unos asuntos personales',
+      reviewedBy: adminUser.id,
+      reviewedAt: new Date(),
+      rejectionReason: 'No hay cobertura suficiente esa semana en mantenimiento',
+      branchId: secondBranch.id,
+      departmentId: pedroInfo.departmentId,
+    });
+
+    // Laura: Vacaciones aprobadas (semana actual, jueves-viernes)
+    await ensureVacationRequest({
+      employeeId: lauraInfo.id,
+      status: 'approved',
+      startDate: addDays(monday, 3),
+      endDate: addDays(monday, 4),
+      note: 'Puente aprobado',
+      reviewedBy: adminUser.id,
+      reviewedAt: new Date(),
+      branchId: secondBranch.id,
+      departmentId: lauraInfo.departmentId,
+    });
 
     // Ana: Guardia Normal
     await ensureSeedSchedule(

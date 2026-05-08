@@ -105,35 +105,6 @@ export function MyWeeklySummaryCard() {
             </div>
           )}
 
-          {/* Desglose diario */}
-          {dailyData.length > 0 && (
-            <div>
-              <p className="text-xs uppercase tracking-wider text-theme-muted mb-2 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                Desglose diario
-              </p>
-              <div className="space-y-1.5">
-                {dailyData.map(({ day, hours, isOvertime }) => (
-                  <div key={day} className="flex items-center gap-3">
-                    <span className="text-xs text-theme-muted w-8 shrink-0">{day}</span>
-                    <div className="flex-1 h-5 bg-theme-surface-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          isOvertime ? 'bg-amber-400' : 'bg-navy-500'
-                        }`}
-                        style={{ width: `${Math.min((hours / 12) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <span className={`text-xs font-medium w-10 text-right shrink-0 ${
-                      isOvertime ? 'text-amber-600' : 'text-theme-primary'
-                    }`}>
-                      {hours}h
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

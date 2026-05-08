@@ -66,12 +66,22 @@ La aplicación utiliza WebSockets para actualizar instantáneamente:
 - El **Calendario** de guardias.
 - La **Lista de Usuarios** en el panel de control.
 - El **Feed de Auditoría** y actividad reciente.
+- Las **Vacaciones** y su estado.
 
 ### 🛡️ Auditoría y Rollback
 Cualquier cambio crítico en el sistema queda registrado. Los administradores pueden consultar el historial completo y **revertir cambios** (Rollback) con un solo click en casos de error o borrado accidental.
 
 ### 📢 Notificaciones Inteligentes
-Integración con **Microsoft Teams** vía Webhooks. Configura resúmenes automáticos cada viernes o alertas de "Último Minuto" para cambios con menos de 24h de antelación.
+Integración con **Microsoft Teams** vía Webhooks. Configura resúmenes automáticos cada viernes o alertas de "Último Minuto" para cambios con menos de 24h de antelación. Los webhooks pueden filtrarse por departamento y/o sucursal.
+
+### 🏖️ Gestión de Vacaciones
+Solicitud, aprobación/rechazo y calendario de vacaciones con detección de solapamientos (estado `colindante`). Los managers pueden gestionar las vacaciones de su equipo según su scope.
+
+### 📊 Dashboard con Widgets
+Vista semanal de turnos, resumen personal de horas, resumen del equipo y actividad reciente, todo en una sola página.
+
+### 📈 Resumen Semanal de Horas
+Cálculo automático de horas totales, base y extra por semana con desglose diario. Visible para cada usuario y para managers de su equipo.
 
 ---
 

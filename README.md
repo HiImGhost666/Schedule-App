@@ -18,11 +18,17 @@ Bienvenido/a a la plataforma integral para la gestión, visualización y auditor
 ## 🧩 Funcionalidades principales
 
 - **Gestión de usuarios**: Alta, edición, baja, importación/exportación CSV, control de roles y departamentos.
-- **Gestión de turnos**: Asignación de guardias, vacaciones, visualización en calendario, gestión de solapamientos.
+- **Gestión de turnos**: Asignación de guardias, vacaciones, visualización en calendario, gestión de solapamientos, turnos multi-día.
+- **Gestión de vacaciones**: Solicitud, aprobación/rechazo, calendario de vacaciones, filtros por sucursal y departamento.
+- **Resumen semanal de horas**: Cálculo automático de horas totales, base y extra por semana con desglose diario.
+- **Dashboard con widgets**: Vista semanal de turnos, resumen personal y del equipo, actividad reciente.
 - **Auditoría y rollback**: Registro de todas las acciones críticas, con posibilidad de revertir cambios.
 - **Notificaciones**: Alertas automáticas por cambios de última hora y resúmenes semanales vía Teams.
 - **Sincronización en tiempo real**: Cambios reflejados instantáneamente en todos los dispositivos conectados.
 - **Gestión de sedes y festivos**: Soporte multi-sucursal, calendario de festivos nacional, regional y local.
+- **Webhooks con scope**: Configuración de webhooks por departamento y/o sucursal.
+- **Tipos de evento configurables**: Creación y personalización de tipos de turno con colores.
+- **Temas y personalización**: Temas corporativos con colores, logo y favicon configurables.
 
 ---
 
@@ -224,8 +230,9 @@ A continuación se detallan todas las acciones disponibles en cada página de la
 | Ver calendario semanal con turnos | ✅ | ✅ | ✅ |
 | Ver leyenda de tipos de turno (colores) | ✅ | ✅ | ✅ |
 | Ver resumen de turnos de la semana | ✅ | ✅ | ✅ |
-| Ver notificaciones recientes | ✅ | ✅ | ✅ |
-| Ver actividad de auditoría reciente | ✅ | ✅ | ❌ |
+| Ver resumen semanal de horas (propias) | ✅ | ✅ | ✅ |
+| Ver resumen semanal del equipo | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ❌ |
+| Ver actividad de auditoría reciente | ✅ | ❌ | ❌ |
 | Navegar entre semanas (anterior/siguiente) | ✅ | ✅ | ✅ |
 | Ir a la semana actual | ✅ | ✅ | ✅ |
 | Filtrar por sucursal | ✅ | ✅ | ✅ |
@@ -305,6 +312,18 @@ A continuación se detallan todas las acciones disponibles en cada página de la
 | **Revertir (rollback) una acción** | ✅ | ❌ | ❌ |
 
 **Acciones revertibles:** CREATE_SCHEDULE, UPDATE_SCHEDULE, DELETE_SCHEDULE, CREATE_USER, UPDATE_USER, DELETE_USER, USER_STATUS_CHANGE, USER_ROLE_CHANGE, CREATE_BRANCH_HOLIDAY, UPDATE_BRANCH_HOLIDAY, DELETE_BRANCH_HOLIDAY, CREATE_WEBHOOK, UPDATE_WEBHOOK, DELETE_WEBHOOK
+
+### 🏖️ Gestión de Vacaciones (`/vacaciones`)
+
+| Acción | Admin | Manager | Viewer |
+|--------|:-----:|:-------:|:------:|
+| Ver calendario de vacaciones | ✅ | ✅ | ✅ |
+| Ver listado de solicitudes de vacaciones | ✅ | ✅ | ✅ |
+| Solicitar vacaciones | ✅ | ✅ | ✅ |
+| Aprobar/rechazar solicitudes | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) | ❌ |
+| Cancelar solicitudes propias | ✅ | ✅ | ✅ |
+| Eliminar solicitudes permanentemente | ✅ | ❌ | ❌ |
+| Filtrar por sucursal y departamento | ✅ | ✅ | ✅ |
 
 ### 🔔 Notificaciones (`/admin/notifications`)
 

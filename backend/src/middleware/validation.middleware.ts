@@ -15,11 +15,11 @@ export function validateRequest(options: ValidationOptions) {
       }
 
       if (options.query) {
-        req.query = await options.query.parseAsync(req.query);
+        req.query = await options.query.parseAsync(req.query) as any;
       }
 
       if (options.params) {
-        req.params = await options.params.parseAsync(req.params);
+        req.params = await options.params.parseAsync(req.params) as any;
       }
 
       next();
@@ -27,7 +27,7 @@ export function validateRequest(options: ValidationOptions) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: 'Validation error',
-          details: error.errors.map(err => ({
+          details: error.issues.map((err) => ({
             path: err.path.join('.'),
             message: err.message,
           })),

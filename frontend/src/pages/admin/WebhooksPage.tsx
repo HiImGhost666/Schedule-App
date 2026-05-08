@@ -64,8 +64,8 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
     enabled: true,
   });
 
-  const branches = branchesData.data ?? [];
-  const departments = departmentsData.data ?? [];
+  const branches = useMemo(() => branchesData.data ?? [], [branchesData.data]);
+  const departments = useMemo(() => departmentsData.data ?? [], [departmentsData.data]);
 
   const selectedBranchId = watch('branchId');
   const filteredDepartments = useMemo(() => {

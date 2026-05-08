@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Calendar,
+  CalendarDays,
   Users,
   Webhook,
   Bell,
@@ -16,6 +17,7 @@ import { User } from "lucide-react";
 const baseItems = [
   { to: "/", icon: LayoutDashboard, label: "Inicio", exact: true },
   { to: "/schedule", icon: Calendar, label: "Turnos" },
+  { to: "/vacations", icon: CalendarDays, label: "Vacaciones" },
 ];
 
 const adminExtraItems = [
