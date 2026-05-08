@@ -96,14 +96,12 @@ CREATE TABLE `departments` (
     `code` VARCHAR(191) NOT NULL,
     `description` VARCHAR(191) NULL,
     `is_active` BOOLEAN NOT NULL DEFAULT true,
-    `manager_id` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `departments_code_key`(`code`),
     INDEX `departments_is_active_idx`(`is_active`),
     INDEX `departments_code_idx`(`code`),
-    INDEX `departments_manager_id_idx`(`manager_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -115,6 +113,16 @@ CREATE TABLE `department_branches` (
 
     INDEX `department_branches_branch_id_idx`(`branch_id`),
     PRIMARY KEY (`department_id`, `branch_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `department_managers` (
+    `department_id` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NOT NULL,
+    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `department_managers_user_id_idx`(`user_id`),
+    PRIMARY KEY (`department_id`, `user_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -194,6 +202,25 @@ CREATE TABLE `schedule_assignments` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `weekly_work_summaries` (
+    `id` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NOT NULL,
+    `year` INTEGER NOT NULL,
+    `week` INTEGER NOT NULL,
+    `total_hours` DOUBLE NOT NULL DEFAULT 0,
+    `base_hours` DOUBLE NOT NULL DEFAULT 40,
+    `overtime_hours` DOUBLE NOT NULL DEFAULT 0,
+    `daily_breakdown` TEXT NULL,
+    `calculated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `weekly_work_summaries_user_id_year_week_idx`(`user_id`, `year`, `week`),
+    INDEX `weekly_work_summaries_year_week_idx`(`year`, `week`),
+    UNIQUE INDEX `weekly_work_summaries_user_id_year_week_key`(`user_id`, `year`, `week`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `schedule_types` (
     `id` VARCHAR(191) NOT NULL,
     `value` VARCHAR(191) NOT NULL,
@@ -210,6 +237,30 @@ CREATE TABLE `schedule_types` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `vacation_requests` (
+    `id` VARCHAR(191) NOT NULL,
+    `employee_id` VARCHAR(191) NOT NULL,
+    `status` ENUM('pending', 'colindante', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+    `start_date` DATETIME(3) NOT NULL,
+    `end_date` DATETIME(3) NOT NULL,
+    `note` TEXT NULL,
+    `reviewed_by` VARCHAR(191) NULL,
+    `reviewed_at` DATETIME(3) NULL,
+    `rejection_reason` TEXT NULL,
+    `branch_id` VARCHAR(191) NULL,
+    `department_id` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `vacation_requests_employee_id_idx`(`employee_id`),
+    INDEX `vacation_requests_status_idx`(`status`),
+    INDEX `vacation_requests_branch_id_status_idx`(`branch_id`, `status`),
+    INDEX `vacation_requests_department_id_status_idx`(`department_id`, `status`),
+    INDEX `vacation_requests_start_date_end_date_idx`(`start_date`, `end_date`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `webhook_configs` (
     `id` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL,
@@ -220,6 +271,8 @@ CREATE TABLE `webhook_configs` (
     `friday_reminder_enabled` BOOLEAN NOT NULL DEFAULT true,
     `monday_vacation_reminder_enabled` BOOLEAN NOT NULL DEFAULT true,
     `friday_reminder_time` VARCHAR(191) NOT NULL DEFAULT '12:00',
+    `department_id` VARCHAR(191) NULL,
+    `branch_id` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
@@ -228,6 +281,8 @@ CREATE TABLE `webhook_configs` (
     INDEX `webhook_configs_enabled_notify_last_minute_idx`(`enabled`, `notify_last_minute`),
     INDEX `webhook_configs_enabled_friday_reminder_enabled_idx`(`enabled`, `friday_reminder_enabled`),
     INDEX `webhook_configs_enabled_monday_vacation_reminder_enabled_idx`(`enabled`, `monday_vacation_reminder_enabled`),
+    INDEX `webhook_configs_department_id_idx`(`department_id`),
+    INDEX `webhook_configs_branch_id_idx`(`branch_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -314,13 +369,16 @@ ALTER TABLE `users` ADD CONSTRAINT `users_department_id_fkey` FOREIGN KEY (`depa
 ALTER TABLE `branches` ADD CONSTRAINT `branches_manager_id_fkey` FOREIGN KEY (`manager_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `departments` ADD CONSTRAINT `departments_manager_id_fkey` FOREIGN KEY (`manager_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `department_branches` ADD CONSTRAINT `department_branches_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `department_branches` ADD CONSTRAINT `department_branches_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `department_managers` ADD CONSTRAINT `department_managers_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `department_managers` ADD CONSTRAINT `department_managers_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `branch_holidays` ADD CONSTRAINT `branch_holidays_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -342,6 +400,27 @@ ALTER TABLE `schedule_assignments` ADD CONSTRAINT `schedule_assignments_schedule
 
 -- AddForeignKey
 ALTER TABLE `schedule_assignments` ADD CONSTRAINT `schedule_assignments_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `weekly_work_summaries` ADD CONSTRAINT `weekly_work_summaries_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vacation_requests` ADD CONSTRAINT `vacation_requests_employee_id_fkey` FOREIGN KEY (`employee_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vacation_requests` ADD CONSTRAINT `vacation_requests_reviewed_by_fkey` FOREIGN KEY (`reviewed_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vacation_requests` ADD CONSTRAINT `vacation_requests_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vacation_requests` ADD CONSTRAINT `vacation_requests_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `webhook_configs` ADD CONSTRAINT `webhook_configs_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `webhook_configs` ADD CONSTRAINT `webhook_configs_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `notification_logs` ADD CONSTRAINT `notification_logs_webhook_config_id_fkey` FOREIGN KEY (`webhook_config_id`) REFERENCES `webhook_configs`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
