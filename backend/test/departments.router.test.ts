@@ -66,10 +66,10 @@ describe('departments.router', () => {
       expect(departmentsController.listDepartmentsController).not.toHaveBeenCalled();
     });
 
-    it('returns 403 for department_manager (requires settings:view)', async () => {
+    it('returns 200 for department_manager (has settings:view)', async () => {
       const response = await request(app).get('/api/departments').set('x-test-role', 'department_manager');
-      expect(response.status).toBe(403);
-      expect(departmentsController.listDepartmentsController).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(departmentsController.listDepartmentsController).toHaveBeenCalledTimes(1);
     });
 
     it('returns 401 when role header is missing', async () => {

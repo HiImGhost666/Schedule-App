@@ -19,6 +19,8 @@ export const listSchedulesQuerySchema = z.object({
 
 export const listWeekSchedulesQuerySchema = z.object({
   branchId: z.string().optional(),
+  departmentId: z.string().optional(),
+  userId: z.string().optional(),
 });
 
 // Define un esquema base para el cuerpo de la guardia

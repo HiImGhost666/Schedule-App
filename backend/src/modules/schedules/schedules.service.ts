@@ -232,7 +232,7 @@ export function listSchedulesForActor(
  * @description Construye matriz semanal ISO 8601, buscando eventos que intercepten dentro del lunes-domingo de la semana provista.
  * @param year @param week
  */
-export async function listWeekSchedules(year: number, week: number, branchId?: string) {
+export async function listWeekSchedules(year: number, week: number, branchId?: string, departmentId?: string, userId?: string) {
   const jan4 = new Date(year, 0, 4);
   const weekStart = new Date(jan4);
   weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
@@ -246,8 +246,11 @@ export async function listWeekSchedules(year: number, week: number, branchId?: s
       { startDatetime: { lte: weekEnd } },
       { endDatetime: { gte: weekStart } },
       ...(branchId ? [{ branchId }] : []),
+      ...(departmentId ? [{ assignments: { some: { user: { departmentId } } } }] : []),
+      ...(userId ? [{ assignments: { some: { userId } } }] : []),
     ],
   });
+
 
   const items = schedules.map((schedule) => ({
     id: schedule.id,
@@ -287,13 +290,15 @@ export async function listWeekSchedulesForActor(
   year: number,
   week: number,
   branchId: string | undefined,
+  departmentId: string | undefined,
+  userId: string | undefined,
   actor: Pick<Actor, 'roleName' | 'branchId'>,
 ) {
   const canViewAllBranches = actor.roleName === 'admin' || actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee';
   if (!canViewAllBranches) {
     throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
   }
-  return listWeekSchedules(year, week, branchId);
+  return listWeekSchedules(year, week, branchId, departmentId, userId);
 }
 
 /** Evita empalmes validando que la constelación de asignados esté libre en la brecha dt_ini a dt_fin. */

@@ -74,6 +74,20 @@ const webhookSchema = z.object({
   scope: z.enum(['general', 'department', 'branch']).default('general'),
   departmentId: z.string().optional(),
   branchId: z.string().optional(),
+});
+
+const webhookPartialSchema = z.object({
+  name: z.string().min(2).optional(),
+  webhookUrl: z.string().url('URL inválida').optional(),
+  enabled: z.boolean().optional(),
+  notifyModifications: z.boolean().optional(),
+  notifyLastMinute: z.boolean().optional(),
+  fridayReminderEnabled: z.boolean().optional(),
+  mondayVacationReminderEnabled: z.boolean().optional(),
+  fridayReminderTime: z.string().optional(),
+  scope: z.enum(['general', 'department', 'branch']).optional(),
+  departmentId: z.string().optional(),
+  branchId: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.scope === 'department' && !data.departmentId) {
     ctx.addIssue({
@@ -135,7 +149,7 @@ router.patch('/:id', authMiddleware, requirePermission('settings:update'), async
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 
-  const parsed = webhookSchema.partial().safeParse(req.body);
+  const parsed = webhookPartialSchema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {

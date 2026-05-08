@@ -220,14 +220,18 @@ export function SchedulePage() {
     queryKey: [
       'schedules',
       effectiveActiveBranchId || 'all',
+      selectedDeptId || 'all',
       shouldUseWeekEndpoint ? 'week-view' : 'month-view',
       shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
     ],
     queryFn: () => {
       if (shouldUseWeekEndpoint) {
+        const weekParams: Record<string, string> = {};
+        if (effectiveActiveBranchId) weekParams.branchId = effectiveActiveBranchId;
+        if (selectedDeptId) weekParams.departmentId = selectedDeptId;
         return api
           .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`, {
-            params: effectiveActiveBranchId ? { branchId: effectiveActiveBranchId } : {},
+            params: weekParams,
           })
           .then((r) => r.data.data.items.map(mapWeekItemToSchedule));
       }

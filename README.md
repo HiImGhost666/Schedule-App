@@ -235,7 +235,13 @@ A continuación se detallan todas las acciones disponibles en cada página de la
 | Ver actividad de auditoría reciente | ✅ | ❌ | ❌ |
 | Navegar entre semanas (anterior/siguiente) | ✅ | ✅ | ✅ |
 | Ir a la semana actual | ✅ | ✅ | ✅ |
-| Filtrar por sucursal | ✅ | ✅ | ✅ |
+| Filtrar turnos por sucursal | ✅ | ❌ | ❌ |
+| Filtrar turnos por departamento | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) |
+| Filtrar turnos por empleado | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) |
+| Filtrar por tipo de turno | ✅ | ✅ | ✅ |
+| Filtrar solo mis turnos | ✅ | ✅ | ✅ |
+| Filtrar solo urgentes | ✅ | ✅ | ✅ |
+| Los turnos se filtran automáticamente según el rol | ✅ (ve todo) | ✅ (ve su branch) | ✅ (ve su depto) |
 
 ### 📅 Calendario de Turnos (`/schedules`)
 
@@ -250,6 +256,7 @@ A continuación se detallan todas las acciones disponibles en cada página de la
 | Ver previsualización de horas totales del turno | ✅ | ✅ | ❌ |
 | Confirmar creación en día festivo (modal de advertencia) | ✅ | ✅ | ❌ |
 | Filtrar por sucursal | ✅ | ✅ | ✅ |
+| Filtrar por departamento | ✅ | ✅ (scope: su branch) | ✅ (scope: su depto) |
 | Ver festivos del mes en el calendario | ✅ | ✅ | ✅ |
 
 **Tipos de turno disponibles:** Guardia, Ausencia, Vacaciones, Formación, Otro, Excepción

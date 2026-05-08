@@ -1,10 +1,9 @@
-import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useMyWeeklySummary } from '@/hooks/useMyWeeklySummary';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { format } from 'date-fns';
-import { Clock, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 /**
@@ -18,35 +17,6 @@ export function MyWeeklySummaryCard() {
   const isoWeekYear = getISOWeekYear(now);
 
   const { data: summary, isLoading } = useMyWeeklySummary(isoWeekYear, isoWeek);
-
-  const dailyData = useMemo(() => {
-    const dayLabels: Record<string, string> = {
-      '1': 'Lun',
-      '2': 'Mar',
-      '3': 'Mié',
-      '4': 'Jue',
-      '5': 'Vie',
-      '6': 'Sáb',
-      '7': 'Dom',
-    };
-
-    if (!summary?.dailyBreakdown) return [];
-    const breakdown =
-      typeof summary.dailyBreakdown === 'string'
-        ? JSON.parse(summary.dailyBreakdown)
-        : summary.dailyBreakdown;
-
-    return Object.entries(breakdown)
-      .map(([day, hours]) => ({
-        day: dayLabels[day] || `Día ${day}`,
-        hours: hours as number,
-        isOvertime: (hours as number) > 8,
-      }))
-      .sort((a, b) => {
-        const order = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-        return order.indexOf(a.day) - order.indexOf(b.day);
-      });
-  }, [summary]);
 
   if (!user) return null;
 
