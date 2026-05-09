@@ -121,7 +121,7 @@ const webhookUpdateSchema = z.object({
   branchId: z.string().optional(),
 });
 
-router.get('/', authMiddleware, requirePermission('settings:view'), asyncRoute(async (_req: AuthRequest, res: Response) => {
+router.get('/', authMiddleware, requirePermission('webhooks:view'), asyncRoute(async (_req: AuthRequest, res: Response) => {
   const webhooks = await prisma.webhookConfig.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
@@ -132,7 +132,7 @@ router.get('/', authMiddleware, requirePermission('settings:view'), asyncRoute(a
   return sendSuccess(res, webhooks);
 }));
 
-router.post('/', authMiddleware, requirePermission('settings:update'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', authMiddleware, requirePermission('webhooks:manage'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const parsed = webhookSchema.safeParse(req.body);
   if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
@@ -147,7 +147,7 @@ router.post('/', authMiddleware, requirePermission('settings:update'), asyncRout
   }
 }));
 
-router.patch('/:id', authMiddleware, requirePermission('settings:update'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.patch('/:id', authMiddleware, requirePermission('webhooks:manage'), asyncRoute(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 
@@ -165,7 +165,7 @@ router.patch('/:id', authMiddleware, requirePermission('settings:update'), async
   }
 }));
 
-router.delete('/:id', authMiddleware, requirePermission('settings:update'), asyncRoute(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authMiddleware, requirePermission('webhooks:manage'), asyncRoute(async (req: AuthRequest, res: Response) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 
@@ -173,7 +173,7 @@ router.delete('/:id', authMiddleware, requirePermission('settings:update'), asyn
   return sendSuccess(res, null, 'Webhook eliminado');
 }));
 
-router.post('/:id/test', authMiddleware, requirePermission('settings:update'), asyncRoute(async (req: AuthRequest, res: Response) => {
+router.post('/:id/test', authMiddleware, requirePermission('webhooks:manage'), asyncRoute(async (req: AuthRequest, res: Response) => {
   const id = getParam(req.params.id);
   if (!id) return sendError(res, 'ID de webhook invalido', 400, null, 'BAD_REQUEST');
 

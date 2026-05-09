@@ -14,7 +14,7 @@ const getParam = (value: string | string[] | undefined): string | undefined => (
   Array.isArray(value) ? value[0] : value
 );
 
-router.get('/logs', authMiddleware, requirePermission('settings:view'), async (req: AuthRequest, res: Response) => {
+router.get('/logs', authMiddleware, requirePermission('webhooks:view'), async (req: AuthRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
   const { type, status } = req.query;
@@ -40,7 +40,7 @@ router.get('/logs', authMiddleware, requirePermission('settings:view'), async (r
   return sendPaginated(res, logs, total, page, limit);
 });
 
-router.post('/resend/:logId', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
+router.post('/resend/:logId', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const logId = getParam(req.params.logId);
     if (!logId) return sendError(res, 'logId invalido', 400);
@@ -53,7 +53,7 @@ router.post('/resend/:logId', authMiddleware, requirePermission('settings:update
   }
 });
 
-router.post('/friday-summary', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
+router.post('/friday-summary', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const { webhookConfigId } = req.body;
     const results = await sendFridaySummary(req.user!.id, webhookConfigId);
@@ -64,7 +64,7 @@ router.post('/friday-summary', authMiddleware, requirePermission('settings:updat
   }
 });
 
-router.post('/vacation-summary', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
+router.post('/vacation-summary', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const { webhookConfigId } = req.body;
     const results = await sendMondayVacationSummary(req.user!.id, webhookConfigId);
@@ -75,7 +75,7 @@ router.post('/vacation-summary', authMiddleware, requirePermission('settings:upd
   }
 });
 
-router.post('/announce', authMiddleware, requirePermission('settings:update'), async (req: AuthRequest, res: Response) => {
+router.post('/announce', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   const { message, webhookConfigId } = req.body;
   if (!message) return sendError(res, 'Mensaje requerido', 400);
 
