@@ -18,8 +18,7 @@
 | **VUL-1** | Employee puede ver schedules de otros empleados de su branch si pasa `userId` en query params | Medio — employee puede ver turnos ajenos | Schedules | ✅ **CORREGIDO** |
 | **VUL-3** | Endpoint `GET /schedules` (sin actor) usa `listSchedules` sin restricción de rol | Medio — cualquiera con token puede listar schedules | Schedules | ✅ **CORREGIDO** (controller ya usa `listSchedulesForActor`) |
 | **VUL-6** | No se valida que assigneeIds existan al crear schedule | Bajo — si se pasa ID inexistente, Prisma lanza error | Schedules | ✅ **CORREGIDO** |
-| **VUL-7** | Employee puede cancelar vacaciones de otros si obtiene permiso `vacations:approve` | Bajo — employee no tiene ese permiso por defecto | Vacations | ❌ No corregido (bajo riesgo, employee no tiene ese permiso) |
-| **VUL-8** | No hay sanitización de HTML en campos de texto (name, notes, etc.) | Bajo — riesgo de XSS si se renderiza sin escape | Global | ❌ Pendiente |
+| **VUL-8** | No hay sanitización de HTML en campos de texto (name, notes, etc.) | Bajo — riesgo de XSS si se renderiza sin escape | Global | ✅ **CORREGIDO** |
 
 ## 🟢 Vulnerabilidades Bajas
 
@@ -53,7 +52,7 @@
 - [ ] **VUL-5**: Añadir validación de ownership/tenant en webhooks
 
 ### Módulo: Frontend
-- [ ] **VUL-8**: Sanitizar HTML en campos de texto (name, notes, etc.)
+- [x] **VUL-8**: Sanitizar HTML en campos de texto (name, notes, etc.)
 - [ ] **FNT-1**: Mostrar mensaje claro cuando employee no tiene sucursal asignada
 - [ ] Añadir notificaciones push para eventos de vacaciones
 - [ ] Añadir skeleton loaders en todas las páginas

@@ -52,6 +52,10 @@
 - Filtro automático por rol en Dashboard (DM ve su depto, GM su sucursal, admin todo)
 - Creada lógica `shiftScheduling.ts` para turnos multi-día con agrupación de días consecutivos
 - Creados tests `DashboardPage.test.tsx` y `shiftScheduling.test.ts`
+- **VUL-1**: Forzado `userId = actor.id` en `listSchedulesForActor` para employee (no puede ver turnos ajenos)
+- **VUL-2**: Corregido `listWeekSchedulesForActor` — pasaba `actor.branchId` como `userId` en vez de `actor.id`
+- **VUL-3**: Verificado que `GET /schedules` ya usa `listSchedulesForActor` (no expone schedules sin restricción)
+- **VUL-6**: Añadida validación de existencia de `assigneeIds` antes de crear schedule
 
 ## Módulo: ShiftPresets (Nuevo)
 
@@ -91,6 +95,30 @@
 
 - Rollback ahora usa `settings:update` (solo admin) en vez de `audit:view`
 
+## Módulo: Frontend — Sanitización (VUL-8)
+
+- Creado `frontend/src/lib/sanitize.ts` con sistema completo de sanitización:
+  - `escapeHtml()` — escapa caracteres HTML peligrosos (& < > " ' ` /)
+  - `stripHtmlTags()` — elimina etiquetas HTML/XML
+  - `normalizeWhitespace()` — normaliza espacios múltiples
+  - `sanitizeText()` — sanitización completa para entrada de datos
+  - `sanitizeForDisplay()` — escape HTML para mostrar en pantalla
+  - `validateTextField()` — valida y sanitiza campos de texto genéricos
+  - `validateEmailField()` — valida formato de email
+  - `validateNameField()` — valida nombres (solo letras, acentos, ñ, guiones, apóstrofes)
+  - `validateNotesField()` — valida notas/descripciones (más permisivo)
+  - `validateLocationField()` — valida ubicaciones
+  - `validateFormFields()` — valida múltiples campos en submit (Fase 2)
+  - `isFormValid()` — verifica si todos los campos son válidos
+- Creado `frontend/src/hooks/useFieldValidation.ts` — hook de validación en dos fases:
+  - Fase 1: validación por campo individual (onBlur/onChange) con `setCustomValidity()`
+  - Fase 2: validación global en submit con `validateAll()`
+  - `register()` — retorna props para vincular inputs (value, onChange, onBlur, ref, aria-*)
+  - Soporta tipos: text, email, name, notes, location
+  - Validación custom adicional por campo
+  - `reset()`, `setValue()`, `setValues()`, `getSanitizedValue()`
+- Creados 44 tests en `frontend/test/sanitize.test.ts` cubriendo todas las funciones
+
 ## Base de datos
 
 - Migraciones unificadas en un solo `init.sql`
@@ -126,4 +154,5 @@
 - Tests de SchedulePage corregidos (lógica de branchId actualizada)
 - Tests de DashboardPage corregidos (StatCard "Alertas" en vez de "Cambios urgentes")
 - Tests de branches.router corregidos (permiso `branches:holidays:manage` añadido a admin)
-- Todos los tests pasando (194 tests, 0 fallos)
+- Creados 44 tests de sanitización (`sanitize.test.ts`)
+- **Todos los tests pasando (238 tests, 0 fallos)**
