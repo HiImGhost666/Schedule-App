@@ -452,6 +452,18 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model ShiftPreset {
+  id        String   @id @default(cuid())
+  name      String
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("shift_presets")
+}
+
 model ThemeSettings {
   id              String   @id @default(cuid())
   key             String   @unique @default("global")

@@ -83,31 +83,27 @@ export async function sendMondayVacationSummary(sentByUserId?: string, webhookCo
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
 
-  // Find all 'vacaciones' schedules that overlap with this week
-  const vacationSchedules = await prisma.schedule.findMany({
+  // Find all approved vacation requests that overlap with this week
+  const vacationRequests = await prisma.vacationRequest.findMany({
     where: {
-      scheduleType: { value: 'vacaciones' },
+      status: 'approved',
       AND: [
-        { startDatetime: { lte: weekEnd } },
-        { endDatetime: { gte: weekStart } },
+        { startDate: { lte: weekEnd } },
+        { endDate: { gte: weekStart } },
       ],
     },
     include: {
-      assignments: {
-        include: { user: { select: { name: true } } },
-      },
+      employee: { select: { name: true } },
     },
-    orderBy: { startDatetime: 'asc' },
+    orderBy: { startDate: 'asc' },
   });
 
-  // Flatten to individual vacation entries per person
-  const vacations = vacationSchedules.flatMap((s) =>
-    s.assignments.map((a) => ({
-      name: a.user.name,
-      from: format(new Date(s.startDatetime), 'dd/MM/yyyy'),
-      to: format(new Date(s.endDatetime), 'dd/MM/yyyy'),
-    }))
-  );
+  // Map to individual vacation entries per person
+  const vacations = vacationRequests.map((v) => ({
+    name: v.employee.name,
+    from: format(new Date(v.startDate), 'dd/MM/yyyy'),
+    to: format(new Date(v.endDate), 'dd/MM/yyyy'),
+  }));
 
   const weekLabel = `${format(weekStart, "dd 'de' MMMM", { locale: es })} — ${format(weekEnd, "dd 'de' MMMM yyyy", { locale: es })}`;
   const card = buildMondayVacationCard({ weekLabel, vacations });

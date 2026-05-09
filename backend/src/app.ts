@@ -15,6 +15,7 @@ import branchesRouter from './modules/branches/branches.router';
 import departmentsRouter from './modules/departments/departments.router';
 import rolesRouter from './modules/roles/roles.router';
 import vacationsRouter from './modules/vacations/vacations.router';
+import shiftPresetsRouter from './modules/shift-presets/shift-presets.router';
 import { sendSuccess } from './utils/response';
 import path from 'path';
 
@@ -61,6 +62,7 @@ app.use('/api/audit', auditRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/vacations', vacationsRouter);
+app.use('/api/shift-presets', shiftPresetsRouter);
 
 app.use(errorHandler);
 
