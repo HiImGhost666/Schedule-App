@@ -413,6 +413,8 @@ export function SchedulePage() {
 
     return schedules
       .filter((s) => {
+        // [CA-1] Filtrar schedules antiguos con type='vacaciones' (ahora son VacationRequest)
+        if (s.type === 'vacaciones') return false;
         if (hiddenTypes.has(s.type)) return false;
         if (selectedDeptId) {
           return s.assignments.some((a) => a.user.department?.id === selectedDeptId);
