@@ -17,6 +17,11 @@ jest.mock('../src/utils/jwt', () => ({
   verifyRefreshToken: jest.fn(),
 }));
 
+jest.mock('../src/modules/audit/audit.service', () => ({
+  logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
+  sanitizeSnapshot: jest.fn((x) => x),
+}));
+
 jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn(async (operation: any) => {
     // Pasamos un objeto tx mock para que getDb(tx) lo use

@@ -10,6 +10,10 @@ jest.mock('../src/modules/audit/audit.service', () => ({
 jest.mock('../src/modules/notifications/notifications.service', () => ({
   notifyScheduleChange: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../src/modules/in-app-notifications/in-app.service', () => ({
+  createInAppNotification: jest.fn().mockResolvedValue(undefined),
+  createInAppNotificationBatch: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }));
 jest.mock('../src/modules/schedules/schedules.repository');
 // We'll set up the tx mock dynamically in beforeEach
@@ -80,7 +84,15 @@ describe('Holiday and Task Overlap Logic', () => {
     mockTx.scheduleType.findUnique.mockResolvedValue({ id: 'st-otro', value: 'otro' });
 
     mockRepo.findSchedules.mockResolvedValue([]);
-    mockRepo.createSchedule.mockResolvedValue({ id: 's-1', title: 'Tarea Excepcional', type: 'otro' } as any);
+    mockRepo.createSchedule.mockResolvedValue({
+      id: 's-1',
+      title: 'Tarea Excepcional',
+      type: 'otro',
+      assignments: [{ user: { name: 'User A' } }],
+      startDatetime: new Date('2026-06-01T08:00:00Z'),
+      endDatetime: new Date('2026-06-01T16:00:00Z'),
+      scheduleType: { value: 'otro' },
+    } as any);
 
     const result = await createScheduleEntry({
       title: 'Tarea Excepcional',

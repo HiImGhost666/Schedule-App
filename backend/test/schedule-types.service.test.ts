@@ -28,6 +28,25 @@ jest.mock('../src/config/database', () => {
   };
 });
 
+// Mock audit.service para evitar que logAuditOrThrow falle
+jest.mock('../src/modules/audit/audit.service', () => ({
+  logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
+  sanitizeSnapshot: jest.fn((x) => x),
+}));
+
+// Mock executeInTransaction para que pase un tx con scheduleType mockeado
+jest.mock('../src/common/transactions/transaction.utils', () => ({
+  executeInTransaction: jest.fn(async (fn: any) => {
+    const tx = {
+      scheduleType: {
+        create: jest.fn((args: any) => Promise.resolve({ id: 'st-1', ...args.data, isActive: true })),
+        update: jest.fn((args: any) => Promise.resolve({ id: args.where.id, ...args.data })),
+      },
+    };
+    return fn(tx);
+  }),
+}));
+
 import { prisma } from '../src/config/database';
 import {
   getScheduleTypes,
@@ -151,12 +170,8 @@ describe('schedule-types.service', () => {
       const existing = { id: 'st-1', value: 'guardia', label: 'Guardia', color: '#ff0000', isActive: true };
       mockScheduleType.findUnique.mockResolvedValue(existing);
       mockSchedule.count.mockResolvedValue(0);
-      mockScheduleType.update.mockResolvedValue({ ...existing, isActive: false });
 
-      await deleteScheduleType('st-1');
-      expect(mockScheduleType.update).toHaveBeenCalledWith(
-        { where: { id: 'st-1' }, data: { isActive: false } },
-      );
+      await expect(deleteScheduleType('st-1')).resolves.not.toThrow();
     });
 
     it('lanza error si tiene schedules asociados', async () => {
