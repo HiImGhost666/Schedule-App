@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Calendar, Users, Shield, AlertTriangle, ExternalLink, UserX, UserMinus, X } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { TeamWeeklySummaryCard } from '@/components/schedule/TeamWeeklySummaryCard';
 import { MyWeeklySummaryCard } from '@/components/schedule/MyWeeklySummaryCard';
 import { WeekSchedulesWidget } from '@/components/schedule/WeekSchedulesWidget';
+import { AlertsModal } from '@/components/schedule/AlertsModal';
 import { RecentActivityWidget } from '@/components/audit/RecentActivityWidget';
 
 export function DashboardPage() {
@@ -23,6 +24,7 @@ export function DashboardPage() {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<WeekScheduleAssignee | null>(null);
   const [profileModalTab, setProfileModalTab] = useState<'general' | 'schedules' | 'security'>('general');
+  const [alertsModalOpen, setAlertsModalOpen] = useState(false);
 
   const now = new Date();
   const isoWeek = getISOWeek(now);
@@ -65,6 +67,18 @@ export function DashboardPage() {
   ) || [];
 
   const lastMinuteCount = weekSchedules?.filter((s) => s.isLastMinute).length || 0;
+
+  const { data: alerts } = useQuery({
+    queryKey: ['schedules', 'alerts'],
+    queryFn: () =>
+      api.get<{ data: Array<{ type: 'unassigned' | 'solo'; scheduleId: string; title: string; date: string; assigneeName?: string }> }>('/schedules/alerts')
+        .then((r) => r.data.data),
+    refetchInterval: 60_000, // refrescar cada minuto
+  });
+
+  const unassignedCount = alerts?.filter((a) => a.type === 'unassigned').length || 0;
+  const soloCount = alerts?.filter((a) => a.type === 'solo').length || 0;
+  const totalAlerts = (alerts?.length || 0);
 
   const isDark = isDarkThemePreset(
     useUIStore(
@@ -203,13 +217,20 @@ export function DashboardPage() {
           </div>
         )}
 
-        <div className="relative group flex flex-col h-full">
+        <div
+          className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
+          role="button"
+          tabIndex={0}
+          aria-label="Ver alertas de turnos"
+          onClick={() => setAlertsModalOpen(true)}
+          onKeyDown={(event) => handleCardKeyDown(event, () => setAlertsModalOpen(true))}
+        >
           <StatCard
-            title="Cambios urgentes"
-            value={loadingSchedules ? '—' : lastMinuteCount}
+            title="Alertas"
+            value={loadingSchedules ? '—' : totalAlerts + lastMinuteCount}
             icon={AlertTriangle}
-            color={lastMinuteCount > 0 ? 'purple' : 'navy'}
-            className="h-full"
+            color={totalAlerts > 0 || lastMinuteCount > 0 ? 'purple' : 'navy'}
+            className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
           />
         </div>
       </div>
@@ -234,6 +255,13 @@ export function DashboardPage() {
       {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (
         <TeamWeeklySummaryCard />
       )}
+
+      <AlertsModal
+        open={alertsModalOpen}
+        onClose={() => setAlertsModalOpen(false)}
+        alerts={alerts || []}
+        lastMinuteCount={lastMinuteCount}
+      />
 
       <UserProfileModal
         open={profileModalOpen}
