@@ -7,6 +7,7 @@ import {
   createScheduleEntry,
   createScheduleEntriesBulk,
   deleteScheduleEntry,
+  getScheduleAlerts,
   getScheduleByIdForActor,
   listSchedulesForActor,
   listWeekSchedulesForActor,
@@ -40,6 +41,7 @@ export async function listSchedulesController(req: AuthRequest, res: Response) {
 
   try {
     const schedules = await listSchedulesForActor(parsed.data, {
+      id: req.user!.id,
       roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
     });
@@ -67,6 +69,7 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
 
   try {
     const result = await listWeekSchedulesForActor(parsed.data.year, parsed.data.week, parsedQuery.data.branchId, parsedQuery.data.departmentId, parsedQuery.data.userId, {
+      id: req.user!.id,
       roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
     });
@@ -326,10 +329,26 @@ export async function getTeamWeeklySummaryController(req: AuthRequest, res: Resp
 }
 
 /**
- * @description Devuelve el resumen semanal de horas del usuario autenticado.
- * Si no existe resumen en BD, lo recalcula sobre la marcha.
+ * @description Devuelve alertas de turnos próximos sin personal o con personal único.
  * @param req @param res
  */
+export async function getScheduleAlertsController(req: AuthRequest, res: Response) {
+  try {
+    const alerts = await getScheduleAlerts({
+      id: req.user!.id,
+      email: req.user!.email,
+      name: req.user!.name,
+      roleName: req.user!.roleName!,
+      branchId: req.user!.branchId,
+      ipAddress: req.ip,
+    });
+    return sendSuccess(res, alerts);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
 export async function getMyWeeklySummaryController(req: AuthRequest, res: Response) {
   const parsed = weekParamsSchema.safeParse(req.params);
   if (!parsed.success) {

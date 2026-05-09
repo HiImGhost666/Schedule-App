@@ -130,7 +130,7 @@ async function createScheduleEntryInternal(
   const { assigneeIds, reason, branchId, confirmed, scheduleTypeId, ...scheduleData } = input;
   const targetBranchId = branchId ?? actor.branchId ?? undefined;
 
-  const scheduleType = await prisma.scheduleType.findUnique({ where: { id: scheduleTypeId } });
+  const scheduleType = await tx.scheduleType.findUnique({ where: { id: scheduleTypeId } });
   if (!scheduleType) throw createAppError('BAD_REQUEST', 'Tipo de turno no encontrado');
 
   if (targetBranchId) {
@@ -208,7 +208,7 @@ export function listSchedules(params: { from?: string; to?: string; userId?: str
 
 export function listSchedulesForActor(
   params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string },
-  actor: Pick<Actor, 'roleName' | 'branchId'>,
+  actor: Pick<Actor, 'roleName' | 'branchId' | 'id'>,
 ) {
   const where: ScheduleWhere = {};
   const fromDate = parseOptionalDate(params.from);
@@ -248,7 +248,13 @@ export function listSchedulesForActor(
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
     where.branchId = actor.branchId;
-    where.assignments = { some: { userId: params.userId || '__self__' } };
+    // Employee solo puede ver sus propios turnos — el controller debe pasar userId = req.user.id
+    if (params.userId) {
+      where.assignments = { some: { userId: params.userId } };
+    } else {
+      // Si no se pasa userId, el employee no puede ver nada (no tiene permiso para ver turnos ajenos)
+      where.assignments = { some: { userId: '__none__' } };
+    }
     return findSchedules(where);
   }
 
@@ -319,7 +325,7 @@ export async function listWeekSchedulesForActor(
   branchId: string | undefined,
   departmentId: string | undefined,
   userId: string | undefined,
-  actor: Pick<Actor, 'roleName' | 'branchId'>,
+  actor: Pick<Actor, 'roleName' | 'branchId' | 'id'>,
 ) {
   // Admin: puede ver cualquier sucursal, o filtrar por branchId explícito
   if (actor.roleName === 'admin') {
@@ -347,7 +353,8 @@ export async function listWeekSchedulesForActor(
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    return listWeekSchedules(year, week, actor.branchId, departmentId, userId || actor.branchId);
+    // Forzar userId = actor.id para que employee solo vea sus propios turnos
+    return listWeekSchedules(year, week, actor.branchId, departmentId, userId || actor.id);
   }
 
   throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
@@ -521,6 +528,18 @@ export async function createScheduleEntriesBulk(inputs: ScheduleCreateInput[], a
   });
 
   ensureNoBatchOverlaps(parsedItems);
+
+  // VUL-6: Validar que todos los assigneeIds existan antes de crear (bulk)
+  const bulkAssigneeIds = parsedItems.flatMap(item => item.assigneeIds);
+  const uniqueBulkAssigneeIds = [...new Set(bulkAssigneeIds)];
+  const existingUsers = (await prisma.user.findMany({
+    where: { id: { in: uniqueBulkAssigneeIds } },
+    select: { id: true },
+  })) ?? [];
+  const missingIds = uniqueBulkAssigneeIds.filter(id => !existingUsers.some(u => u.id === id));
+  if (missingIds.length > 0) {
+    throw createAppError('BAD_REQUEST', `Los siguientes usuarios no existen: ${missingIds.join(', ')}`);
+  }
 
   const results = await executeInTransaction(async (tx) => {
     const created: ScheduleCreateResult[] = [];
@@ -704,9 +723,67 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
 }
 
 /**
- * @description Aplica destrucción transaccional del turno preservando un snapshot en los registros de auditoría por razones operacionales.
- * @param scheduleId @param reason @param actor
+ * @description Obtiene alertas de turnos próximos (próximos 7 días) sin personal o con personal único.
+ * @param actor
  */
+export async function getScheduleAlerts(actor: Actor) {
+  const now = new Date();
+  const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const where: ScheduleWhere = {
+    startDatetime: { gte: now, lte: sevenDaysLater },
+  };
+
+  // Filtrar por scope del actor
+  if (actor.roleName !== 'admin') {
+    if (actor.roleName === 'general_manager' && actor.branchId) {
+      where.branchId = actor.branchId;
+    } else if (actor.roleName === 'department_manager') {
+      const actorDepartmentId = await getActorDepartmentId(actor.id);
+      if (actorDepartmentId) {
+        where.assignments = {
+          some: {
+            user: { departmentId: actorDepartmentId },
+          },
+        };
+      }
+    } else if (actor.branchId) {
+      where.branchId = actor.branchId;
+    }
+  }
+
+  const schedules = await findSchedules(where);
+
+  const alerts: Array<{
+    type: 'unassigned' | 'solo';
+    scheduleId: string;
+    title: string;
+    date: string;
+    assigneeName?: string;
+  }> = [];
+
+  for (const schedule of schedules) {
+    if (schedule.assignments.length === 0) {
+      alerts.push({
+        type: 'unassigned',
+        scheduleId: schedule.id,
+        title: schedule.title,
+        date: schedule.startDatetime.toISOString(),
+      });
+    } else if (schedule.assignments.length === 1) {
+      alerts.push({
+        type: 'solo',
+        scheduleId: schedule.id,
+        title: schedule.title,
+        date: schedule.startDatetime.toISOString(),
+        assigneeName: schedule.assignments[0].user.name,
+      });
+    }
+  }
+
+  return alerts;
+}
+
 export async function deleteScheduleEntry(scheduleId: string, reason: string | undefined, actor: Actor) {
   const schedule = await findScheduleById(scheduleId);
   if (!schedule) throw createAppError('NOT_FOUND', 'Guardia no encontrada');

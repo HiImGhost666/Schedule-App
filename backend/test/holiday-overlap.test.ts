@@ -12,8 +12,13 @@ jest.mock('../src/modules/notifications/notifications.service', () => ({
 }));
 jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }));
 jest.mock('../src/modules/schedules/schedules.repository');
+// We'll set up the tx mock dynamically in beforeEach
+const mockTx = {
+  scheduleType: { findUnique: jest.fn() },
+  user: { findMany: jest.fn() },
+};
 jest.mock('../src/common/transactions/transaction.utils', () => ({
-  executeInTransaction: jest.fn(async (fn: any) => await fn({})),
+  executeInTransaction: jest.fn(async (fn: any) => await fn(mockTx)),
 }));
 
 import { prismaMock } from './singleton';
@@ -30,6 +35,9 @@ const mockActor = {
 describe('Holiday and Task Overlap Logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    prismaMock.user.findMany.mockResolvedValue([{ id: 'u-1' }] as any);
+    // Default tx mock for scheduleType
+    mockTx.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia' });
   });
 
   it('bloquea la creación de tarea de guardia en un día festivo', async () => {
@@ -69,6 +77,7 @@ describe('Holiday and Task Overlap Logic', () => {
     } as any]);
 
     prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-otro', value: 'otro' } as any);
+    mockTx.scheduleType.findUnique.mockResolvedValue({ id: 'st-otro', value: 'otro' });
 
     mockRepo.findSchedules.mockResolvedValue([]);
     mockRepo.createSchedule.mockResolvedValue({ id: 's-1', title: 'Tarea Excepcional', type: 'otro' } as any);

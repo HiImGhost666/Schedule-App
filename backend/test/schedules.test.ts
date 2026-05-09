@@ -14,7 +14,10 @@ jest.mock('../src/modules/notifications/notifications.service', () => ({
 }));
 jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }));
 jest.mock('../src/common/transactions/transaction.utils', () => ({
-  executeInTransaction: jest.fn((fn: any) => fn({})),
+  executeInTransaction: jest.fn((fn: any) => fn({
+    scheduleType: { findUnique: jest.fn().mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' }) },
+    user: { findMany: jest.fn() },
+  })),
 }));
 
 import * as schedulesRepo from '../src/modules/schedules/schedules.repository';
@@ -63,6 +66,7 @@ describe('createScheduleEntry', () => {
     prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1', isActive: true } as any);
     prismaMock.branchHoliday.findMany.mockResolvedValue([]);
     prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' } as any);
+    prismaMock.user.findMany.mockResolvedValue([{ id: 'user-1' }, { id: 'u-2' }] as any);
     mockRepo.createSchedule.mockResolvedValue(buildSchedule() as any); // This mock is for schedulesRepo, not prisma
   });
 
@@ -202,6 +206,7 @@ describe('createScheduleEntriesBulk', () => {
     prismaMock.branch.findUnique.mockResolvedValue({ id: 'branch-1', isActive: true } as any);
     prismaMock.branchHoliday.findMany.mockResolvedValue([]);
     prismaMock.scheduleType.findUnique.mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' } as any);
+    prismaMock.user.findMany.mockResolvedValue([{ id: 'user-1' }, { id: 'u-2' }] as any);
     mockRepo.createSchedule.mockResolvedValue(buildSchedule() as any);
   });
 

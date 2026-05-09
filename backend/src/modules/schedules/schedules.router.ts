@@ -6,6 +6,7 @@ import {
   createScheduleController,
   deleteScheduleController,
   getMyWeeklySummaryController,
+  getScheduleAlertsController,
   getScheduleController,
   getTeamWeeklySummaryController,
   getWeeklySummariesController,
@@ -34,6 +35,9 @@ router.get('/weekly-summary/:userId/:year', authMiddleware, requirePermission('s
 
 // Team weekly summary (admin/manager view)
 router.get('/team-weekly-summary/:year/:week', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => getTeamWeeklySummaryController(req, res));
+
+// Get schedule alerts (unassigned/solo)
+router.get('/alerts', authMiddleware, (req: AuthRequest, res: Response) => getScheduleAlertsController(req, res));
 
 // Get single schedule
 router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getScheduleController(req, res));
