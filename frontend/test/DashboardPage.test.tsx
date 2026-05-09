@@ -378,7 +378,7 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('muestra cambios urgentes count', async () => {
+  it('muestra alertas count', async () => {
     getMock.mockImplementation((url: string) => {
       if (url.includes('/schedules/week')) {
         return Promise.resolve({
@@ -409,6 +409,9 @@ describe('DashboardPage', () => {
       if (url.includes('/users')) {
         return Promise.resolve({ data: { pagination: { total: 5 } } });
       }
+      if (url.includes('/schedules/alerts')) {
+        return Promise.resolve({ data: { data: [] } });
+      }
       return Promise.resolve({ data: { data: [] } });
     });
 
@@ -416,9 +419,9 @@ describe('DashboardPage', () => {
 
     await waitFor(() => {
       const statCards = screen.getAllByTestId('stat-card');
-      const urgentStat = statCards.find((card) => card.getAttribute('data-title') === 'Cambios urgentes');
-      expect(urgentStat).toBeDefined();
-      expect(urgentStat?.getAttribute('data-value')).toBe('2');
+      const alertStat = statCards.find((card) => card.getAttribute('data-title') === 'Alertas');
+      expect(alertStat).toBeDefined();
+      expect(alertStat?.getAttribute('data-value')).toBe('2');
     });
   });
 

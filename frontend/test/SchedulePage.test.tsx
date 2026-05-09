@@ -154,7 +154,7 @@ describe('SchedulePage smoke', () => {
     });
   });
 
-  it('employee con sucursal asignada usa vista global sin branchId forzado', async () => {
+  it('employee con sucursal asignada usa su branchId', async () => {
     authState.user = { id: 'employee-1', role: { name: 'employee' }, branchId: 'b-1' };
 
     getMock.mockImplementation((url: string) => {
@@ -194,17 +194,16 @@ describe('SchedulePage smoke', () => {
     await waitFor(() => {
       const scheduleCall = getScheduleCall();
       expect(scheduleCall).toBeTruthy();
-      expect(scheduleCall?.[1]).toEqual(expect.objectContaining({ params: expect.any(Object) }));
-      expect((scheduleCall?.[1] as { params?: Record<string, unknown> } | undefined)?.params?.branchId).toBeUndefined();
+      expect(scheduleCall?.[1]).toEqual(expect.objectContaining({ params: expect.objectContaining({ branchId: 'b-1' }) }));
     });
 
     expect(getMock).toHaveBeenCalledWith(
-      '/branches/all/holidays',
-      expect.objectContaining({ params: expect.objectContaining({ groupShared: true }) }),
+      '/branches/b-1/holidays',
+      expect.any(Object),
     );
   });
 
-  it('employee sin sucursal asignada y sin sucursales consulta vista global', async () => {
+  it('employee sin sucursal asignada y sin sucursales no consulta schedules', async () => {
     authState.user = { id: 'employee-2', role: { name: 'employee' } };
 
     getMock.mockImplementation((url: string) => {
@@ -217,10 +216,6 @@ describe('SchedulePage smoke', () => {
         });
       }
 
-      if (url === '/schedules') {
-        return Promise.resolve({ data: { success: true, data: [] } });
-      }
-
       return Promise.resolve({ data: { success: true, data: [] } });
     });
 
@@ -230,8 +225,9 @@ describe('SchedulePage smoke', () => {
       expect(getMock).toHaveBeenCalledWith('/branches', { params: { includeInactive: true } });
     });
 
-    expect(getMock.mock.calls.some((call) => call[0] === '/schedules')).toBe(true);
-    expect(getMock.mock.calls.some((call) => call[0] === '/branches/all/holidays')).toBe(true);
+    // Sin sucursales disponibles y sin branch asignada, no se consultan schedules ni holidays
+    expect(getMock.mock.calls.some((call) => call[0] === '/schedules')).toBe(false);
+    expect(getMock.mock.calls.some((call) => call[0] === '/branches/all/holidays')).toBe(false);
   });
   
   it('combina turnos y festivos en el calendario', async () => {
@@ -276,21 +272,21 @@ describe('SchedulePage smoke', () => {
 
     await waitFor(() => {
       const calendar = screen.getByTestId('mock-calendar');
-      const events = JSON.parse(calendar.getAttribute('data-events') || '[]');
+      const events = JSON.parse(calendar.getAttribute('data-events') || '[]') as CalendarEvent[];
       
       // Debe haber 3 eventos: 1 turno + 1 festivo interactivo + 1 festivo background
       expect(events).toHaveLength(3);
       
-      const holiday = (events as CalendarEvent[]).find((e) => e.extendedProps?.isHoliday);
-      expect(holiday.title).toBeDefined();
+      const holiday = events.find((e) => e.extendedProps?.isHoliday);
+      expect(holiday?.title).toBeDefined();
       
-      const schedule = (events as CalendarEvent[]).find((e) => e.extendedProps?.schedule);
-      expect(schedule.title).toBe('Turno Test');
+      const schedule = events.find((e) => e.extendedProps?.schedule);
+      expect(schedule?.title).toBe('Turno Test');
     });
   });
 
   it('agrupa festivos compartidos en vista general y evita duplicados', async () => {
-    authState.user = { id: 'admin-1', role: 'admin' };
+    authState.user = { id: 'admin-1', role: { name: 'admin' } };
 
     getMock.mockImplementation((url: string) => {
       if (url === '/branches') {
