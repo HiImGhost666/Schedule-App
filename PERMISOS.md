@@ -1,6 +1,6 @@
 # Matriz de Permisos — Schedule App
 
-> **Última actualización:** 8 mayo 2026
+> **Última actualización:** 9 mayo 2026
 > **Fuente:** `backend/src/modules/roles/roles.constants.ts`
 
 ---
@@ -31,7 +31,7 @@
 | `departments:update` | Editar departamentos |
 | `departments:delete` | Eliminar departamentos |
 | `settings:view` | Ver configuración global (roles, temas) |
-| `settings:update` | Modificar configuración global |
+| `settings:manage` | Modificar configuración global (temas, roles, presets, sitio) |
 | `audit:view` | Ver registros de auditoría |
 | `vacations:create` | Solicitar vacaciones |
 | `vacations:read` | Ver solicitudes propias y calendario |
@@ -75,7 +75,7 @@
 | `departments:update` | ✅ | ❌ | ❌ | ❌ |
 | `departments:delete` | ✅ | ❌ | ❌ | ❌ |
 | `settings:view` | ✅ | ✅ | ❌ | ❌ |
-| `settings:update` | ✅ | ❌ | ❌ | ❌ |
+| `settings:manage` | ✅ | ❌ | ❌ | ❌ |
 | `audit:view` | ✅ | ❌ | ❌ | ❌ |
 | `vacations:create` | ✅ | ✅ | ✅ | ✅ |
 | `vacations:read` | ✅ | ✅ | ✅ | ✅ |

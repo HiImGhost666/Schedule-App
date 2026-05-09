@@ -1,5 +1,7 @@
 # Roles API — Contrato Backend para Frontend
 
+> **Última actualización:** 9 mayo 2026
+
 ## Base URL
 
 ```
@@ -86,19 +88,27 @@
     "branches:create",
     "branches:update",
     "branches:delete",
+    "branches:holidays:manage",
     "departments:view",
     "departments:create",
     "departments:update",
     "departments:delete",
     "settings:view",
-    "settings:update",
+    "settings:manage",
     "audit:view",
     "vacations:create",
     "vacations:read",
     "vacations:read-all",
     "vacations:approve",
     "vacations:cancel",
-    "vacations:delete"
+    "vacations:delete",
+    "webhooks:view",
+    "webhooks:create",
+    "webhooks:update",
+    "webhooks:delete",
+    "notifications:view",
+    "weekly_summary:view",
+    "weekly_summary:view-all"
   ]
 }
 ```
@@ -109,7 +119,7 @@
 
 **`POST /api/roles`**
 
-- **Permiso:** `settings:update`
+- **Permiso:** `settings:manage`
 
 ### Request Body
 
@@ -137,7 +147,7 @@
 
 **`PATCH /api/roles/:id`**
 
-- **Permiso:** `settings:update`
+- **Permiso:** `settings:manage`
 
 ### Request Body (todos opcionales)
 
@@ -164,7 +174,7 @@
 
 **`DELETE /api/roles/:id`**
 
-- **Permiso:** `settings:update`
+- **Permiso:** `settings:manage`
 
 > No se pueden eliminar roles del sistema (`isSystem: true`).
 

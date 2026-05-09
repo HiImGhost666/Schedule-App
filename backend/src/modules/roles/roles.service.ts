@@ -1,6 +1,8 @@
 import * as repo from './roles.repository';
 import { CreateRoleSchema, UpdateRoleSchema } from './roles.http.schemas';
 import { z } from 'zod';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
 
 export async function listRoles() {
   return repo.findRoles();
@@ -14,7 +16,17 @@ export async function getRole(id: string) {
 
 export async function createRole(payload: z.infer<typeof CreateRoleSchema>) {
   const data = CreateRoleSchema.parse(payload);
-  return repo.createRole(data);
+  return executeInTransaction(async (tx) => {
+    const role = await repo.createRole(data);
+    await logAuditOrThrow({
+      userId: 'system',
+      action: 'CREATE_ROLE',
+      entityType: 'Role',
+      entityId: role.id,
+      detailsJson: { before: null, after: sanitizeSnapshot(role) },
+    }, tx);
+    return role;
+  });
 }
 
 export async function updateRole(id: string, payload: z.infer<typeof UpdateRoleSchema>) {
@@ -24,7 +36,17 @@ export async function updateRole(id: string, payload: z.infer<typeof UpdateRoleS
   if (role.isSystem && data.name && data.name !== role.name) {
      throw new Error('No se puede cambiar el nombre de un rol de sistema');
   }
-  return repo.updateRole(id, data);
+  return executeInTransaction(async (tx) => {
+    const updated = await repo.updateRole(id, data);
+    await logAuditOrThrow({
+      userId: 'system',
+      action: 'UPDATE_ROLE',
+      entityType: 'Role',
+      entityId: id,
+      detailsJson: { before: sanitizeSnapshot(role), after: sanitizeSnapshot(updated) },
+    }, tx);
+    return updated;
+  });
 }
 
 export async function deleteRole(id: string) {
@@ -33,7 +55,16 @@ export async function deleteRole(id: string) {
   if (role.isSystem) {
     throw new Error('No se pueden borrar roles de sistema');
   }
-  return repo.deleteRole(id);
+  return executeInTransaction(async (tx) => {
+    await repo.deleteRole(id);
+    await logAuditOrThrow({
+      userId: 'system',
+      action: 'DELETE_ROLE',
+      entityType: 'Role',
+      entityId: id,
+      detailsJson: { before: sanitizeSnapshot(role), after: null },
+    }, tx);
+  });
 }
 
 export async function listPermissions() {
