@@ -103,8 +103,8 @@ export function NotificationsPage() {
         {/* Vacation summary */}
         <div className="card p-7">
           <div className="flex items-center gap-3 mb-4">
-            <div className={cn('p-2 rounded-lg', isDark ? 'bg-navy-50' : 'bg-green-50')}>
-              <Umbrella className={cn('h-4 w-4', isDark ? 'text-navy-700' : 'text-green-600')} />
+            <div className={cn('p-2 rounded-lg', isDark ? 'bg-theme-surface-muted' : 'bg-green-50')}>
+              <Umbrella className={cn('h-4 w-4', isDark ? 'text-theme-primary' : 'text-green-600')} />
             </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Vacaciones de la Semana</p>
@@ -130,8 +130,8 @@ export function NotificationsPage() {
         {/* Friday summary */}
         <div className="card p-7">
           <div className="flex items-center gap-3 mb-4">
-            <div className={cn('p-2 rounded-lg', isDark ? 'bg-navy-50' : 'bg-gold-50')}>
-              <Calendar className={cn('h-4 w-4', isDark ? 'text-navy-700' : 'text-gold-600')} />
+            <div className={cn('p-2 rounded-lg', isDark ? 'bg-theme-surface-muted' : 'bg-gold-50')}>
+              <Calendar className={cn('h-4 w-4', isDark ? 'text-theme-primary' : 'text-gold-600')} />
             </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Resumen Semanal</p>
@@ -157,8 +157,8 @@ export function NotificationsPage() {
         {/* Manual announcement */}
         <div className="card p-7">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-navy-50 rounded-lg">
-              <Send className={cn('h-4 w-4', isDark ? 'text-navy-700' : 'text-navy-500')} />
+            <div className="p-2 bg-theme-surface-muted rounded-lg">
+              <Send className={cn('h-4 w-4', isDark ? 'text-theme-primary' : 'text-theme-secondary')} />
             </div>
             <div>
               <p className="font-semibold text-theme-primary text-sm">Anuncio Manual</p>
@@ -191,7 +191,7 @@ export function NotificationsPage() {
 
       {/* Log table */}
       <div className="card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-navy-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-theme-color">
           <h2 className="text-sm font-semibold text-theme-primary flex items-center gap-2">
             <Bell className="h-4 w-4 text-gold-500" />
             Historial de Notificaciones
@@ -210,7 +210,7 @@ export function NotificationsPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-navy-50 border-b border-navy-100">
+                  <tr className="bg-theme-surface-muted border-b border-theme-color">
                     <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Estado</th>
                     <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Tipo</th>
                     <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase hidden md:table-cell">Mensaje</th>
@@ -219,12 +219,12 @@ export function NotificationsPage() {
                     <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-navy-50">
+                <tbody className="divide-y divide-theme-color">
                   {data.data.map((log: NotificationLog) => (
-                    <tr key={log.id} className="hover:bg-navy-50/30">
+                    <tr key={log.id} className="hover:bg-theme-surface-muted/30">
                       <td className="px-5 py-4"><StatusIcon status={log.status} /></td>
                       <td className="px-5 py-4">
-                        <span className="text-xs bg-navy-100 text-navy-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-xs bg-theme-surface-muted text-theme-secondary px-2 py-0.5 rounded-full font-medium">
                           {NOTIFICATION_TYPE_LABELS[log.type] || log.type}
                         </span>
                       </td>
@@ -248,11 +248,11 @@ export function NotificationsPage() {
               </table>
             </div>
             {data?.pagination?.totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-4 border-t border-navy-100">
+              <div className="flex items-center justify-between px-5 py-4 border-t border-theme-color">
                 <p className="text-xs text-theme-muted">Página {page} de {data.pagination.totalPages}</p>
                 <div className="flex gap-2">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-theme-primary hover:bg-navy-50 disabled:opacity-40">Anterior</button>
-                  <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.pagination.totalPages} className="px-3 py-1 text-xs font-medium rounded border border-navy-200 text-theme-primary hover:bg-navy-50 disabled:opacity-40">Siguiente</button>
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs font-medium rounded border border-theme-color text-theme-primary hover:bg-theme-surface-muted disabled:opacity-40">Anterior</button>
+                  <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.pagination.totalPages} className="px-3 py-1 text-xs font-medium rounded border border-theme-color text-theme-primary hover:bg-theme-surface-muted disabled:opacity-40">Siguiente</button>
                 </div>
               </div>
             )}

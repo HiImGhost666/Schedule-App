@@ -163,8 +163,8 @@ export function AuditLogPage() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Registro de Auditoría</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Historial completo de acciones del sistema</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Registro de Auditoría</h1>
+          <p className="text-sm text-theme-muted mt-0.5">Historial completo de acciones del sistema</p>
         </div>
         <button onClick={() => setShowExportModal(true)} className="btn-ghost text-sm flex items-center gap-2">
           <Download className="h-4 w-4" />Exportar CSV
@@ -191,8 +191,8 @@ export function AuditLogPage() {
       <AuditTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
 
       <div className="flex items-start gap-2 px-1">
-        <ShieldCheck className="h-4 w-4 text-navy-300 mt-0.5 shrink-0" />
-        <p className="text-xs text-navy-400">{tabs.find((t) => t.key === activeTab)?.description}</p>
+        <ShieldCheck className="h-4 w-4 text-theme-muted mt-0.5 shrink-0" />
+        <p className="text-xs text-theme-muted">{tabs.find((t) => t.key === activeTab)?.description}</p>
       </div>
 
       <div className="flex gap-4">

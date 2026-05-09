@@ -283,7 +283,7 @@ export function UsersPage() {
     return (
       <button
         onClick={() => handleSortChange(field)}
-        className="flex items-center gap-1 hover:text-navy-700 transition-colors"
+        className="flex items-center gap-1 hover:text-theme-primary transition-colors"
       >
         {label}
         {isActive ? (
@@ -457,8 +457,8 @@ export function UsersPage() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Gestión de Usuarios</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Administra cuentas. Sedes válidas: TFN (Tenerife), GC (Las Palmas)</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Gestión de Usuarios</h1>
+          <p className="text-sm text-theme-muted mt-0.5">Administra cuentas. Sedes válidas: TFN (Tenerife), GC (Las Palmas)</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -491,25 +491,25 @@ export function UsersPage() {
             <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-navy-50 border-b border-navy-100">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('name', 'Usuario')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden md:table-cell">Departamento</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('branchId', 'Sucursal')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('roleId', 'Rol')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider">{renderSortLabel('status', 'Estado')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-navy-400 uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('lastLoginAt', 'Último acceso')}</th>
+                  <tr className="bg-theme-surface-muted border-b border-theme-color">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider">{renderSortLabel('name', 'Usuario')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden md:table-cell">Departamento</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('branchId', 'Sucursal')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider">{renderSortLabel('roleId', 'Rol')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider">{renderSortLabel('status', 'Estado')}</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('lastLoginAt', 'Último acceso')}</th>
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-navy-100">
+                <tbody className="divide-y divide-theme-color">
                   {data.data.map((u: User) => {
                     return (
-                    <tr key={u.id} className="hover:bg-navy-50/50 transition-colors">
-                      <td className="px-5 py-3 text-xs font-mono text-navy-400 hidden xl:table-cell">{u.employeeId || '—'}</td>
+                    <tr key={u.id} className="hover:bg-theme-surface-muted/50 transition-colors">
+                      <td className="px-5 py-3 text-xs font-mono text-theme-muted hidden xl:table-cell">{u.employeeId || '—'}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                           <div className="h-8 w-8 rounded-full bg-navy-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                           <div className="h-8 w-8 rounded-full bg-theme-primary flex items-center justify-center text-xs font-bold text-white shrink-0">
                             {u.name[0]}
                           </div>
                           <div className="min-w-0">
@@ -518,13 +518,13 @@ export function UsersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-sm text-navy-500 hidden md:table-cell">{u.department?.name || '—'}</td>
-                      <td className="px-5 py-3 text-sm text-navy-500 hidden lg:table-cell">
+                      <td className="px-5 py-3 text-sm text-theme-secondary hidden md:table-cell">{u.department?.name || '—'}</td>
+                      <td className="px-5 py-3 text-sm text-theme-secondary hidden lg:table-cell">
                         {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
                       </td>
                       <td className="px-5 py-3">{roleBadge(u.role?.name)}</td>
                       <td className="px-5 py-3">{statusBadge(u.status)}</td>
-                      <td className="px-5 py-3 text-xs text-navy-400 hidden lg:table-cell">
+                      <td className="px-5 py-3 text-xs text-theme-muted hidden lg:table-cell">
                         {u.lastLoginAt ? formatRelative(new Date(u.lastLoginAt), new Date(), { locale: es }) : 'Nunca'}
                       </td>
 

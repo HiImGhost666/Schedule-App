@@ -160,7 +160,7 @@ export function DepartmentsPage() {
 
   const updateDepartmentMemberMutation = useMutation({
     mutationFn: ({ userId, departmentId }: { userId: string; departmentId: string }) =>
-      api.patch(`/users/${userId}`, { departmentId, branchId: effectiveSelectedBranchId }),
+      api.patch(`/users/${userId}`, { departmentId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] });
       qc.invalidateQueries({ queryKey: ['departments'] });

@@ -115,7 +115,7 @@ export function HolidaysPage() {
         tabIndex={0}
         onClick={() => handleSortChange(field)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
-        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-primary select-none"
       >
         <span>{label}</span>
         {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
@@ -317,7 +317,7 @@ export function HolidaysPage() {
                               ) : (
                                 <button
                                   onClick={() => setBranchesModal(holiday)}
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-navy-600 bg-navy-50 hover:bg-navy-100 rounded-full px-2 py-0.5 transition-colors"
+                                  className="inline-flex items-center gap-1 text-xs font-medium text-theme-primary bg-theme-surface-muted hover:bg-theme-surface-muted/80 rounded-full px-2 py-0.5 transition-colors"
                                 >
                                   <Building2 className="h-3 w-3" />
                                   {holiday.sharedCount} sucursales

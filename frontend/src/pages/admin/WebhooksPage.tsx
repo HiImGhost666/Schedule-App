@@ -213,8 +213,8 @@ export function WebhooksPage() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Webhooks Microsoft Teams</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Configura notificaciones automáticas para canales de Teams</p>
+          <h1 className="text-2xl font-bold text-theme-primary">Webhooks Microsoft Teams</h1>
+          <p className="text-sm text-theme-muted mt-0.5">Configura notificaciones automáticas para canales de Teams</p>
         </div>
         <button onClick={() => setFormWebhook(null)} className="btn-primary text-sm flex items-center gap-2">
           <Plus className="h-4 w-4" />Nuevo Webhook
@@ -242,9 +242,9 @@ export function WebhooksPage() {
                     <Webhook className={`h-4 w-4 ${wh.enabled ? 'text-green-600' : 'text-gray-400'}`} />
                   </div>
                   <div>
-                    <p className="font-semibold text-navy-800 text-sm">{wh.name}</p>
+                    <p className="font-semibold text-theme-primary text-sm">{wh.name}</p>
                     <p className="text-xs text-theme-muted">{getWebhookScope(wh).label}</p>
-                    <p className="text-xs text-navy-400 truncate max-w-48">{wh.webhookUrl.slice(0, 40)}...</p>
+                    <p className="text-xs text-theme-muted truncate max-w-48">{wh.webhookUrl.slice(0, 40)}...</p>
                   </div>
                 </div>
                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${wh.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -265,13 +265,13 @@ export function WebhooksPage() {
                     ) : (
                       <XCircle className="h-3.5 w-3.5 text-gray-300 shrink-0" />
                     )}
-                    <span className={item.value ? 'text-navy-600' : 'text-navy-300'}>{item.label}</span>
+                    <span className={item.value ? 'text-theme-primary' : 'text-theme-muted'}>{item.label}</span>
                   </div>
                 ))}
                 {wh.fridayReminderEnabled && (
                   <div className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-navy-400" />
-                    <span className="text-navy-500">Viernes {wh.fridayReminderTime}</span>
+                    <Clock className="h-3.5 w-3.5 text-theme-muted" />
+                    <span className="text-theme-secondary">Viernes {wh.fridayReminderTime}</span>
                   </div>
                 )}
               </div>
