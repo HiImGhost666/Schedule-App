@@ -1,4 +1,3 @@
-import { prisma } from '../../config/database';
 import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow } from '../audit/audit.service';

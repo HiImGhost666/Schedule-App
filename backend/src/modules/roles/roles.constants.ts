@@ -25,6 +25,7 @@ export const PERMISSIONS = [
   'branches:create',
   'branches:update',
   'branches:delete',
+  'branches:holidays:manage',
   'departments:view',
   'departments:create',
   'departments:update',
@@ -38,6 +39,10 @@ export const PERMISSIONS = [
   'vacations:approve',
   'vacations:cancel',
   'vacations:delete',
+  'shift_presets:read',
+  'shift_presets:create',
+  'shift_presets:update',
+  'shift_presets:delete',
 ] as const;
 export type PermissionName = typeof PERMISSIONS[number];
 
@@ -59,6 +64,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'branches:create',
     'branches:update',
     'branches:delete',
+    'branches:holidays:manage',
     'departments:view',
     'departments:create',
     'departments:update',
@@ -72,6 +78,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'vacations:approve',
     'vacations:cancel',
     'vacations:delete',
+    'shift_presets:read',
+    'shift_presets:create',
+    'shift_presets:update',
+    'shift_presets:delete',
   ],
   general_manager: [
     // Nota: Aunque tiene permisos de gestión, la lógica de negocio en el servicio
@@ -87,6 +97,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'schedules:delete',
     'schedule_types:read',
     'branches:view',
+    'branches:holidays:manage',
     'departments:view',
     'settings:view',
     'vacations:create',
@@ -94,6 +105,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'vacations:read-all',
     'vacations:approve',
     'vacations:cancel',
+    'shift_presets:read',
   ],
   department_manager: [
     'users:view',
@@ -111,6 +123,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'vacations:read-all',
     'vacations:approve',
     'vacations:cancel',
+    'shift_presets:read',
   ],
   employee: [
     'schedules:view',
