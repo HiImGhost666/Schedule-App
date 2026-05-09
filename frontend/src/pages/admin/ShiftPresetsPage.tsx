@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, Clock } from 'lucide-react';
 import api from '@/config/api';
 import { useAuthStore } from '@/store/authStore';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import toast from 'react-hot-toast';
 
 interface ShiftPreset {
@@ -21,8 +22,6 @@ interface ShiftPresetFormData {
   endTime: string;
   isActive?: boolean;
 }
-
-const emptyForm: ShiftPresetFormData = { name: '', startTime: '09:00', endTime: '17:00' };
 
 export default function ShiftPresetsPage() {
   const currentUser = useAuthStore((s) => s.user);
@@ -49,8 +48,9 @@ export default function ShiftPresetsPage() {
       toast.success('Turno predefinido creado');
       closeModal();
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.error || 'Error al crear turno predefinido');
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error?.response?.data?.error || 'Error al crear turno predefinido');
     },
   });
 
@@ -64,8 +64,9 @@ export default function ShiftPresetsPage() {
       toast.success('Turno predefinido actualizado');
       closeModal();
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.error || 'Error al actualizar turno predefinido');
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error?.response?.data?.error || 'Error al actualizar turno predefinido');
     },
   });
 
@@ -77,8 +78,9 @@ export default function ShiftPresetsPage() {
       queryClient.invalidateQueries({ queryKey: ['shift-presets'] });
       toast.success('Turno predefinido eliminado');
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.error || 'Error al eliminar turno predefinido');
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error?.response?.data?.error || 'Error al eliminar turno predefinido');
     },
   });
 
@@ -120,7 +122,11 @@ export default function ShiftPresetsPage() {
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center">Cargando turnos predefinidos...</div>;
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <TableSkeleton rows={4} cols={4} />
+      </div>
+    );
   }
 
   return (

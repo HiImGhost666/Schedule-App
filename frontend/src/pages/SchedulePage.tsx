@@ -153,7 +153,6 @@ export function SchedulePage() {
   const isAdmin = user?.role?.name === 'admin';
   const isGeneralManager = user?.role?.name === 'general_manager';
   const isDepartmentManager = user?.role?.name === 'department_manager';
-  const isEmployee = user?.role?.name === 'employee';
   // Solo admin puede ver y seleccionar todas las sucursales.
   // Los demás roles están restringidos a su sucursal asignada.
   const canViewAllBranches = isAdmin;

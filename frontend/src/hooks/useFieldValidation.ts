@@ -84,7 +84,7 @@ export interface UseFieldValidationReturn {
     name: string;
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
-    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+    onBlur: () => void;
     ref: React.RefCallback<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
     'aria-invalid': boolean | undefined;
     'aria-describedby': string | undefined;
@@ -219,7 +219,7 @@ export function useFieldValidation(options: UseFieldValidationOptions): UseField
   );
 
   const handleBlur = useCallback(
-    (name: string, _e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    (name: string) => {
       validateField(name);
     },
     [validateField],
@@ -236,8 +236,8 @@ export function useFieldValidation(options: UseFieldValidationOptions): UseField
         value: values[name] ?? '',
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
           handleChange(name, e),
-        onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-          handleBlur(name, e),
+        onBlur: () =>
+          handleBlur(name),
         ref: (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null) => {
           if (el) {
             elementRefs.current.set(name, el);

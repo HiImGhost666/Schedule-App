@@ -65,7 +65,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
 
   const { data: vacationsData, isLoading } = useVacationsList(filters);
 
-  const vacations = vacationsData?.items ?? [];
+  const vacations = useMemo(() => vacationsData?.items ?? [], [vacationsData?.items]);
   const total = vacationsData?.total ?? 0;
   const totalPages = vacationsData?.totalPages ?? 0;
 

@@ -2,6 +2,16 @@
 
 > Registro de cambios aplicados durante el desarrollo.
 > **Última actualización:** 9 mayo 2026
+> 
+> ## Sesión: Corrección de errores de linter (9 mayo 2026)
+> 
+> - **SchedulePage.tsx**: Corregido bucle infinito de `useEffect` — dependencia `scheduleDetail` causaba re-renders en cadena. Añadido `detailScheduleId` y `detailAnchor` como condiciones de guarda.
+> - **ShiftPresetsPage.tsx**: Eliminada variable `emptyForm` no usada. Tipados `any` → `unknown` en callbacks de error de mutaciones.
+> - **NotificationPanel.tsx**: Eliminado import no usado de `useInAppNotifications` (solo se necesita el type).
+> - **useFieldValidation.ts**: Eliminado parámetro `_e` no usado en `handleBlur`. Actualizado tipo de retorno de `register().onBlur` de `(e: FocusEvent) => void` a `() => void`.
+> - **useInAppNotifications.ts**: Movida llamada inicial a `fetchUnreadCount()` dentro de `setTimeout` para evitar setState sincrónico dentro de useEffect (violación de regla `react-hooks/set-state-in-effect`).
+> - **VacationTable.tsx**: Envuelta variable `vacations` en `useMemo` para estabilidad de referencia (warning de `react-hooks/exhaustive-deps`).
+> - **Resultado**: Linter frontend: **0 errores, 0 warnings**.
 
 ---
 
