@@ -10,7 +10,6 @@
 | ID | Descripción | Impacto | Módulo | Estado |
 |----|-------------|---------|--------|--------|
 | **VUL-2** | `listWeekSchedulesForActor` para employee pasa `actor.branchId` como `userId` en vez de `actor.id` | **Alto** — bug que filtra por branchId incorrecto | Schedules | ✅ **CORREGIDO** |
-| **VUL-4** | No hay rate limiting en login | **Alto** — ataque de fuerza bruta | Auth | ⏸️ **ON HOLD** (pendiente de decisión) |
 
 ## 🟡 Vulnerabilidades Medias
 
@@ -35,7 +34,6 @@
 ## 📋 Pendientes por Módulo
 
 ### Módulo: Auth / Seguridad
-- [ ] ⏸️ **VUL-4**: Añadir rate limiting al login (`express-rate-limit`) — **ON HOLD**
 - [ ] **VUL-9**: Invalidar tokens JWT al cambiar contraseña (tokenVersion)
 - [ ] **VUL-10**: Limitar sesiones concurrentes por usuario
 - [ ] Crear endpoint de logout (invalidar token)
@@ -72,5 +70,4 @@
 ## 🚀 Mejoras Planificadas
 
 - [ ] Endpoint de health check para monitoreo
-- [ ] Documentación OpenAPI/Swagger de la API REST
 - [ ] Confirmación en frontend antes de crear schedule en día festivo

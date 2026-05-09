@@ -27,6 +27,7 @@ model User {
   passwordChangePolicy    String   @default("none") @map("password_change_policy")
   passwordChangeWarnedAt  DateTime? @map("password_change_warned_at")
   passwordChangeDeadlineAt DateTime? @map("password_change_deadline_at")
+  tokenVersion            Int      @default(0) @map("token_version")
   employeeId              String?  @unique @map("employee_id")
   companyPhone            String?  @map("company_phone")
   auxiliaryPhone          String?  @map("auxiliary_phone")

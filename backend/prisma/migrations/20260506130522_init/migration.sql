@@ -18,6 +18,7 @@ CREATE TABLE `users` (
     `password_change_policy` VARCHAR(191) NOT NULL DEFAULT 'none',
     `password_change_warned_at` DATETIME(3) NULL,
     `password_change_deadline_at` DATETIME(3) NULL,
+    `token_version` INTEGER NOT NULL DEFAULT 0,
     `employee_id` VARCHAR(191) NULL,
     `company_phone` VARCHAR(191) NULL,
     `auxiliary_phone` VARCHAR(191) NULL,

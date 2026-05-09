@@ -116,6 +116,7 @@ export async function login(identifier: string, password: string, ipAddress?: st
     role: userWithRole.role?.name || 'employee',
     name: user.name,
     permissions,
+    tokenVersion: updatedUser.tokenVersion,
   });
 
   const safeUser = {
@@ -178,6 +179,7 @@ export async function refreshTokens(token: string) {
     role: userWithRole.role?.name || 'employee',
     name: user.name,
     permissions,
+    tokenVersion: user.tokenVersion,
   });
   const newRefreshToken = signRefreshToken({ sub: user.id, jti: newTokenId });
 
@@ -271,6 +273,7 @@ export async function changePassword(userId: string, currentPassword: string | u
     await updateUserById(user.id, {
       passwordHash: newHash,
       passwordChangedAt: new Date(),
+      tokenVersion: { increment: 1 },
       ...buildClearedPasswordChangeFields(),
     }, tx);
   });

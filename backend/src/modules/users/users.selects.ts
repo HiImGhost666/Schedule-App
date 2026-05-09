@@ -7,6 +7,7 @@ export const USER_RESPONSE_SELECT: Prisma.UserSelect = {
   email: true,
   derivedUsername: true,
   passwordChangedAt: true,
+  tokenVersion: true,
   roleId: true,
   role: {
     select: {
@@ -54,6 +55,7 @@ export const USER_SAFE_SELECT: Prisma.UserSelect = {
   email: true,
   derivedUsername: true,
   passwordChangedAt: true,
+  tokenVersion: true,
   roleId: true,
   role: {
     select: {

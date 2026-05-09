@@ -8,6 +8,7 @@ export interface AccessTokenPayload {
   role: RoleName | string;
   name: string;
   permissions: PermissionName[] | string[];
+  tokenVersion?: number;
 }
 
 export interface RefreshTokenPayload {

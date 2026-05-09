@@ -38,6 +38,7 @@ export function updateUserById(
     passwordChangePolicy?: string;
     passwordChangeWarnedAt?: Date | null;
     passwordChangeDeadlineAt?: Date | null;
+    tokenVersion?: number | { increment: number };
   },
   tx?: TransactionClient,
 ) {

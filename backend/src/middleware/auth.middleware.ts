@@ -49,6 +49,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
         status: true,
         branchId: true,
         departmentId: true,
+        tokenVersion: true,
       },
     });
 
@@ -58,6 +59,11 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
 
     if (user.status !== USER_STATUS.ACTIVE) {
       return sendError(res, 'Tu cuenta no está activa', 403, null, 'FORBIDDEN');
+    }
+
+    // VUL-9: Verificar tokenVersion para invalidar tokens al cambiar contraseña
+    if (payload.tokenVersion !== undefined && payload.tokenVersion !== user.tokenVersion) {
+      return sendError(res, 'Sesión expirada. Inicia sesión nuevamente', 401);
     }
 
     req.user = {

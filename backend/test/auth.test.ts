@@ -64,6 +64,7 @@ const buildUser = (overrides: Record<string, any> = {}) => ({
   passwordChangeDeadlineAt: null,
   companyPhone: null,
   auxiliaryPhone: null,
+  tokenVersion: 0,
   ...overrides,
 });
 
@@ -375,6 +376,25 @@ describe('password policy helpers in auth.service', () => {
         passwordChangePolicy: 'none',
         passwordChangeWarnedAt: null,
         passwordChangeDeadlineAt: null,
+      }),
+      expect.anything()
+    );
+  });
+
+  // ── VUL-9: Verificar que changePassword incrementa tokenVersion ──────────────
+  it('changePassword incrementa tokenVersion para invalidar tokens existentes', async () => {
+    mockAuthRepo.findUserById.mockResolvedValue(buildUser({
+      forcePasswordChange: true,
+      passwordChangePolicy: 'required',
+      tokenVersion: 0,
+    }) as any);
+
+    await changePassword('user-1', undefined, 'NewSecure123!');
+
+    expect(mockAuthRepo.updateUserById).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        tokenVersion: { increment: 1 },
       }),
       expect.anything()
     );
