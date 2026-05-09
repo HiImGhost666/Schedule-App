@@ -4,6 +4,7 @@ import { executeInTransaction, type TransactionClient } from '../../common/trans
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyScheduleChange } from '../notifications/notifications.service';
+import { createInAppNotification, createInAppNotificationBatch } from '../in-app-notifications/in-app.service';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
 import {
@@ -354,7 +355,8 @@ export async function listWeekSchedulesForActor(
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
     // Forzar userId = actor.id para que employee solo vea sus propios turnos
-    return listWeekSchedules(year, week, actor.branchId, departmentId, userId || actor.id);
+    // Ignorar cualquier userId externo para evitar fuga de datos
+    return listWeekSchedules(year, week, actor.branchId, departmentId, actor.id);
   }
 
   throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
@@ -502,6 +504,19 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     reason: result.reason || 'Nueva guardia programada',
     isLastMinute: result.isLastMinute,
   }).catch(() => {});
+
+  // Notificación in-app a los asignados
+  const assigneeNames = result.schedule.assignments.map(a => a.user.name).join(', ');
+  createInAppNotificationBatch(
+    parsed.data.assigneeIds.map(userId => ({
+      userId,
+      type: 'schedule_assigned',
+      title: 'Nuevo turno asignado',
+      message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${result.schedule.startDatetime.toLocaleDateString()} de ${result.schedule.startDatetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} a ${result.schedule.endDatetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Asignado por ${actor.name}.`,
+      link: '/schedule',
+      metadata: { scheduleId: result.schedule.id, assignedBy: actor.id },
+    })),
+  ).catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_CREATED, {
     entity: 'schedule',
@@ -707,6 +722,19 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     isLastMinute,
   }).catch(() => {});
 
+  // Notificación in-app a los asignados sobre cambios
+  const finalAssigneeIds = assigneeIds || existing.assignments.map(a => a.userId);
+  createInAppNotificationBatch(
+    finalAssigneeIds.map(userId => ({
+      userId,
+      type: 'schedule_modified',
+      title: 'Turno modificado',
+      message: `El turno "${schedule.title}" del ${schedule.startDatetime.toLocaleDateString()} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+      link: '/schedule',
+      metadata: { scheduleId: schedule.id, updatedBy: actor.id },
+    })),
+  ).catch(() => {});
+
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_UPDATED, {
     entity: 'schedule',
     action: 'updated',
@@ -843,6 +871,18 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
     reason: reason || 'Sin motivo especificado',
     isLastMinute: false,
   }).catch(() => {});
+
+  // Notificación in-app a los asignados sobre eliminación
+  createInAppNotificationBatch(
+    schedule.assignments.map(a => ({
+      userId: a.userId,
+      type: 'schedule_deleted',
+      title: 'Turno eliminado',
+      message: `El turno "${schedule.title}" del ${schedule.startDatetime.toLocaleDateString()} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+      link: '/schedule',
+      metadata: { scheduleId: schedule.id, deletedBy: actor.id },
+    })),
+  ).catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_DELETED, {
     entity: 'schedule',

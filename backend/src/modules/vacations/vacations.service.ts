@@ -3,6 +3,7 @@ import { createAppError } from '../../common/errors/error-catalog';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyVacationChange } from '../notifications/notifications.service';
+import { createInAppNotification } from '../in-app-notifications/in-app.service';
 import { VACATION_PERMISSIONS } from './vacations.constants';
 import {
   findVacationRequests,
@@ -277,6 +278,16 @@ export async function approveVacationEntry(id: string, input: ApproveVacationInp
     actor,
   }).catch(() => {});
 
+  // Notificación in-app al empleado
+  createInAppNotification({
+    userId: vacation.employeeId,
+    type: 'vacation_approved',
+    title: 'Vacaciones aprobadas',
+    message: `Tus vacaciones del ${vacation.startDate.toLocaleDateString()} al ${vacation.endDate.toLocaleDateString()} han sido aprobadas por ${actor.name}.`,
+    link: '/vacations',
+    metadata: { vacationId: id, approvedBy: actor.id },
+  }).catch(() => {});
+
   return updated;
 }
 
@@ -334,6 +345,19 @@ export async function rejectVacationEntry(id: string, input: RejectVacationInput
     actor,
   }).catch(() => {});
 
+  // Notificación in-app al empleado
+  const rejectionMsg = input.rejectionReason
+    ? `Motivo: ${input.rejectionReason}`
+    : 'No se especificó motivo.';
+  createInAppNotification({
+    userId: vacation.employeeId,
+    type: 'vacation_rejected',
+    title: 'Vacaciones rechazadas',
+    message: `Tus vacaciones del ${vacation.startDate.toLocaleDateString()} al ${vacation.endDate.toLocaleDateString()} han sido rechazadas por ${actor.name}. ${rejectionMsg}`,
+    link: '/vacations',
+    metadata: { vacationId: id, rejectedBy: actor.id, rejectionReason: input.rejectionReason },
+  }).catch(() => {});
+
   return updated;
 }
 
@@ -348,16 +372,16 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
     throw createAppError('NOT_FOUND', 'Solicitud de vacaciones no encontrada');
   }
 
-  const hasCancelAll = actor.permissions?.includes(VACATION_PERMISSIONS.APPROVE) ?? false;
+  const hasCancelAll = actor.permissions?.includes(VACATION_PERMISSIONS.CANCEL) ?? false;
 
   if (!hasCancelAll) {
-    // Sin permiso de approve: solo puede cancelar sus propias solicitudes
+    // Sin permiso de cancel: solo puede cancelar sus propias solicitudes
     if (vacation.employeeId !== actor.id) {
       throw createAppError('FORBIDDEN', 'Solo puedes cancelar tus propias solicitudes');
     }
     ensureCanCancel(vacation.status);
   } else {
-    // Con permiso de approve (manager/admin): validar scope
+    // Con permiso de cancel (manager/admin): validar scope
     ensureCanReview(
       actor.roleName,
       actor.branchId,
