@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Webhook, Bell, ClipboardList,
-  LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays, Layers
+  LogOut, ChevronLeft, ChevronRight, User, Palette, Building2, CalendarDays, Layers, Clock
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/types';
@@ -29,6 +29,7 @@ const adminItems = [
   { to: '/admin/notifications', icon: Bell, label: 'Notificaciones' },
   { to: '/admin/audit', icon: ClipboardList, label: 'Auditoría' },
   { to: '/admin/theme', icon: Palette, label: 'Apariencia' },
+  { to: '/admin/shift-presets', icon: Clock, label: 'Turnos Predefinidos' },
 ];
 
 export function Sidebar() {

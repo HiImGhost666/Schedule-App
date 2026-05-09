@@ -27,7 +27,7 @@ const NotificationsPage = lazy(() =>
   import('@/pages/admin/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
 );
 const EventTypesPage = lazy(() =>
-  import('@/pages/admin/EventTypesPage').then((m) => ({ default: m.default }))
+  import('@/pages/admin/EventTypesPage').then((m) => ({ default: m.EventTypesPage }))
 );
 const AuditLogPage = lazy(() => import('@/pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
 const ThemeManagerPage = lazy(() =>
@@ -36,6 +36,7 @@ const ThemeManagerPage = lazy(() =>
 const BranchesPage = lazy(() => import('@/pages/admin/BranchesPage').then((m) => ({ default: m.BranchesPage })));
 const DepartmentsPage = lazy(() => import('@/pages/admin/DepartmentsPage').then((m) => ({ default: m.DepartmentsPage })));
 const HolidaysPage = lazy(() => import('@/pages/admin/HolidaysPage').then((m) => ({ default: m.HolidaysPage })));
+const ShiftPresetsPage = lazy(() => import('@/pages/admin/ShiftPresetsPage').then((m) => ({ default: m.default })));
 
 const THEME_MANAGER_PATH = '/admin/theme';
 
@@ -171,6 +172,7 @@ function App() {
                   <Route path="admin/notifications" element={<NotificationsPage />} />
                   <Route path="admin/audit" element={<AuditLogPage />} />
                   <Route path="admin/theme" element={<ThemeManagerPage />} />
+                  <Route path="admin/shift-presets" element={<ShiftPresetsPage />} />
                 </Route>
               </Route>
             </Route>

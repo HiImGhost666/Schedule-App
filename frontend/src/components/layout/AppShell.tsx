@@ -19,6 +19,7 @@ const pageTitles: Record<string, string> = {
   '/admin/notifications': 'Notificaciones',
   '/admin/audit': 'Registro de Auditoría',
   '/admin/theme': 'Apariencia',
+  '/admin/shift-presets': 'Turnos Predefinidos',
   '/profile': 'Mi Perfil',
 };
 
