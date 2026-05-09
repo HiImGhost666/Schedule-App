@@ -25,6 +25,7 @@
 | `branches:create` | Crear sucursales |
 | `branches:update` | Editar sucursales |
 | `branches:delete` | Eliminar sucursales |
+| `branches:holidays:manage` | Gestionar festivos de sucursales (crear, editar, eliminar) |
 | `departments:view` | Ver departamentos |
 | `departments:create` | Crear departamentos |
 | `departments:update` | Editar departamentos |
@@ -68,6 +69,7 @@
 | `branches:create` | ✅ | ❌ | ❌ | ❌ |
 | `branches:update` | ✅ | ❌ | ❌ | ❌ |
 | `branches:delete` | ✅ | ❌ | ❌ | ❌ |
+| `branches:holidays:manage` | ✅ | ✅ (scope: su branch) | ❌ | ❌ |
 | `departments:view` | ✅ | ✅ | ✅ | ❌ |
 | `departments:create` | ✅ | ❌ | ❌ | ❌ |
 | `departments:update` | ✅ | ❌ | ❌ | ❌ |
@@ -96,7 +98,8 @@
 ### `general_manager`
 - Gestiona **su sucursal**: usuarios de su branch, turnos de su branch.
 - Schedule Types solo lectura (solo admin crea/edita/borra para evitar errores).
-- NO gestiona departments, branches, ni settings.
+- **Festivos**: puede gestionar los festivos de su sucursal (`branches:holidays:manage`).
+- NO gestiona departments, branches (CRUD), ni settings.
 - Vacaciones: ve y gestiona las de su branch.
 - Webhooks: solo admin gestiona webhooks.
 - Resumen semanal: ve el de su equipo.
