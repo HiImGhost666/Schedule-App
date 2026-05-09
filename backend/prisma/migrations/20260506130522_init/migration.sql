@@ -331,6 +331,23 @@ CREATE TABLE `audit_logs` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `in_app_notifications` (
+    `id` VARCHAR(191) NOT NULL,
+    `user_id` VARCHAR(191) NOT NULL,
+    `type` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `message` TEXT NOT NULL,
+    `read_at` DATETIME(3) NULL,
+    `link` VARCHAR(191) NULL,
+    `metadata` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `in_app_notifications_user_id_read_at_idx`(`user_id`, `read_at`),
+    INDEX `in_app_notifications_user_id_created_at_idx`(`user_id`, `created_at`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `theme_settings` (
     `id` VARCHAR(191) NOT NULL,
     `key` VARCHAR(191) NOT NULL DEFAULT 'global',

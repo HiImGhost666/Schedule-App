@@ -453,6 +453,22 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model InAppNotification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String
+  title     String
+  message   String   @db.Text
+  readAt    DateTime? @map("read_at")
+  link      String?
+  metadata  String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("in_app_notifications")
+}
+
 model ShiftPreset {
   id        String   @id @default(cuid())
   name      String
