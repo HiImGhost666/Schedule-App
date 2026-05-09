@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
-import { Search, ChevronLeft, ChevronRight, Check, X, Trash2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Check, X, Trash2, ArrowUpDown } from 'lucide-react';
 import type { Branch, Department, VacationStatus, VacationRequest } from '@/types';
 
 interface Props {
@@ -20,6 +20,8 @@ interface Props {
   roleName: string;
 }
 
+type SortField = 'employee' | 'startDate' | 'status' | 'department' | 'branch';
+
 export function VacationTable({ isAdmin, isManager, userBranchId, userDepartmentId, userId, roleName }: Props) {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
@@ -27,6 +29,8 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
   const [branchFilter, setBranchFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortField>('startDate');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [rejectModal, setRejectModal] = useState<{ id: string; employeeName: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<{ id: string; employeeName: string } | null>(null);
@@ -120,6 +124,50 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
     return false;
   };
 
+  const handleSortChange = (field: SortField) => {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(field);
+    setSortOrder('asc');
+  };
+
+  const renderSortLabel = (field: SortField, label: string) => {
+    const isActive = sortBy === field;
+    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => handleSortChange(field)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
+        className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-primary select-none"
+      >
+        <span>{label}</span>
+        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
+      </span>
+    );
+  };
+
+  const sortedVacations = useMemo(() => {
+    return [...vacations].sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'employee') {
+        cmp = a.employee.name.localeCompare(b.employee.name, 'es', { sensitivity: 'base' });
+      } else if (sortBy === 'startDate') {
+        cmp = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+      } else if (sortBy === 'status') {
+        cmp = a.status.localeCompare(b.status, 'es');
+      } else if (sortBy === 'department') {
+        cmp = (a.department?.name ?? '').localeCompare(b.department?.name ?? '', 'es');
+      } else if (sortBy === 'branch') {
+        cmp = (a.branch?.name ?? '').localeCompare(b.branch?.name ?? '', 'es');
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+  }, [vacations, sortBy, sortOrder]);
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -209,11 +257,11 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-theme-surface-muted/60 border-b border-theme-color">
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">Empleado</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">Fechas</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">Estado</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">Departamento</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">Sucursal</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('employee', 'Empleado')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('startDate', 'Fechas')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('status', 'Estado')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('department', 'Departamento')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('branch', 'Sucursal')}</th>
               <th className="text-right px-4 py-3 font-semibold text-theme-primary">Acciones</th>
             </tr>
           </thead>
@@ -224,7 +272,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                   <LoadingSpinner size="lg" />
                 </td>
               </tr>
-            ) : vacations.length === 0 ? (
+            ) : sortedVacations.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12">
                   <EmptyState
@@ -235,7 +283,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                 </td>
               </tr>
             ) : (
-              vacations.map((vacation) => (
+              sortedVacations.map((vacation) => (
                 <tr key={vacation.id} className="border-b border-theme-color hover:bg-theme-surface-muted/30 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
