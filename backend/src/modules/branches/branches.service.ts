@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { createAppError } from '../../common/errors/error-catalog';
-import { logAuditOrThrow } from '../audit/audit.service';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
 import { findSchedules } from '../schedules/schedules.repository';
 import {
@@ -177,7 +177,7 @@ export async function createBranch(data: BranchInput, actor: BranchActor) {
 }
 
 export async function updateBranch(branchId: string, data: Partial<BranchInput>, actor: BranchActor) {
-  await ensureBranch(branchId);
+  const branch = await ensureBranch(branchId);
 
   if (data.code) {
     const code = normalizeBranchCode(data.code);
@@ -201,7 +201,30 @@ export async function updateBranch(branchId: string, data: Partial<BranchInput>,
       action: 'UPDATE_BRANCH',
       entityType: 'Branch',
       entityId: branchId,
-      detailsJson: data,
+      detailsJson: {
+        before: sanitizeSnapshot({
+          id: branch.id,
+          name: branch.name,
+          code: branch.code,
+          address: branch.address,
+          city: branch.city,
+          region: branch.region,
+          countryCode: branch.countryCode,
+          timezone: branch.timezone,
+          isActive: branch.isActive,
+        }),
+        after: sanitizeSnapshot({
+          id: updated.id,
+          name: updated.name,
+          code: updated.code,
+          address: updated.address,
+          city: updated.city,
+          region: updated.region,
+          countryCode: updated.countryCode,
+          timezone: updated.timezone,
+          isActive: updated.isActive,
+        }),
+      },
       ipAddress: actor.ipAddress,
     }, tx);
 

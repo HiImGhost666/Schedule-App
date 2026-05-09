@@ -1,3 +1,4 @@
+
 import { comparePassword } from '../../utils/bcrypt';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt';
 import {
@@ -23,6 +24,7 @@ import {
 import { createAppError } from '../../common/errors/error-catalog';
 import { hashPassword } from '../../utils/bcrypt';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import { logAuditOrThrow } from '../audit/audit.service';
 import {
   buildClearedPasswordChangeFields,
   getPolicyTransitionPatch,
@@ -275,6 +277,17 @@ export async function changePassword(userId: string, currentPassword: string | u
       passwordChangedAt: new Date(),
       tokenVersion: { increment: 1 },
       ...buildClearedPasswordChangeFields(),
+    }, tx);
+
+    await logAuditOrThrow({
+      userId,
+      action: 'CHANGE_PASSWORD',
+      entityType: 'User',
+      entityId: userId,
+      detailsJson: {
+        before: { passwordChangedAt: user.passwordChangedAt?.toISOString() ?? null },
+        after: { passwordChangedAt: new Date().toISOString() },
+      },
     }, tx);
   });
 }

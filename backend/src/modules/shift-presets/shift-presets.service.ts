@@ -1,6 +1,6 @@
 import { prisma } from '../../config/database';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
-import { logAuditOrThrow } from '../audit/audit.service';
+import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import type { CreateShiftPresetInput, UpdateShiftPresetInput } from './shift-presets.http.schemas';
 
 export async function listShiftPresets() {
@@ -19,7 +19,7 @@ export async function createShiftPreset(data: CreateShiftPresetInput, actorId: s
       action: 'CREATE_SHIFT_PRESET',
       entityType: 'ShiftPreset',
       entityId: preset.id,
-      detailsJson: data,
+      detailsJson: { before: null, after: sanitizeSnapshot(preset) },
     }, tx);
     return preset;
   });
@@ -27,13 +27,14 @@ export async function createShiftPreset(data: CreateShiftPresetInput, actorId: s
 
 export async function updateShiftPreset(id: string, data: UpdateShiftPresetInput, actorId: string) {
   return executeInTransaction(async (tx) => {
+    const before = await tx.shiftPreset.findUnique({ where: { id } });
     const preset = await tx.shiftPreset.update({ where: { id }, data });
     await logAuditOrThrow({
       userId: actorId,
       action: 'UPDATE_SHIFT_PRESET',
       entityType: 'ShiftPreset',
       entityId: id,
-      detailsJson: data,
+      detailsJson: { before: sanitizeSnapshot(before), after: sanitizeSnapshot(preset) },
     }, tx);
     return preset;
   });
@@ -47,7 +48,7 @@ export async function deleteShiftPreset(id: string, actorId: string) {
       action: 'DELETE_SHIFT_PRESET',
       entityType: 'ShiftPreset',
       entityId: id,
-      detailsJson: { name: preset.name },
+      detailsJson: { before: sanitizeSnapshot(preset), after: null },
     }, tx);
     return preset;
   });
