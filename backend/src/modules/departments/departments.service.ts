@@ -177,14 +177,16 @@ export async function updateDepartment(departmentId: string, data: Partial<Depar
   }
 
   return executeInTransaction(async (tx) => {
+    // Extraer branchIds para no pasarlo a Prisma como campo directo del modelo Department
+    const { branchIds, ...departmentData } = data;
     const updated = await updateDepartmentRecord(departmentId, {
-      ...data,
+      ...departmentData,
       description: data.description,
     }, tx);
 
-    if (data.branchIds) {
+    if (branchIds) {
       await removeDepartmentBranches(departmentId, tx);
-      await setDepartmentBranches(departmentId, data.branchIds, tx);
+      await setDepartmentBranches(departmentId, branchIds, tx);
     }
 
     const after = await buildDepartmentSnapshot(departmentId, tx);

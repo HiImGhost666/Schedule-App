@@ -26,11 +26,11 @@ router.delete('/:branchId', authMiddleware, requirePermission('branches:delete')
 router.delete('/:branchId/permanent', authMiddleware, requirePermission('branches:delete'), (req: AuthRequest, res: Response) => hardDeleteBranchController(req, res));
 
 router.get('/:branchId/holidays', authMiddleware, (req: AuthRequest, res: Response) => listBranchHolidaysController(req, res));
-router.post('/:branchId/holidays', authMiddleware, requirePermission('branches:create'), (req: AuthRequest, res: Response) => createBranchHolidayController(req, res));
-router.patch('/:branchId/holidays/bulk', authMiddleware, requirePermission('branches:update'), (req: AuthRequest, res: Response) => bulkUpdateBranchHolidayController(req, res));
-router.delete('/:branchId/holidays/bulk', authMiddleware, requirePermission('branches:delete'), (req: AuthRequest, res: Response) => bulkDeleteBranchHolidayController(req, res));
-router.patch('/:branchId/holidays/:holidayId', authMiddleware, requirePermission('branches:update'), (req: AuthRequest, res: Response) => updateBranchHolidayController(req, res));
-router.delete('/:branchId/holidays/:holidayId', authMiddleware, requirePermission('branches:delete'), (req: AuthRequest, res: Response) => deleteBranchHolidayController(req, res));
+router.post('/:branchId/holidays', authMiddleware, requirePermission('branches:holidays:manage'), (req: AuthRequest, res: Response) => createBranchHolidayController(req, res));
+router.patch('/:branchId/holidays/bulk', authMiddleware, requirePermission('branches:holidays:manage'), (req: AuthRequest, res: Response) => bulkUpdateBranchHolidayController(req, res));
+router.delete('/:branchId/holidays/bulk', authMiddleware, requirePermission('branches:holidays:manage'), (req: AuthRequest, res: Response) => bulkDeleteBranchHolidayController(req, res));
+router.patch('/:branchId/holidays/:holidayId', authMiddleware, requirePermission('branches:holidays:manage'), (req: AuthRequest, res: Response) => updateBranchHolidayController(req, res));
+router.delete('/:branchId/holidays/:holidayId', authMiddleware, requirePermission('branches:holidays:manage'), (req: AuthRequest, res: Response) => deleteBranchHolidayController(req, res));
 
 // Manager assignment/removal - Single Transaction Pattern
 router.patch('/:branchId/manager', authMiddleware, requirePermission('branches:update'), (req: AuthRequest, res: Response) => assignBranchManagerController(req, res));

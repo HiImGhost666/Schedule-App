@@ -379,7 +379,7 @@ export async function createBranchHoliday(branchId: string, data: BranchHolidayI
           title: s.title,
           startDatetime: s.startDatetime,
           endDatetime: s.endDatetime,
-          type: s.type,
+          type: s.scheduleType?.label || 'Turno',
           assignees: s.assignments.map((a) => ({
             id: a.user.id,
             name: a.user.name,
