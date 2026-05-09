@@ -6,7 +6,7 @@ import { VacationCalendar } from '@/components/vacations/VacationCalendar';
 import { VacationTable } from '@/components/vacations/VacationTable';
 import { VacationRequestModal } from '@/components/vacations/VacationRequestModal';
 import { VacationCreateModal } from '@/components/vacations/VacationCreateModal';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { VacationsSkeleton } from '@/components/common/Skeleton';
 import { Plus, CalendarPlus } from 'lucide-react';
 import type { Branch, Department } from '@/types';
 
@@ -40,11 +40,7 @@ export function VacationsPage() {
   const isLoading = branchesLoading || departmentsLoading;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <VacationsSkeleton />;
   }
 
   return (
