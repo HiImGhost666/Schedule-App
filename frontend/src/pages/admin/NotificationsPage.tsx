@@ -6,6 +6,7 @@ import type { NotificationLog, WebhookConfig } from '@/types';
 import { NOTIFICATION_TYPE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ListPageSkeleton } from '@/components/common/Skeleton';
 import { cn, formatDateTime } from '@/lib/utils';
 import { isDarkThemePreset } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
@@ -202,7 +203,7 @@ export function NotificationsPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-8"><LoadingSpinner /></div>
+          <ListPageSkeleton />
         ) : !data?.data?.length ? (
           <EmptyState icon={Bell} title="Sin notificaciones" description="Las notificaciones enviadas aparecerán aquí" />
         ) : (

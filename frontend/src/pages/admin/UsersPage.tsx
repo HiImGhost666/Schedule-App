@@ -9,6 +9,7 @@ import api from '@/config/api';
 import { type Branch, type Department, type User, ROLE_LABELS } from '@/types';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -483,7 +484,7 @@ export function UsersPage() {
 
       <div className="card overflow-visible">
         {isLoading ? (
-          <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+          <TableSkeleton rows={5} cols={7} />
         ) : !data?.data?.length ? (
           <EmptyState icon={Shield} title="Sin usuarios" description="No se encontraron usuarios con los filtros aplicados" />
         ) : (

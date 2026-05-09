@@ -3,6 +3,7 @@ import { useScheduleTypes } from '@/hooks/useScheduleTypes';
 import { Plus, Edit2, Trash2, Palette } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { TableSkeleton } from '@/components/common/Skeleton';
 import type { CreateScheduleTypeInput, FullScheduleType } from '@/components/schedule/scheduleTypesApi';
 
 export function EventTypesPage() {
@@ -43,7 +44,13 @@ export function EventTypesPage() {
     }
   };
 
-  if (isLoading) return <div className="p-8 text-center text-theme-primary">Cargando tipos de evento...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <TableSkeleton rows={4} cols={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

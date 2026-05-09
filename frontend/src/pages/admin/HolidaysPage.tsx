@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import api from '@/config/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ListPageSkeleton } from '@/components/common/Skeleton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { HolidayCreateModal } from '@/components/branches/HolidayCreateModal';
 import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
@@ -281,7 +282,7 @@ export function HolidaysPage() {
             </div>
 
             {holidaysLoading ? (
-              <div className="flex justify-center py-10"><LoadingSpinner size="lg" /></div>
+              <ListPageSkeleton />
             ) : !holidays?.data?.length ? (
               <EmptyState icon={CalendarDays} title="Sin festivos" description="No hay festivos cargados para este año" />
             ) : !filteredHolidays.length ? (

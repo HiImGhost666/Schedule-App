@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Shield, AlertTriangle, ExternalLink, UserX, UserMinus, X } from 'lucide-react';
+import { Calendar, Users, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
+import { DashboardSkeleton } from '@/components/common/Skeleton';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import { cn } from '@/lib/utils';
@@ -76,8 +77,6 @@ export function DashboardPage() {
     refetchInterval: 60_000, // refrescar cada minuto
   });
 
-  const unassignedCount = alerts?.filter((a) => a.type === 'unassigned').length || 0;
-  const soloCount = alerts?.filter((a) => a.type === 'solo').length || 0;
   const totalAlerts = (alerts?.length || 0);
 
   const isDark = isDarkThemePreset(
@@ -122,6 +121,10 @@ export function DashboardPage() {
   };
 
   const isAdmin = user?.role?.name === 'admin';
+
+  if (loadingSchedules && !weekSchedules) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-7 animate-fade-in">

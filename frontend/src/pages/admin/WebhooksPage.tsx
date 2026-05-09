@@ -9,6 +9,7 @@ import api from '@/config/api';
 import type { Branch, Department, WebhookConfig } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ListPageSkeleton } from '@/components/common/Skeleton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -222,7 +223,7 @@ export function WebhooksPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+        <ListPageSkeleton />
       ) : !webhooks?.length ? (
         <div className="card">
           <EmptyState

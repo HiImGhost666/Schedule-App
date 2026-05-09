@@ -4,8 +4,8 @@ import { Layers } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { DetailPageSkeleton } from '@/components/common/Skeleton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DepartmentList } from '@/components/departments/DepartmentList';
 import { DepartmentForm } from '@/components/departments/DepartmentForm';
@@ -294,7 +294,7 @@ export function DepartmentsPage() {
 
       <section className="card border border-theme-color rounded-2xl p-4 sm:p-5">
         {branchesLoading || departmentsLoading ? (
-          <div className="flex justify-center py-10"><LoadingSpinner size="lg" /></div>
+          <DetailPageSkeleton />
         ) : !hasBranches ? (
           <EmptyState icon={Layers} title="Sin sucursales" description="Crea una sucursal antes de gestionar departamentos" className="py-10" />
         ) : (
