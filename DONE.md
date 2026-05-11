@@ -40,6 +40,26 @@
 
 ---
 
+## Sesión: Corrección de errores TypeScript y lint (11 mayo 2026)
+
+### Arreglado
+- [x] **schedules.service.ts** — Añadido `findScheduleById` al import (faltaba en el repository import)
+- [x] **schedules.service.ts** — Tipos explícitos en callbacks `.map()` de `assignments` (parámetro `a` con tipo `any` implícito)
+- [x] **schedules.service.ts** — Eliminado import no usado de `createInAppNotification` y variable `assigneeNames`
+- [x] **schedules.service.ts** — Employee ve todos los turnos de su branch (trabajo grupal), no solo los propios
+- [x] **schedules.service.ts** — `listWeekSchedulesForActor` respeta `userId` si se pasa explícitamente
+- [x] **ShiftPresetsPage.tsx** — Eliminado import no usado de `Column`
+- [x] **ShiftPresetsPage.test.tsx** — Eliminada variable `mockAuthState` no usada
+- [x] **ShiftPresetsPage.test.tsx** — Reemplazados `as any` por `as unknown as Record<string, string>`
+- [x] **security-schedules.test.ts** — Tests actualizados para reflejar nueva lógica de employee (trabajo grupal)
+- [x] **TODO.md** — Reorganizado por prioridades (1-5), eliminados items resueltos
+
+### Vulnerabilidades resueltas
+- [x] **VUL-2**: `listWeekSchedulesForActor` corregido — ya no pasa `actor.branchId` como `userId`
+- [x] **VUL-1**: Employee ve todos los turnos de su branch (decisión de negocio: trabajo grupal), puede filtrar por `userId` si se pasa explícitamente
+
+---
+
 ## Sesiones anteriores
 
 ### Módulo: Roles y Permisos
