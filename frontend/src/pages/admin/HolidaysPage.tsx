@@ -12,6 +12,7 @@ import { HolidayCreateModal } from '@/components/branches/HolidayCreateModal';
 import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
+import { useAuthStore } from '@/store/authStore';
 import type { Branch, BranchHoliday, GroupedBranchHoliday } from '@/types';
 
 type HolidayType = BranchHoliday['type'];
@@ -52,7 +53,13 @@ function isGrouped(h: DisplayHoliday): h is GroupedBranchHoliday {
 
 export function HolidaysPage() {
   const qc = useQueryClient();
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const currentUser = useAuthStore((s) => s.user);
+  const roleName = currentUser?.role?.name ?? '';
+  const isAdmin = roleName === 'admin';
+  const isGeneralManager = roleName === 'general_manager';
+  const canManageHolidays = isAdmin || isGeneralManager;
+
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(isGeneralManager && currentUser?.branchId ? currentUser.branchId : '');
   const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
   const [holidayTypeFilter, setHolidayTypeFilter] = useState<'all' | HolidayType>('all');
   const [holidayToDelete, setHolidayToDelete] = useState<DisplayHoliday | null>(null);
@@ -159,6 +166,28 @@ export function HolidaysPage() {
   });
 
 
+  if (!canManageHolidays) {
+    return (
+      <div className="space-y-5 animate-fade-in">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-theme-primary">Festivos</h1>
+            <p className="text-sm text-theme-muted mt-0.5">
+              Configura festivos por sucursal de forma independiente
+            </p>
+          </div>
+        </div>
+        <div className="card p-8 text-center">
+          <CalendarDays className="h-12 w-12 mx-auto text-theme-muted mb-3" />
+          <h2 className="text-lg font-semibold text-theme-primary mb-1">Sin acceso</h2>
+          <p className="text-sm text-theme-muted">
+            No tienes permisos para gestionar festivos. Contacta con un administrador.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-start justify-between">
@@ -203,6 +232,10 @@ export function HolidaysPage() {
                   </label>
                   {branchesLoading ? (
                     <div className="flex items-center gap-2 text-sm text-theme-muted"><LoadingSpinner size="sm" />Cargando sucursales…</div>
+                  ) : isGeneralManager ? (
+                    <div className="text-sm text-theme-primary font-medium px-3 py-2 bg-theme-surface-muted rounded-lg">
+                      {branches?.data?.find((b) => b.id === currentUser?.branchId)?.name ?? 'Mi sucursal'}
+                    </div>
                   ) : (
                     <select
                       value={effectiveSelectedBranchId}

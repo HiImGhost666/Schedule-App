@@ -26,6 +26,21 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
+vi.mock('@/store/authStore', () => ({
+  useAuthStore: vi.fn((selector) => {
+    const state = {
+      user: {
+        id: 'admin-1',
+        name: 'Admin',
+        email: 'admin@test.com',
+        role: { name: 'admin' },
+        branchId: 'b-1',
+      },
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
