@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Upload, Download, Shield, MoreVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Upload, Download, Shield, MoreVertical } from 'lucide-react';
 import { formatRelative } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -11,6 +11,7 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
+import { DataTable } from '@/components/common/DataTable';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
@@ -284,24 +285,6 @@ export function UsersPage() {
     setSortOrder(field === 'createdAt' || field === 'lastLoginAt' ? 'desc' : 'asc');
   };
 
-  const renderSortLabel = (field: UsersSortBy, label: string) => {
-    const isActive = sortBy === field;
-    return (
-      <button
-        onClick={() => handleSortChange(field)}
-        className="flex items-center gap-1 hover:text-theme-primary transition-colors"
-      >
-        {label}
-        {isActive ? (
-          sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-        ) : (
-          <ArrowUp className="h-3 w-3 opacity-0 group-hover:opacity-50" />
-        )}
-      </button>
-    );
-  };
-
-
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/users/${id}/status`, { status }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Estado actualizado'); setConfirmAction(null); },
@@ -494,61 +477,85 @@ export function UsersPage() {
           <EmptyState icon={Shield} title="Sin usuarios" description="No se encontraron usuarios con los filtros aplicados" />
         ) : (
           <>
-            <div className="overflow-x-auto overflow-y-visible">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-theme-surface-muted border-b border-theme-color">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden xl:table-cell">ID Empleado</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider">{renderSortLabel('name', 'Usuario')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden md:table-cell">Departamento</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('branchId', 'Sucursal')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider">{renderSortLabel('roleId', 'Rol')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider">{renderSortLabel('status', 'Estado')}</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-theme-muted uppercase tracking-wider hidden lg:table-cell">{renderSortLabel('lastLoginAt', 'Último acceso')}</th>
-                    <th className="px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-theme-color">
-                  {data.data.map((u: User) => {
-                    return (
-                    <tr key={u.id} className="hover:bg-theme-surface-muted/50 transition-colors">
-                      <td className="px-5 py-3 text-xs font-mono text-theme-muted hidden xl:table-cell">{u.employeeId || '—'}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                           <div className="h-8 w-8 rounded-full bg-theme-primary flex items-center justify-center text-xs font-bold text-white shrink-0">
-                            {u.name[0]}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
-                            <p className="text-xs text-theme-muted truncate">{u.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-sm text-theme-secondary hidden md:table-cell">{u.department?.name || '—'}</td>
-                      <td className="px-5 py-3 text-sm text-theme-secondary hidden lg:table-cell">
-                        {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
-                      </td>
-                      <td className="px-5 py-3">{roleBadge(u.role?.name)}</td>
-                      <td className="px-5 py-3">{statusBadge(u.status)}</td>
-                      <td className="px-5 py-3 text-xs text-theme-muted hidden lg:table-cell">
-                        {u.lastLoginAt ? formatRelative(new Date(u.lastLoginAt), new Date(), { locale: es }) : 'Nunca'}
-                      </td>
-
-                      <td className="px-5 py-3 relative">
-                        <button
-                          onClick={(event) => handleMenuToggle(u.id, event)}
-                          className="p-1 rounded hover:bg-theme-surface-muted text-theme-muted"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
+            <DataTable<User>
+              data={data.data}
+              rowKey={(u) => u.id}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={(field) => handleSortChange(field as UsersSortBy)}
+              columns={[
+                {
+                  key: 'employeeId',
+                  label: 'ID Empleado',
+                  hide: 'xl',
+                  render: (u) => <span className="text-xs font-mono text-theme-muted">{u.employeeId || '—'}</span>,
+                },
+                {
+                  key: 'name',
+                  label: 'Usuario',
+                  sortable: true,
+                  render: (u) => (
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-theme-primary flex items-center justify-center text-xs font-bold text-white shrink-0">
+                        {u.name[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-theme-primary truncate">{u.name}</p>
+                        <p className="text-xs text-theme-muted truncate">{u.email}</p>
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'department',
+                  label: 'Departamento',
+                  hide: 'md',
+                  render: (u) => <span className="text-sm text-theme-secondary">{u.department?.name || '—'}</span>,
+                },
+                {
+                  key: 'branchId',
+                  label: 'Sucursal',
+                  sortable: true,
+                  hide: 'lg',
+                  render: (u) => (
+                    <span className="text-sm text-theme-secondary">
+                      {u.branch ? `${u.branch.name} (${u.branch.code})` : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'roleId',
+                  label: 'Rol',
+                  sortable: true,
+                  render: (u) => roleBadge(u.role?.name),
+                },
+                {
+                  key: 'status',
+                  label: 'Estado',
+                  sortable: true,
+                  render: (u) => statusBadge(u.status),
+                },
+                {
+                  key: 'lastLoginAt',
+                  label: 'Último acceso',
+                  sortable: true,
+                  hide: 'lg',
+                  render: (u) => (
+                    <span className="text-xs text-theme-muted">
+                      {u.lastLoginAt ? formatRelative(new Date(u.lastLoginAt), new Date(), { locale: es }) : 'Nunca'}
+                    </span>
+                  ),
+                },
+              ]}
+              renderActions={(u) => (
+                <button
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => handleMenuToggle(u.id, event)}
+                  className="p-1 rounded hover:bg-theme-surface-muted text-theme-muted"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              )}
+            />
             {data?.pagination && (
               <UsersPagination
                 page={page}

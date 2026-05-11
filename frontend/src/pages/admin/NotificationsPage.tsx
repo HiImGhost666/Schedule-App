@@ -7,6 +7,7 @@ import { NOTIFICATION_TYPE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ListPageSkeleton } from '@/components/common/Skeleton';
+import { DataTable } from '@/components/common/DataTable';
 import { cn, formatDateTime } from '@/lib/utils';
 import { isDarkThemePreset } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
@@ -208,46 +209,55 @@ export function NotificationsPage() {
           <EmptyState icon={Bell} title="Sin notificaciones" description="Las notificaciones enviadas aparecerán aquí" />
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-theme-surface-muted border-b border-theme-color">
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Estado</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Tipo</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase hidden md:table-cell">Mensaje</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase hidden lg:table-cell">Webhook</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-theme-muted uppercase">Fecha</th>
-                    <th className="px-5 py-3.5" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-theme-color">
-                  {data.data.map((log: NotificationLog) => (
-                    <tr key={log.id} className="hover:bg-theme-surface-muted/30">
-                      <td className="px-5 py-4"><StatusIcon status={log.status} /></td>
-                      <td className="px-5 py-4">
-                        <span className="text-xs bg-theme-surface-muted text-theme-secondary px-2 py-0.5 rounded-full font-medium">
-                          {NOTIFICATION_TYPE_LABELS[log.type] || log.type}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-theme-muted hidden md:table-cell max-w-xs truncate">{log.message}</td>
-                      <td className="px-5 py-4 text-xs text-theme-muted hidden lg:table-cell">{log.webhookConfig?.name || '—'}</td>
-                      <td className="px-5 py-4 text-xs text-theme-muted">{formatDateTime(log.sentAt)}</td>
-                      <td className="px-5 py-4">
-                        {log.status === 'failed' && (
-                          <button
-                            onClick={() => resendMutation.mutate(log.id)}
-                            disabled={resendMutation.isPending}
-                            className="text-xs text-theme-muted hover:text-theme-primary flex items-center gap-1"
-                          >
-                            <RefreshCw className="h-3 w-3" />Reenviar
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<NotificationLog>
+              data={data.data}
+              rowKey={(log) => log.id}
+              columns={[
+                {
+                  key: 'status',
+                  label: 'Estado',
+                  render: (log) => <StatusIcon status={log.status} />,
+                },
+                {
+                  key: 'type',
+                  label: 'Tipo',
+                  render: (log) => (
+                    <span className="text-xs bg-theme-surface-muted text-theme-secondary px-2 py-0.5 rounded-full font-medium">
+                      {NOTIFICATION_TYPE_LABELS[log.type] || log.type}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'message',
+                  label: 'Mensaje',
+                  hide: 'md',
+                  className: 'max-w-xs truncate',
+                  render: (log) => <span className="text-xs text-theme-muted">{log.message}</span>,
+                },
+                {
+                  key: 'webhook',
+                  label: 'Webhook',
+                  hide: 'lg',
+                  render: (log) => <span className="text-xs text-theme-muted">{log.webhookConfig?.name || '—'}</span>,
+                },
+                {
+                  key: 'sentAt',
+                  label: 'Fecha',
+                  render: (log) => <span className="text-xs text-theme-muted">{formatDateTime(log.sentAt)}</span>,
+                },
+              ]}
+              renderActions={(log) =>
+                log.status === 'failed' ? (
+                  <button
+                    onClick={() => resendMutation.mutate(log.id)}
+                    disabled={resendMutation.isPending}
+                    className="text-xs text-theme-muted hover:text-theme-primary flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" />Reenviar
+                  </button>
+                ) : null
+              }
+            />
             {data?.pagination?.totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-4 border-t border-theme-color">
                 <p className="text-xs text-theme-muted">Página {page} de {data.pagination.totalPages}</p>

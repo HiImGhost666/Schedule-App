@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, Building2, CalendarDays, ChevronLeft, ChevronRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ListPageSkeleton } from '@/components/common/Skeleton';
+import { DataTable } from '@/components/common/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { HolidayCreateModal } from '@/components/branches/HolidayCreateModal';
 import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
@@ -104,32 +105,6 @@ export function HolidaysPage() {
     },
     enabled: Boolean(effectiveSelectedBranchId),
   });
-
-  const handleSortChange = (field: 'date' | 'name' | 'type') => {
-    if (sortBy === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setSortBy(field);
-    setSortOrder('asc');
-  };
-
-  const renderSortLabel = (field: 'date' | 'name' | 'type', label: string) => {
-    const isActive = sortBy === field;
-    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={() => handleSortChange(field)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
-        className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-primary select-none"
-      >
-        <span>{label}</span>
-        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </span>
-    );
-  };
 
   const filteredHolidays = useMemo(() => {
     const source = holidays?.data ?? [];
@@ -321,80 +296,95 @@ export function HolidaysPage() {
             ) : !filteredHolidays.length ? (
               <EmptyState icon={Filter} title="Sin resultados" description="No hay festivos para el tipo seleccionado" />
             ) : (
-              <div className="overflow-x-auto border border-theme-color rounded-xl">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-theme-surface-muted border-b border-theme-color">
-                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">{renderSortLabel('date', 'Fecha')}</th>
-                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">{renderSortLabel('name', 'Nombre')}</th>
-                      {showAllBranches && (
-                        <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">Sucursal</th>
-                      )}
-                      <th className="text-left px-4 py-2.5 text-xs text-theme-muted uppercase">{renderSortLabel('type', 'Tipo')}</th>
-                      <th className="px-4 py-2.5" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-theme-color">
-                    {filteredHolidays.map((holiday) => (
-                      <tr key={holiday.id} className="hover:bg-theme-surface-muted/60 transition-colors">
-                        <td className="px-4 py-2.5 text-sm text-theme-primary">
-                          {format(new Date(holiday.date), 'dd/MM/yyyy')}
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-theme-primary">{holiday.name}</td>
-                        {showAllBranches && (
-                          <td className="px-4 py-2.5">
-                            {isGrouped(holiday) ? (
-                              holiday.branches.length === 1 ? (
+              <DataTable<DisplayHoliday>
+                data={filteredHolidays}
+                rowKey={(h) => h.id}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortChange={(field) => {
+                  if (sortBy === field) {
+                    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+                  } else {
+                    setSortBy(field as 'date' | 'name' | 'type');
+                    setSortOrder('asc');
+                  }
+                }}
+                columns={[
+                  {
+                    key: 'date',
+                    label: 'Fecha',
+                    sortable: true,
+                    render: (h) => (
+                      <span className="text-sm text-theme-primary">{format(new Date(h.date), 'dd/MM/yyyy')}</span>
+                    ),
+                  },
+                  {
+                    key: 'name',
+                    label: 'Nombre',
+                    sortable: true,
+                    render: (h) => <span className="text-sm text-theme-primary">{h.name}</span>,
+                  },
+                  ...(showAllBranches
+                    ? [
+                        {
+                          key: 'branch' as string,
+                          label: 'Sucursal',
+                          render: (h: DisplayHoliday) =>
+                            isGrouped(h) ? (
+                              h.branches.length === 1 ? (
                                 <span className="text-xs text-theme-muted">
-                                  {holiday.branches[0].name} ({holiday.branches[0].code})
+                                  {h.branches[0].name} ({h.branches[0].code})
                                 </span>
                               ) : (
                                 <button
-                                  onClick={() => setBranchesModal(holiday)}
+                                  onClick={() => setBranchesModal(h)}
                                   className="inline-flex items-center gap-1 text-xs font-medium text-theme-primary bg-theme-surface-muted hover:bg-theme-surface-muted/80 rounded-full px-2 py-0.5 transition-colors"
                                 >
                                   <Building2 className="h-3 w-3" />
-                                  {holiday.sharedCount} sucursales
+                                  {h.sharedCount} sucursales
                                 </button>
                               )
                             ) : (
                               <span className="text-xs text-theme-muted">
-                                {(holiday as BranchHoliday).branch?.name ?? '—'}
+                                {(h as BranchHoliday).branch?.name ?? '—'}
                               </span>
-                            )}
-                          </td>
-                        )}
-                        <td className="px-4 py-2.5">
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded-full text-white font-semibold"
-                            style={{ backgroundColor: HOLIDAY_TYPE_COLORS[holiday.type] }}
-                          >
-                            {HOLIDAY_TYPE_LABELS[holiday.type]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setHolidayToEdit(holiday)}
-                              className="p-1.5 rounded-lg hover:bg-theme-surface-muted text-theme-muted hover:text-theme-primary"
-                              title="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => setHolidayToDelete(holiday)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            ),
+                        },
+                      ]
+                    : []),
+                  {
+                    key: 'type',
+                    label: 'Tipo',
+                    sortable: true,
+                    render: (h) => (
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full text-white font-semibold"
+                        style={{ backgroundColor: HOLIDAY_TYPE_COLORS[h.type] }}
+                      >
+                        {HOLIDAY_TYPE_LABELS[h.type]}
+                      </span>
+                    ),
+                  },
+                ]}
+                renderActions={(h) => (
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setHolidayToEdit(h)}
+                      className="p-1.5 rounded-lg hover:bg-theme-surface-muted text-theme-muted hover:text-theme-primary"
+                      title="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setHolidayToDelete(h)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              />
             )}
           </>
         )}

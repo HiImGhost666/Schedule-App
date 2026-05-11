@@ -38,7 +38,7 @@
 
 ### Frontend — Tests faltantes
 - [x] **ProfilePage.test.tsx** — Test de página de perfil
-- [x] **EventTypesPage.test.tsx** — Verificar test existente o completar
+- [x] **ScheduleTypesPage.test.tsx** — Test de página de tipos de turno (renombrado desde EventTypesPage)
 - [x] **hooks/useFieldValidation.test.tsx** — Test del hook de validación
 - [x] **hooks/useInAppNotifications.test.tsx** — Test del hook de notificaciones
 - [x] **hooks/useMyWeeklySummary.test.tsx** — Test del hook de resumen semanal
@@ -60,15 +60,15 @@
 ## 🟢 PRIORIDAD 3 — Refactor / Migraciones
 
 ### Migrar a DataTable (3 páginas con tablas manuales)
-- [ ] **HolidaysPage** — Migrar tabla manual a `<DataTable>`
-- [ ] **UsersPage** — Migrar tabla manual a `<DataTable>`
-- [ ] **NotificationsPage** — Migrar tabla manual a `<DataTable>`
+- [x] **HolidaysPage** — Migrar tabla manual a `<DataTable>`
+- [x] **UsersPage** — Migrar tabla manual a `<DataTable>`
+- [x] **NotificationsPage** — Migrar tabla manual a `<DataTable>`
 
 ### Refactor de Componentes (DESIGN.md)
-- [ ] **TypeLegend.tsx** — Pasar `scheduleTypes` como prop en vez de usar hook internamente
-- [ ] **VacationTable.tsx** — Separar en smart (datos) + dumb (tabla)
-- [ ] **BranchList.tsx + DepartmentList.tsx** — Unificar en `SidebarList.tsx` genérico (~90% idénticos)
-- [ ] **UsersTable.tsx + AuditTable.tsx** — Extraer hook `useSortable` (patrón de ordenación similar)
+- [x] **TypeLegend.tsx** — Ya recibe `scheduleTypes` como prop ✅ (no usa hook internamente)
+- [x] **VacationTable.tsx** — Separado en smart (`VacationTable`) + dumb (`VacationTableDumb`)
+- [x] **BranchList.tsx + DepartmentList.tsx** — Ya unificados en `SidebarList.tsx` genérico ✅
+- [x] **UsersTable.tsx + AuditTable.tsx** — Extraído componente `SortableHeader` compartido + hook `useSortable`
 
 ---
 
