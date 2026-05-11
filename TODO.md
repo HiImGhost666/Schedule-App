@@ -9,21 +9,6 @@
 
 ### Backend
 
-#### ~~1. No se puede editar departamentos~~ ✅
-- **Fix**: Modificado `updateDepartmentMutation` en `DepartmentsPage.tsx` para solo enviar campos con valor, evitando enviar `branchIds` vacío o `code` vacío que causaban errores de validación.
-
-#### ~~2. No se actualizan usuarios al mover empleados~~ ✅
-- **Fix**: Añadido `exact: false` en `invalidateQueries` de `updateDepartmentMemberMutation` para que invalide todas las queries que empiecen con `['users']`, `['departments']` y `['departments-users']`.
-
-#### 3. ✅ Notificaciones de vacaciones y resumen semanal no funcionan (ARREGLADO)
-- **Qué se hizo**:
-  1. Se añadió filtrado por scope (branchId/departmentId) en `notifyVacationChange` para que solo notifique a webhooks que coincidan con la sucursal/departamento de la solicitud
-  2. Se añadieron logs en `notifyVacationChange` para depurar si encuentra webhooks
-  3. Se corrigió el tipo `VacationChangeParams` para que `branchId` y `departmentId` sean strings requeridos (no opcionales)
-  4. Se mejoró `NotificationsPage.tsx` con selector de alcance (`ScopeSelector`) que permite filtrar por: Todos, Sucursal, Departamento o Webhook específico
-  5. Se actualizaron los endpoints del backend para aceptar `webhookConfigIds` (array) en lugar de `webhookConfigId` (string)
-  6. Se actualizaron tests
-
 #### 4. Remover lógica 'desde'-'hasta' en schedules
 - **Causa probable**: La lógica actual usa `startDatetime` y `endDatetime` pero puede haber transformaciones de rango que causen problemas. Revisar schemas y service.
 - **Archivos**: `schedules.http.schemas.ts`, `schedules.service.ts`
@@ -56,14 +41,6 @@
 - **Cómo arreglar**:
   1. Revisar el manejador de cambio de fecha fin
   2. Verificar que no haya transformación de zona horaria
-
-#### 8. Pills de vacaciones aprobadas no se muestran en calendario ✅
-- **Causa**: El `VacationCalendar` usaba `useVacationCalendar` que solo cargaba UNA semana (la de `dateRange.from`), pero el calendario muestra un mes entero. Al cambiar de mes, solo se cargaba la primera semana del nuevo rango.
-- **Solución**: 
-  1. Se añadió `from`/`to` opcionales al schema `vacationCalendarQuerySchema` y al service `getVacationCalendar`
-  2. Se creó `useVacationCalendarRange` hook que usa `from`/`to` en lugar de `year`/`week`
-  3. Se actualizó `VacationCalendar.tsx` para usar `useVacationCalendarRange` con el rango completo del mes visible (`dateRange.from` a `dateRange.to`)
-  4. Se actualizaron tests del schema
 
 ---
 

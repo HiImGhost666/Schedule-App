@@ -31,6 +31,20 @@
 - [x] **Fix**: Añadido `exact: false` en `invalidateQueries` de `updateDepartmentMemberMutation` para que invalide todas las queries que empiecen con `['users']`, `['departments']` y `['departments-users']`.
 - [x] **Tests**: 84 tests pasando (users.router, users.test, users.http.schemas)
 
+### Bug #3: Notificaciones de vacaciones y resumen semanal no funcionan
+- [x] **Causa**: `notifyVacationChange` buscaba webhooks sin filtrar por scope (branchId/departmentId), y `sendMondayVacationSummary` ya se había corregido.
+- [x] **Fix**: Añadido filtrado por scope en `notifyVacationChange`, logs de depuración, corregido tipo `VacationChangeParams`, mejorado `NotificationsPage.tsx` con `ScopeSelector`.
+- [x] **Tests**: Tests de notificaciones actualizados.
+
+### Bug #8: Pills de vacaciones aprobadas no se muestran en calendario
+- [x] **Causa**: `VacationCalendar` usaba `useVacationCalendar` que solo cargaba UNA semana (la de `dateRange.from`), pero el calendario muestra un mes entero. Al cambiar de mes, solo se cargaba la primera semana del nuevo rango.
+- [x] **Fix**: 
+  1. Añadidos `from`/`to` opcionales al schema `vacationCalendarQuerySchema` y al service `getVacationCalendar`
+  2. Creado `useVacationCalendarRange` hook que usa `from`/`to` en lugar de `year`/`week`
+  3. Actualizado `VacationCalendar.tsx` para usar `useVacationCalendarRange` con el rango completo del mes visible
+  4. Actualizados tests del schema
+- [x] **Tests**: 42 tests pasando (vacations.http.schemas, vacations.router, security-vacations)
+
 ## ✅ COMPLETADO — Prioridad 3 (Refactor / Migraciones)
 
 - [x] **HolidaysPage** — Migrada a `<DataTable>`

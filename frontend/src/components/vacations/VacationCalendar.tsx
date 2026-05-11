@@ -9,7 +9,6 @@ import { useVacationCalendarRange } from '@/hooks/useVacations';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { CalendarDays } from 'lucide-react';
-import { getISOWeek, getISOWeekYear } from 'date-fns';
 import type { Branch, Department } from '@/types';
 
 const DEPARTMENT_PALETTE = [
@@ -96,10 +95,6 @@ export function VacationCalendar({
       to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
     };
   });
-
-  const weekRefDate = dateRange.from;
-  const isoWeekYear = getISOWeekYear(weekRefDate);
-  const isoWeek = getISOWeek(weekRefDate);
 
   const effectiveBranchId = isAdmin ? selectedBranchId : (userBranchId || '');
 

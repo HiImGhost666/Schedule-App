@@ -153,6 +153,7 @@ export function SchedulePage() {
   const isAdmin = user?.role?.name === 'admin';
   const isGeneralManager = user?.role?.name === 'general_manager';
   const isDepartmentManager = user?.role?.name === 'department_manager';
+  const isEmployee = !isAdmin && !isGeneralManager && !isDepartmentManager;
   // Solo admin puede ver y seleccionar todas las sucursales.
   // Los demás roles están restringidos a su sucursal asignada.
   const canViewAllBranches = isAdmin;
@@ -179,6 +180,7 @@ export function SchedulePage() {
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [activeBranchId, setActiveBranchId] = useState<string>('');
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
+  const [filterUserId, setFilterUserId] = useState<string>('');
   const [activeView, setActiveView] = useState(navState?.initialView || 'dayGridMonth');
   const [dateRange, setDateRange] = useState(() => {
     if (navState?.initialDate) {
@@ -227,11 +229,15 @@ export function SchedulePage() {
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.timezone])),
     [availableBranches],
   );
+  // Resolver filterUserId: 'me' → user.id real
+  const resolvedFilterUserId = filterUserId === 'me' ? (user?.id ?? '') : filterUserId;
+
   const { data: schedules, isLoading } = useQuery({
     queryKey: [
       'schedules',
       effectiveActiveBranchId || 'all',
       selectedDeptId || 'all',
+      resolvedFilterUserId || 'all',
       shouldUseWeekEndpoint ? 'week-view' : 'month-view',
       shouldUseWeekEndpoint ? `${isoWeekYear}-${isoWeek}` : format(dateRange.from, 'yyyy-MM'),
     ],
@@ -240,6 +246,7 @@ export function SchedulePage() {
         const weekParams: Record<string, string> = {};
         if (effectiveActiveBranchId) weekParams.branchId = effectiveActiveBranchId;
         if (selectedDeptId) weekParams.departmentId = selectedDeptId;
+        if (resolvedFilterUserId) weekParams.userId = resolvedFilterUserId;
         return api
           .get<{ data: { items: WeekScheduleItem[] } }>(`/schedules/week/${isoWeekYear}/${isoWeek}`, {
             params: weekParams,
@@ -251,6 +258,7 @@ export function SchedulePage() {
         .get<{ data: Schedule[] }>('/schedules', {
           params: {
             ...(effectiveActiveBranchId ? { branchId: effectiveActiveBranchId } : {}),
+            ...(resolvedFilterUserId ? { userId: resolvedFilterUserId } : {}),
             from: new Date(
               dateRange.from.getFullYear(),
               dateRange.from.getMonth() - 1,
@@ -783,6 +791,9 @@ export function SchedulePage() {
               typeCounts={typeCounts}
               holidayTypeCounts={holidayTypeCounts}
               scheduleTypes={scheduleTypes}
+              isEmployee={isEmployee}
+              filterUserId={filterUserId}
+              onFilterUserChange={setFilterUserId}
             />
           </div>
 
