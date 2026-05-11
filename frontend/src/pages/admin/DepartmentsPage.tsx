@@ -167,6 +167,7 @@ export function DepartmentsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] });
       qc.invalidateQueries({ queryKey: ['departments'] });
+      qc.invalidateQueries({ queryKey: ['departments-users'] });
       toast.success('Integrante actualizado');
     },
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo actualizar el integrante')),
