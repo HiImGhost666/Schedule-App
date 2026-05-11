@@ -13,7 +13,7 @@
 - [x] **VUL-8**: Sanitización de HTML en campos de texto (name, notes, etc.) — backend debe sanitizar al guardar
 
 ### Frontend
-- [ ] **DashboardPage** — Verificar que oculte widgets según rol (employee solo ve su resumen semanal)
+- [x] **DashboardPage** — Verificar que oculte widgets según rol (employee solo ve su resumen semanal)
 - [ ] **ProfilePage** — Verificar que employee no pueda cambiar su rol/estado
 
 ---

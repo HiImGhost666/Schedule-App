@@ -220,22 +220,24 @@ export function DashboardPage() {
           </div>
         )}
 
-        <div
-          className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
-          role="button"
-          tabIndex={0}
-          aria-label="Ver alertas de turnos"
-          onClick={() => setAlertsModalOpen(true)}
-          onKeyDown={(event) => handleCardKeyDown(event, () => setAlertsModalOpen(true))}
-        >
-          <StatCard
-            title="Alertas"
-            value={loadingSchedules ? '—' : totalAlerts + lastMinuteCount}
-            icon={AlertTriangle}
-            color={totalAlerts > 0 || lastMinuteCount > 0 ? 'purple' : 'navy'}
-            className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
-          />
-        </div>
+        {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (
+          <div
+            className="relative group flex flex-col h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-navy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-2xl"
+            role="button"
+            tabIndex={0}
+            aria-label="Ver alertas de turnos"
+            onClick={() => setAlertsModalOpen(true)}
+            onKeyDown={(event) => handleCardKeyDown(event, () => setAlertsModalOpen(true))}
+          >
+            <StatCard
+              title="Alertas"
+              value={loadingSchedules ? '—' : totalAlerts + lastMinuteCount}
+              icon={AlertTriangle}
+              color={totalAlerts > 0 || lastMinuteCount > 0 ? 'purple' : 'navy'}
+              className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
+            />
+          </div>
+        )}
       </div>
 
       {/* Main grid: Week schedules + Activity log */}
