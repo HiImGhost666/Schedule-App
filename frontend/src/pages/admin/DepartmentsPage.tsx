@@ -169,9 +169,9 @@ export function DepartmentsPage() {
     mutationFn: ({ userId, departmentId }: { userId: string; departmentId: string }) =>
       api.patch(`/users/${userId}`, { departmentId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['users'] });
-      qc.invalidateQueries({ queryKey: ['departments'] });
-      qc.invalidateQueries({ queryKey: ['departments-users'] });
+      qc.invalidateQueries({ queryKey: ['users'], exact: false });
+      qc.invalidateQueries({ queryKey: ['departments'], exact: false });
+      qc.invalidateQueries({ queryKey: ['departments-users'], exact: false });
       toast.success('Integrante actualizado');
     },
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo actualizar el integrante')),
