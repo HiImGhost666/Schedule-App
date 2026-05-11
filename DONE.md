@@ -19,6 +19,18 @@
 - [x] Backend: users.router, auth.router, middleware, schemas (schedules, vacations, users, branches, departments), app-error, socket
 - [x] Frontend: ProfilePage, ScheduleTypesPage, hooks (useFieldValidation, useInAppNotifications, useMyWeeklySummary, useScheduleTypes, useTeamWeeklySummaries, useVacations), api-client, DataTable, FilterTable, LoadingSpinner, Skeleton, ForbiddenPage, NotificationPanel, MobileNav, TopBar
 
+## ✅ COMPLETADO — Bugs críticos resueltos (11 mayo 2026)
+
+### Bug #1: No se podía editar departamentos
+- [x] **Causa**: El frontend enviaba `branchIds: []` (array vacío) al editar, que el backend rechazaba con `.min(1)`. También enviaba `code` vacío que fallaba el regex.
+- [x] **Fix**: Modificada `updateDepartmentMutation` en `DepartmentsPage.tsx` para solo enviar campos con valor (`name`, `code`, `description`, `branchIds`). Si `branchIds` está vacío, no se envía. Si `code` está vacío, no se envía.
+- [x] **Tests**: 50 tests pasando (departments.http.schemas, departments.router, departments.manager, departments.audit)
+
+### Bug #2: No se actualizaban usuarios al mover empleados entre departamentos
+- [x] **Causa**: `invalidateQueries({ queryKey: ['users'] })` no invalidaba queries con parámetros adicionales como `['users', page, limit, filters, ...]`.
+- [x] **Fix**: Añadido `exact: false` en `invalidateQueries` de `updateDepartmentMemberMutation` para que invalide todas las queries que empiecen con `['users']`, `['departments']` y `['departments-users']`.
+- [x] **Tests**: 84 tests pasando (users.router, users.test, users.http.schemas)
+
 ## ✅ COMPLETADO — Prioridad 3 (Refactor / Migraciones)
 
 - [x] **HolidaysPage** — Migrada a `<DataTable>`

@@ -9,23 +9,11 @@
 
 ### Backend
 
-#### 1. No se puede editar departamentos
-- **Causa probable**: El schema `updateDepartmentBodySchema` extiende `createDepartmentBodySchema.partial()` pero el campo `code` tiene transformaciones (`.trim().toUpperCase()`) que pueden fallar si no se envía. Además, el `.extend()` redefine `branchIds` como `z.array(z.string().min(1)).min(1).optional()` — el `.min(1)` en el array podría estar causando conflicto con `.optional()`.
-- **Archivos**: `departments.http.schemas.ts`, `departments.service.ts`, `departments.controller.ts`
-- **Cómo arreglar**:
-  1. Simplificar `updateDepartmentBodySchema` para que no extienda del create schema
-  2. Definir campos independientes con sus propias validaciones
-  3. Asegurar que `code` opcional no ejecute transform si es undefined
-  4. Verificar que `branchIds` opcional no exija mínimo si no se envía
+#### ~~1. No se puede editar departamentos~~ ✅
+- **Fix**: Modificado `updateDepartmentMutation` en `DepartmentsPage.tsx` para solo enviar campos con valor, evitando enviar `branchIds` vacío o `code` vacío que causaban errores de validación.
 
-#### 2. No se actualizan usuarios al mover empleados
-- **Causa probable**: Al actualizar `departmentId` de un usuario, el frontend no refresca la lista o la query de usuarios no se invalida correctamente. También puede ser que el backend no devuelva los datos actualizados.
-- **Archivos**: `users.service.ts` (función `updateUser`), `users.repository.ts` (`updateUserRecord`), frontend `UsersPage.tsx` (invalidación de query)
-- **Cómo arreglar**:
-  1. Verificar que `updateUserRecord` actualiza correctamente `departmentId` en BD
-  2. Verificar que el endpoint devuelve el usuario con la relación `department` poblada
-  3. En frontend, asegurar que la mutación invalida `['users']` queryKey
-  4. Añadir test que verifique el cambio de departamento
+#### ~~2. No se actualizan usuarios al mover empleados~~ ✅
+- **Fix**: Añadido `exact: false` en `invalidateQueries` de `updateDepartmentMemberMutation` para que invalide todas las queries que empiecen con `['users']`, `['departments']` y `['departments-users']`.
 
 #### 3. Notificaciones de vacaciones y resumen semanal no funcionan
 - **Causa probable**: `notifyVacationChange` busca webhooks con `notifyModifications: true`, pero puede que no haya webhooks configurados. `sendMondayVacationSummary` (FIX-3) ya se corrigió para buscar en `prisma.vacationRequest` en vez de `prisma.schedule`, pero puede haber otro error.
@@ -171,28 +159,3 @@
 - [ ] Logout endpoint (invalidar token JWT)
 - [ ] Endpoint de health check para monitoreo (`GET /health`)
 - [ ] Documentación OpenAPI/Swagger de la API REST
-
----
-
-## 📋 PLAN DE ACCIÓN — Primer bug a arreglar
-
-### Bug #1: No se puede editar departamentos
-
-**Análisis del código:**
-- `updateDepartmentBodySchema` (departments.http.schemas.ts:22-25):
-  ```ts
-  export const updateDepartmentBodySchema = createDepartmentBodySchema.partial().extend({
-    isActive: z.boolean().optional(),
-    branchIds: z.array(z.string().min(1)).min(1).optional(),
-  });
-  ```
-- `createDepartmentBodySchema` tiene `code` con `.trim().toUpperCase()` — al hacer `.partial()`, si no se envía `code`, el transform no debería ejecutarse, pero Zod puede tener comportamientos inconsistentes.
-- `branchIds` se redefine con `.min(1).optional()` — esto es correcto sintácticamente pero `.min(1)` en array vacío vs undefined puede causar issues.
-
-**Plan de acción:**
-1. ✅ Simplificar `updateDepartmentBodySchema` para que sea independiente (no extienda del create)
-2. ✅ Definir campos con validaciones claras: `name`, `code`, `description`, `isActive`, `branchIds` todos opcionales
-3. ✅ Asegurar que `code` opcional no ejecute transform si es undefined (usar `.transform()` condicional)
-4. ✅ Verificar que `branchIds` opcional acepte tanto undefined como array no vacío
-5. ✅ Ejecutar tests existentes para verificar que no se rompen
-6. ✅ Crear test específico para update de departamento
