@@ -13,6 +13,7 @@ import { DepartmentDetail } from '@/components/departments/DepartmentDetail';
 import { DepartmentMembersModal } from '@/components/departments/DepartmentMembersModal';
 import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
+import { useAuthStore } from '@/store/authStore';
 import type { Branch, Department, User } from '@/types';
 
 const emptyDepartmentForm = { name: '', code: '', description: '', branchIds: [] as string[] };
@@ -20,6 +21,8 @@ const emptyDepartmentForm = { name: '', code: '', description: '', branchIds: []
 export function DepartmentsPage() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role?.name === 'admin';
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [showInactiveDepartments, setShowInactiveDepartments] = useState(false);
@@ -306,6 +309,7 @@ export function DepartmentsPage() {
               searchTerm={searchTerm}
               sortBy={sortBy}
               sortOrder={sortOrder}
+              canCreate={isAdmin}
               onSearchChange={setSearchTerm}
               onSortChange={handleSortChange}
               onSelectDepartment={onSelectDepartment}

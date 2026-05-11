@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { DetailPageSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { BranchList } from '@/components/branches/BranchList';
@@ -14,12 +14,15 @@ import { getApiErrorMessage } from '@/lib/apiError';
 import { getEffectiveBranchId } from '@/lib/branchSelection';
 import type { Branch, Department } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
 import type { User } from '@/types';
 const emptyBranchForm = { name: '', code: '', address: '', city: '', region: '', countryCode: 'ES', timezone: 'Europe/Madrid' };
 
 export function BranchesPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role?.name === 'admin';
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [showInactiveBranches, setShowInactiveBranches] = useState(false);
   const [branchForm, setBranchForm] = useState(emptyBranchForm);
@@ -168,7 +171,7 @@ export function BranchesPage() {
 
       <section className="card border border-theme-color rounded-2xl p-4 sm:p-5">
         {branchesLoading ? (
-          <div className="flex justify-center py-10"><LoadingSpinner size="lg" /></div>
+          <DetailPageSkeleton />
         ) : (
           <div className={`grid gap-4 lg:gap-5 ${hasBranches ? 'grid-cols-1 lg:grid-cols-[330px_minmax(0,1fr)]' : 'grid-cols-1'}`}>
             <BranchList
@@ -178,6 +181,7 @@ export function BranchesPage() {
               searchTerm={searchTerm}
               sortBy={sortBy}
               sortOrder={sortOrder}
+              canCreate={isAdmin}
               onSearchChange={setSearchTerm}
               onSortChange={handleSortChange}
               onSelectBranch={onSelectBranch}

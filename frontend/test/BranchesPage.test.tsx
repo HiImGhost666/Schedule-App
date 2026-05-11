@@ -27,6 +27,22 @@ vi.mock('react-hot-toast', () => ({
   },
 }));
 
+vi.mock('@/store/authStore', () => ({
+  useAuthStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      user: {
+        id: 'admin-1',
+        name: 'Admin',
+        email: 'admin@test.com',
+        role: { name: 'admin' },
+        branchId: 'b-1',
+      },
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+    }),
+}));
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -75,7 +91,7 @@ describe('BranchesPage', () => {
 
     renderPage();
 
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Nueva sucursal' }))[0]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Crear' }));
 
     expect(toast.error).toHaveBeenCalledWith('Nombre y código son obligatorios');
@@ -104,7 +120,7 @@ describe('BranchesPage', () => {
 
     renderPage();
 
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Nueva sucursal' }))[0]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo' }));
     await userEvent.type(await screen.findByPlaceholderText('Nombre'), 'Valencia');
     await userEvent.type(screen.getByPlaceholderText('Código (ej: MAD01)'), 'vlc99');
     await userEvent.click(screen.getByRole('button', { name: 'Crear' }));
