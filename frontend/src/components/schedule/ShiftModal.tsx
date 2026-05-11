@@ -17,6 +17,7 @@ import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { getApiErrorMessage } from '@/lib/apiError';
 import {
   buildChunkRange,
@@ -749,6 +750,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                         mode="multiple"
                         weekStartsOn={1}
                         showOutsideDays
+                        locale={es}
                         selected={calendarSelectedDates}
                         onDayClick={handleDayClick}
                         classNames={{
@@ -804,7 +806,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                     return (
                       <div key={key} className="flex items-center gap-2">
                         <span className="text-sm text-theme-primary w-32">
-                          {format(date, 'EEE dd/MM')}
+                          {format(date, 'EEE dd/MM', { locale: es })}
                         </span>
                         <select
                           value={dayShiftOverrides[key] ?? ''}

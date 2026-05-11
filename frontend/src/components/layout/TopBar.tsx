@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { ROLE_LABELS } from '@/types';
 import { NotificationPanel } from '@/components/common/NotificationPanel';
@@ -40,12 +41,12 @@ export function TopBar({ title }: TopBarProps) {
           onFetchMore={(page) => fetchNotifications(page)}
           pagination={pagination}
         />
-        <div className="flex items-center gap-2 px-2">
+        <Link to="/profile" className="flex items-center gap-2 px-2 hover:opacity-80 transition-opacity">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-medium leading-tight text-theme-primary">{user?.name}</p>
             <p className="text-xs opacity-75 text-theme-muted">{user?.role?.name ? ROLE_LABELS[user.role.name] : ''}</p>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );
