@@ -173,6 +173,29 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
     return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  // Determinar si hay alguna acción disponible en toda la tabla
+  const hasAnyAction = useMemo(() => {
+    return sortedVacations.some((v) => {
+      // Admin puede aprobar/rechazar pending/colindante, o cancelar cualquier estado
+      if (isAdmin) return true;
+
+      // Manager puede aprobar/rechazar pending/colindante de su scope, o cancelar cualquier estado de su scope
+      if (isManager) {
+        const inScope = roleName === 'general_manager'
+          ? v.branchId === userBranchId
+          : v.departmentId === userDepartmentId;
+        if (inScope) return true;
+      }
+
+      // Employee puede cancelar sus propias pending/colindante
+      if (v.employeeId === userId && (v.status === 'pending' || v.status === 'colindante')) return true;
+
+      return false;
+    });
+  }, [sortedVacations, isAdmin, isManager, roleName, userBranchId, userDepartmentId, userId]);
+
+  const actionColspan = hasAnyAction ? 6 : 5;
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -262,19 +285,19 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
               <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('status', 'Estado')}</th>
               <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('department', 'Departamento')}</th>
               <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('branch', 'Sucursal')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-theme-primary">Acciones</th>
+              {hasAnyAction && <th className="text-right px-4 py-3 font-semibold text-theme-primary">Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12">
+                <td colSpan={actionColspan} className="px-4 py-12">
                   <LoadingSpinner size="lg" />
                 </td>
               </tr>
             ) : sortedVacations.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12">
+                <td colSpan={actionColspan} className="px-4 py-12">
                   <EmptyState
                     icon={Search}
                     title="Sin solicitudes"
@@ -305,39 +328,41 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                   <td className="px-4 py-3 text-theme-muted">
                     {vacation.branch?.name ?? '-'}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {canApprove(vacation) && (
-                        <>
+                  {hasAnyAction && (
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {canApprove(vacation) && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(vacation.id)}
+                              disabled={approveMutation.isPending}
+                              className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
+                              title="Aprobar"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setRejectModal({ id: vacation.id, employeeName: vacation.employee.name })}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
+                              title="Rechazar"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        {canCancel(vacation) && (
                           <button
-                            onClick={() => handleApprove(vacation.id)}
-                            disabled={approveMutation.isPending}
-                            className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
-                            title="Aprobar"
+                            onClick={() => setCancelTarget({ id: vacation.id, employeeName: vacation.employee.name })}
+                            disabled={cancelMutation.isPending}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"
+                            title="Cancelar"
                           >
-                            <Check className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => setRejectModal({ id: vacation.id, employeeName: vacation.employee.name })}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
-                            title="Rechazar"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                      {canCancel(vacation) && (
-                        <button
-                          onClick={() => setCancelTarget({ id: vacation.id, employeeName: vacation.employee.name })}
-                          disabled={cancelMutation.isPending}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"
-                          title="Cancelar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}

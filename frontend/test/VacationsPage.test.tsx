@@ -83,9 +83,8 @@ describe('VacationsPage', () => {
 
     renderPage();
 
-    // The LoadingSpinner renders an animate-spin div without data-testid
-    const spinnerContainer = document.querySelector('.animate-spin');
-    expect(spinnerContainer).toBeInTheDocument();
+    // VacationsPage renders VacationsSkeleton while loading
+    expect(screen.getByLabelText('Cargando vacaciones…')).toBeInTheDocument();
   });
 
   it('muestra el calendario cuando hay sucursales activas', async () => {
