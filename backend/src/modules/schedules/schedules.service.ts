@@ -195,18 +195,6 @@ async function createScheduleEntryInternal(
   return { schedule, reason, isLastMinute };
 }
 
-export function listSchedules(params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string }) {
-  const where: ScheduleWhere = {};
-  const fromDate = parseOptionalDate(params.from);
-  const toDate = parseOptionalDate(params.to);
-  const rangeFilter = buildOverlapRangeFilter(fromDate, toDate);
-  if (rangeFilter) Object.assign(where, rangeFilter);
-  if (params.type) where.scheduleType = { value: params.type };
-  if (params.userId) where.assignments = { some: { userId: params.userId } };
-  if (params.branchId) where.branchId = params.branchId;
-  return findSchedules(where);
-}
-
 export function listSchedulesForActor(
   params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string },
   actor: Pick<Actor, 'roleName' | 'branchId' | 'id'>,

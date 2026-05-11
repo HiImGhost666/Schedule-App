@@ -8,8 +8,7 @@
 ## 🔴 PRIORIDAD 1 — Crítico / Seguridad
 
 ### Backend
-- [ ] **VUL-4**: Rate limiting en login (`express-rate-limit`) — evitar fuerza bruta
-- [ ] **VUL-3**: Endpoint `GET /schedules` (sin actor) usa `listSchedules` sin restricción de rol — migrar a `listSchedulesForActor`
+- [x] **VUL-3**: Endpoint `GET /schedules` (sin actor) usa `listSchedules` sin restricción de rol — migrar a `listSchedulesForActor`
 - [ ] **VUL-6**: Validar assigneeIds antes de crear schedule (verificar que existan en BD)
 - [ ] **VUL-8**: Sanitización de HTML en campos de texto (name, notes, etc.) — backend debe sanitizar al guardar
 
@@ -60,6 +59,5 @@
 - [ ] **VUL-10**: Límite de sesiones concurrentes por usuario
 - [ ] Logout endpoint (invalidar token JWT)
 - [ ] Notificar al empleado cuando se aprueba/rechaza su solicitud de vacaciones
-- [ ] Recalcular resumen semanal al aprobar vacaciones (restar horas disponibles)
 - [ ] Endpoint de health check para monitoreo
 - [ ] Documentación OpenAPI/Swagger de la API REST

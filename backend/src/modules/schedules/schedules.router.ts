@@ -19,7 +19,7 @@ import {
 const router = Router();
 
 // Get schedules in date range
-router.get('/', authMiddleware, (req: AuthRequest, res: Response) => listSchedulesController(req, res));
+router.get('/', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => listSchedulesController(req, res));
 
 // Get weekly schedules
 router.get('/week/:year/:week', authMiddleware, (req: AuthRequest, res: Response) => listWeekSchedulesController(req, res));
