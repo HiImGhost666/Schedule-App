@@ -32,6 +32,8 @@ interface VacationChangeParams {
 }
 
 export async function notifyVacationChange(params: VacationChangeParams) {
+  logger.info(`[notifyVacationChange] type=${params.type} employee=${params.vacation.employee.name}`);
+
   const card = buildVacationCard({
     type: params.type,
     employeeName: params.vacation.employee.name,
@@ -45,6 +47,8 @@ export async function notifyVacationChange(params: VacationChangeParams) {
   const webhooks = await prisma.webhookConfig.findMany({
     where: { enabled: true, notifyModifications: true },
   });
+
+  logger.info(`[notifyVacationChange] found ${webhooks.length} webhooks with notifyModifications=true`);
 
   for (const webhook of webhooks) {
     await sendToWebhook({
