@@ -16,7 +16,7 @@ jest.mock('../src/realtime/socket', () => ({ publishRealtimeEvent: jest.fn() }))
 jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn((fn: any) => fn({
     scheduleType: { findUnique: jest.fn().mockResolvedValue({ id: 'st-guardia', value: 'guardia', label: 'Guardia', color: '#1e3a5f' }) },
-    user: { findMany: jest.fn() },
+    user: { findMany: jest.fn((args: any) => Promise.resolve((args?.where?.id?.in ?? []).map((id: string) => ({ id })))) },
   })),
 }));
 

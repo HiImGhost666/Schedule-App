@@ -19,7 +19,7 @@ jest.mock('../src/modules/schedules/schedules.repository');
 // We'll set up the tx mock dynamically in beforeEach
 const mockTx = {
   scheduleType: { findUnique: jest.fn() },
-  user: { findMany: jest.fn() },
+  user: { findMany: jest.fn((args: any) => Promise.resolve((args?.where?.id?.in ?? []).map((id: string) => ({ id })))) },
 };
 jest.mock('../src/common/transactions/transaction.utils', () => ({
   executeInTransaction: jest.fn(async (fn: any) => await fn(mockTx)),

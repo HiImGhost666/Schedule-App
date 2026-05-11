@@ -55,10 +55,11 @@ describe('Seguridad: Employee no puede ver schedules de otros empleados', () => 
     // employee ve todos los turnos de su branch
     await listSchedulesForActor({}, actor);
 
-    const callArgs = mockRepo.findSchedules.mock.calls[0][0];
+    const callArgs = mockRepo.findSchedules.mock.calls[0]?.[0];
+    expect(callArgs).toBeDefined();
     expect(callArgs).toMatchObject({ branchId: 'branch-1' });
     // Sin userId, employee ve todos los turnos de su branch (sin filtro de assignments)
-    expect(callArgs.assignments).toBeUndefined();
+    expect((callArgs as any).assignments).toBeUndefined();
   });
 
   it('employee puede filtrar por userId si se pasa explicitamente', async () => {
