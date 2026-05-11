@@ -11,7 +11,7 @@ import type { User } from '@/types';
 
 const mockUser: User = {
   id: 'u1', name: 'Admin', email: 'a@a.com',
-  role: { name: 'admin' }, status: 'active', avatarUrl: null,
+  role: { name: 'admin' }, status: 'active', avatarUrl: undefined,
   department: null, forcePasswordChange: false,
   createdAt: '2026-01-01T00:00:00.000Z',
 };
@@ -72,10 +72,10 @@ describe('RoleGuard', () => {
     );
   }
 
-  it('redirige a / cuando el usuario no tiene el rol requerido', () => {
+  it('muestra ForbiddenPage cuando el usuario no tiene el rol requerido', () => {
     useAuthStore.setState({ user: { ...mockUser, role: { name: 'employee' } }, isAuthenticated: true });
     mountRoleGuard(['admin', 'general_manager']);
-    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Acceso denegado')).toBeInTheDocument();
     expect(screen.queryByText('Panel Admin')).not.toBeInTheDocument();
   });
 
@@ -85,9 +85,9 @@ describe('RoleGuard', () => {
     expect(screen.getByText('Panel Admin')).toBeInTheDocument();
   });
 
-  it('redirige a / cuando no hay usuario logueado (user=null)', () => {
+  it('muestra ForbiddenPage cuando no hay usuario logueado (user=null)', () => {
     useAuthStore.setState({ user: null, isAuthenticated: false });
     mountRoleGuard(['admin']);
-    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Acceso denegado')).toBeInTheDocument();
   });
 });

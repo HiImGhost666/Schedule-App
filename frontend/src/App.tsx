@@ -164,12 +164,14 @@ function App() {
                   <Route path="admin/users" element={<UsersPage />} />
                   <Route path="admin/event-types" element={<EventTypesPage />} />
                 </Route>
+                <Route element={<RoleGuard roles={['admin', 'general_manager']} />}>
+                  <Route path="admin/holidays" element={<HolidaysPage />} />
+                  <Route path="admin/notifications" element={<NotificationsPage />} />
+                </Route>
                 <Route element={<RoleGuard roles={['admin']} />}>
                   <Route path="admin/branches" element={<BranchesPage />} />
                   <Route path="admin/departments" element={<DepartmentsPage />} />
-                  <Route path="admin/holidays" element={<HolidaysPage />} />
                   <Route path="admin/webhooks" element={<WebhooksPage />} />
-                  <Route path="admin/notifications" element={<NotificationsPage />} />
                   <Route path="admin/audit" element={<AuditLogPage />} />
                   <Route path="admin/theme" element={<ThemeManagerPage />} />
                   <Route path="admin/shift-presets" element={<ShiftPresetsPage />} />

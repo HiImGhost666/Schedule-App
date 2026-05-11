@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { ForbiddenPage } from '@/components/common/ForbiddenPage';
 
 export function ProtectedRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -32,6 +33,8 @@ export function RoleGuard({ roles }: { roles: string[] }) {
     );
   }
 
-  if (!user || !roles.includes(user.role?.name)) return <Navigate to="/" replace />;
+  if (!user || !roles.includes(user.role?.name)) {
+    return <ForbiddenPage message={`Tu rol (${user?.role?.name ?? 'sin rol'}) no tiene permisos para acceder a esta sección.`} />;
+  }
   return <Outlet />;
 }

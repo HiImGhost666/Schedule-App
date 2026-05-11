@@ -136,7 +136,7 @@ export function Sidebar() {
             )}
             {(isAdmin 
               ? adminItems 
-              : adminItems.filter((i) => ['/admin/users', '/admin/event-types'].includes(i.to))
+              : adminItems.filter((i) => ['/admin/users', '/admin/event-types', '/admin/holidays', '/admin/notifications'].includes(i.to))
             ).map(({ to, icon: Icon, label }) => (
                 <NavLink
                   key={to}
