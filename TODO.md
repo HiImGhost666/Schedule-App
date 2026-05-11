@@ -24,6 +24,37 @@
 - [x] Test de scope: GM no puede ver schedules de otra branch
 - [x] Test de vacaciones: DM no puede aprobar vacaciones de otro departamento
 
+### Backend — Tests faltantes
+- [x] **users.router.test.ts** — Test de integración del router de usuarios (CRUD, permisos)
+- [x] **auth.router.test.ts** — Test de integración del router de auth (login, refresh, me)
+- [x] **middleware.test.ts** — Tests unitarios para auth.middleware, permission.middleware, errorHandler.middleware
+- [x] **schedules.http.schemas.test.ts** — Tests de validación de schemas de schedules
+- [x] **vacations.http.schemas.test.ts** — Tests de validación de schemas de vacaciones
+- [x] **users.http.schemas.test.ts** — Tests de validación de schemas de usuarios
+- [x] **branches.http.schemas.test.ts** — Tests de validación de schemas de sucursales
+- [x] **departments.http.schemas.test.ts** — Tests de validación de schemas de departamentos
+- [x] **app-error.test.ts** — Tests de common/errors/app-error.ts
+- [x] **realtime/socket.test.ts** — Tests de WebSocket / eventos en tiempo real
+
+### Frontend — Tests faltantes
+- [x] **ProfilePage.test.tsx** — Test de página de perfil
+- [x] **EventTypesPage.test.tsx** — Verificar test existente o completar
+- [x] **hooks/useFieldValidation.test.tsx** — Test del hook de validación
+- [x] **hooks/useInAppNotifications.test.tsx** — Test del hook de notificaciones
+- [x] **hooks/useMyWeeklySummary.test.tsx** — Test del hook de resumen semanal
+- [x] **hooks/useScheduleTypes.test.tsx** — Test del hook de tipos de turno
+- [x] **hooks/useTeamWeeklySummaries.test.tsx** — Test del hook de resúmenes de equipo
+- [x] **hooks/useVacations.test.tsx** — Test del hook de vacaciones
+- [x] **lib/api-client.test.ts** — Test del cliente API
+- [x] **components/common/DataTable.test.tsx** — Test del componente DataTable
+- [x] **components/common/FilterTable.test.tsx** — Test del componente FilterTable
+- [x] **components/common/LoadingSpinner.test.tsx** — Test del componente LoadingSpinner
+- [x] **components/common/Skeleton.test.tsx** — Test de componentes Skeleton
+- [x] **components/common/ForbiddenPage.test.tsx** — Test del componente ForbiddenPage (error 403)
+- [x] **components/common/NotificationPanel.test.tsx** — Test del panel de notificaciones
+- [x] **components/layout/MobileNav.test.tsx** — Test de navegación móvil
+- [x] **components/layout/TopBar.test.tsx** — Test de barra superior
+
 ---
 
 ## 🟢 PRIORIDAD 3 — Refactor / Migraciones
