@@ -27,10 +27,12 @@ type FormDataInput = z.input<typeof schema>;
 interface Props {
   open: boolean;
   user: User | null;
+  roleName?: string;
   onClose: () => void;
 }
 
-export function UserFormModal({ open, user, onClose }: Props) {
+export function UserFormModal({ open, user, roleName, onClose }: Props) {
+  const isDepartmentManager = roleName === 'department_manager';
   const qc = useQueryClient();
   const isEdit = !!user;
 
@@ -130,6 +132,21 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
   if (!open) return null;
 
+  // DM solo puede editar, no crear
+  if (isDepartmentManager && !isEdit) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
+        <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up p-6 text-center">
+          <h2 className="text-lg font-semibold text-theme-primary mb-2">Acción no permitida</h2>
+          <p className="text-sm text-theme-muted mb-4">
+            Como responsable de departamento no puedes crear nuevos usuarios. Contacta con un administrador o gerente general.
+          </p>
+          <button onClick={onClose} className="btn-primary text-sm">Cerrar</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
       <div className="card rounded-2xl shadow-2xl w-full max-w-md animate-slide-up max-h-[calc(100vh-2rem)] flex flex-col">
@@ -142,6 +159,11 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4 overflow-y-auto flex-1">
 
+          {isDepartmentManager && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Como responsable de departamento solo puedes modificar nombre, email y teléfono.
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">Nombre completo *</label>
@@ -166,13 +188,13 @@ export function UserFormModal({ open, user, onClose }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Rol *</label>
-              <select {...register('role')} className="input-field">
+              <select {...register('role')} className="input-field" disabled={isDepartmentManager}>
                 <option value="employee">Empleado</option>
                 <option value="department_manager">Responsable</option>
                 <option value="general_manager">Gerente General</option>
                 <option value="admin">Administrador</option>
               </select>
-
+              {isDepartmentManager && <p className="text-[10px] text-theme-muted mt-0.5">No puedes cambiar el rol</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Departamento *</label>
@@ -190,7 +212,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
 
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal *</label>
-            <select {...register('branchId')} className="input-field" disabled={branchesLoading}>
+            <select {...register('branchId')} className="input-field" disabled={branchesLoading || isDepartmentManager}>
               <option value="" disabled>Selecciona una sucursal</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
@@ -199,6 +221,7 @@ export function UserFormModal({ open, user, onClose }: Props) {
               ))}
             </select>
             {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
+            {isDepartmentManager && <p className="text-[10px] text-theme-muted mt-0.5">No puedes cambiar la sucursal</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

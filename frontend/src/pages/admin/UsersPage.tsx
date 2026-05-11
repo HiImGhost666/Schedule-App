@@ -123,15 +123,20 @@ function detectCsvDelimiter(headerLine: string): CsvDelimiter {
 
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
-  const isAdmin = currentUser?.role?.name === 'admin';
+  const roleName = currentUser?.role?.name ?? '';
+  const isAdmin = roleName === 'admin';
+  const isGeneralManager = roleName === 'general_manager';
+  const isDepartmentManager = roleName === 'department_manager';
   const usersTemplateCsvUrl = `${import.meta.env.BASE_URL}templates/Plantilla%20CSV.xlsx`;
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navState = location.state as { status?: string } | null;
   const [filters, setFilters] = useState<Record<UsersFilterKey, string>>({
-    search: '', role: '', status: navState?.status || '', departmentId: '', employeeId: '',
-    branchId: '', lastLoginFrom: '', lastLoginTo: '', createdFrom: '', createdTo: '',
+    search: '', role: '', status: navState?.status || '', departmentId: isDepartmentManager && currentUser?.departmentId ? currentUser.departmentId : '',
+    employeeId: '',
+    branchId: isGeneralManager && currentUser?.branchId ? currentUser.branchId : (isDepartmentManager && currentUser?.branchId ? currentUser.branchId : ''),
+    lastLoginFrom: '', lastLoginTo: '', createdFrom: '', createdTo: '',
   });
   const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -206,18 +211,18 @@ export function UsersPage() {
         { value: 'locked', label: 'Bloqueado' },
       ],
     },
-    {
-      key: 'branchId',
-      type: 'select',
+    ...(isGeneralManager || isDepartmentManager ? [] : [{
+      key: 'branchId' as const,
+      type: 'select' as const,
       label: 'Sucursal',
       options: branchOptions,
-    },
-    {
-      key: 'departmentId',
-      type: 'select',
+    }]),
+    ...(isDepartmentManager ? [] : [{
+      key: 'departmentId' as const,
+      type: 'select' as const,
       label: 'Departamento',
       options: departmentOptions,
-    },
+    }]),
     {
       key: 'lastLoginFrom',
       type: 'date',
@@ -562,6 +567,7 @@ export function UsersPage() {
         <UserActionMenu
           user={openMenuUser}
           isAdmin={isAdmin}
+          roleName={roleName}
           position={menuPosition}
           onClose={() => { setMenuOpenId(null); setMenuPosition(null); }}
           onViewDetail={(u) => setDetailUser(u)}
@@ -577,8 +583,8 @@ export function UsersPage() {
         />
       )}
 
-      {isAdmin && formUser !== false && (
-        <UserFormModal open user={formUser} onClose={() => setFormUser(false)} />
+      {(isAdmin || isDepartmentManager) && formUser !== false && (
+        <UserFormModal open user={formUser} roleName={roleName} onClose={() => setFormUser(false)} />
       )}
       {isAdmin && resetUser && (
         <ResetPasswordModal open user={resetUser} onClose={() => setResetUser(null)} />

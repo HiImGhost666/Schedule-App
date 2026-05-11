@@ -4,6 +4,7 @@ import type { User } from '@/types';
 interface UserActionMenuProps {
   user: User;
   isAdmin: boolean;
+  roleName?: string;
   position: { top: number; left: number };
   onClose: () => void;
   onViewDetail: (user: User) => void;
@@ -17,6 +18,7 @@ interface UserActionMenuProps {
 export function UserActionMenu({
   user,
   isAdmin,
+  roleName,
   position,
   onClose,
   onViewDetail,
@@ -26,6 +28,9 @@ export function UserActionMenu({
   onToggleStatus,
   onDelete,
 }: UserActionMenuProps) {
+  const isDepartmentManager = roleName === 'department_manager';
+  const canEdit = isAdmin || isDepartmentManager;
+
   return (
     <>
       <div
@@ -38,14 +43,16 @@ export function UserActionMenu({
         >
           <Eye className="h-3.5 w-3.5" />Ver detalle
         </button>
+        {canEdit && (
+          <button
+            onClick={() => { onEdit(user); onClose(); }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-theme-primary hover:bg-blue-50 hover:text-blue-700 transition-colors"
+          >
+            <Edit className="h-3.5 w-3.5" />Editar
+          </button>
+        )}
         {isAdmin && (
           <>
-            <button
-              onClick={() => { onEdit(user); onClose(); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-theme-primary hover:bg-blue-50 hover:text-blue-700 transition-colors"
-            >
-              <Edit className="h-3.5 w-3.5" />Editar
-            </button>
             <button
               onClick={() => { onResetPassword(user); onClose(); }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-theme-primary hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
