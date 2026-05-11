@@ -662,7 +662,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   }
 
 
-  await ensureNoOverlaps(assigneeIds || existing.assignments.map(a => a.userId), startDt, endDt, scheduleId);
+  await ensureNoOverlaps(assigneeIds || existing.assignments.map((a: { userId: string }) => a.userId), startDt, endDt, scheduleId);
 
   // Determine which schedule type to use (either the new one or the existing one)
   const typeIdForColor = scheduleTypeId || existing.scheduleTypeId;
@@ -693,11 +693,11 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
       detailsJson: {
         before: sanitizeSnapshot({
           ...existing,
-          assigneeIds: existing.assignments.map(a => a.userId)
+          assigneeIds: existing.assignments.map((a: { userId: string }) => a.userId)
         }),
         after: sanitizeSnapshot({
           ...updated,
-          assigneeIds: assigneeIds || existing.assignments.map(a => a.userId)
+          assigneeIds: assigneeIds || existing.assignments.map((a: { userId: string }) => a.userId)
         }),
         reason
       },
@@ -708,7 +708,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   });
 
   // Recalcular resumen semanal de horas para los asignados (no-bloqueante)
-  const affectedAssigneeIds = assigneeIds || existing.assignments.map(a => a.userId);
+  const affectedAssigneeIds = assigneeIds || existing.assignments.map((a: { userId: string }) => a.userId);
   recalculateWeeklySummariesForAssignees(affectedAssigneeIds, startDt, endDt).catch(() => {});
 
   notifyScheduleChange({
@@ -720,7 +720,7 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
   }).catch(() => {});
 
   // Notificación in-app a los asignados sobre cambios
-  const finalAssigneeIds = assigneeIds || existing.assignments.map(a => a.userId);
+  const finalAssigneeIds = assigneeIds || existing.assignments.map((a: { userId: string }) => a.userId);
   createInAppNotificationBatch(
     finalAssigneeIds.map(userId => ({
       userId,
@@ -845,7 +845,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
       detailsJson: {
         before: sanitizeSnapshot({
           ...schedule,
-          assigneeIds: schedule.assignments.map(a => a.userId)
+          assigneeIds: schedule.assignments.map((a: { userId: string }) => a.userId)
         }),
         after: null,
         reason
@@ -856,7 +856,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
 
   // Recalcular resumen semanal de horas para los asignados (no-bloqueante)
   recalculateWeeklySummariesForAssignees(
-    schedule.assignments.map(a => a.userId),
+    schedule.assignments.map((a: { userId: string }) => a.userId),
     schedule.startDatetime,
     schedule.endDatetime,
   ).catch(() => {});
@@ -871,7 +871,7 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
 
   // Notificación in-app a los asignados sobre eliminación
   createInAppNotificationBatch(
-    schedule.assignments.map(a => ({
+    schedule.assignments.map((a: { userId: string }) => ({
       userId: a.userId,
       type: 'schedule_deleted',
       title: 'Turno eliminado',
