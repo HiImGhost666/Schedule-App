@@ -10,8 +10,6 @@ const postMock = vi.fn();
 const patchMock = vi.fn();
 const deleteMock = vi.fn();
 
-const mockAuthState = { role: 'admin' };
-
 vi.mock('@/config/api', () => ({
   default: {
     get: (...args: unknown[]) => getMock(...args),
@@ -27,9 +25,9 @@ vi.mock('react-hot-toast', () => {
 });
 
 vi.mock('@/store/authStore', () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) => {
+  useAuthStore: (selector: (state: Record<string, unknown>) => unknown) => {
     // Read current role from global variable so tests can change it
-    const currentRole = (globalThis as any).__TEST_MOCK_ROLE || 'admin';
+    const currentRole = (globalThis as unknown as Record<string, string>).__TEST_MOCK_ROLE || 'admin';
     return selector({
       user: {
         id: 'emp-1',
@@ -159,7 +157,7 @@ describe('ShiftPresetsPage', () => {
   });
 
   it('no muestra boton Nuevo Turno si no es admin', async () => {
-    (globalThis as any).__TEST_MOCK_ROLE = 'employee';
+    (globalThis as unknown as Record<string, string>).__TEST_MOCK_ROLE = 'employee';
 
     getMock.mockResolvedValueOnce({ data: { success: true, data: mockPresets } });
 

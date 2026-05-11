@@ -4,7 +4,6 @@ import { Plus, Edit2, Trash2, Clock } from 'lucide-react';
 import api from '@/config/api';
 import { useAuthStore } from '@/store/authStore';
 import { DataTable } from '@/components/common/DataTable';
-import type { Column } from '@/components/common/DataTable';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import toast from 'react-hot-toast';
 
