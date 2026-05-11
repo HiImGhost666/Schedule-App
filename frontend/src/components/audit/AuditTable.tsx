@@ -1,6 +1,7 @@
-import { ArrowUpDown, ChevronRight, ClipboardList } from 'lucide-react';
+import { ChevronRight, ClipboardList } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { SortableHeader } from '@/components/common/SortableHeader';
 import { formatDateTime } from '@/lib/utils';
 import type { AuditLog, PaginatedResponse } from '@/types';
 
@@ -59,21 +60,9 @@ export function AuditTable({
   sortBy, sortOrder, onSortChange,
   selectedLogId, onSelectLog, emptyDescription,
 }: AuditTableProps) {
-  const renderSortLabel = (field: AuditSortBy, label: string) => {
-    const isActive = sortBy === field;
-    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
-    return (
-      <span
-        role="button" tabIndex={0}
-        onClick={() => onSortChange(field)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSortChange(field); }}
-        className="inline-flex items-center gap-1 cursor-pointer hover:text-navy-600 select-none"
-      >
-        <span>{label}</span>
-        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </span>
-    );
-  };
+  const sh = (field: AuditSortBy, label: string) => (
+    <SortableHeader field={field} currentSortBy={sortBy} sortOrder={sortOrder} label={label} onSortChange={onSortChange} />
+  );
 
   if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>;
   if (!data?.data?.length) return <EmptyState icon={ClipboardList} title="Sin registros" description={emptyDescription} />;
@@ -84,12 +73,12 @@ export function AuditTable({
         <table className="w-full">
           <thead>
             <tr className="bg-navy-50 border-b border-navy-100">
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('action', 'Acción')}</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">{renderSortLabel('userName', 'Usuario')}</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">{renderSortLabel('userDepartment', 'Departamento')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{sh('action', 'Acción')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden md:table-cell">{sh('userName', 'Usuario')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">{sh('userDepartment', 'Departamento')}</th>
               <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden lg:table-cell">Recurso</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">{renderSortLabel('entityType', 'Tipo')}</th>
-              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{renderSortLabel('createdAt', 'Fecha')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase hidden xl:table-cell">{sh('entityType', 'Tipo')}</th>
+              <th className="text-left px-5 py-3.5 text-xs font-semibold text-navy-400 uppercase">{sh('createdAt', 'Fecha')}</th>
               <th className="px-5 py-3.5" />
             </tr>
           </thead>
