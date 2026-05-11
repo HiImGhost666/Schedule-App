@@ -84,7 +84,7 @@ describe('departments.http.schemas', () => {
   });
 
   describe('updateDepartmentBodySchema', () => {
-    it('accepts partial update', () => {
+    it('accepts partial update with only name', () => {
       const result = updateDepartmentBodySchema.safeParse({ name: 'Updated Dept' });
       expect(result.success).toBe(true);
     });
@@ -97,6 +97,69 @@ describe('departments.http.schemas', () => {
     it('accepts branchIds update', () => {
       const result = updateDepartmentBodySchema.safeParse({ branchIds: ['b-1', 'b-2'] });
       expect(result.success).toBe(true);
+    });
+
+    it('accepts empty body (no fields)', () => {
+      const result = updateDepartmentBodySchema.safeParse({});
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts code update with valid code', () => {
+      const result = updateDepartmentBodySchema.safeParse({ code: 'NEWCODE' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.code).toBe('NEWCODE');
+      }
+    });
+
+    it('accepts code update with lowercase and trims it', () => {
+      const result = updateDepartmentBodySchema.safeParse({ code: '  new-code  ' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.code).toBe('NEW-CODE');
+      }
+    });
+
+    it('rejects invalid code format', () => {
+      const result = updateDepartmentBodySchema.safeParse({ code: 'AB@CD' });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects code too short', () => {
+      const result = updateDepartmentBodySchema.safeParse({ code: 'A' });
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts branchIds as undefined (not provided)', () => {
+      const result = updateDepartmentBodySchema.safeParse({ name: 'Only Name' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.branchIds).toBeUndefined();
+      }
+    });
+
+    it('rejects empty branchIds array', () => {
+      const result = updateDepartmentBodySchema.safeParse({ branchIds: [] });
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts all fields at once', () => {
+      const result = updateDepartmentBodySchema.safeParse({
+        name: 'Full Update',
+        code: 'FULL',
+        description: 'Updated description',
+        isActive: true,
+        branchIds: ['b-1'],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts description as undefined', () => {
+      const result = updateDepartmentBodySchema.safeParse({ name: 'Test' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.description).toBeUndefined();
+      }
     });
   });
 

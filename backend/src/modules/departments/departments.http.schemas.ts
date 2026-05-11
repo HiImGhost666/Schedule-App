@@ -19,7 +19,13 @@ export const createDepartmentBodySchema = z.object({
   branchIds: z.array(z.string().min(1)).min(1, 'Debe seleccionar al menos una sucursal'),
 });
 
-export const updateDepartmentBodySchema = createDepartmentBodySchema.partial().extend({
+export const updateDepartmentBodySchema = z.object({
+  name: z.string().min(2).max(80).transform(stripHtml).optional(),
+  code: z.preprocess(
+    (val) => (val === undefined ? undefined : String(val).trim().toUpperCase()),
+    z.string().regex(departmentCodeRegex, 'Código inválido (2-20, A-Z, 0-9, _ o -)').optional(),
+  ),
+  description: z.string().max(200).optional().transform(stripHtmlOptional),
   isActive: z.boolean().optional(),
   branchIds: z.array(z.string().min(1)).min(1).optional(),
 });

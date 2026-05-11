@@ -5,14 +5,168 @@
 
 ---
 
+## ✅ COMPLETADO — Prioridad 1 (Crítico / Seguridad)
+
+- [x] **VUL-3**: Endpoint `GET /schedules` migrado a `listSchedulesForActor`
+- [x] **VUL-6**: Validar assigneeIds antes de crear schedule
+- [x] **VUL-8**: Sanitización de HTML en campos de texto (backend + frontend)
+- [x] **DashboardPage** — Widgets ocultos según rol
+- [x] **ProfilePage** — Employee no puede cambiar su rol/estado
+
+## ✅ COMPLETADO — Prioridad 2 (Tests)
+
+- [x] Tests de integración: schedules con roles, scope GM, vacaciones DM
+- [x] Backend: users.router, auth.router, middleware, schemas (schedules, vacations, users, branches, departments), app-error, socket
+- [x] Frontend: ProfilePage, ScheduleTypesPage, hooks (useFieldValidation, useInAppNotifications, useMyWeeklySummary, useScheduleTypes, useTeamWeeklySummaries, useVacations), api-client, DataTable, FilterTable, LoadingSpinner, Skeleton, ForbiddenPage, NotificationPanel, MobileNav, TopBar
+
+## ✅ COMPLETADO — Prioridad 3 (Refactor / Migraciones)
+
+- [x] **HolidaysPage** — Migrada a `<DataTable>`
+- [x] **UsersPage** — Migrada a `<DataTable>`
+- [x] **NotificationsPage** — Migrada a `<DataTable>`
+- [x] **TypeLegend.tsx** — Ya recibe `scheduleTypes` como prop ✅
+- [x] **VacationTable.tsx** — Separado en smart (VacationsPage) + dumb (VacationTable)
+- [x] **BranchList.tsx + DepartmentList.tsx** — Unificados en `SidebarList.tsx` ✅
+- [x] **UsersTable.tsx + AuditTable.tsx** — Extraído `SortableHeader` + hook `useSortable`
+- [x] **EventTypesPage** → Renombrada a `ScheduleTypesPage` (ruta `/admin/schedule-types`)
+
+---
+
+## Funcionalidades implementadas (de la lista de features)
+
+### Tarde descubierta / Turno solitario ✅
+- [x] Endpoint `GET /schedules/alerts` que detecta turnos sin personal (unassigned) y solitarios (solo)
+- [x] Componente `AlertsModal.tsx` con alertas visuales en Dashboard
+- [x] Integrado en DashboardPage con StatCard de alertas
+
+### Turnos preconfigurados ✅
+- [x] Modelo `ShiftPreset` en Prisma (name, startTime, endTime, isActive)
+- [x] Módulo backend completo: schemas Zod, service con transacciones + audit log, controller, router con permisos CRUD
+- [x] Página admin `ShiftPresetsPage.tsx` con tabla + modal CRUD
+- [x] Ruta `/admin/shift-presets` y enlace en Sidebar
+
+### Tipos de turno personalizados ✅
+- [x] Modelo `ScheduleType` en Prisma (name, value, color, isActive)
+- [x] Módulo backend completo con CRUD
+- [x] Página admin `ScheduleTypesPage.tsx` (renombrada desde EventTypesPage)
+- [x] Ruta `/admin/schedule-types`
+
+### Planificación semanal estructurada ✅
+- [x] Vista semanal en SchedulePage con FullCalendar
+- [x] Filtros por sucursal, departamento, empleado, tipo de turno
+- [x] Widget `WeekSchedulesWidget` en Dashboard
+
+### Gestión de usuarios ✅
+- [x] CRUD completo de usuarios con permisos por rol
+- [x] Importación CSV
+- [x] Scope por sucursal (GM) y departamento (DM)
+- [x] Restricciones para DM (no cambiar role/branchId)
+
+### Responsables de departamento ✅
+- [x] Tabla intermedia `department_managers` (soporta múltiples managers)
+- [x] `assignDepartmentManager` / `removeDepartmentManager`
+- [x] DM puede crear/editar turnos de su departamento
+
+### Permisos para Department Manager ✅
+- [x] DM puede crear turnos solo para su departamento (`ensureDepartmentManagerAssignees`)
+- [x] DM solo modifica turnos de su departamento (`ensureAssignmentsBelongToDepartment`)
+- [x] DM ve solo su departamento en Dashboard y listados
+
+### Nuevo rol: Department Manager ✅
+- [x] Rol `department_manager` creado en seed
+- [x] Permisos específicos: `schedules:create`, `schedules:read`, `vacations:approve` (scope departamento)
+- [x] Integrado en `assertUserScope()`
+
+### Refactorizando roles en el backend ✅
+- [x] Roles como entidad (modelo `Role` en Prisma) con permisos asociados
+- [x] Ya no son strings hardcodeados
+- [x] Seed con roles: admin, general_manager, department_manager, employee
+
+### Refactorizando Eventos en el backend ✅
+- [x] `ScheduleType` como entidad (modelo en Prisma)
+- [x] CRUD completo con permisos
+- [x] Renombrado frontend de EventTypesPage → ScheduleTypesPage
+
+### Creando Departamento en el Backend ✅
+- [x] Entidad `Department` asociada a Branch y Usuario
+- [x] Tabla intermedia `department_branches` para relación N:M
+- [x] CRUD completo con managers
+
+### Añadir flujo de solicitud de vacaciones ✅
+- [x] Creación de solicitudes con detección de solapamiento (estado `colindante`)
+- [x] Aprobación/rechazo por DM/GM/admin
+- [x] Cancelación por el empleado
+- [x] Página `VacationsPage.tsx` con calendario, tabla, modales
+
+### Añadir aviso en caso de día de vacaciones ocupado ✅
+- [x] Detección de solapamiento con compañeros del mismo departamento
+- [x] Estado `colindante` con información de compañeros afectados
+
+### Crear página de vacaciones con gestión por branch ✅
+- [x] `VacationsPage.tsx` completa con calendario, tabla paginada, filtros
+- [x] Aprobación por responsable del departamento
+- [x] Scope por rol (employee ve solo sus solicitudes, DM su depto, GM su branch)
+
+### Eliminar tipo "Vacaciones" del Calendario Turnos ✅
+- [x] Vacaciones como entidad separada (`VacationRequest`)
+- [x] Calendario de vacaciones independiente del de turnos
+
+### Separar "Vacaciones" del ScheduleType ✅
+- [x] Modelo `VacationRequest` independiente
+- [x] Servicio propio `vacations.service.ts`
+- [x] Calendario propio en frontend
+
+### Hacer que el calendario de Vacaciones llame a esa entidad ✅
+- [x] `VacationCalendar` component que llama a endpoint de vacaciones
+- [x] Muestra eventos del modelo `VacationRequest`
+
+---
+
+## Sesión: Refactor frontend — DataTable, SortableHeader, VacationTable (11 mayo 2026)
+
+### Migrar a DataTable (3 páginas admin)
+- [x] **HolidaysPage** — Migrada tabla manual a `<DataTable>`
+- [x] **UsersPage** — Migrada tabla manual a `<DataTable>`
+- [x] **NotificationsPage** — Migrada tabla manual a `<DataTable>`
+
+### Renombrar EventTypesPage → ScheduleTypesPage
+- [x] Renombrada página y ruta de `/admin/event-types` a `/admin/schedule-types`
+- [x] Renombrado test `EventTypesPage.test.tsx` → `ScheduleTypesPage.test.tsx`
+
+### Extraer SortableHeader + useSortable
+- [x] Creado `common/SortableHeader.tsx` — componente compartido reemplaza `renderSortLabel` duplicado
+- [x] Creado `hooks/useSortable.ts` — hook para manejo de estado de ordenación
+- [x] Refactorizado `AuditTable.tsx` para usar ambos
+
+### Separar VacationTable en smart + dumb
+- [x] Movida toda la lógica de datos (queries, mutaciones, filtros, paginación) a `VacationsPage`
+- [x] `VacationTable` ahora es dumb: solo recibe props y renderiza
+- [x] Eliminado `VacationTableDumb.tsx` (ya no necesario)
+
+### Tests añadidos
+- [x] **ProfilePage.test.tsx** — Test de página de perfil
+- [x] **hooks/useFieldValidation.test.tsx** — Test del hook de validación
+- [x] **hooks/useInAppNotifications.test.tsx** — Test del hook de notificaciones
+- [x] **hooks/useMyWeeklySummary.test.tsx** — Test del hook de resumen semanal
+- [x] **hooks/useScheduleTypes.test.tsx** — Test del hook de tipos de turno
+- [x] **hooks/useTeamWeeklySummaries.test.tsx** — Test del hook de resúmenes de equipo
+- [x] **hooks/useVacations.test.tsx** — Test del hook de vacaciones
+
+### Resultado
+- **47 test files, 380 tests pasando** (0 fallos)
+- **Linter frontend: 0 errores, 0 warnings**
+- **TypeScript: 0 errores**
+
+---
+
 ## Sesión: Corrección de errores de linter (9 mayo 2026)
 
-- **SchedulePage.tsx**: Corregido bucle infinito de `useEffect` — dependencia `scheduleDetail` causaba re-renders en cadena. Añadido `detailScheduleId` y `detailAnchor` como condiciones de guarda.
-- **ShiftPresetsPage.tsx**: Eliminada variable `emptyForm` no usada. Tipados `any` → `unknown` en callbacks de error de mutaciones.
-- **NotificationPanel.tsx**: Eliminado import no usado de `useInAppNotifications` (solo se necesita el type).
-- **useFieldValidation.ts**: Eliminado parámetro `_e` no usado en `handleBlur`. Actualizado tipo de retorno de `register().onBlur` de `(e: FocusEvent) => void` a `() => void`.
-- **useInAppNotifications.ts**: Movida llamada inicial a `fetchUnreadCount()` dentro de `setTimeout` para evitar setState sincrónico dentro de useEffect (violación de regla `react-hooks/set-state-in-effect`).
-- **VacationTable.tsx**: Envuelta variable `vacations` en `useMemo` para estabilidad de referencia (warning de `react-hooks/exhaustive-deps`).
+- **SchedulePage.tsx**: Corregido bucle infinito de `useEffect`
+- **ShiftPresetsPage.tsx**: Eliminada variable `emptyForm` no usada. Tipados `any` → `unknown`
+- **NotificationPanel.tsx**: Eliminado import no usado
+- **useFieldValidation.ts**: Eliminado parámetro `_e` no usado
+- **useInAppNotifications.ts**: Movida llamada inicial a `fetchUnreadCount()` dentro de `setTimeout`
+- **VacationTable.tsx**: Envuelta variable `vacations` en `useMemo`
 - **Resultado**: Linter frontend: **0 errores, 0 warnings**.
 
 ---
@@ -33,7 +187,6 @@
 - [x] **BranchesPage** - `canCreate` basado en rol (solo admin)
 - [x] **DepartmentsPage** - `canCreate` basado en rol (solo admin)
 - [x] **SidebarList** - Prop `canCreate` para controlar botón "+" según rol
-- [x] **TODO.md** actualizado con análisis completo de permisos, refactor y vulnerabilidades
 
 ### Tests
 - **31 test files, 271 tests pasando** (0 fallos)
@@ -43,174 +196,68 @@
 ## Sesión: Corrección de errores TypeScript y lint (11 mayo 2026)
 
 ### Arreglado
-- [x] **schedules.service.ts** — Añadido `findScheduleById` al import (faltaba en el repository import)
-- [x] **schedules.service.ts** — Tipos explícitos en callbacks `.map()` de `assignments` (parámetro `a` con tipo `any` implícito)
-- [x] **schedules.service.ts** — Eliminado import no usado de `createInAppNotification` y variable `assigneeNames`
-- [x] **schedules.service.ts** — Employee ve todos los turnos de su branch (trabajo grupal), no solo los propios
-- [x] **schedules.service.ts** — `listWeekSchedulesForActor` respeta `userId` si se pasa explícitamente
+- [x] **schedules.service.ts** — Añadido `findScheduleById` al import
+- [x] **schedules.service.ts** — Tipos explícitos en callbacks `.map()`
+- [x] **schedules.service.ts** — Eliminado import no usado
+- [x] **schedules.service.ts** — Employee ve todos los turnos de su branch (trabajo grupal)
+- [x] **schedules.service.ts** — `listWeekSchedulesForActor` respeta `userId`
 - [x] **ShiftPresetsPage.tsx** — Eliminado import no usado de `Column`
 - [x] **ShiftPresetsPage.test.tsx** — Eliminada variable `mockAuthState` no usada
 - [x] **ShiftPresetsPage.test.tsx** — Reemplazados `as any` por `as unknown as Record<string, string>`
-- [x] **security-schedules.test.ts** — Tests actualizados para reflejar nueva lógica de employee (trabajo grupal)
-- [x] **TODO.md** — Reorganizado por prioridades (1-5), eliminados items resueltos
+- [x] **security-schedules.test.ts** — Tests actualizados
 
 ### Vulnerabilidades resueltas
-- [x] **VUL-2**: `listWeekSchedulesForActor` corregido — ya no pasa `actor.branchId` como `userId`
-- [x] **VUL-1**: Employee ve todos los turnos de su branch (decisión de negocio: trabajo grupal), puede filtrar por `userId` si se pasa explícitamente
+- [x] **VUL-2**: `listWeekSchedulesForActor` corregido
+- [x] **VUL-1**: Employee ve todos los turnos de su branch
 
 ---
 
 ## Sesiones anteriores
 
 ### Módulo: Roles y Permisos
-
 - Creado `PERMISOS.md` con matriz de permisos centralizada por rol
-- Creado permiso `branches:holidays:manage` para que GM pueda gestionar festivos de su sucursal
-- Creados permisos `shift_presets:read/create/update/delete` para el nuevo módulo ShiftPresets
-- Restringido `schedule_types:create/update/delete` solo a admin (GM y DM solo lectura)
-- Eliminado permiso `branches:manage` de general_manager (solo `branches:view`)
-- Corregido permiso en router de roles: `settings:manage` → `settings:update`
-- Corregido permiso en router de auditoría: `audit:view` → `settings:update` para rollback
-- Creado `assertUserScope()` genérico reemplazando `assertGmBranchScope()` — soporta admin, GM, DM y employee
-- Añadido `validateDmUpdateRestrictions()` para que DM no pueda cambiar branchId ni role de usuarios
-- Seed actualizado para sincronizar permisos nuevos con upsert automático
-- Actualizado `API.md` de roles con lista de permisos correcta
+- Creado permiso `branches:holidays:manage` para GM
+- Creados permisos `shift_presets:read/create/update/delete`
+- Restringido `schedule_types:create/update/delete` solo a admin
+- Creado `assertUserScope()` genérico
+- Añadido `validateDmUpdateRestrictions()`
 
 ### Módulo: Departamentos
-
-- Corregido bug FIX-1: `branchIds` se pasaba como campo directo a Prisma causando error 500 al actualizar departamento
-- Corregido bug FIX-2: al mover empleado entre departamentos se enviaba `branchId` involuntariamente cambiando su sucursal
-- Corregida relación `managerId` → `DepartmentManager` (tabla intermedia `department_managers`)
-- `assignDepartmentManager` y `removeDepartmentManager` ahora devuelven el departamento completo con `managers` incluido
-- `countDepartmentsForManager` ahora cuenta en `departmentManager` en vez de `department`
-- Tests actualizados para usar `upsertDepartmentManager`/`deleteDepartmentManager`
+- Corregido bug FIX-1: `branchIds` como campo directo a Prisma
+- Corregido bug FIX-2: `branchId` involuntario al mover empleado
+- Corregida relación `managerId` → `DepartmentManager`
 
 ### Módulo: Vacaciones
-
-- Añadido filtro `employeeId` opcional en `listVacations`
-- `getVacationCalendar` ahora valida permisos por rol (employee ve solo sus aprobadas, DM su depto, GM su sucursal, admin todo)
-- `createVacationEntry`, `approveVacationEntry`, `rejectVacationEntry`, `cancelVacationEntry` ahora usan transacciones atómicas con audit log
-- Repository soporta `TransactionClient` opcional en todas las funciones
-- Controller refactorizado con `buildActor()` para evitar duplicación de lógica de actor
-- Creada página `VacationsPage.tsx` con calendario, tabla paginada, modales de solicitud/creación y badges de estado
-- Creado hook `useVacations` con queries y mutaciones
-- Creados tests `VacationsPage.test.tsx`
-- Añadida ordenación a `VacationTable` (headers clickeables)
+- Filtro `employeeId` opcional en `listVacations`
+- `getVacationCalendar` con permisos por rol
+- Transacciones atómicas con audit log
+- Página `VacationsPage.tsx` completa
 
 ### Módulo: Schedules / Turnos
-
-- Creado endpoint `GET /schedules/alerts` que detecta turnos sin personal (unassigned) y solitarios (solo) para próximos 7 días
-- Creado componente `AlertsModal.tsx` con alertas visuales en Dashboard
-- Añadido filtro `userId` en `listWeekSchedules` para filtrar por empleado específico
-- Creado `WeeklyWorkSummary` — servicio que calcula horas totales, base y extra por semana, se actualiza automáticamente al crear/modificar turnos
-- Dashboard rediseñado con widgets: `WeekSchedulesWidget`, `MyWeeklySummaryCard`, `TeamWeeklySummaryCard`, `RecentActivityWidget`
-- Añadido filtro por departamento en `SchedulePage` (calendario)
-- Filtros interactivos en `WeekSchedulesWidget` por sucursal, departamento, empleado, tipo de turno, urgentes
-- Filtro automático por rol en Dashboard (DM ve su depto, GM su sucursal, admin todo)
-- Creada lógica `shiftScheduling.ts` para turnos multi-día con agrupación de días consecutivos
-- Creados tests `DashboardPage.test.tsx` y `shiftScheduling.test.ts`
-- **VUL-1**: Forzado `userId = actor.id` en `listSchedulesForActor` para employee (no puede ver turnos ajenos)
-- **VUL-2**: Corregido `listWeekSchedulesForActor` — pasaba `actor.branchId` como `userId` en vez de `actor.id`
-- **VUL-3**: Verificado que `GET /schedules` ya usa `listSchedulesForActor` (no expone schedules sin restricción)
-- **VUL-6**: Añadida validación de existencia de `assigneeIds` antes de crear schedule
+- Endpoint `GET /schedules/alerts`
+- Componente `AlertsModal.tsx`
+- Filtro `userId` en `listWeekSchedules`
+- `WeeklyWorkSummary` con horas totales, base y extra
+- Dashboard rediseñado con widgets
 
 ### Módulo: ShiftPresets (Nuevo)
-
-- Creado modelo `ShiftPreset` en Prisma (name, startTime, endTime, isActive)
-- Creado módulo completo backend: schemas Zod, service con transacciones + audit log, controller, router con permisos CRUD
-- Creada página admin `ShiftPresetsPage.tsx` con tabla + modal CRUD
-- Añadida ruta `/admin/shift-presets` y enlace en Sidebar
+- Modelo, backend completo, página admin
 
 ### Módulo: Webhooks
-
-- Añadido scope por departamento y sucursal en webhooks
-- Notificaciones respetan el scope configurado
-- Corregido schema PATCH: creado `webhookUpdateSchema` separado sin `superRefine` para evitar errores con `.partial()`
-- Corregido lint warning (import no usado en `webhooks.service.ts`)
-
-### Módulo: Notifications
-
-- Corregido bug FIX-3: `sendMondayVacationSummary()` buscaba en `prisma.schedule` en vez de `prisma.vacationRequest`
-
-### Módulo: Schedule Types
-
-- Schedule-types service ahora usa prisma singleton en vez de `new PrismaClient()`
-- Router ya delega en `schedule-types.controller.ts` (verificado, ya implementado)
-
-### Módulo: Usuarios
-
-- `assertUserScope()` genérico implementado (ver módulo Roles)
-- `validateDmUpdateRestrictions()` impide que DM cambie branchId/role
-- Tests actualizados con 6 nuevos tests para DM
-
-### Módulo: Branches
-
-- Endpoints de festivos cambiados a `branches:holidays:manage` (GM puede gestionar)
-- Branch CRUD verificado: solo admin con `branches:manage`
-
-### Módulo: Auditoría
-
-- Rollback ahora usa `settings:update` (solo admin) en vez de `audit:view`
+- Scope por departamento y sucursal
 
 ### Módulo: Frontend — Sanitización (VUL-8)
-
-- Creado `frontend/src/lib/sanitize.ts` con sistema completo de sanitización:
-  - `escapeHtml()` — escapa caracteres HTML peligrosos (& < > " ' ` /)
-  - `stripHtmlTags()` — elimina etiquetas HTML/XML
-  - `normalizeWhitespace()` — normaliza espacios múltiples
-  - `sanitizeText()` — sanitización completa para entrada de datos
-  - `sanitizeForDisplay()` — escape HTML para mostrar en pantalla
-  - `validateTextField()` — valida y sanitiza campos de texto genéricos
-  - `validateEmailField()` — valida formato de email
-  - `validateNameField()` — valida nombres (solo letras, acentos, ñ, guiones, apóstrofes)
-  - `validateNotesField()` — valida notas/descripciones (más permisivo)
-  - `validateLocationField()` — valida ubicaciones
-  - `validateFormFields()` — valida múltiples campos en submit (Fase 2)
-  - `isFormValid()` — verifica si todos los campos son válidos
-- Creado `frontend/src/hooks/useFieldValidation.ts` — hook de validación en dos fases:
-  - Fase 1: validación por campo individual (onBlur/onChange) con `setCustomValidity()`
-  - Fase 2: validación global en submit con `validateAll()`
-  - `register()` — retorna props para vincular inputs (value, onChange, onBlur, ref, aria-*)
-  - Soporta tipos: text, email, name, notes, location
-  - Validación custom adicional por campo
-  - `reset()`, `setValue()`, `setValues()`, `getSanitizedValue()`
-- Creados 44 tests en `frontend/test/sanitize.test.ts` cubriendo todas las funciones
+- Sistema completo de sanitización con 44 tests
 
 ### Base de datos
-
-- Migraciones unificadas en un solo `init.sql`
-- Modelos añadidos: `VacationRequest`, `WeeklyWorkSummary`, `DepartmentManager`, `WebhookConfig`, `ShiftPreset`
-- Eliminada columna `type` de tabla `schedules`
-- Añadido enum `HolidayType` (nacional, autonomica, local, mejora, regional, company)
-- Añadido enum `VacationStatus` (pending, colindante, approved, rejected, cancelled)
+- Modelos: `VacationRequest`, `WeeklyWorkSummary`, `DepartmentManager`, `WebhookConfig`, `ShiftPreset`
+- Enums: `HolidayType`, `VacationStatus`
 
 ### Frontend — Páginas nuevas
-
-- `VacationsPage.tsx` — gestión completa de vacaciones con calendario y tabla
-- `ShiftPresetsPage.tsx` — CRUD de turnos predefinidos
-- `AlertsModal.tsx` — alertas de turnos sin personal/solitarios
+- `VacationsPage.tsx`, `ShiftPresetsPage.tsx`, `AlertsModal.tsx`
 
 ### Frontend — Migración a theme-aware
-
-- Migradas 7 páginas admin de colores navy hardcodeados a theme-aware: UsersPage, WebhooksPage, NotificationsPage, HolidaysPage, AuditLogPage, EventTypesPage, UserDetailsModal
-- EventTypesPage reescrita completamente (estilos legacy → theme-aware, `confirm()` → `ConfirmDialog`, default export → named export)
+- 7 páginas admin migradas de colores navy a theme-aware
 
 ### Documentación
-
-- Creado `DESIGN.md` — Design system, patrones de componentes, convenciones de frontend
-- Creado `BusinessLogic.md` — Decisiones de negocio, permisos, enjaulamiento, vulnerabilidades, mutaciones
-- Actualizado `TODO.md` — Pendientes críticos por módulo con vulnerabilidades identificadas
-- Actualizado `PERMISOS.md` — Matriz actualizada con todos los permisos y scopes
-
-### Tests
-
-- Tests de Dashboard, Vacaciones y turnos multi-día
-- Tests actualizados para departments (manager relation fix)
-- Tests actualizados para webhooks (schema PATCH)
-- Tests actualizados para users (assertUserScope, DM restrictions)
-- Tests de SchedulePage corregidos (lógica de branchId actualizada)
-- Tests de DashboardPage corregidos (StatCard "Alertas" en vez de "Cambios urgentes")
-- Tests de branches.router corregidos (permiso `branches:holidays:manage` añadido a admin)
-- Creados 44 tests de sanitización (`sanitize.test.ts`)
-- Creado test ShiftPresetsPage.test.tsx (8 tests)
-- **31 test files, 271 tests pasando**
+- Creados `DESIGN.md`, `BusinessLogic.md`, `PERMISOS.md`

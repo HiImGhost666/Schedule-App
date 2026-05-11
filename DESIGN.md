@@ -1,6 +1,6 @@
 # Design System — Schedule App
 
-> **Última actualización:** 9 mayo 2026
+> **Última actualización:** 11 mayo 2026
 > **Propósito:** Centralizar la lógica de componentes de frontend, patrones de diseño y decisiones visuales para unificar la UI.
 
 ---
@@ -41,18 +41,25 @@
 ### 2.2 DataTable (Dumb)
 ```tsx
 // Props: columns[], data[], sortable?, onSort?, pagination?, onPageChange?
-// Uso: UsersTable, VacationTable, AuditLogTable
+// Uso: UsersTable, VacationTable, AuditLogTable, HolidaysPage, NotificationsPage
 <DataTable columns={columns} data={users} sortable pagination />
 ```
 
-### 2.3 ConfirmDialog (Dumb)
+### 2.3 SortableHeader (Dumb)
+```tsx
+// Props: column, currentSort, onSort
+// Uso: Reemplaza renderSortLabel duplicado en AuditTable, UsersTable
+<SortableHeader column={col} currentSort={sort} onSort={handleSort} />
+```
+
+### 2.4 ConfirmDialog (Dumb)
 ```tsx
 // Props: open, title, message, confirmLabel?, cancelLabel?, onConfirm, onCancel, variant?
 // Uso: Confirmar eliminación, acciones destructivas
 <ConfirmDialog open={isOpen} title="Eliminar usuario" message="..." onConfirm={handleDelete} />
 ```
 
-### 2.4 Modal / Drawer (Dumb)
+### 2.5 Modal / Drawer (Dumb)
 ```tsx
 // Props: open, onClose, title, children, size?
 // Uso: ShiftModal, HolidayEditModal, UserProfileModal
@@ -61,19 +68,40 @@
 </Modal>
 ```
 
-### 2.5 EmptyState (Dumb)
+### 2.6 EmptyState (Dumb)
 ```tsx
 // Props: icon?, title, description, action?, actionLabel?
 // Uso: Tablas sin datos, calendarios vacíos
 <EmptyState title="Sin turnos" description="No hay turnos para esta semana" />
 ```
 
-### 2.6 CalendarWrapper (Smart)
+### 2.7 CalendarWrapper (Smart)
 ```tsx
 // Props: events[], onEventClick, onDateSelect, view?
 // Uso: SchedulePage, VacationsPage
 // Internamente usa @fullcalendar/react con configuración unificada
 <CalendarWrapper events={events} onEventClick={handleEventClick} />
+```
+
+### 2.8 SidebarList (Dumb)
+```tsx
+// Props: items[], selectedId?, onSelect, canCreate?, onCreateClick?, renderItem?
+// Uso: Unifica BranchList y DepartmentList (~90% idénticos)
+<SidebarList items={branches} selectedId={selected} onSelect={handleSelect} canCreate={isAdmin} />
+```
+
+### 2.9 VacationTable (Dumb)
+```tsx
+// Props: vacations[], isLoading?, sort?, onSort?, onApprove?, onReject?, onCancel?, currentUserId?
+// Uso: VacationsPage (la lógica de datos está en la página)
+<VacationTable vacations={data} onApprove={handleApprove} onReject={handleReject} />
+```
+
+### 2.10 TypeLegend (Dumb)
+```tsx
+// Props: scheduleTypes[]
+// Uso: SchedulePage, leyenda de colores de tipos de turno
+<TypeLegend scheduleTypes={types} />
 ```
 
 ---
@@ -134,6 +162,7 @@
 - **apiError.ts**: Clase `ApiError` que parsea errores del backend
 - **ErrorBoundary**: Componente que captura errores de renderizado
 - **TanStack Query**: `onError` global en `queryClient.ts` para mostrar toasts
+- **ForbiddenPage**: Componente para error 403 con mensaje descriptivo según contexto
 
 ### Backend
 - **AppError**: Clase de error con código, mensaje y detalles
@@ -183,8 +212,38 @@ src/modules/<modulo>/
 - **setup.ts**: Configuración global (mocks de IntersectionObserver, matchMedia, etc.)
 - **Patrón**: Mock de stores, API y componentes hijos
 - **Cobertura**: Renderizado condicional por rol, edge cases, estados de carga/error
+- **Tests**: 47 test files, 380 tests pasando
 
 ### Backend (Jest)
 - **setup.ts**: Base de datos de prueba, Prisma singleton
 - **Patrón**: Tests de integración con BD real (SQLite en memoria)
 - **Cobertura**: Servicios con transacciones, repositorios, reglas de dominio
+
+---
+
+## 10. Hooks Compartidos
+
+| Hook | Props | Uso |
+|------|-------|-----|
+| `useSortable` | `initialSort?: { key, dir }` | Ordenación de columnas en tablas |
+| `useFieldValidation` | `fields: FieldConfig[]` | Validación en dos fases (onBlur + submit) |
+| `useVacations` | — | Queries y mutaciones de vacaciones |
+| `useInAppNotifications` | — | Notificaciones en tiempo real |
+| `useMyWeeklySummary` | — | Resumen semanal del usuario actual |
+| `useTeamWeeklySummaries` | `branchId?, departmentId?` | Resúmenes semanales del equipo |
+| `useScheduleTypes` | — | Tipos de turno disponibles |
+
+---
+
+## 11. Migración de Tablas a DataTable
+
+Todas las páginas con tablas deben usar `<DataTable>` en vez de tablas manuales:
+
+| Página | Estado | Notas |
+|--------|--------|-------|
+| UsersPage | ✅ Migrada | Ordenación por columna |
+| HolidaysPage | ✅ Migrada | Ordenación por columna |
+| NotificationsPage | ✅ Migrada | Ordenación por columna |
+| ShiftPresetsPage | ✅ Migrada | Ordenación por columna |
+| VacationTable | ✅ Dumb | La lógica está en VacationsPage |
+| AuditTable | ✅ Usa SortableHeader | Extraído hook useSortable |
