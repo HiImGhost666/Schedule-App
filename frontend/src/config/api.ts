@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { disconnectRealtime, reconnectRealtimeWithFreshToken } from '@/realtime/socketClient';
 
@@ -77,6 +78,15 @@ api.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // Show descriptive toast for 403 Forbidden errors
+    if (error.response?.status === 403) {
+      const serverMessage = error.response?.data?.message;
+      const displayMessage = serverMessage
+        ? `Acceso denegado: ${serverMessage}`
+        : 'No tienes permisos para realizar esta acción.';
+      toast.error(displayMessage, { duration: 5000 });
     }
 
     return Promise.reject(error);
