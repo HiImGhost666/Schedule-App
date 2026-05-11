@@ -49,44 +49,44 @@ describe('Seguridad: Employee no puede ver schedules de otros empleados', () => 
     mockRepo.findSchedules.mockResolvedValue([buildSchedule() as any]);
   });
 
-  it('employee solo ve sus propios schedules (userId forzado a actor.id)', async () => {
+  it('employee ve todos los schedules de su branch (trabajo grupal)', async () => {
     const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
 
-    // employee intenta pasar otro userId en query params
-    await listSchedulesForActor({ userId: 'emp-2' }, actor);
-
-    // Debe haber llamado al repo con userId = actor.id (emp-1), NO con emp-2
-    const callArgs = mockRepo.findSchedules.mock.calls[0][0];
-    expect(callArgs).toMatchObject({ branchId: 'branch-1' });
-    // employee con userId explícito usa ese userId
-    expect(callArgs).toMatchObject({ assignments: { some: { userId: 'emp-2' } } });
-  });
-
-  it('employee sin userId en params no ve nada (userId forzado a __none__)', async () => {
-    const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
-
+    // employee ve todos los turnos de su branch
     await listSchedulesForActor({}, actor);
 
     const callArgs = mockRepo.findSchedules.mock.calls[0][0];
     expect(callArgs).toMatchObject({ branchId: 'branch-1' });
-    // Sin userId, el employee no puede ver nada
-    expect(callArgs).toMatchObject({ assignments: { some: { userId: '__none__' } } });
+    // Sin userId, employee ve todos los turnos de su branch (sin filtro de assignments)
+    expect(callArgs.assignments).toBeUndefined();
   });
 
-  it('employee no puede ver schedules de otro empleado via listWeekSchedulesForActor', async () => {
+  it('employee puede filtrar por userId si se pasa explicitamente', async () => {
+    const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
+
+    // employee pasa userId explicitamente
+    await listSchedulesForActor({ userId: 'emp-2' }, actor);
+
+    const callArgs = mockRepo.findSchedules.mock.calls[0][0];
+    expect(callArgs).toMatchObject({ branchId: 'branch-1' });
+    // employee con userId explícito filtra por ese userId
+    expect(callArgs).toMatchObject({ assignments: { some: { userId: 'emp-2' } } });
+  });
+
+  it('employee ve todos los schedules de su branch via listWeekSchedulesForActor', async () => {
     const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
 
     // listWeekSchedulesForActor(year, week, branchId, departmentId, userId, actor)
     await listWeekSchedulesForActor(2026, 23, undefined, undefined, 'emp-2', actor);
 
-    // Debe forzar userId = actor.id (emp-1) porque employee no puede ver turnos ajenos
+    // Employee ve todos los turnos de su branch, respeta userId si se pasa
     const callArgs: any = mockRepo.findSchedules.mock.calls[0][0];
-    // Debe buscar por branch-1 y emp-1 (no emp-2)
     expect(callArgs.AND).toBeDefined();
     const branchFilter = callArgs.AND.find((f: any) => f.branchId);
     expect(branchFilter?.branchId).toBe('branch-1');
-    const userFilter = callArgs.AND.find((f: any) => f.assignments);
-    expect(userFilter?.assignments?.some?.userId).toBe('emp-1');
+    const userFilter = callArgs.AND?.find((f: any) => f.assignments);
+    // Respeta el userId pasado (emp-2), no lo fuerza a actor.id
+    expect(userFilter?.assignments?.some?.userId).toBe('emp-2');
   });
 });
 
