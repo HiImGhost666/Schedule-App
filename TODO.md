@@ -1,101 +1,87 @@
-# TODO — Próximos Pasos
+# TODO — Pendientes
 
-> **Última actualización:** 9 mayo 2026
-> **Fuente:** `BusinessLogic.md` (sección 4 - Vulnerabilidades)
-> 
-> **Nota:** Todos los errores de linter del frontend han sido corregidos (0 errores, 0 warnings).
+> **Última actualización:** 11 mayo 2026
+> Basado en `BusinessLogic.md`, `PERMISOS.md` y análisis de renderizado frontend.
 
 ---
 
-## 🔴 Vulnerabilidades Críticas
+## 🔴 CRÍTICO — Permisos en Rutas (Frontend)
 
-| ID | Descripción | Impacto | Módulo | Estado |
-|----|-------------|---------|--------|--------|
-| **VUL-2** | `listWeekSchedulesForActor` para employee pasa `actor.branchId` como `userId` en vez de `actor.id` | **Alto** — bug que filtra por branchId incorrecto | Schedules | ✅ **CORREGIDO** |
+### 1. DashboardPage — ¿Muestra datos según rol?
+- **Según PERMISOS.md**: Employee solo ve su resumen semanal, GM/DM ven equipo
+- **Pendiente**: Verificar que DashboardPage oculte widgets según rol
 
-## 🟡 Vulnerabilidades Medias
-
-| ID | Descripción | Impacto | Módulo | Estado |
-|----|-------------|---------|--------|--------|
-| **VUL-1** | Employee puede ver schedules de otros empleados de su branch si pasa `userId` en query params | Medio — employee puede ver turnos ajenos | Schedules | ✅ **CORREGIDO** |
-| **VUL-3** | Endpoint `GET /schedules` (sin actor) usa `listSchedules` sin restricción de rol | Medio — cualquiera con token puede listar schedules | Schedules | ✅ **CORREGIDO** (controller ya usa `listSchedulesForActor`) |
-| **VUL-6** | No se valida que assigneeIds existan al crear schedule | Bajo — si se pasa ID inexistente, Prisma lanza error | Schedules | ✅ **CORREGIDO** |
-| **VUL-8** | No hay sanitización de HTML en campos de texto (name, notes, etc.) | Bajo — riesgo de XSS si se renderiza sin escape | Global | ✅ **CORREGIDO** |
-
-## 🟢 Vulnerabilidades Bajas
-
-| ID | Descripción | Impacto | Módulo | Estado |
-|----|-------------|---------|--------|--------|
-| **VUL-5** | No hay validación de ownership en webhooks | Bajo — solo admin gestiona webhooks, no hay tenant isolation | Webhooks | ✅ **CORREGIDO** (nuevos permisos `webhooks:view`/`webhooks:manage`) |
-| **VUL-7** | `cancelVacationEntry` usa `vacations:approve` en vez de `vacations:cancel` para determinar si puede cancelar solicitudes ajenas | Bajo — permiso semánticamente incorrecto | Vacaciones | ✅ **CORREGIDO** |
-| **VUL-9** | Los tokens JWT no se invalidan al cambiar contraseña | Bajo — el token sigue siendo válido hasta que expire | Auth | ✅ **CORREGIDO** (ya incrementa `tokenVersion` en `changePassword`) |
-| **VUL-10** | No hay límite de sesiones concurrentes por usuario | Bajo — un usuario puede tener múltiples sesiones activas | Auth | ❌ Pendiente |
+### 2. ProfilePage — ¿Muestra opciones según rol?
+- **Según BusinessLogic.md**: Employee no puede cambiar su rol/estado
+- **Pendiente**: Verificar que ProfilePage respete restricciones
 
 ---
 
-## 📋 Pendientes por Módulo
+## 🟡 Backend — Vulnerabilidades (de BusinessLogic.md)
 
-### Módulo: Auth / Seguridad
-- [x] **VUL-9**: Invalidar tokens JWT al cambiar contraseña (tokenVersion) — ✅ Ya implementado
-- [ ] **VUL-10**: Limitar sesiones concurrentes por usuario
-- [ ] Crear endpoint de logout (invalidar token) — ✅ Ya existe `logoutController`
+### Críticas
+- [ ] **VUL-4**: Rate limiting en login (`express-rate-limit`)
+- [ ] **VUL-2**: `listWeekSchedulesForActor` para employee pasa `actor.branchId` como `userId`
 
-### Módulo: Schedules
-- [x] **VUL-1**: Forzar `userId = actor.id` en `listSchedulesForActor` para employee
-- [x] **VUL-2**: Corregir `listWeekSchedulesForActor` línea 350 (`actor.branchId` → `actor.id`)
-- [x] **VUL-3**: Migrar `GET /schedules` a usar `listSchedulesForActor` (ya lo usaba)
-- [x] **VUL-6**: Validar existencia de assigneeIds antes de crear schedule
-- [x] **SCH-1**: Notificar in-app a empleados al crear/modificar/eliminar turnos
+### Medias
+- [ ] **VUL-1**: Employee puede ver schedules de otros empleados si pasa `userId` en query params
+- [ ] **VUL-3**: Endpoint `GET /schedules` (sin actor) usa `listSchedules` sin restricción de rol
+- [ ] **VUL-6**: Validar assigneeIds antes de crear schedule
+- [ ] **VUL-8**: Sanitización de HTML en campos de texto
 
-### Módulo: Vacaciones
-- [x] **VUL-7**: Corregir `cancelVacationEntry` para usar `VACATION_PERMISSIONS.CANCEL` en vez de `APPROVE`
-- [x] **VAC-2**: Notificar al empleado cuando se aprueba/rechaza su solicitud (nuevo sistema de notificaciones in-app)
-- [ ] Recalcular resumen semanal al aprobar vacaciones (restar horas disponibles)
-
-### Módulo: Webhooks / Notificaciones
-- [x] **VUL-5**: Separar permisos de webhooks (`webhooks:view`, `webhooks:manage`) de `settings:*`
-- [x] Migrar endpoints de webhooks de `settings:update` → `webhooks:manage`
-- [x] Migrar endpoints de notificaciones (logs, resend, summaries, announce) a `webhooks:view`/`webhooks:manage`
-- [x] Migrar endpoints de settings (theme, presets, favicon, site) de `settings:update` → `settings:manage`
-- [x] Migrar endpoints de roles (CRUD) de `settings:update` → `settings:manage`
-- [x] Añadir `webhooks:view` a `general_manager` en `DEFAULT_ROLE_PERMISSIONS`
-- [x] Crear modelo `InAppNotification` en Prisma + migración
-- [x] Crear servicio `in-app-notifications/in-app.service.ts` (CRUD de notificaciones internas)
-- [x] Crear router `in-app-notifications/in-app.router.ts` (endpoints para frontend)
-- [x] Integrar router in-app en `app.ts` (ruta `/api/in-app-notifications`)
-- [x] Eliminar archivos duplicados `notifications/in-app.service.ts` e `in-app.router.ts`
-- [x] Actualizar import en `vacations.service.ts` para apuntar al nuevo módulo
-
-### Módulo: Audit Log (mejoras)
-- [x] **AUD-1**: Añadir `before`/`after` con `sanitizeSnapshot` en `updateBranch` (branches.service.ts)
-- [x] **AUD-2**: Añadir `before`/`after` con `sanitizeSnapshot` en `createShiftPreset`/`updateShiftPreset`/`deleteShiftPreset`
-- [x] **AUD-3**: Añadir audit log completo en `roles.service.ts` (create/update/delete)
-- [x] **AUD-4**: Añadir audit log completo en `schedule-types.service.ts` (create/update/delete)
-- [x] **AUD-5**: Añadir audit log en `changePassword` (auth.service.ts)
-
-### Módulo: Frontend
-- [x] **VUL-8**: Sanitizar HTML en campos de texto (name, notes, etc.)
-- [ ] **FNT-1**: Mostrar mensaje claro cuando employee no tiene sucursal asignada
-- [x] **FNT-2**: Añadir badge de notificaciones no leídas en el header (consumir `GET /api/in-app-notifications/unread-count`)
-- [x] **FNT-3**: Añadir panel de notificaciones in-app (consumir `GET /api/in-app-notifications`)
-- [ ] Añadir skeleton loaders en todas las páginas
-- [ ] Manejar error 403 con mensaje descriptivo
-
-### Módulo: Tests
-- [x] Test de seguridad: employee no puede ver schedules de otros empleados (`security-schedules.test.ts`)
-- [x] Test de integración: schedules con roles (admin, GM, DM, employee) (`security-schedules.test.ts`)
-- [x] Test de scope: GM no puede ver schedules de otra branch (`security-schedules.test.ts`)
-- [x] Test de vacaciones: DM no puede aprobar vacaciones de otro departamento (`security-vacations.test.ts`)
-- [x] Test de permisos: webhooks endpoints requieren `webhooks:view`/`webhooks:manage` (`security-vacations.test.ts`)
-- [x] Test de permisos: settings endpoints requieren `settings:manage` (no `settings:update`) (`security-vacations.test.ts`)
-- [x] Test de notificaciones in-app: se crean al aprobar/rechazar vacaciones (`security-vacations.test.ts`)
-- [x] Test de notificaciones in-app: se crean al asignar/modificar/eliminar turnos (`security-schedules.test.ts`)
-- [x] Test de auth: lockouts, cuentas deshabilitadas, rotación de tokens (`auth.test.ts`)
-- [x] Test de holiday overlap: validación de solapamiento de vacaciones (`holiday-overlap.test.ts`)
+### Bajas
+- [ ] **VUL-9**: Invalidar tokens JWT al cambiar contraseña (tokenVersion)
+- [ ] **VUL-10**: Límite de sesiones concurrentes
 
 ---
 
-## 🚀 Mejoras Planificadas
+## 📋 Migrar a DataTable (3 páginas con tablas manuales)
 
-- [ ] Endpoint de health check para monitoreo
-- [ ] Confirmación en frontend antes de crear schedule en día festivo
+- [ ] **HolidaysPage** — Migrar tabla manual a `<DataTable>`
+- [ ] **UsersPage** — Migrar tabla manual a `<DataTable>`
+- [ ] **NotificationsPage** — Migrar tabla manual a `<DataTable>`
+
+---
+
+## 📋 Refactor de Componentes (DESIGN.md)
+
+### Componentes que podrían ser Dumb (recibir datos por props en vez de hooks)
+
+| Componente | Problema | Solución |
+|---|---|---|
+| `TypeLegend.tsx` | Usa `useScheduleTypes()` internamente | Recibir `scheduleTypes` como prop |
+| `VacationTable.tsx` | Mezcla queries, permisos y renderizado | Separar en smart (datos) + dumb (tabla) |
+| `BranchList.tsx` | Lógica de filtrado/orden inline | Podría ser dumb puro |
+| `DepartmentList.tsx` | Lógica de filtrado/orden inline | Podría ser dumb puro |
+
+### Componentes duplicados que podrían unificarse
+
+| Componentes | Similitud | Propuesta |
+|---|---|---|
+| `BranchList.tsx` + `DepartmentList.tsx` | ~90% idénticos | Crear `SidebarList.tsx` genérico |
+| `UsersTable.tsx` + `AuditTable.tsx` | Patrón de ordenación similar | Extraer hook `useSortable` |
+| `BranchForm.tsx` + `DepartmentForm.tsx` | Formularios similares | Mantener separados (diferentes campos) |
+
+### TypeLegend.tsx — Análisis
+- **NO está huérfano**: Se usa en `ScheduleSidebar.tsx` línea 38
+- **Problema**: Es smart component (usa hook) cuando debería ser dumb
+- **Fix**: Pasar `scheduleTypes` como prop desde ScheduleSidebar → SchedulePage
+
+---
+
+## 🧪 Tests Pendientes (de BusinessLogic.md sec 6.3)
+
+- [ ] Test de seguridad: employee no puede ver schedules de otros empleados
+- [ ] Test de integración: schedules con roles (admin, GM, DM, employee)
+- [ ] Test de scope: GM no puede ver schedules de otra branch
+- [ ] Test de vacaciones: DM no puede aprobar vacaciones de otro departamento
+
+---
+
+## 📋 Frontend — Mejoras UX Pendientes
+
+- [ ] Mensaje claro cuando employee no tiene sucursal asignada (SchedulePage vacía)
+- [ ] Notificaciones push para eventos de vacaciones (aprobación/rechazo)
+- [ ] Indicador de carga en todas las páginas (skeleton loaders)
+- [ ] Manejo de error 403 con mensaje descriptivo
+- [ ] Confirmación antes de crear schedule en día festivo (verificar frontend)
