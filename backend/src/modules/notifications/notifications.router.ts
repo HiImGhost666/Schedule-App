@@ -55,8 +55,9 @@ router.post('/resend/:logId', authMiddleware, requirePermission('webhooks:manage
 
 router.post('/friday-summary', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
-    const { webhookConfigId } = req.body;
-    const results = await sendFridaySummary(req.user!.id, webhookConfigId);
+    const { webhookConfigIds } = req.body;
+    const ids: string[] | undefined = Array.isArray(webhookConfigIds) && webhookConfigIds.length > 0 ? webhookConfigIds : undefined;
+    const results = await sendFridaySummary(req.user!.id, ids);
     return sendSuccess(res, { sent: results.length }, `Resumen enviado a ${results.length} webhook(s)`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al enviar resumen';
@@ -66,8 +67,9 @@ router.post('/friday-summary', authMiddleware, requirePermission('webhooks:manag
 
 router.post('/vacation-summary', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
-    const { webhookConfigId } = req.body;
-    const results = await sendMondayVacationSummary(req.user!.id, webhookConfigId);
+    const { webhookConfigIds } = req.body;
+    const ids: string[] | undefined = Array.isArray(webhookConfigIds) && webhookConfigIds.length > 0 ? webhookConfigIds : undefined;
+    const results = await sendMondayVacationSummary(req.user!.id, ids);
     return sendSuccess(res, { sent: results.length }, `Resumen de vacaciones enviado a ${results.length} webhook(s)`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al enviar resumen';
@@ -76,16 +78,16 @@ router.post('/vacation-summary', authMiddleware, requirePermission('webhooks:man
 });
 
 router.post('/announce', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
-  const { message, webhookConfigId } = req.body;
+  const { message, webhookConfigIds } = req.body;
   if (!message) return sendError(res, 'Mensaje requerido', 400);
 
   const card = buildAnnouncementCard(message, req.user!.name);
 
   let webhooks;
-  if (webhookConfigId) {
-    const wh = await prisma.webhookConfig.findUnique({ where: { id: webhookConfigId } });
-    if (!wh) return sendError(res, 'Webhook no encontrado', 404);
-    webhooks = [wh];
+  if (Array.isArray(webhookConfigIds) && webhookConfigIds.length > 0) {
+    webhooks = await prisma.webhookConfig.findMany({
+      where: { id: { in: webhookConfigIds }, enabled: true },
+    });
   } else {
     webhooks = await prisma.webhookConfig.findMany({ where: { enabled: true } });
   }

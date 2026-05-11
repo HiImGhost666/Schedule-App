@@ -27,6 +27,8 @@ interface VacationChangeParams {
     endDate: Date;
     note?: string | null;
     rejectionReason?: string | null;
+    branchId: string;
+    departmentId: string;
   };
   actor: { name: string; id?: string };
 }
@@ -51,6 +53,10 @@ export async function notifyVacationChange(params: VacationChangeParams) {
   logger.info(`[notifyVacationChange] found ${webhooks.length} webhooks with notifyModifications=true`);
 
   for (const webhook of webhooks) {
+    // Filtrar por scope: si el webhook tiene branchId o departmentId, solo notificar si coincide
+    if (webhook.branchId && webhook.branchId !== params.vacation.branchId) continue;
+    if (webhook.departmentId && webhook.departmentId !== params.vacation.departmentId) continue;
+
     await sendToWebhook({
       webhookConfigId: webhook.id,
       webhookUrl: webhook.webhookUrl,

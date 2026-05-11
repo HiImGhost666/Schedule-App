@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Bell, RefreshCw, Send, Calendar, CheckCircle, XCircle, Clock, Umbrella } from 'lucide-react';
+import { Bell, RefreshCw, Send, Calendar, CheckCircle, XCircle, Clock, Umbrella, Globe, Building2, Users } from 'lucide-react';
 import api from '@/config/api';
-import type { NotificationLog, WebhookConfig } from '@/types';
+import type { Branch, Department, NotificationLog, WebhookConfig } from '@/types';
 import { NOTIFICATION_TYPE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -13,45 +13,149 @@ import { isDarkThemePreset } from '@/config/theme';
 import { useUIStore } from '@/store/uiStore';
 import toast from 'react-hot-toast';
 
+type ScopeFilter = 'all' | 'branch' | 'department' | 'specific';
+
 function StatusIcon({ status }: { status: string }) {
   if (status === 'sent') return <CheckCircle className="h-4 w-4 text-green-500" />;
   if (status === 'failed') return <XCircle className="h-4 w-4 text-red-400" />;
   return <Clock className="h-4 w-4 text-amber-400" />;
 }
 
-function WebhookSelect({
-  value,
-  onChange,
+function ScopeSelector({
+  scope,
+  onScopeChange,
+  branchId,
+  onBranchChange,
+  departmentId,
+  onDepartmentChange,
+  webhookId,
+  onWebhookChange,
+  branches,
+  departments,
   webhooks,
-  placeholder = "Seleccionar webhook...",
 }: {
-  value: string;
-  onChange: (value: string) => void;
-  webhooks?: WebhookConfig[];
-  placeholder?: string;
+  scope: ScopeFilter;
+  onScopeChange: (s: ScopeFilter) => void;
+  branchId: string;
+  onBranchChange: (id: string) => void;
+  departmentId: string;
+  onDepartmentChange: (id: string) => void;
+  webhookId: string;
+  onWebhookChange: (id: string) => void;
+  branches: Branch[];
+  departments: Department[];
+  webhooks: WebhookConfig[];
 }) {
+  const filteredWebhooks = useMemo(() => {
+    if (scope === 'specific') return webhooks;
+    return webhooks.filter((wh) => {
+      if (scope === 'all') return true;
+      if (scope === 'branch') return !branchId || wh.branchId === branchId;
+      if (scope === 'department') return !departmentId || wh.departmentId === departmentId;
+      return true;
+    });
+  }, [webhooks, scope, branchId, departmentId]);
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="input-field text-sm"
-    >
-      <option value="">{placeholder}</option>
-      {webhooks?.map((wh) => (
-        <option key={wh.id} value={wh.id}>
-          {wh.name} ({wh.scope === 'general' ? 'General' : wh.scope === 'department' ? `Dept: ${wh.department?.name}` : `Suc: ${wh.branch?.name}`})
-        </option>
-      ))}
-    </select>
+    <div className="space-y-2">
+      <div className="flex gap-1.5">
+        {[
+          { value: 'all' as ScopeFilter, icon: Globe, label: 'Todos' },
+          { value: 'branch' as ScopeFilter, icon: Building2, label: 'Sucursal' },
+          { value: 'department' as ScopeFilter, icon: Users, label: 'Departamento' },
+          { value: 'specific' as ScopeFilter, icon: Bell, label: 'Específico' },
+        ].map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onScopeChange(opt.value)}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border transition-colors',
+              scope === opt.value
+                ? 'border-theme-primary bg-theme-primary/10 text-theme-primary font-medium'
+                : 'border-theme-color text-theme-muted hover:border-theme-primary/40'
+            )}
+          >
+            <opt.icon className="h-3 w-3" />
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {scope === 'branch' && (
+        <select
+          value={branchId}
+          onChange={(e) => onBranchChange(e.target.value)}
+          className="input-field text-sm"
+        >
+          <option value="">Todas las sucursales</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+      )}
+
+      {scope === 'department' && (
+        <select
+          value={departmentId}
+          onChange={(e) => onDepartmentChange(e.target.value)}
+          className="input-field text-sm"
+        >
+          <option value="">Todos los departamentos</option>
+          {departments.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+      )}
+
+      {scope === 'specific' && (
+        <select
+          value={webhookId}
+          onChange={(e) => onWebhookChange(e.target.value)}
+          className="input-field text-sm"
+        >
+          <option value="">Seleccionar webhook...</option>
+          {webhooks.map((wh) => (
+            <option key={wh.id} value={wh.id}>
+              {wh.name} ({wh.scope === 'general' ? 'General' : wh.scope === 'department' ? `Dept: ${wh.department?.name}` : `Suc: ${wh.branch?.name}`})
+            </option>
+          ))}
+        </select>
+      )}
+
+      {scope !== 'specific' && filteredWebhooks.length > 0 && (
+        <p className="text-xs text-theme-muted">
+          Se enviará a {filteredWebhooks.length} webhook(s)
+          {scope === 'branch' && branchId && ` de la sucursal seleccionada`}
+          {scope === 'department' && departmentId && ` del departamento seleccionado`}
+        </p>
+      )}
+    </div>
   );
 }
 
 export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [announcement, setAnnouncement] = useState('');
+
+  // Vacation summary filters
+  const [vacationScope, setVacationScope] = useState<ScopeFilter>('all');
+  const [vacationBranchId, setVacationBranchId] = useState('');
+  const [vacationDeptId, setVacationDeptId] = useState('');
   const [vacationWebhookId, setVacationWebhookId] = useState('');
+
+  // Friday summary filters
+  const [fridayScope, setFridayScope] = useState<ScopeFilter>('all');
+  const [fridayBranchId, setFridayBranchId] = useState('');
+  const [fridayDeptId, setFridayDeptId] = useState('');
   const [fridayWebhookId, setFridayWebhookId] = useState('');
+
+  // Announcement filters
+  const [announceScope, setAnnounceScope] = useState<ScopeFilter>('all');
+  const [announceBranchId, setAnnounceBranchId] = useState('');
+  const [announceDeptId, setAnnounceDeptId] = useState('');
   const [announceWebhookId, setAnnounceWebhookId] = useState('');
+
   const activeTheme = useUIStore(
     (s) => s.themePresetHoverPreview ?? s.themeDraft ?? s.themeConfig,
   );
@@ -68,27 +172,61 @@ export function NotificationsPage() {
     onError: () => toast.error('Error al reenviar'),
   });
 
+  const { data: webhooks } = useQuery<WebhookConfig[]>({
+    queryKey: ['webhooks'],
+    queryFn: () => api.get<{ data: WebhookConfig[] }>('/webhooks').then((r) => r.data.data),
+  });
+
+  const { data: branches } = useQuery<Branch[]>({
+    queryKey: ['branches', 'notifications'],
+    queryFn: () => api.get<{ data: Branch[] }>('/branches', { params: { includeInactive: false } }).then((r) => r.data.data),
+  });
+
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ['departments', 'notifications'],
+    queryFn: () => api.get<{ data: Department[] }>('/departments', { params: { includeInactive: false } }).then((r) => r.data.data),
+  });
+
+  // Helper: obtener webhookIds según el scope seleccionado
+  function getWebhookIds(scope: ScopeFilter, branchId: string, deptId: string, whId: string): string[] | undefined {
+    if (scope === 'specific' && whId) return [whId];
+    if (!webhooks) return undefined;
+    return webhooks
+      .filter((wh) => {
+        if (!wh.enabled) return false;
+        if (scope === 'all') return true;
+        if (scope === 'branch') return !branchId || wh.branchId === branchId;
+        if (scope === 'department') return !deptId || wh.departmentId === deptId;
+        return true;
+      })
+      .map((wh) => wh.id);
+  }
+
   const fridayMutation = useMutation({
-    mutationFn: () => api.post('/notifications/friday-summary', { webhookConfigId: fridayWebhookId || undefined }),
+    mutationFn: () => {
+      const ids = getWebhookIds(fridayScope, fridayBranchId, fridayDeptId, fridayWebhookId);
+      return api.post('/notifications/friday-summary', { webhookConfigIds: ids });
+    },
     onSuccess: (res) => { toast.success(res.data.message || 'Resumen enviado'); refetch(); },
     onError: () => toast.error('Error al enviar resumen'),
   });
 
   const vacationMutation = useMutation({
-    mutationFn: () => api.post('/notifications/vacation-summary', { webhookConfigId: vacationWebhookId || undefined }),
+    mutationFn: () => {
+      const ids = getWebhookIds(vacationScope, vacationBranchId, vacationDeptId, vacationWebhookId);
+      return api.post('/notifications/vacation-summary', { webhookConfigIds: ids });
+    },
     onSuccess: (res) => { toast.success(res.data.message || 'Resumen vacaciones enviado'); refetch(); },
     onError: () => toast.error('Error al enviar resumen de vacaciones'),
   });
 
   const announceMutation = useMutation({
-    mutationFn: () => api.post('/notifications/announce', { message: announcement, webhookConfigId: announceWebhookId || undefined }),
+    mutationFn: () => {
+      const ids = getWebhookIds(announceScope, announceBranchId, announceDeptId, announceWebhookId);
+      return api.post('/notifications/announce', { message: announcement, webhookConfigIds: ids });
+    },
     onSuccess: () => { toast.success('Anuncio enviado'); setAnnouncement(''); refetch(); },
     onError: () => toast.error('Error al enviar anuncio'),
-  });
-
-  const { data: webhooks } = useQuery<WebhookConfig[]>({
-    queryKey: ['webhooks'],
-    queryFn: () => api.get<{ data: WebhookConfig[] }>('/webhooks').then((r) => r.data.data),
   });
 
   return (
@@ -113,11 +251,18 @@ export function NotificationsPage() {
               <p className="text-xs text-theme-muted">Automático cada lunes a las 8:30h</p>
             </div>
           </div>
-          <WebhookSelect
-            value={vacationWebhookId}
-            onChange={setVacationWebhookId}
-            webhooks={webhooks}
-            placeholder="Todos los webhooks habilitados"
+          <ScopeSelector
+            scope={vacationScope}
+            onScopeChange={setVacationScope}
+            branchId={vacationBranchId}
+            onBranchChange={setVacationBranchId}
+            departmentId={vacationDeptId}
+            onDepartmentChange={setVacationDeptId}
+            webhookId={vacationWebhookId}
+            onWebhookChange={setVacationWebhookId}
+            branches={branches ?? []}
+            departments={departments ?? []}
+            webhooks={webhooks ?? []}
           />
           <button
             onClick={() => vacationMutation.mutate()}
@@ -140,11 +285,18 @@ export function NotificationsPage() {
               <p className="text-xs text-theme-muted">Enviar planificación de la semana siguiente</p>
             </div>
           </div>
-          <WebhookSelect
-            value={fridayWebhookId}
-            onChange={setFridayWebhookId}
-            webhooks={webhooks}
-            placeholder="Todos los webhooks habilitados"
+          <ScopeSelector
+            scope={fridayScope}
+            onScopeChange={setFridayScope}
+            branchId={fridayBranchId}
+            onBranchChange={setFridayBranchId}
+            departmentId={fridayDeptId}
+            onDepartmentChange={setFridayDeptId}
+            webhookId={fridayWebhookId}
+            onWebhookChange={setFridayWebhookId}
+            branches={branches ?? []}
+            departments={departments ?? []}
+            webhooks={webhooks ?? []}
           />
           <button
             onClick={() => fridayMutation.mutate()}
@@ -167,11 +319,18 @@ export function NotificationsPage() {
               <p className="text-xs text-theme-muted">Enviar mensaje personalizado</p>
             </div>
           </div>
-          <WebhookSelect
-            value={announceWebhookId}
-            onChange={setAnnounceWebhookId}
-            webhooks={webhooks}
-            placeholder="Todos los webhooks habilitados"
+          <ScopeSelector
+            scope={announceScope}
+            onScopeChange={setAnnounceScope}
+            branchId={announceBranchId}
+            onBranchChange={setAnnounceBranchId}
+            departmentId={announceDeptId}
+            onDepartmentChange={setAnnounceDeptId}
+            webhookId={announceWebhookId}
+            onWebhookChange={setAnnounceWebhookId}
+            branches={branches ?? []}
+            departments={departments ?? []}
+            webhooks={webhooks ?? []}
           />
           <textarea
             value={announcement}

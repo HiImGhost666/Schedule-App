@@ -117,17 +117,20 @@ describe('notifications.router', () => {
     expect(response.body.code).toBe('BAD_REQUEST');
   });
 
-  it('returns 404 when explicit webhook does not exist', async () => {
-    prismaMock.webhookConfig.findUnique.mockResolvedValueOnce(null);
+  it('sends to specific webhook ids when provided', async () => {
+    prismaMock.webhookConfig.findMany.mockResolvedValueOnce([
+      { id: 'wh-1', webhookUrl: 'https://example.com/wh1' },
+    ] as any);
 
     const response = await request(app)
       .post('/api/notifications/announce')
       .set('x-test-role', 'admin')
-      .send({ message: 'Mensaje importante', webhookConfigId: 'missing-wh' });
+      .send({ message: 'Mensaje importante', webhookConfigIds: ['wh-1'] });
 
-    expect(response.status).toBe(404);
-    expect(response.body.success).toBe(false);
-    expect(notificationsService.sendToWebhook).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.sent).toBe(1);
+    expect(notificationsService.sendToWebhook).toHaveBeenCalledTimes(1);
   });
 
   it('sends announcement to all enabled webhooks', async () => {

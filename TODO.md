@@ -15,14 +15,14 @@
 #### ~~2. No se actualizan usuarios al mover empleados~~ ✅
 - **Fix**: Añadido `exact: false` en `invalidateQueries` de `updateDepartmentMemberMutation` para que invalide todas las queries que empiecen con `['users']`, `['departments']` y `['departments-users']`.
 
-#### 3. Notificaciones de vacaciones y resumen semanal no funcionan
-- **Causa probable**: `notifyVacationChange` busca webhooks con `notifyModifications: true`, pero puede que no haya webhooks configurados. `sendMondayVacationSummary` (FIX-3) ya se corrigió para buscar en `prisma.vacationRequest` en vez de `prisma.schedule`, pero puede haber otro error.
-- **Archivos**: `notifications.service.ts`, `notifications.templates.ts`
-- **Cómo arreglar**:
-  1. Verificar que existan webhooks configurados con `enabled: true`
-  2. Añadir logs en `notifyVacationChange` para ver si encuentra webhooks
-  3. Verificar `buildVacationCard` genera payload correcto
-  4. Añadir test de integración para notificaciones
+#### 3. ✅ Notificaciones de vacaciones y resumen semanal no funcionan (ARREGLADO)
+- **Qué se hizo**:
+  1. Se añadió filtrado por scope (branchId/departmentId) en `notifyVacationChange` para que solo notifique a webhooks que coincidan con la sucursal/departamento de la solicitud
+  2. Se añadieron logs en `notifyVacationChange` para depurar si encuentra webhooks
+  3. Se corrigió el tipo `VacationChangeParams` para que `branchId` y `departmentId` sean strings requeridos (no opcionales)
+  4. Se mejoró `NotificationsPage.tsx` con selector de alcance (`ScopeSelector`) que permite filtrar por: Todos, Sucursal, Departamento o Webhook específico
+  5. Se actualizaron los endpoints del backend para aceptar `webhookConfigIds` (array) en lugar de `webhookConfigId` (string)
+  6. Se actualizaron tests
 
 #### 4. Remover lógica 'desde'-'hasta' en schedules
 - **Causa probable**: La lógica actual usa `startDatetime` y `endDatetime` pero puede haber transformaciones de rango que causen problemas. Revisar schemas y service.

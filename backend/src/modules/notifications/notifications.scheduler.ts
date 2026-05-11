@@ -6,7 +6,7 @@ import { logger } from '../../utils/logger';
 import { buildFridaySummaryCard, buildMondayVacationCard } from './notifications.templates';
 import { sendToWebhook } from './notifications.service';
 
-export async function sendFridaySummary(sentByUserId?: string, webhookConfigId?: string) {
+export async function sendFridaySummary(sentByUserId?: string, webhookConfigIds?: string[]) {
   logger.info('Sending Friday schedule summary...');
 
   const nextWeekStart = startOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
@@ -50,10 +50,10 @@ export async function sendFridaySummary(sentByUserId?: string, webhookConfigId?:
   const card = buildFridaySummaryCard({ weekLabel, days });
 
   let webhooks;
-  if (webhookConfigId) {
-    const wh = await prisma.webhookConfig.findUnique({ where: { id: webhookConfigId } });
-    if (!wh) throw new Error('Webhook no encontrado');
-    webhooks = [wh];
+  if (webhookConfigIds && webhookConfigIds.length > 0) {
+    webhooks = await prisma.webhookConfig.findMany({
+      where: { id: { in: webhookConfigIds }, enabled: true },
+    });
   } else {
     webhooks = await prisma.webhookConfig.findMany({
       where: { enabled: true, fridayReminderEnabled: true },
@@ -77,7 +77,7 @@ export async function sendFridaySummary(sentByUserId?: string, webhookConfigId?:
   return results;
 }
 
-export async function sendMondayVacationSummary(sentByUserId?: string, webhookConfigId?: string) {
+export async function sendMondayVacationSummary(sentByUserId?: string, webhookConfigIds?: string[]) {
   logger.info('Sending Monday vacation summary...');
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -109,10 +109,10 @@ export async function sendMondayVacationSummary(sentByUserId?: string, webhookCo
   const card = buildMondayVacationCard({ weekLabel, vacations });
 
   let webhooks;
-  if (webhookConfigId) {
-    const wh = await prisma.webhookConfig.findUnique({ where: { id: webhookConfigId } });
-    if (!wh) throw new Error('Webhook no encontrado');
-    webhooks = [wh];
+  if (webhookConfigIds && webhookConfigIds.length > 0) {
+    webhooks = await prisma.webhookConfig.findMany({
+      where: { id: { in: webhookConfigIds }, enabled: true },
+    });
   } else {
     webhooks = await prisma.webhookConfig.findMany({
       where: { enabled: true, mondayVacationReminderEnabled: true },

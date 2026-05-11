@@ -221,6 +221,16 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
     actor,
   }).catch(() => {});
 
+  // Notificación in-app al empleado
+  createInAppNotification({
+    userId: actor.id,
+    type: 'vacation_requested',
+    title: 'Solicitud de vacaciones enviada',
+    message: `Has solicitado vacaciones del ${startDate.toLocaleDateString()} al ${endDate.toLocaleDateString()}.`,
+    link: '/vacations',
+    metadata: { vacationId: vacation.id },
+  }).catch(() => {});
+
   // Devolver la solicitud con información de solapamiento
   return {
     ...vacation,
@@ -418,6 +428,18 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
     vacation: updated,
     actor,
   }).catch(() => {});
+
+  // Notificación in-app al empleado (si quien cancela no es el empleado, notificarle)
+  if (vacation.employeeId !== actor.id) {
+    createInAppNotification({
+      userId: vacation.employeeId,
+      type: 'vacation_cancelled',
+      title: 'Vacaciones canceladas',
+      message: `Tus vacaciones del ${vacation.startDate.toLocaleDateString()} al ${vacation.endDate.toLocaleDateString()} han sido canceladas por ${actor.name}.`,
+      link: '/vacations',
+      metadata: { vacationId: id, cancelledBy: actor.id },
+    }).catch(() => {});
+  }
 
   return updated;
 }
