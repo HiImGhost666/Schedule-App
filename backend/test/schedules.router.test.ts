@@ -39,6 +39,7 @@ jest.mock('../src/modules/schedules/schedules.service', () => ({
   createScheduleEntry: jest.fn(),
   createScheduleEntriesBulk: jest.fn(),
   deleteScheduleEntry: jest.fn(),
+  getScheduleAlerts: jest.fn(),
   getScheduleByIdForActor: jest.fn(),
   listSchedulesForActor: jest.fn(),
   listWeekSchedulesForActor: jest.fn(),
@@ -170,6 +171,112 @@ describe('schedules.router', () => {
 
       expect(response.status).toBe(201);
       expect(mockService.createScheduleEntriesBulk).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('GET /', () => {
+    it('returns 200 for admin', async () => {
+      mockService.listSchedulesForActor.mockResolvedValue([] as any);
+
+      const response = await request(app)
+        .get('/api/schedules')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(200);
+      expect(mockService.listSchedulesForActor).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 200 for employee', async () => {
+      mockService.listSchedulesForActor.mockResolvedValue([] as any);
+
+      const response = await request(app)
+        .get('/api/schedules')
+        .set('x-test-role', 'employee');
+
+      expect(response.status).toBe(200);
+      expect(mockService.listSchedulesForActor).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await request(app)
+        .get('/api/schedules');
+
+      expect(response.status).toBe(401);
+      expect(mockService.listSchedulesForActor).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /week/:year/:week', () => {
+    it('returns 200 for admin', async () => {
+      mockService.listWeekSchedulesForActor.mockResolvedValue({ year: 2026, week: 23, weekStart: new Date(), weekEnd: new Date(), total: 0, items: [] });
+
+      const response = await request(app)
+        .get('/api/schedules/week/2026/23')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(200);
+      expect(mockService.listWeekSchedulesForActor).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 200 for employee', async () => {
+      mockService.listWeekSchedulesForActor.mockResolvedValue({ year: 2026, week: 23, weekStart: new Date(), weekEnd: new Date(), total: 0, items: [] });
+
+      const response = await request(app)
+        .get('/api/schedules/week/2026/23')
+        .set('x-test-role', 'employee');
+
+      expect(response.status).toBe(200);
+      expect(mockService.listWeekSchedulesForActor).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await request(app)
+        .get('/api/schedules/week/2026/23');
+
+      expect(response.status).toBe(401);
+      expect(mockService.listWeekSchedulesForActor).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /:id', () => {
+    it('returns 200 for admin', async () => {
+      mockService.getScheduleByIdForActor.mockResolvedValue({ id: 's-1' } as any);
+
+      const response = await request(app)
+        .get('/api/schedules/s-1')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(200);
+      expect(mockService.getScheduleByIdForActor).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await request(app)
+        .get('/api/schedules/s-1');
+
+      expect(response.status).toBe(401);
+      expect(mockService.getScheduleByIdForActor).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /alerts', () => {
+    it('returns 200 for admin', async () => {
+      mockService.getScheduleAlerts.mockResolvedValue([]);
+
+      const response = await request(app)
+        .get('/api/schedules/alerts')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(200);
+      expect(mockService.getScheduleAlerts).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await request(app)
+        .get('/api/schedules/alerts');
+
+      expect(response.status).toBe(401);
+      expect(mockService.getScheduleAlerts).not.toHaveBeenCalled();
     });
   });
 });

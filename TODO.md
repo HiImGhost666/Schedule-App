@@ -14,15 +14,15 @@
 
 ### Frontend
 - [x] **DashboardPage** — Verificar que oculte widgets según rol (employee solo ve su resumen semanal)
-- [ ] **ProfilePage** — Verificar que employee no pueda cambiar su rol/estado
+- [x] **ProfilePage** — Verificar que employee no pueda cambiar su rol/estado
 
 ---
 
 ## 🟡 PRIORIDAD 2 — Tests
 
-- [ ] Test de integración: schedules con roles (admin, GM, DM, employee)
-- [ ] Test de scope: GM no puede ver schedules de otra branch
-- [ ] Test de vacaciones: DM no puede aprobar vacaciones de otro departamento
+- [x] Test de integración: schedules con roles (admin, GM, DM, employee)
+- [x] Test de scope: GM no puede ver schedules de otra branch
+- [x] Test de vacaciones: DM no puede aprobar vacaciones de otro departamento
 
 ---
 
