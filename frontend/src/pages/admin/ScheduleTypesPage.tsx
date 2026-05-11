@@ -8,7 +8,7 @@ import { DataTable } from '@/components/common/DataTable';
 import type { Column } from '@/components/common/DataTable';
 import type { CreateScheduleTypeInput, FullScheduleType } from '@/components/schedule/scheduleTypesApi';
 
-export function EventTypesPage() {
+export function ScheduleTypesPage() {
   const currentUser = useAuthStore((s) => s.user);
   const { types, isLoading, createMutation, updateMutation, deleteMutation } = useScheduleTypes();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,7 +80,7 @@ export function EventTypesPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-theme-primary">Gestión de Tipos de Evento</h1>
+        <h1 className="text-2xl font-bold text-theme-primary">Gestión de Tipos de Turno</h1>
         {isAdmin && (
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -117,7 +117,7 @@ export function EventTypesPage() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="card rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold text-theme-primary mb-4">{editingType ? 'Editar' : 'Nuevo'} Tipo de Evento</h2>
+            <h2 className="text-xl font-bold text-theme-primary mb-4">{editingType ? 'Editar' : 'Nuevo'} Tipo de Turno</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-theme-muted mb-1">Nombre (Etiqueta)</label>
@@ -151,7 +151,7 @@ export function EventTypesPage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Eliminar tipo de evento"
+        title="Eliminar tipo de turno"
         description={`¿Estás seguro de que deseas eliminar "${deleteTarget?.label}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
         variant="danger"

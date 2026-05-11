@@ -26,8 +26,8 @@ const WebhooksPage = lazy(() => import('@/pages/admin/WebhooksPage').then((m) =>
 const NotificationsPage = lazy(() =>
   import('@/pages/admin/NotificationsPage').then((m) => ({ default: m.NotificationsPage }))
 );
-const EventTypesPage = lazy(() =>
-  import('@/pages/admin/EventTypesPage').then((m) => ({ default: m.EventTypesPage }))
+const ScheduleTypesPage = lazy(() =>
+  import('@/pages/admin/ScheduleTypesPage').then((m) => ({ default: m.ScheduleTypesPage }))
 );
 const AuditLogPage = lazy(() => import('@/pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
 const ThemeManagerPage = lazy(() =>
@@ -162,7 +162,7 @@ function App() {
                 {/* Admin routes */}
                 <Route element={<RoleGuard roles={['admin', 'general_manager', 'department_manager']} />}>
                   <Route path="admin/users" element={<UsersPage />} />
-                  <Route path="admin/event-types" element={<EventTypesPage />} />
+                  <Route path="admin/schedule-types" element={<ScheduleTypesPage />} />
                 </Route>
                 <Route element={<RoleGuard roles={['admin', 'general_manager']} />}>
                   <Route path="admin/holidays" element={<HolidaysPage />} />

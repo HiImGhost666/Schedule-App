@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { EventTypesPage } from '@/pages/admin/EventTypesPage';
+import { ScheduleTypesPage } from '@/pages/admin/ScheduleTypesPage';
 
 const getMock = vi.fn();
 const postMock = vi.fn();
@@ -57,13 +57,13 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
-        <EventTypesPage />
+        <ScheduleTypesPage />
       </QueryClientProvider>
     </MemoryRouter>,
   );
 }
 
-describe('EventTypesPage', () => {
+describe('ScheduleTypesPage', () => {
   beforeEach(() => {
     getMock.mockReset();
     postMock.mockReset();
@@ -71,7 +71,7 @@ describe('EventTypesPage', () => {
     deleteMock.mockReset();
   });
 
-  it('renderiza la lista de tipos de evento', async () => {
+  it('renderiza la lista de tipos de turno', async () => {
     getMock.mockResolvedValueOnce({ data: { success: true, data: mockTypes } });
 
     renderPage();
@@ -95,10 +95,10 @@ describe('EventTypesPage', () => {
     renderPage();
 
     await userEvent.click(await screen.findByText('Nuevo Tipo'));
-    expect(screen.getByText('Nuevo Tipo de Evento')).toBeInTheDocument();
+    expect(screen.getByText('Nuevo Tipo de Turno')).toBeInTheDocument();
   });
 
-  it('crea un nuevo tipo de evento', async () => {
+  it('crea un nuevo tipo de turno', async () => {
     getMock.mockResolvedValueOnce({ data: { success: true, data: mockTypes } });
     postMock.mockResolvedValueOnce({ data: { success: true, data: { id: '4', label: 'Test', value: 'test', color: '#000000' } } });
 
@@ -125,7 +125,7 @@ describe('EventTypesPage', () => {
     const editBtn = editButtons.find((b) => b.innerHTML.includes('edit'));
     if (editBtn) {
       await userEvent.click(editBtn);
-      expect(screen.getByText('Editar Tipo de Evento')).toBeInTheDocument();
+      expect(screen.getByText('Editar Tipo de Turno')).toBeInTheDocument();
     }
   });
 
@@ -142,7 +142,7 @@ describe('EventTypesPage', () => {
     }
   });
 
-  it('elimina un tipo de evento', async () => {
+  it('elimina un tipo de turno', async () => {
     getMock.mockResolvedValueOnce({ data: { success: true, data: mockTypes } });
     deleteMock.mockResolvedValueOnce({ data: { success: true } });
 
