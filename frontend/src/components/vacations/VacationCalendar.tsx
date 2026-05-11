@@ -5,7 +5,7 @@ import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventContentArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
-import { useVacationCalendar } from '@/hooks/useVacations';
+import { useVacationCalendarRange } from '@/hooks/useVacations';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { CalendarDays } from 'lucide-react';
@@ -103,9 +103,9 @@ export function VacationCalendar({
 
   const effectiveBranchId = isAdmin ? selectedBranchId : (userBranchId || '');
 
-  const { data: calendarData, isLoading } = useVacationCalendar(
-    isoWeekYear,
-    isoWeek,
+  const { data: calendarData, isLoading } = useVacationCalendarRange(
+    dateRange.from,
+    dateRange.to,
     {
       branchId: effectiveBranchId || undefined,
       departmentId: selectedDepartmentId || undefined,

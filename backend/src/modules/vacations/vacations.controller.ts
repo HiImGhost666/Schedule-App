@@ -181,6 +181,8 @@ export async function getVacationCalendarController(req: AuthRequest, res: Respo
       parsed.data.departmentId,
       parsed.data.employeeId,
       buildActor(req),
+      parsed.data.from,
+      parsed.data.to,
     );
     return sendSuccess(res, calendar);
   } catch (error) {

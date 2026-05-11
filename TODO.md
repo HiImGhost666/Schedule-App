@@ -57,13 +57,13 @@
   1. Revisar el manejador de cambio de fecha fin
   2. Verificar que no haya transformación de zona horaria
 
-#### 8. Pills de vacaciones aprobadas no se muestran en calendario
-- **Causa probable**: El endpoint `GET /vacations/calendar` puede no estar devolviendo las solicitudes aprobadas, o el `VacationCalendar` no las procesa correctamente.
-- **Archivos**: `VacationCalendar.tsx`, `vacations.service.ts` (`getVacationCalendar`)
-- **Cómo arreglar**:
-  1. Verificar que `getVacationCalendar` incluye solicitudes con status `approved`
-  2. Verificar que el frontend parsea correctamente los eventos
-  3. Añadir logs para depurar
+#### 8. Pills de vacaciones aprobadas no se muestran en calendario ✅
+- **Causa**: El `VacationCalendar` usaba `useVacationCalendar` que solo cargaba UNA semana (la de `dateRange.from`), pero el calendario muestra un mes entero. Al cambiar de mes, solo se cargaba la primera semana del nuevo rango.
+- **Solución**: 
+  1. Se añadió `from`/`to` opcionales al schema `vacationCalendarQuerySchema` y al service `getVacationCalendar`
+  2. Se creó `useVacationCalendarRange` hook que usa `from`/`to` en lugar de `year`/`week`
+  3. Se actualizó `VacationCalendar.tsx` para usar `useVacationCalendarRange` con el rango completo del mes visible (`dateRange.from` a `dateRange.to`)
+  4. Se actualizaron tests del schema
 
 ---
 

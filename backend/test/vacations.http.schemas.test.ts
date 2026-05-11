@@ -120,9 +120,22 @@ describe('vacations.http.schemas', () => {
       expect(result.success).toBe(true);
     });
 
-    it('rejects missing week', () => {
+    it('accepts only year (week is now optional)', () => {
       const result = vacationCalendarQuerySchema.safeParse({ year: '2026' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts from/to range', () => {
+      const result = vacationCalendarQuerySchema.safeParse({
+        from: '2026-06-01T00:00:00.000Z',
+        to: '2026-06-30T23:59:59.999Z',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects empty object (no params at all)', () => {
+      const result = vacationCalendarQuerySchema.safeParse({});
+      expect(result.success).toBe(true); // todos son opcionales
     });
   });
 });

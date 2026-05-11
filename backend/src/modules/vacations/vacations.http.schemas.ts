@@ -52,8 +52,10 @@ export const listVacationsQuerySchema = z.object({
 });
 
 export const vacationCalendarQuerySchema = z.object({
-  year: z.coerce.number().int().min(2000).max(2100),
-  week: z.coerce.number().int().min(1).max(53),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+  week: z.coerce.number().int().min(1).max(53).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
   branchId: z.string().optional(),
   departmentId: z.string().optional(),
   employeeId: z.string().optional(),

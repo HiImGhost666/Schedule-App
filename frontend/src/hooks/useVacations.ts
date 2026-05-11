@@ -85,6 +85,34 @@ export function useVacationCalendar(
   });
 }
 
+/**
+ * Obtiene vacaciones aprobadas en un rango de fechas (from/to).
+ * Usa el endpoint /vacations/calendar con from/to para cargar todo el rango visible.
+ */
+export function useVacationCalendarRange(
+  from: Date,
+  to: Date,
+  filters: VacationCalendarFilters,
+  enabled = true,
+) {
+  return useQuery<VacationCalendarResponse>({
+    queryKey: ['vacations', 'calendar-range', from.toISOString(), to.toISOString(), filters],
+    queryFn: async () => {
+      const params: Record<string, unknown> = {
+        from: from.toISOString(),
+        to: to.toISOString(),
+      };
+      if (filters.branchId) params.branchId = filters.branchId;
+      if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.employeeId) params.employeeId = filters.employeeId;
+
+      const res = await api.get<{ data: VacationCalendarResponse }>('/vacations/calendar', { params });
+      return res.data.data;
+    },
+    enabled,
+  });
+}
+
 export function useVacationById(id: string | undefined) {
   return useQuery<VacationRequest>({
     queryKey: vacationKeys.detail(id!),

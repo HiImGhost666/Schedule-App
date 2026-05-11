@@ -457,26 +457,40 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
  * - employeeId: filtrar por usuario específico
  */
 export async function getVacationCalendar(
-  year: number,
-  week: number,
+  year: number | undefined,
+  week: number | undefined,
   branchId: string | undefined,
   departmentId: string | undefined,
   employeeId: string | undefined,
   actor?: Actor,
+  from?: string,
+  to?: string,
 ) {
-  const jan4 = new Date(year, 0, 4);
-  const weekStart = new Date(jan4);
-  weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
+  let rangeStart: Date;
+  let rangeEnd: Date;
+
+  if (from && to) {
+    rangeStart = new Date(from);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(to);
+    rangeEnd.setHours(23, 59, 59, 999);
+  } else {
+    const safeYear = year ?? new Date().getFullYear();
+    const safeWeek = week ?? 1;
+    const jan4 = new Date(safeYear, 0, 4);
+    rangeStart = new Date(jan4);
+    rangeStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (safeWeek - 1) * 7);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeStart.getDate() + 6);
+    rangeEnd.setHours(23, 59, 59, 999);
+  }
 
   const where: Record<string, unknown> = {
     status: 'approved',
     AND: [
-      { startDate: { lte: weekEnd } },
-      { endDate: { gte: weekStart } },
+      { startDate: { lte: rangeEnd } },
+      { endDate: { gte: rangeStart } },
     ],
   };
 
@@ -552,10 +566,10 @@ export async function getVacationCalendar(
   }));
 
   return {
-    year,
-    week,
-    weekStart,
-    weekEnd,
+    year: year ?? null,
+    week: week ?? null,
+    weekStart: rangeStart,
+    weekEnd: rangeEnd,
     total: items.length,
     items,
   };
