@@ -4,7 +4,7 @@ import { executeInTransaction, type TransactionClient } from '../../common/trans
 import { createAppError } from '../../common/errors/error-catalog';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyScheduleChange } from '../notifications/notifications.service';
-import { createInAppNotification, createInAppNotificationBatch } from '../in-app-notifications/in-app.service';
+import { createInAppNotificationBatch } from '../in-app-notifications/in-app.service';
 import { REALTIME_EVENTS } from '../../realtime/events';
 import { publishRealtimeEvent } from '../../realtime/socket';
 import {
@@ -243,18 +243,16 @@ export function listSchedulesForActor(
     return findSchedules(where);
   }
 
-  // Employee: solo ve schedules de su sucursal donde está asignado
+  // Employee: solo ve schedules de su sucursal (trabajo grupal)
   if (actor.roleName === 'employee') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
     where.branchId = actor.branchId;
-    // Employee solo puede ver sus propios turnos — el controller debe pasar userId = req.user.id
+    // Employee ve todos los turnos de su branch para trabajo grupal
+    // Si pasa userId explícitamente, filtra por ese usuario
     if (params.userId) {
       where.assignments = { some: { userId: params.userId } };
-    } else {
-      // Si no se pasa userId, el employee no puede ver nada (no tiene permiso para ver turnos ajenos)
-      where.assignments = { some: { userId: '__none__' } };
     }
     return findSchedules(where);
   }
@@ -349,14 +347,14 @@ export async function listWeekSchedulesForActor(
     return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
   }
 
-  // Employee: solo ve su sucursal y sus propios turnos
+  // Employee: solo ve su sucursal (trabajo grupal)
   if (actor.roleName === 'employee') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    // Forzar userId = actor.id para que employee solo vea sus propios turnos
-    // Ignorar cualquier userId externo para evitar fuga de datos
-    return listWeekSchedules(year, week, actor.branchId, departmentId, actor.id);
+    // Employee ve todos los turnos de su branch para trabajo grupal
+    // Si pasa userId explícitamente, filtra por ese usuario
+    return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
   }
 
   throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
@@ -506,7 +504,6 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   }).catch(() => {});
 
   // Notificación in-app a los asignados
-  const assigneeNames = result.schedule.assignments.map(a => a.user.name).join(', ');
   createInAppNotificationBatch(
     parsed.data.assigneeIds.map(userId => ({
       userId,
