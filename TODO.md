@@ -85,3 +85,10 @@
 - [ ] Indicador de carga en todas las páginas (skeleton loaders)
 - [ ] Manejo de error 403 con mensaje descriptivo
 - [ ] Confirmación antes de crear schedule en día festivo (verificar frontend)
+
+---
+
+## 🔮 Futuro — Filtros y Features Pendientes
+
+- [ ] **Filtro "Mis turnos" en SchedulePage**: Añadir toggle/checkbox para que employee pueda filtrar el calendario y ver solo sus propios turnos (pasa `userId` a `/schedules/week/...` y `/schedules`)
+- [ ] **Filtro por usuario en SchedulePage**: Permitir a admin/GM/DM filtrar el calendario por un usuario específico
