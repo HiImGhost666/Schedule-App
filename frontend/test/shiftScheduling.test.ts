@@ -107,9 +107,9 @@ describe('shiftScheduling helpers', () => {
       const chunks = buildScheduleChunks(dates, overrides, 'morning');
 
       expect(chunks).toHaveLength(2);
-      expect(chunks[0].startDate.toISOString().slice(0, 10)).toBe('2026-05-05');
-      expect(chunks[0].endDate.toISOString().slice(0, 10)).toBe('2026-05-06');
-      expect(chunks[1].startDate.toISOString().slice(0, 10)).toBe('2026-05-08');
+      expect(toIsoDate(chunks[0].startDate)).toBe('2026-05-05');
+      expect(toIsoDate(chunks[0].endDate)).toBe('2026-05-06');
+      expect(toIsoDate(chunks[1].startDate)).toBe('2026-05-08');
     });
 
     it('handles a single date', () => {
@@ -117,8 +117,8 @@ describe('shiftScheduling helpers', () => {
       const chunks = buildScheduleChunks(dates, {}, 'morning');
 
       expect(chunks).toHaveLength(1);
-      expect(chunks[0].startDate.toISOString().slice(0, 10)).toBe('2026-05-05');
-      expect(chunks[0].endDate.toISOString().slice(0, 10)).toBe('2026-05-05');
+      expect(toIsoDate(chunks[0].startDate)).toBe('2026-05-05');
+      expect(toIsoDate(chunks[0].endDate)).toBe('2026-05-05');
       expect(chunks[0].presetId).toBe('morning');
     });
 
@@ -132,8 +132,8 @@ describe('shiftScheduling helpers', () => {
       const chunks = buildScheduleChunks(dates, {}, 'morning');
 
       expect(chunks).toHaveLength(2);
-      expect(chunks[0].startDate.toISOString().slice(0, 10)).toBe('2026-05-05');
-      expect(chunks[1].startDate.toISOString().slice(0, 10)).toBe('2026-05-08');
+      expect(toIsoDate(chunks[0].startDate)).toBe('2026-05-05');
+      expect(toIsoDate(chunks[1].startDate)).toBe('2026-05-08');
     });
 
     it('creates separate chunks for consecutive dates with different presets', () => {
@@ -158,9 +158,9 @@ describe('shiftScheduling helpers', () => {
       const chunks = buildScheduleChunks(dates, {}, 'morning');
 
       expect(chunks).toHaveLength(2);
-      expect(chunks[0].startDate.toISOString().slice(0, 10)).toBe('2026-05-05');
-      expect(chunks[0].endDate.toISOString().slice(0, 10)).toBe('2026-05-06');
-      expect(chunks[1].startDate.toISOString().slice(0, 10)).toBe('2026-05-08');
+      expect(toIsoDate(chunks[0].startDate)).toBe('2026-05-05');
+      expect(toIsoDate(chunks[0].endDate)).toBe('2026-05-06');
+      expect(toIsoDate(chunks[1].startDate)).toBe('2026-05-08');
     });
 
     it('handles a long consecutive range', () => {
@@ -172,8 +172,8 @@ describe('shiftScheduling helpers', () => {
       const chunks = buildScheduleChunks(dates, {}, 'morning');
 
       expect(chunks).toHaveLength(1);
-      expect(chunks[0].startDate.toISOString().slice(0, 10)).toBe('2026-05-04');
-      expect(chunks[0].endDate.toISOString().slice(0, 10)).toBe('2026-05-10');
+      expect(toIsoDate(chunks[0].startDate)).toBe('2026-05-04');
+      expect(toIsoDate(chunks[0].endDate)).toBe('2026-05-10');
     });
   });
 
@@ -182,8 +182,10 @@ describe('shiftScheduling helpers', () => {
       const chunk = { startDate: day('2026-05-05'), endDate: day('2026-05-06'), presetId: 'morning' };
       const range = buildChunkRange(chunk, preset);
 
-      expect(range.start.toISOString()).toContain('T08:00');
-      expect(range.end.toISOString()).toContain('T16:00');
+      expect(range.start.getUTCHours()).toBe(8);
+      expect(range.start.getUTCMinutes()).toBe(0);
+      expect(range.end.getUTCHours()).toBe(16);
+      expect(range.end.getUTCMinutes()).toBe(0);
       expect(range.hoursPerDay).toBe(8);
     });
 
@@ -191,9 +193,11 @@ describe('shiftScheduling helpers', () => {
       const chunk = { startDate: day('2026-05-05'), endDate: day('2026-05-06'), presetId: 'night' };
       const range = buildChunkRange(chunk, nightPreset);
 
-      expect(range.start.toISOString()).toContain('T22:00');
+      expect(range.start.getUTCHours()).toBe(22);
+      expect(range.start.getUTCMinutes()).toBe(0);
       // Overnight: end time (06:00) is before start time (22:00), so +1 day
-      expect(range.end.toISOString()).toContain('T06:00');
+      expect(range.end.getUTCHours()).toBe(6);
+      expect(range.end.getUTCMinutes()).toBe(0);
       expect(range.hoursPerDay).toBe(8);
     });
 
@@ -201,8 +205,10 @@ describe('shiftScheduling helpers', () => {
       const chunk = { startDate: day('2026-05-05'), endDate: day('2026-05-05'), presetId: 'morning' };
       const range = buildChunkRange(chunk, preset);
 
-      expect(range.start.toISOString()).toContain('T08:00');
-      expect(range.end.toISOString()).toContain('T16:00');
+      expect(range.start.getUTCHours()).toBe(8);
+      expect(range.start.getUTCMinutes()).toBe(0);
+      expect(range.end.getUTCHours()).toBe(16);
+      expect(range.end.getUTCMinutes()).toBe(0);
     });
   });
 });

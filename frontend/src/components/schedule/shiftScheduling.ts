@@ -11,10 +11,16 @@ export type ShiftChunk = {
   presetId: string;
 };
 
+/**
+ * Normaliza una fecha recibida del DayPicker (hora local) a UTC midnight.
+ * El DayPicker devuelve fechas en hora local (ej: 2026-05-20 00:00:00 GMT+1).
+ * Para evitar off-by-one al serializar a ISO, convertimos a UTC midnight
+ * del mismo día calendario.
+ */
 export function normalizeDate(value: Date): Date {
   const date = new Date(value);
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
+  // Extraer componentes locales y construir fecha UTC
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0));
 }
 
 export function toIsoDate(value: Date): string {
@@ -50,7 +56,7 @@ export function buildDateRange(start: Date, end: Date): Date[] {
 
   while (cursor.getTime() <= endDay.getTime()) {
     dates.push(new Date(cursor));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    cursor.setDate(cursor.getDate() + 1);
   }
 
   return dates;
@@ -58,7 +64,7 @@ export function buildDateRange(start: Date, end: Date): Date[] {
 
 function isNextDay(prev: Date, next: Date): boolean {
   const nextExpected = normalizeDate(prev);
-  nextExpected.setUTCDate(nextExpected.getUTCDate() + 1);
+  nextExpected.setDate(nextExpected.getDate() + 1);
   return nextExpected.getTime() === normalizeDate(next).getTime();
 }
 
