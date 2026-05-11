@@ -84,7 +84,7 @@ describe('Seguridad: Employee no puede ver schedules de otros empleados', () => 
     expect(callArgs.AND).toBeDefined();
     const branchFilter = callArgs.AND.find((f: any) => f.branchId);
     expect(branchFilter?.branchId).toBe('branch-1');
-    const userFilter = callArgs.AND?.find((f: any) => f.assignments);
+    const userFilter = callArgs.AND.find((f: any) => f.assignments);
     // Respeta el userId pasado (emp-2), no lo fuerza a actor.id
     expect(userFilter?.assignments?.some?.userId).toBe('emp-2');
   });
