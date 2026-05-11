@@ -23,7 +23,7 @@ import {
 import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ScheduleSkeleton } from '@/components/common/Skeleton';
 import api from '@/config/api';
 import type {
   Branch,
@@ -171,6 +171,9 @@ export function SchedulePage() {
   const [detailAnchor, setDetailAnchor] = useState<PopoverAnchor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CalendarDetailItem | null>(null);
   const [holidayEditTarget, setHolidayEditTarget] = useState<CalendarBranchHoliday | null>(null);
+  const [pendingDateSelect, setPendingDateSelect] = useState<DateSelectArg | null>(null);
+  const [holidayWarningOpen, setHolidayWarningOpen] = useState(false);
+  const [holidayWarningNames, setHolidayWarningNames] = useState<string[]>([]);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ScheduleAssignment['user'] | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
@@ -564,6 +567,21 @@ export function SchedulePage() {
   const handleDateSelect = useCallback(
     (info: DateSelectArg) => {
       if (!canEdit) return;
+
+      // Verificar si la fecha seleccionada coincide con algún festivo
+      const selectedDateStr = format(info.start, 'yyyy-MM-dd');
+      const holidaysOnDate = (branchHolidays?.data ?? []).filter((h) => {
+        const holidayDateStr = toLocalDateOnly(h.date);
+        return holidayDateStr === selectedDateStr;
+      });
+
+      if (holidaysOnDate.length > 0) {
+        setPendingDateSelect(info);
+        setHolidayWarningNames(holidaysOnDate.map((h) => h.name));
+        setHolidayWarningOpen(true);
+        return;
+      }
+
       setDetailItem(null);
       setDetailAnchor(null);
       setSelectedSchedule(null);
@@ -572,8 +590,26 @@ export function SchedulePage() {
       setModalOpen(true);
       if (scheduleId) navigate('/schedule', { replace: true });
     },
-    [canEdit, navigate, scheduleId],
+    [canEdit, navigate, scheduleId, branchHolidays],
   );
+
+  const handleConfirmHolidaySchedule = useCallback(() => {
+    setHolidayWarningOpen(false);
+    if (!pendingDateSelect) return;
+    setDetailItem(null);
+    setDetailAnchor(null);
+    setSelectedSchedule(null);
+    setDefaultStart(pendingDateSelect.start);
+    setDefaultEnd(pendingDateSelect.end);
+    setModalOpen(true);
+    setPendingDateSelect(null);
+    if (scheduleId) navigate('/schedule', { replace: true });
+  }, [pendingDateSelect, navigate, scheduleId]);
+
+  const handleCancelHolidaySchedule = useCallback(() => {
+    setHolidayWarningOpen(false);
+    setPendingDateSelect(null);
+  }, []);
 
   const closeDetailPopover = useCallback(() => {
     if (scheduleId) {
@@ -720,13 +756,13 @@ export function SchedulePage() {
 
       {/* Calendar card */}
       <div className="card relative overflow-hidden">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 rounded-xl">
-            <LoadingSpinner size="lg" />
+        {isLoading && !schedules && (
+          <div className="p-6">
+            <ScheduleSkeleton />
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className={isLoading && !schedules ? 'hidden' : 'grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]'}>
           <div className="flex flex-col border-r border-theme-color bg-theme-surface/5">
             <ScheduleSidebar
               branches={availableBranches}
@@ -741,6 +777,7 @@ export function SchedulePage() {
               onToggleType={toggleType}
               typeCounts={typeCounts}
               holidayTypeCounts={holidayTypeCounts}
+              scheduleTypes={scheduleTypes}
             />
           </div>
 
@@ -864,6 +901,16 @@ export function SchedulePage() {
         loading={deleteScheduleMutation.isPending || deleteHolidayMutation.isPending}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={holidayWarningOpen}
+        title="Día festivo"
+        description={`La fecha seleccionada coincide con ${holidayWarningNames.length > 1 ? 'los siguientes festivos' : 'un festivo'}: ${holidayWarningNames.join(', ')}. ¿Quieres crear el turno de todas formas?`}
+        confirmLabel="Crear de todas formas"
+        variant="warning"
+        onConfirm={handleConfirmHolidaySchedule}
+        onCancel={handleCancelHolidaySchedule}
       />
 
       <UserProfileModal

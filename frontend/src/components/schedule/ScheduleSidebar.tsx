@@ -1,4 +1,4 @@
-import type { Branch, BranchHoliday, Department } from '@/types';
+import type { Branch, BranchHoliday, Department, ScheduleType } from '@/types';
 import { BranchSelector } from './BranchSelector';
 import { HolidayLegend } from './HolidayLegend';
 import { TypeLegend } from './TypeLegend';
@@ -16,11 +16,13 @@ interface ScheduleSidebarProps {
   onToggleType: (type: string) => void;
   typeCounts: Record<string, number>;
   holidayTypeCounts: Partial<Record<BranchHoliday['type'], number>>;
+  scheduleTypes: ScheduleType[];
 }
 
 export function ScheduleSidebar({
   branches, activeBranchId, effectiveActiveBranchId, canViewAllBranches, onBranchChange,
   departments, selectedDeptId, onDepartmentChange, hiddenTypes, onToggleType, typeCounts, holidayTypeCounts,
+  scheduleTypes,
 }: ScheduleSidebarProps) {
   return (
     <aside className="border-b border-theme-color lg:border-b-0 lg:border-r">
@@ -35,7 +37,7 @@ export function ScheduleSidebar({
         onDepartmentChange={onDepartmentChange}
       />
 
-      <TypeLegend hidden={hiddenTypes} onToggle={onToggleType} counts={typeCounts} />
+      <TypeLegend scheduleTypes={scheduleTypes} hidden={hiddenTypes} onToggle={onToggleType} counts={typeCounts} />
 
       <HolidayLegend holidayTypeCounts={holidayTypeCounts} />
     </aside>
