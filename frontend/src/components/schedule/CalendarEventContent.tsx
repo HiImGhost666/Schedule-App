@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { useUIStore } from '@/store/uiStore';
 import { isDarkThemePreset } from '@/config/theme';
 import { useScheduleTypes } from '@/hooks/useScheduleTypes';
+import { formatTimeInTimezone } from '@/lib/timezone';
 import type { BranchHoliday, Schedule } from '@/types';
 import type { FullScheduleType } from './scheduleTypesApi';
 
@@ -16,14 +17,25 @@ function useGetTypeInfo() {
   return (type: string) => scheduleTypes.find((t: FullScheduleType) => t.value === type) ?? scheduleTypes[0];
 }
 
+/**
+ * Obtiene el timezone del schedule desde extendedProps.
+ * Si no está disponible, devuelve undefined (se usará la hora local del navegador).
+ */
+function getScheduleTimezone(event: { extendedProps: Record<string, unknown> }): string | undefined {
+  return event.extendedProps.branchTimezone as string | undefined;
+}
+
 /* ─── month-view event pill ─────────────────────────────────────── */
 export function MonthEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
-  // const getTypeInfo = useGetTypeInfo(); // Removed unused variable
-  // const _typeInfo = getTypeInfo(event.extendedProps.type as string); // Removed unused variable
+  const tz = getScheduleTimezone(event);
+  const timeText = event.start && tz
+    ? formatTimeInTimezone(event.start, tz)
+    : event.start ? format(event.start, 'HH:mm') : '';
+
   return (
     <div className="google-month-event">
-      {event.start && <span className="google-month-event-time">{format(event.start, 'HH:mm')}</span>}
+      {timeText && <span className="google-month-event-time">{timeText}</span>}
       <span className="google-month-event-title">{event.title}</span>
       {event.extendedProps.isLastMinute && <span className="google-month-event-flag">!</span>}
     </div>
@@ -34,9 +46,14 @@ export function MonthEventContent({ info }: { info: EventContentArg }) {
 export function TimeGridEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule | undefined;
-  const timeText = schedule?.startDatetime && schedule?.endDatetime
-    ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
-    : info.timeText;
+  const tz = getScheduleTimezone(event);
+
+  const timeText = schedule?.startDatetime && schedule?.endDatetime && tz
+    ? `${formatTimeInTimezone(schedule.startDatetime, tz)} - ${formatTimeInTimezone(schedule.endDatetime, tz)}`
+    : schedule?.startDatetime && schedule?.endDatetime
+      ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
+      : info.timeText;
+
   const assigneeText = schedule?.assignments?.map((a) => a.user.name.split(' ')[0]).slice(0, 2).join(', ') ?? '';
 
   return (
@@ -54,9 +71,14 @@ export function TimeGridEventContent({ info }: { info: EventContentArg }) {
 export function ListEventContent({ info }: { info: EventContentArg }) {
   const { event } = info;
   const schedule = event.extendedProps.schedule as Schedule;
-  const timeText = schedule?.startDatetime && schedule?.endDatetime
-    ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
-    : info.timeText;
+  const tz = getScheduleTimezone(event);
+
+  const timeText = schedule?.startDatetime && schedule?.endDatetime && tz
+    ? `${formatTimeInTimezone(schedule.startDatetime, tz)} - ${formatTimeInTimezone(schedule.endDatetime, tz)}`
+    : schedule?.startDatetime && schedule?.endDatetime
+      ? `${format(new Date(schedule.startDatetime), 'HH:mm')} - ${format(new Date(schedule.endDatetime), 'HH:mm')}`
+      : info.timeText;
+
   const getTypeInfo = useGetTypeInfo();
   const typeInfo = getTypeInfo(schedule?.type ?? '');
 

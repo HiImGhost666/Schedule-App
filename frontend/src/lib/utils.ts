@@ -2,21 +2,61 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatInTimezone, formatTimeInTimezone, formatDateInTimezone } from './timezone';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Formatea una fecha en la zona horaria del navegador del usuario.
+ * Para mostrar en la zona horaria de una sucursal, usa formatDateTimeInTz.
+ */
 export function formatDate(date: string | Date) {
   return format(new Date(date), 'dd/MM/yyyy', { locale: es });
 }
 
+/**
+ * Formatea fecha y hora en la zona horaria del navegador del usuario.
+ * Para mostrar en la zona horaria de una sucursal, usa formatDateTimeInTz.
+ */
 export function formatDateTime(date: string | Date) {
   return format(new Date(date), "dd/MM/yyyy 'a las' HH:mm", { locale: es });
 }
 
+/**
+ * Formatea solo hora en la zona horaria del navegador del usuario.
+ * Para mostrar en la zona horaria de una sucursal, usa formatTimeInTz.
+ */
 export function formatTime(date: string | Date) {
   return format(new Date(date), 'HH:mm', { locale: es });
+}
+
+/**
+ * Formatea fecha y hora en la zona horaria de la sucursal.
+ */
+export function formatDateTimeInTz(date: string | Date, timezone: string) {
+  return formatInTimezone(date, timezone, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Formatea solo hora en la zona horaria de la sucursal.
+ */
+export function formatTimeInTz(date: string | Date, timezone: string) {
+  return formatTimeInTimezone(date, timezone);
+}
+
+/**
+ * Formatea solo fecha en la zona horaria de la sucursal.
+ */
+export function formatDateInTz(date: string | Date, timezone: string) {
+  return formatDateInTimezone(date, timezone);
 }
 
 export function formatRelative(date: string | Date) {

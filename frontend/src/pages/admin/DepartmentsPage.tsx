@@ -117,10 +117,14 @@ export function DepartmentsPage() {
   });
 
   const updateDepartmentMutation = useMutation({
-    mutationFn: (departmentId: string) => api.patch(`/departments/${departmentId}`, {
-      ...departmentForm,
-      code: departmentForm.code.toUpperCase(),
-    }),
+    mutationFn: (departmentId: string) => {
+      const body: Record<string, unknown> = {};
+      if (departmentForm.name.trim()) body.name = departmentForm.name.trim();
+      if (departmentForm.code.trim()) body.code = departmentForm.code.trim().toUpperCase();
+      if (departmentForm.description) body.description = departmentForm.description;
+      if (departmentForm.branchIds.length > 0) body.branchIds = departmentForm.branchIds;
+      return api.patch(`/departments/${departmentId}`, body);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['departments', effectiveSelectedBranchId] });
       toast.success('Departamento actualizado');

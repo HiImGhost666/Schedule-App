@@ -223,6 +223,10 @@ export function SchedulePage() {
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
     [availableBranches],
   );
+  const branchTimezoneById = useMemo(
+    () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.timezone])),
+    [availableBranches],
+  );
   const { data: schedules, isLoading } = useQuery({
     queryKey: [
       'schedules',
@@ -425,6 +429,7 @@ export function SchedulePage() {
       })
       .map((s) => {
         const { color } = getTypeInfo(s.type, scheduleTypes);
+        const branchTimezone = s.branchId ? branchTimezoneById[s.branchId] : undefined;
         return {
           id: s.id,
           title: s.title,
@@ -433,10 +438,10 @@ export function SchedulePage() {
           backgroundColor: color,
           borderColor: color,
           textColor: '#ffffff',
-          extendedProps: { schedule: s, isLastMinute: s.isLastMinute },
+          extendedProps: { schedule: s, isLastMinute: s.isLastMinute, branchTimezone },
         };
       });
-  }, [schedules, hiddenTypes, selectedDeptId, scheduleTypes, normalizeWeekDayEnd]);
+  }, [schedules, hiddenTypes, selectedDeptId, scheduleTypes, normalizeWeekDayEnd, branchTimezoneById]);
 
   const holidayBackgroundEvents = useMemo(() => {
     return (branchHolidays?.data ?? []).map((holiday) => ({
