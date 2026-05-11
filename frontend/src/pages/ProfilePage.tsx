@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import api from '@/config/api';
 import { ROLE_LABELS } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ProfileSkeleton } from '@/components/common/Skeleton';
 import { getInitials, getAvatarColor, formatDate } from '@/lib/utils';
 
 import toast from 'react-hot-toast';
@@ -75,7 +76,7 @@ export function ProfilePage() {
     toast.success('Sesión cerrada');
   };
 
-  if (!user) return null;
+  if (!user) return <ProfileSkeleton />;
 
   const bgColor = getAvatarColor(user.name);
 

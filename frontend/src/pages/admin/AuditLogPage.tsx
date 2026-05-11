@@ -11,6 +11,7 @@ import type { AuditSortBy, SortOrder } from '@/types';
 import { AuditTabs, type TabType } from '@/components/audit/AuditTabs';
 import { AuditDetailPanel } from '@/components/audit/AuditDetailPanel';
 import { AuditExportModal } from '@/components/audit/AuditExportModal';
+import { ListPageSkeleton } from '@/components/common/Skeleton';
 import { getApiErrorMessage } from '@/lib/apiError';
 import type { LucideIcon } from 'lucide-react';
 
@@ -158,6 +159,12 @@ export function AuditLogPage() {
     { key: 'reversible', label: 'Acciones de Datos', icon: RefreshCw, count: dataRev?.pagination?.total, description: 'Modificaciones sobre usuarios, turnos y configuraciones que pueden revertirse.' },
     { key: 'irreversible', label: 'Eventos de Seguridad', icon: Lock, count: dataIrr?.pagination?.total, description: 'Inicios de sesión, cierres de sesión y cambios de contraseña. No revertibles.' },
   ];
+
+  const isInitialLoading = loadingRev && !dataRev && loadingIrr && !dataIrr;
+
+  if (isInitialLoading) {
+    return <ListPageSkeleton />;
+  }
 
   return (
     <div className="space-y-5 animate-fade-in">

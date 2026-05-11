@@ -4,6 +4,8 @@ import { Plus, Edit2, Trash2, Palette } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { TableSkeleton } from '@/components/common/Skeleton';
+import { DataTable } from '@/components/common/DataTable';
+import type { Column } from '@/components/common/DataTable';
 import type { CreateScheduleTypeInput, FullScheduleType } from '@/components/schedule/scheduleTypesApi';
 
 export function EventTypesPage() {
@@ -44,6 +46,29 @@ export function EventTypesPage() {
     }
   };
 
+  const columns: Column<FullScheduleType>[] = [
+    {
+      key: 'label',
+      label: 'Etiqueta',
+      render: (type) => <span className="font-medium text-theme-primary">{type.label}</span>,
+    },
+    {
+      key: 'color',
+      label: 'Color',
+      render: (type) => (
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full border border-theme-color" style={{ backgroundColor: type.color }} />
+          <span className="text-sm font-mono text-theme-secondary">{type.color}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'value',
+      label: 'Identificador',
+      render: (type) => <span className="text-theme-muted">{type.value}</span>,
+    },
+  ];
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
@@ -66,42 +91,28 @@ export function EventTypesPage() {
         )}
       </div>
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-theme-surface-muted border-b border-theme-color">
-            <tr>
-              <th className="px-6 py-4 font-semibold text-theme-muted">Etiqueta</th>
-              <th className="px-6 py-4 font-semibold text-theme-muted">Color</th>
-              <th className="px-6 py-4 font-semibold text-theme-muted">Identificador</th>
-              {isAdmin && <th className="px-6 py-4 text-right">Acciones</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-theme-color">
-            {Array.isArray(types) && types.map((type: FullScheduleType) => (
-              <tr key={type.id} className="hover:bg-theme-surface-muted/50 transition">
-                <td className="px-6 py-4 font-medium text-theme-primary">{type.label}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full border border-theme-color" style={{ backgroundColor: type.color }} />
-                    <span className="text-sm font-mono text-theme-secondary">{type.color}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-theme-muted">{type.value}</td>
-                {isAdmin && (
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => { setEditingType(type); setIsModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                      <Edit2 size={16} />
-                    </button>
-                    <button onClick={() => setDeleteTarget(type)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={Array.isArray(types) ? types : []}
+        columns={columns}
+        rowKey={(type) => type.id}
+        isLoading={false}
+        renderActions={isAdmin ? (type) => (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => { setEditingType(type); setIsModalOpen(true); }}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+            >
+              <Edit2 size={16} />
+            </button>
+            <button
+              onClick={() => setDeleteTarget(type)}
+              className="p-2 text-red-600 hover:bg-red-50 rounded"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ) : undefined}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
