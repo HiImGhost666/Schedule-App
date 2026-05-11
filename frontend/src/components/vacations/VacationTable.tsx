@@ -1,108 +1,64 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useVacationsList, useApproveVacation, useRejectVacation, useCancelVacation } from '@/hooks/useVacations';
+import { useState } from 'react';
 import { VacationStatusBadge } from './VacationStatusBadge';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import api from '@/config/api';
-import toast from 'react-hot-toast';
-import { getApiErrorMessage } from '@/lib/apiError';
-import { Search, ChevronLeft, ChevronRight, Check, X, Trash2, ArrowUpDown } from 'lucide-react';
-import type { Branch, Department, VacationStatus, VacationRequest } from '@/types';
-
-interface Props {
-  isAdmin: boolean;
-  isManager: boolean;
-  userBranchId?: string | null;
-  userDepartmentId?: string | null;
-  userId: string;
-  roleName: string;
-}
+import { SortableHeader } from '@/components/common/SortableHeader';
+import { Search, ChevronLeft, ChevronRight, Check, X, Trash2 } from 'lucide-react';
+import type { VacationStatus, VacationRequest, Branch, Department } from '@/types';
 
 type SortField = 'employee' | 'startDate' | 'status' | 'department' | 'branch';
 
-export function VacationTable({ isAdmin, isManager, userBranchId, userDepartmentId, userId, roleName }: Props) {
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [statusFilter, setStatusFilter] = useState<VacationStatus | ''>('');
-  const [branchFilter, setBranchFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortField>('startDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+interface VacationTableProps {
+  vacations: VacationRequest[];
+  isLoading: boolean;
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+  sortBy: SortField;
+  sortOrder: 'asc' | 'desc';
+  statusFilter: VacationStatus | '';
+  branchFilter: string;
+  departmentFilter: string;
+  searchQuery: string;
+  branches: Branch[];
+  departments: Department[];
+  isAdmin: boolean;
+  isManager: boolean;
+  roleName: string;
+  userBranchId?: string | null;
+  userDepartmentId?: string | null;
+  userId: string;
+  approvePending: boolean;
+  rejectPending: boolean;
+  cancelPending: boolean;
+  onPageChange: (page: number) => void;
+  onSortChange: (field: SortField) => void;
+  onStatusFilterChange: (status: VacationStatus | '') => void;
+  onBranchFilterChange: (branchId: string) => void;
+  onDepartmentFilterChange: (departmentId: string) => void;
+  onSearchChange: (query: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string, reason: string) => void;
+  onCancel: (id: string) => void;
+}
+
+export function VacationTable({
+  vacations, isLoading, total, totalPages, page, pageSize,
+  sortBy, sortOrder, statusFilter, branchFilter, departmentFilter, searchQuery,
+  branches, departments, isAdmin, isManager, roleName, userBranchId, userDepartmentId, userId,
+  approvePending, rejectPending, cancelPending,
+  onPageChange, onSortChange, onStatusFilterChange, onBranchFilterChange, onDepartmentFilterChange, onSearchChange,
+  onApprove, onReject, onCancel,
+}: VacationTableProps) {
   const [rejectModal, setRejectModal] = useState<{ id: string; employeeName: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<{ id: string; employeeName: string } | null>(null);
 
-  const approveMutation = useApproveVacation();
-  const rejectMutation = useRejectVacation();
-  const cancelMutation = useCancelVacation();
-
-  const { data: branches } = useQuery<{ data: Branch[] }>({
-    queryKey: ['branches', 'vacation-table'],
-    queryFn: () => api.get('/branches').then((r) => r.data),
-    enabled: isAdmin,
-  });
-
-  const { data: departments } = useQuery<{ data: Department[] }>({
-    queryKey: ['departments', 'vacation-table', branchFilter],
-    queryFn: () =>
-      api.get('/departments', {
-        params: branchFilter ? { branchId: branchFilter } : {},
-      }).then((r) => r.data),
-    enabled: isAdmin || Boolean(branchFilter),
-  });
-
-  const filters = useMemo(() => ({
-    status: statusFilter || undefined,
-    branchId: isAdmin ? (branchFilter || undefined) : undefined,
-    departmentId: isAdmin ? (departmentFilter || undefined) : (roleName === 'general_manager' ? (departmentFilter || undefined) : undefined),
-    page,
-    pageSize,
-    search: searchQuery || undefined,
-  }), [statusFilter, branchFilter, departmentFilter, page, pageSize, searchQuery, isAdmin, roleName]);
-
-  const { data: vacationsData, isLoading } = useVacationsList(filters);
-
-  const vacations = useMemo(() => vacationsData?.items ?? [], [vacationsData?.items]);
-  const total = vacationsData?.total ?? 0;
-  const totalPages = vacationsData?.totalPages ?? 0;
-
-  const handleApprove = async (id: string) => {
-    try {
-      await approveMutation.mutateAsync({ id });
-      toast.success('Vacaciones aprobadas');
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'No se pudieron aprobar las vacaciones'));
-    }
-  };
-
-  const handleReject = async () => {
-    if (!rejectModal || !rejectReason.trim()) {
-      toast.error('El motivo de rechazo es obligatorio');
-      return;
-    }
-    try {
-      await rejectMutation.mutateAsync({ id: rejectModal.id, rejectionReason: rejectReason.trim() });
-      toast.success('Vacaciones rechazadas');
-      setRejectModal(null);
-      setRejectReason('');
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'No se pudieron rechazar las vacaciones'));
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!cancelTarget) return;
-    try {
-      await cancelMutation.mutateAsync(cancelTarget.id);
-      toast.success('Solicitud cancelada');
-      setCancelTarget(null);
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'No se pudo cancelar la solicitud'));
-    }
-  };
+  const sh = (field: SortField, label: string) => (
+    <SortableHeader field={field} currentSortBy={sortBy} sortOrder={sortOrder} label={label} onSortChange={onSortChange} />
+  );
 
   const canApprove = (vacation: VacationRequest) => {
     if (!isManager && !isAdmin) return false;
@@ -119,82 +75,26 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
       if (roleName === 'general_manager' && vacation.branchId === userBranchId) return true;
       if (roleName === 'department_manager' && vacation.departmentId === userDepartmentId) return true;
     }
-    // Employee can cancel own pending/colindante
     if (vacation.employeeId === userId && (vacation.status === 'pending' || vacation.status === 'colindante')) return true;
     return false;
   };
 
-  const handleSortChange = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      return;
+  const hasAnyAction = vacations.some((v) => {
+    if (isAdmin) return true;
+    if (isManager) {
+      const inScope = roleName === 'general_manager' ? v.branchId === userBranchId : v.departmentId === userDepartmentId;
+      if (inScope) return true;
     }
-    setSortBy(field);
-    setSortOrder('asc');
-  };
+    if (v.employeeId === userId && (v.status === 'pending' || v.status === 'colindante')) return true;
+    return false;
+  });
 
-  const renderSortLabel = (field: SortField, label: string) => {
-    const isActive = sortBy === field;
-    const direction = isActive ? (sortOrder === 'asc' ? '^' : 'v') : '';
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={() => handleSortChange(field)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSortChange(field); }}
-        className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-primary select-none"
-      >
-        <span>{label}</span>
-        {isActive ? <span className="text-[10px]">{direction}</span> : <ArrowUpDown className="h-3 w-3" />}
-      </span>
-    );
-  };
-
-  const sortedVacations = useMemo(() => {
-    return [...vacations].sort((a, b) => {
-      let cmp = 0;
-      if (sortBy === 'employee') {
-        cmp = a.employee.name.localeCompare(b.employee.name, 'es', { sensitivity: 'base' });
-      } else if (sortBy === 'startDate') {
-        cmp = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-      } else if (sortBy === 'status') {
-        cmp = a.status.localeCompare(b.status, 'es');
-      } else if (sortBy === 'department') {
-        cmp = (a.department?.name ?? '').localeCompare(b.department?.name ?? '', 'es');
-      } else if (sortBy === 'branch') {
-        cmp = (a.branch?.name ?? '').localeCompare(b.branch?.name ?? '', 'es');
-      }
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-  }, [vacations, sortBy, sortOrder]);
+  const actionColspan = hasAnyAction ? 6 : 5;
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
-
-  // Determinar si hay alguna acción disponible en toda la tabla
-  const hasAnyAction = useMemo(() => {
-    return sortedVacations.some((v) => {
-      // Admin puede aprobar/rechazar pending/colindante, o cancelar cualquier estado
-      if (isAdmin) return true;
-
-      // Manager puede aprobar/rechazar pending/colindante de su scope, o cancelar cualquier estado de su scope
-      if (isManager) {
-        const inScope = roleName === 'general_manager'
-          ? v.branchId === userBranchId
-          : v.departmentId === userDepartmentId;
-        if (inScope) return true;
-      }
-
-      // Employee puede cancelar sus propias pending/colindante
-      if (v.employeeId === userId && (v.status === 'pending' || v.status === 'colindante')) return true;
-
-      return false;
-    });
-  }, [sortedVacations, isAdmin, isManager, roleName, userBranchId, userDepartmentId, userId]);
-
-  const actionColspan = hasAnyAction ? 6 : 5;
 
   return (
     <div className="space-y-4">
@@ -206,11 +106,11 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
               <label className="text-xs font-medium text-theme-muted">Sucursal</label>
               <select
                 value={branchFilter}
-                onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }}
+                onChange={(e) => { onBranchFilterChange(e.target.value); onPageChange(1); }}
                 className="input-field text-sm"
               >
                 <option value="">Todas</option>
-                {(branches?.data ?? []).map((b) => (
+                {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
@@ -219,11 +119,11 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
               <label className="text-xs font-medium text-theme-muted">Departamento</label>
               <select
                 value={departmentFilter}
-                onChange={(e) => { setDepartmentFilter(e.target.value); setPage(1); }}
+                onChange={(e) => { onDepartmentFilterChange(e.target.value); onPageChange(1); }}
                 className="input-field text-sm"
               >
                 <option value="">Todos</option>
-                {(departments?.data ?? []).map((d) => (
+                {departments.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
@@ -235,11 +135,11 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
             <label className="text-xs font-medium text-theme-muted">Departamento</label>
             <select
               value={departmentFilter}
-              onChange={(e) => { setDepartmentFilter(e.target.value); setPage(1); }}
+              onChange={(e) => { onDepartmentFilterChange(e.target.value); onPageChange(1); }}
               className="input-field text-sm"
             >
               <option value="">Todos</option>
-              {(departments?.data ?? []).map((d) => (
+              {departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
@@ -249,7 +149,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
           <label className="text-xs font-medium text-theme-muted">Estado</label>
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value as VacationStatus | ''); setPage(1); }}
+            onChange={(e) => { onStatusFilterChange(e.target.value as VacationStatus | ''); onPageChange(1); }}
             className="input-field text-sm"
           >
             <option value="">Todos</option>
@@ -267,7 +167,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              onChange={(e) => { onSearchChange(e.target.value); onPageChange(1); }}
               placeholder="Nombre del empleado..."
               className="input-field text-sm pl-9 w-full"
             />
@@ -280,11 +180,11 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-theme-surface-muted/60 border-b border-theme-color">
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('employee', 'Empleado')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('startDate', 'Fechas')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('status', 'Estado')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('department', 'Departamento')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{renderSortLabel('branch', 'Sucursal')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{sh('employee', 'Empleado')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{sh('startDate', 'Fechas')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{sh('status', 'Estado')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{sh('department', 'Departamento')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-theme-primary">{sh('branch', 'Sucursal')}</th>
               {hasAnyAction && <th className="text-right px-4 py-3 font-semibold text-theme-primary">Acciones</th>}
             </tr>
           </thead>
@@ -295,7 +195,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                   <LoadingSpinner size="lg" />
                 </td>
               </tr>
-            ) : sortedVacations.length === 0 ? (
+            ) : vacations.length === 0 ? (
               <tr>
                 <td colSpan={actionColspan} className="px-4 py-12">
                   <EmptyState
@@ -306,7 +206,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                 </td>
               </tr>
             ) : (
-              sortedVacations.map((vacation) => (
+              vacations.map((vacation) => (
                 <tr key={vacation.id} className="border-b border-theme-color hover:bg-theme-surface-muted/30 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -334,8 +234,8 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                         {canApprove(vacation) && (
                           <>
                             <button
-                              onClick={() => handleApprove(vacation.id)}
-                              disabled={approveMutation.isPending}
+                              onClick={() => onApprove(vacation.id)}
+                              disabled={approvePending}
                               className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
                               title="Aprobar"
                             >
@@ -353,7 +253,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                         {canCancel(vacation) && (
                           <button
                             onClick={() => setCancelTarget({ id: vacation.id, employeeName: vacation.employee.name })}
-                            disabled={cancelMutation.isPending}
+                            disabled={cancelPending}
                             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors"
                             title="Cancelar"
                           >
@@ -378,7 +278,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => onPageChange(Math.max(1, page - 1))}
               disabled={page <= 1}
               className="btn-secondary text-sm p-2 disabled:opacity-30"
             >
@@ -388,7 +288,7 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
               {page} / {totalPages}
             </span>
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
               disabled={page >= totalPages}
               className="btn-secondary text-sm p-2 disabled:opacity-30"
             >
@@ -424,11 +324,17 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
                 Cancelar
               </button>
               <button
-                onClick={handleReject}
-                disabled={rejectMutation.isPending || !rejectReason.trim()}
+                onClick={() => {
+                  if (rejectModal && rejectReason.trim()) {
+                    onReject(rejectModal.id, rejectReason.trim());
+                    setRejectModal(null);
+                    setRejectReason('');
+                  }
+                }}
+                disabled={rejectPending || !rejectReason.trim()}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
               >
-                {rejectMutation.isPending ? 'Rechazando...' : 'Rechazar'}
+                {rejectPending ? 'Rechazando...' : 'Rechazar'}
               </button>
             </div>
           </div>
@@ -445,8 +351,13 @@ export function VacationTable({ isAdmin, isManager, userBranchId, userDepartment
             : ''
         }
         confirmLabel="Cancelar solicitud"
-        loading={cancelMutation.isPending}
-        onConfirm={handleCancel}
+        loading={cancelPending}
+        onConfirm={() => {
+          if (cancelTarget) {
+            onCancel(cancelTarget.id);
+            setCancelTarget(null);
+          }
+        }}
         onCancel={() => setCancelTarget(null)}
       />
     </div>
