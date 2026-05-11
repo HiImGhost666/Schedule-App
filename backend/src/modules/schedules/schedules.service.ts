@@ -139,6 +139,16 @@ async function createScheduleEntryInternal(
     await ensureNoHolidayOverlap(targetBranchId, startDt, endDt, scheduleType.value, confirmed);
   }
 
+  // VUL-6: Validar que todos los assigneeIds existan en BD antes de crear
+  const existingUsers = await tx.user.findMany({
+    where: { id: { in: assigneeIds } },
+    select: { id: true },
+  });
+  const missingIds = assigneeIds.filter(id => !existingUsers.some(u => u.id === id));
+  if (missingIds.length > 0) {
+    throw createAppError('BAD_REQUEST', `Los siguientes usuarios no existen: ${missingIds.join(', ')}`);
+  }
+
   // Evitar bypass por nombre de rol si no es admin.
   if (actor.roleName !== 'admin') {
     // Employee no puede crear schedules bajo ninguna circunstancia
