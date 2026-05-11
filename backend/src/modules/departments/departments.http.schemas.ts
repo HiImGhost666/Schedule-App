@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stripHtml, stripHtmlOptional } from '../../utils/sanitize';
 
 const departmentCodeRegex = /^[A-Z0-9_-]{2,20}$/;
 
@@ -12,9 +13,9 @@ export const listDepartmentsQuerySchema = z.object({
 });
 
 export const createDepartmentBodySchema = z.object({
-  name: z.string().min(2).max(80),
+  name: z.string().min(2).max(80).transform(stripHtml),
   code: z.string().trim().toUpperCase().regex(departmentCodeRegex, 'Código inválido (2-20, A-Z, 0-9, _ o -)'),
-  description: z.string().max(200).optional(),
+  description: z.string().max(200).optional().transform(stripHtmlOptional),
   branchIds: z.array(z.string().min(1)).min(1, 'Debe seleccionar al menos una sucursal'),
 });
 

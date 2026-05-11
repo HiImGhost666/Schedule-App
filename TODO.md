@@ -10,7 +10,7 @@
 ### Backend
 - [x] **VUL-3**: Endpoint `GET /schedules` (sin actor) usa `listSchedules` sin restricción de rol — migrar a `listSchedulesForActor`
 - [x] **VUL-6**: Validar assigneeIds antes de crear schedule (verificar que existan en BD)
-- [ ] **VUL-8**: Sanitización de HTML en campos de texto (name, notes, etc.) — backend debe sanitizar al guardar
+- [x] **VUL-8**: Sanitización de HTML en campos de texto (name, notes, etc.) — backend debe sanitizar al guardar
 
 ### Frontend
 - [ ] **DashboardPage** — Verificar que oculte widgets según rol (employee solo ve su resumen semanal)

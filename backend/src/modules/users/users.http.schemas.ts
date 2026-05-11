@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stripHtml, stripHtmlOptional } from '../../utils/sanitize';
 import { USER_STATUSES } from './users.constants';
 import { ROLE_NAMES } from '../roles/roles.constants';
 
@@ -28,7 +29,7 @@ export const listUsersQuerySchema = z.object({
 
 export const createUserBodySchema = z.object({
   employeeId: z.string().optional().nullable(),
-  name: z.string().min(2),
+  name: z.string().min(2).transform(stripHtml),
   email: z.string().email(),
   password: z.string().min(8),
   roleId: z.string().optional(),
@@ -38,8 +39,8 @@ export const createUserBodySchema = z.object({
   departmentId: z.string().optional(),
   departmentIds: z.array(z.string().min(1)).optional(),
   avatarUrl: z.string().url().optional(),
-  companyPhone: z.string().optional(),
-  auxiliaryPhone: z.string().optional(),
+  companyPhone: z.string().optional().transform(stripHtmlOptional),
+  auxiliaryPhone: z.string().optional().transform(stripHtmlOptional),
   branchId: z.string().min(1),
 });
 

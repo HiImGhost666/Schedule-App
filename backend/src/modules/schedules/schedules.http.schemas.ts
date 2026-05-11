@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stripHtml, stripHtmlOptional } from '../../utils/sanitize';
 
 export const scheduleIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -25,14 +26,14 @@ export const listWeekSchedulesQuerySchema = z.object({
 
 // Define un esquema base para el cuerpo de la guardia
 const baseScheduleBodySchema = z.object({
-  title: z.string().min(2),
-  description: z.string().optional(),
+  title: z.string().min(2).transform(stripHtml),
+  description: z.string().optional().transform(stripHtmlOptional),
   startDatetime: z.coerce.date(),
   endDatetime: z.coerce.date(),
   scheduleTypeId: z.string().min(1, 'El ID del tipo de turno es obligatorio'),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format (must be #RRGGBB)').optional(),
-  location: z.string().optional(),
-  notes: z.string().optional(),
+  location: z.string().optional().transform(stripHtmlOptional),
+  notes: z.string().optional().transform(stripHtmlOptional),
   branchId: z.string().min(1, 'La sucursal es obligatoria'),
   assigneeIds: z.array(z.string()).min(1, 'Al menos una persona debe estar asignada'),
   hoursPerDay: z.number().min(0.5).max(24).optional().default(8),
