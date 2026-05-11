@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, Clock } from 'lucide-react';
 import api from '@/config/api';
 import { useAuthStore } from '@/store/authStore';
+import { DataTable } from '@/components/common/DataTable';
+import type { Column } from '@/components/common/DataTable';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -143,72 +145,66 @@ export default function ShiftPresetsPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-6 py-4 font-semibold text-gray-600">Nombre</th>
-              <th className="px-6 py-4 font-semibold text-gray-600">Inicio</th>
-              <th className="px-6 py-4 font-semibold text-gray-600">Fin</th>
-              <th className="px-6 py-4 font-semibold text-gray-600">Estado</th>
-              {isAdmin && <th className="px-6 py-4 text-right">Acciones</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {Array.isArray(presets) && presets.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                  No hay turnos predefinidos. Crea el primero.
-                </td>
-              </tr>
-            )}
-            {Array.isArray(presets) && presets.map((preset) => (
-              <tr key={preset.id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 font-medium">{preset.name}</td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center gap-1 text-sm font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                    <Clock size={14} /> {preset.startTime}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center gap-1 text-sm font-mono bg-orange-50 text-orange-700 px-2 py-1 rounded">
-                    <Clock size={14} /> {preset.endTime}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      preset.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {preset.isActive ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                {isAdmin && (
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openEditModal(preset)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                      title="Editar"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(preset)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
-                      title="Eliminar"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={Array.isArray(presets) ? presets : []}
+        rowKey={(p) => p.id}
+        columns={[
+          { key: 'name', label: 'Nombre', render: (p) => <span className="font-medium">{p.name}</span> },
+          {
+            key: 'startTime',
+            label: 'Inicio',
+            render: (p) => (
+              <span className="inline-flex items-center gap-1 text-sm font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                <Clock size={14} /> {p.startTime}
+              </span>
+            ),
+          },
+          {
+            key: 'endTime',
+            label: 'Fin',
+            render: (p) => (
+              <span className="inline-flex items-center gap-1 text-sm font-mono bg-orange-50 text-orange-700 px-2 py-1 rounded">
+                <Clock size={14} /> {p.endTime}
+              </span>
+            ),
+          },
+          {
+            key: 'isActive',
+            label: 'Estado',
+            render: (p) => (
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  p.isActive
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {p.isActive ? 'Activo' : 'Inactivo'}
+              </span>
+            ),
+          },
+        ]}
+        renderActions={isAdmin ? (p) => (
+          <div className="flex justify-end gap-1">
+            <button
+              onClick={() => openEditModal(p)}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+              title="Editar"
+            >
+              <Edit2 size={16} />
+            </button>
+            <button
+              onClick={() => handleDelete(p)}
+              className="p-2 text-red-600 hover:bg-red-50 rounded"
+              title="Eliminar"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ) : undefined}
+        emptyTitle="Sin turnos predefinidos"
+        emptyDescription="Crea el primer turno predefinido"
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
