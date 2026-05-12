@@ -23,6 +23,15 @@ function overlapWhere(from: Date, to: Date): Prisma.ScheduleWhereInput {
   };
 }
 
+function vacationOverlapWhere(from: Date, to: Date): Prisma.VacationRequestWhereInput {
+  return {
+    AND: [
+      { startDate: { lte: to } },
+      { endDate: { gte: from } },
+    ],
+  };
+}
+
 const coverageScheduleSelect = {
   id: true,
   title: true,
@@ -34,16 +43,34 @@ const coverageScheduleSelect = {
 
 type CoverageSchedule = Prisma.ScheduleGetPayload<{ select: typeof coverageScheduleSelect }>;
 
-function toCoverageRisk(schedule: CoverageSchedule): CoverageRiskItem | null {
+const coverageVacationSelect = {
+  id: true,
+  employeeId: true,
+  startDate: true,
+  endDate: true,
+} satisfies Prisma.VacationRequestSelect;
+
+type CoverageVacation = Prisma.VacationRequestGetPayload<{ select: typeof coverageVacationSelect }>;
+
+function toCoverageRisk(
+  schedule: CoverageSchedule,
+  vacationsByUserId: Map<string, CoverageVacation[]>,
+): CoverageRiskItem | null {
   const assignedCount = schedule.assignments.length;
-  if (assignedCount >= 2) return null;
+  const vacationConflicts = schedule.assignments.flatMap((assignment) =>
+    vacationsByUserId.get(assignment.userId) ?? [],
+  );
+
+  if (assignedCount >= 2 && vacationConflicts.length === 0) return null;
 
   return {
-    severity: assignedCount === 0 ? 'high' : 'medium',
+    severity: assignedCount === 0 || vacationConflicts.length > 0 ? 'high' : 'medium',
     reasons: [
-      assignedCount === 0
-        ? 'Turno descubierto'
-        : 'Turno con una sola persona asignada',
+      ...(assignedCount === 0 ? ['Turno descubierto'] : []),
+      ...(assignedCount === 1 ? ['Turno con una sola persona asignada'] : []),
+      ...(vacationConflicts.length > 0
+        ? [`${vacationConflicts.length} asignado(s) con vacaciones aprobadas`]
+        : []),
     ],
     schedule: {
       id: schedule.id,
@@ -52,6 +79,16 @@ function toCoverageRisk(schedule: CoverageSchedule): CoverageRiskItem | null {
       endDatetime: schedule.endDatetime.toISOString(),
       branch: schedule.branch,
     },
+    ...(vacationConflicts.length > 0
+      ? {
+          vacationConflicts: vacationConflicts.map((vacation) => ({
+            userId: vacation.employeeId,
+            vacationId: vacation.id,
+            startDate: vacation.startDate.toISOString(),
+            endDate: vacation.endDate.toISOString(),
+          })),
+        }
+      : {}),
   };
 }
 
@@ -107,8 +144,28 @@ export class PlanningManager {
       orderBy: { startDatetime: 'asc' },
     });
 
+    const assignedUserIds = unique(schedules.flatMap((schedule) =>
+      schedule.assignments.map((assignment) => assignment.userId),
+    ));
+    const approvedVacations = assignedUserIds.length > 0
+      ? await prisma.vacationRequest.findMany({
+          where: {
+            employeeId: { in: assignedUserIds },
+            status: 'approved',
+            ...vacationOverlapWhere(filters.from, filters.to),
+          },
+          select: coverageVacationSelect,
+        })
+      : [];
+    const vacationsByUserId = new Map<string, CoverageVacation[]>();
+    approvedVacations.forEach((vacation) => {
+      const current = vacationsByUserId.get(vacation.employeeId) ?? [];
+      current.push(vacation);
+      vacationsByUserId.set(vacation.employeeId, current);
+    });
+
     return schedules
-      .map(toCoverageRisk)
+      .map((schedule) => toCoverageRisk(schedule, vacationsByUserId))
       .filter((risk): risk is CoverageRiskItem => risk !== null);
   }
 

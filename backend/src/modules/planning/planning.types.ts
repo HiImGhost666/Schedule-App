@@ -32,6 +32,12 @@ export type CoverageRiskItem = {
     endDatetime: string;
     branch: { id: string; name: string } | null;
   };
+  vacationConflicts?: Array<{
+    userId: string;
+    vacationId: string;
+    startDate: string;
+    endDate: string;
+  }>;
 };
 
 export type AvailabilityStatus = 'available' | 'busy' | 'vacation';

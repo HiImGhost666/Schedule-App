@@ -26,7 +26,20 @@ function buildSchedule(assignmentCount: number, overrides: { id?: string; title?
   };
 }
 
+function buildVacation(userId: string, id = `vacation-${userId}`) {
+  return {
+    id,
+    employeeId: userId,
+    startDate: new Date('2026-05-12T00:00:00.000Z'),
+    endDate: new Date('2026-05-13T23:59:59.999Z'),
+  };
+}
+
 describe('PlanningManager.listCoverageRisks', () => {
+  beforeEach(() => {
+    prismaMock.vacationRequest.findMany.mockResolvedValue([]);
+  });
+
   it('returns high risk for schedules without assignments', async () => {
     prismaMock.schedule.findMany.mockResolvedValue([buildSchedule(0)] as never);
 
@@ -77,6 +90,7 @@ describe('PlanningManager.listCoverageRisks', () => {
     await planningManager.listCoverageRisks(filters, actor);
 
     expect(prismaMock.schedule.findMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.vacationRequest.findMany).not.toHaveBeenCalled();
     expect(prismaMock.schedule.findMany).toHaveBeenCalledWith({
       where: {
         AND: [
@@ -91,6 +105,60 @@ describe('PlanningManager.listCoverageRisks', () => {
         assignments: { select: { userId: true } },
       }),
       orderBy: { startDatetime: 'asc' },
+    });
+  });
+
+  it('returns high risk when an assigned user has approved vacation in the range', async () => {
+    prismaMock.schedule.findMany.mockResolvedValue([buildSchedule(2, { id: 'covered-with-vacation' })] as never);
+    prismaMock.vacationRequest.findMany.mockResolvedValue([buildVacation('user-1')] as never);
+
+    const risks = await planningManager.listCoverageRisks(filters, actor);
+
+    expect(risks).toEqual([
+      expect.objectContaining({
+        severity: 'high',
+        reasons: ['1 asignado(s) con vacaciones aprobadas'],
+        schedule: expect.objectContaining({ id: 'covered-with-vacation' }),
+        vacationConflicts: [
+          {
+            userId: 'user-1',
+            vacationId: 'vacation-user-1',
+            startDate: '2026-05-12T00:00:00.000Z',
+            endDate: '2026-05-13T23:59:59.999Z',
+          },
+        ],
+      }),
+    ]);
+  });
+
+  it('queries approved vacations for all assigned users in a single batch', async () => {
+    prismaMock.schedule.findMany.mockResolvedValue([
+      buildSchedule(1, { id: 'one' }),
+      {
+        ...buildSchedule(2, { id: 'two' }),
+        assignments: [{ userId: 'user-2' }, { userId: 'user-3' }],
+      },
+    ] as never);
+    prismaMock.vacationRequest.findMany.mockResolvedValue([] as never);
+
+    await planningManager.listCoverageRisks(filters, actor);
+
+    expect(prismaMock.vacationRequest.findMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.vacationRequest.findMany).toHaveBeenCalledWith({
+      where: {
+        employeeId: { in: ['user-1', 'user-2', 'user-3'] },
+        status: 'approved',
+        AND: [
+          { startDate: { lte: filters.to } },
+          { endDate: { gte: filters.from } },
+        ],
+      },
+      select: expect.objectContaining({
+        id: true,
+        employeeId: true,
+        startDate: true,
+        endDate: true,
+      }),
     });
   });
 });
