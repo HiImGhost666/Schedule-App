@@ -50,7 +50,7 @@ export async function sendFridaySummary(sentByUserId?: string, webhookConfigIds?
   const card = buildFridaySummaryCard({ weekLabel, days });
 
   let webhooks;
-  if (webhookConfigIds && webhookConfigIds.length > 0) {
+  if (webhookConfigIds) {
     webhooks = await prisma.webhookConfig.findMany({
       where: { id: { in: webhookConfigIds }, enabled: true },
     });
@@ -109,7 +109,7 @@ export async function sendMondayVacationSummary(sentByUserId?: string, webhookCo
   const card = buildMondayVacationCard({ weekLabel, vacations });
 
   let webhooks;
-  if (webhookConfigIds && webhookConfigIds.length > 0) {
+  if (webhookConfigIds) {
     webhooks = await prisma.webhookConfig.findMany({
       where: { id: { in: webhookConfigIds }, enabled: true },
     });

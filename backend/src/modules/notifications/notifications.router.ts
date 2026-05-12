@@ -56,7 +56,7 @@ router.post('/resend/:logId', authMiddleware, requirePermission('webhooks:manage
 router.post('/friday-summary', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const { webhookConfigIds } = req.body;
-    const ids: string[] | undefined = Array.isArray(webhookConfigIds) && webhookConfigIds.length > 0 ? webhookConfigIds : undefined;
+    const ids: string[] | undefined = Array.isArray(webhookConfigIds) ? webhookConfigIds : undefined;
     const results = await sendFridaySummary(req.user!.id, ids);
     return sendSuccess(res, { sent: results.length }, `Resumen enviado a ${results.length} webhook(s)`);
   } catch (err: unknown) {
@@ -68,7 +68,7 @@ router.post('/friday-summary', authMiddleware, requirePermission('webhooks:manag
 router.post('/vacation-summary', authMiddleware, requirePermission('webhooks:manage'), async (req: AuthRequest, res: Response) => {
   try {
     const { webhookConfigIds } = req.body;
-    const ids: string[] | undefined = Array.isArray(webhookConfigIds) && webhookConfigIds.length > 0 ? webhookConfigIds : undefined;
+    const ids: string[] | undefined = Array.isArray(webhookConfigIds) ? webhookConfigIds : undefined;
     const results = await sendMondayVacationSummary(req.user!.id, ids);
     return sendSuccess(res, { sent: results.length }, `Resumen de vacaciones enviado a ${results.length} webhook(s)`);
   } catch (err: unknown) {
@@ -84,7 +84,7 @@ router.post('/announce', authMiddleware, requirePermission('webhooks:manage'), a
   const card = buildAnnouncementCard(message, req.user!.name);
 
   let webhooks;
-  if (Array.isArray(webhookConfigIds) && webhookConfigIds.length > 0) {
+  if (Array.isArray(webhookConfigIds)) {
     webhooks = await prisma.webhookConfig.findMany({
       where: { id: { in: webhookConfigIds }, enabled: true },
     });

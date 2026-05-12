@@ -15,6 +15,31 @@ import toast from 'react-hot-toast';
 
 type ScopeFilter = 'all' | 'branch' | 'department' | 'specific';
 
+function departmentBelongsToBranch(department: Department, branchId: string): boolean {
+  if (!branchId) return true;
+  return department.branches?.some((branchLink) => branchLink.branch.id === branchId) ?? false;
+}
+
+function filterWebhooksForScope(
+  webhooks: WebhookConfig[],
+  scope: ScopeFilter,
+  branchId: string,
+  departmentId: string,
+): WebhookConfig[] {
+  return webhooks.filter((wh) => {
+    if (!wh.enabled) return false;
+    if (scope === 'all') return true;
+    if (scope === 'branch') return !branchId || wh.branchId === branchId;
+    if (scope === 'department') return !departmentId || wh.departmentId === departmentId;
+    if (scope === 'specific') {
+      if (branchId && wh.branchId !== branchId) return false;
+      if (departmentId && wh.departmentId !== departmentId) return false;
+      return true;
+    }
+    return true;
+  });
+}
+
 function StatusIcon({ status }: { status: string }) {
   if (status === 'sent') return <CheckCircle className="h-4 w-4 text-green-500" />;
   if (status === 'failed') return <XCircle className="h-4 w-4 text-red-400" />;
@@ -46,15 +71,32 @@ function ScopeSelector({
   departments: Department[];
   webhooks: WebhookConfig[];
 }) {
+  const filteredDepartments = useMemo(
+    () => departments.filter((department) => departmentBelongsToBranch(department, branchId)),
+    [departments, branchId],
+  );
+
   const filteredWebhooks = useMemo(() => {
-    if (scope === 'specific') return webhooks;
-    return webhooks.filter((wh) => {
-      if (scope === 'all') return true;
-      if (scope === 'branch') return !branchId || wh.branchId === branchId;
-      if (scope === 'department') return !departmentId || wh.departmentId === departmentId;
-      return true;
-    });
+    return filterWebhooksForScope(webhooks, scope, branchId, departmentId);
   }, [webhooks, scope, branchId, departmentId]);
+
+  const handleScopeChange = (nextScope: ScopeFilter) => {
+    onScopeChange(nextScope);
+    onBranchChange('');
+    onDepartmentChange('');
+    onWebhookChange('');
+  };
+
+  const handleBranchChange = (nextBranchId: string) => {
+    onBranchChange(nextBranchId);
+    onDepartmentChange('');
+    onWebhookChange('');
+  };
+
+  const handleDepartmentChange = (nextDepartmentId: string) => {
+    onDepartmentChange(nextDepartmentId);
+    onWebhookChange('');
+  };
 
   return (
     <div className="space-y-2">
@@ -68,7 +110,7 @@ function ScopeSelector({
           <button
             key={opt.value}
             type="button"
-            onClick={() => onScopeChange(opt.value)}
+            onClick={() => handleScopeChange(opt.value)}
             className={cn(
               'flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border transition-colors',
               scope === opt.value
@@ -82,10 +124,10 @@ function ScopeSelector({
         ))}
       </div>
 
-      {scope === 'branch' && (
+      {(scope === 'branch' || scope === 'department' || scope === 'specific') && (
         <select
           value={branchId}
-          onChange={(e) => onBranchChange(e.target.value)}
+          onChange={(e) => handleBranchChange(e.target.value)}
           className="input-field text-sm"
         >
           <option value="">Todas las sucursales</option>
@@ -95,14 +137,14 @@ function ScopeSelector({
         </select>
       )}
 
-      {scope === 'department' && (
+      {(scope === 'department' || scope === 'specific') && (
         <select
           value={departmentId}
-          onChange={(e) => onDepartmentChange(e.target.value)}
+          onChange={(e) => handleDepartmentChange(e.target.value)}
           className="input-field text-sm"
         >
           <option value="">Todos los departamentos</option>
-          {departments.map((d) => (
+          {filteredDepartments.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
         </select>
@@ -115,7 +157,7 @@ function ScopeSelector({
           className="input-field text-sm"
         >
           <option value="">Seleccionar webhook...</option>
-          {webhooks.map((wh) => (
+          {filteredWebhooks.map((wh) => (
             <option key={wh.id} value={wh.id}>
               {wh.name} ({wh.scope === 'general' ? 'General' : wh.scope === 'department' ? `Dept: ${wh.department?.name}` : `Suc: ${wh.branch?.name}`})
             </option>
@@ -123,11 +165,12 @@ function ScopeSelector({
         </select>
       )}
 
-      {scope !== 'specific' && filteredWebhooks.length > 0 && (
+      {filteredWebhooks.length > 0 && (
         <p className="text-xs text-theme-muted">
           Se enviará a {filteredWebhooks.length} webhook(s)
           {scope === 'branch' && branchId && ` de la sucursal seleccionada`}
           {scope === 'department' && departmentId && ` del departamento seleccionado`}
+          {scope === 'specific' && ` disponibles con los filtros actuales`}
         </p>
       )}
     </div>
@@ -190,16 +233,9 @@ export function NotificationsPage() {
   // Helper: obtener webhookIds según el scope seleccionado
   function getWebhookIds(scope: ScopeFilter, branchId: string, deptId: string, whId: string): string[] | undefined {
     if (scope === 'specific' && whId) return [whId];
+    if (scope === 'specific') return [];
     if (!webhooks) return undefined;
-    return webhooks
-      .filter((wh) => {
-        if (!wh.enabled) return false;
-        if (scope === 'all') return true;
-        if (scope === 'branch') return !branchId || wh.branchId === branchId;
-        if (scope === 'department') return !deptId || wh.departmentId === deptId;
-        return true;
-      })
-      .map((wh) => wh.id);
+    return filterWebhooksForScope(webhooks, scope, branchId, deptId).map((wh) => wh.id);
   }
 
   const fridayMutation = useMutation({
@@ -266,7 +302,7 @@ export function NotificationsPage() {
           />
           <button
             onClick={() => vacationMutation.mutate()}
-            disabled={vacationMutation.isPending}
+            disabled={vacationMutation.isPending || (vacationScope === 'specific' && !vacationWebhookId)}
             className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60 bg-green-600 hover:bg-green-700 border-green-600 mt-3"
           >
             {vacationMutation.isPending ? <LoadingSpinner size="sm" className="border-white border-t-white/30" /> : <Umbrella className="h-3.5 w-3.5" />}
@@ -300,7 +336,7 @@ export function NotificationsPage() {
           />
           <button
             onClick={() => fridayMutation.mutate()}
-            disabled={fridayMutation.isPending}
+            disabled={fridayMutation.isPending || (fridayScope === 'specific' && !fridayWebhookId)}
             className="w-full btn-gold text-sm flex items-center justify-center gap-2 disabled:opacity-60 mt-3"
           >
             {fridayMutation.isPending ? <LoadingSpinner size="sm" /> : <Calendar className="h-3.5 w-3.5" />}
@@ -341,7 +377,7 @@ export function NotificationsPage() {
           />
           <button
             onClick={() => announceMutation.mutate()}
-            disabled={!announcement.trim() || announceMutation.isPending}
+            disabled={!announcement.trim() || announceMutation.isPending || (announceScope === 'specific' && !announceWebhookId)}
             className="w-full btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {announceMutation.isPending ? <LoadingSpinner size="sm" className="border-white border-t-white/30" /> : <Send className="h-3.5 w-3.5" />}
