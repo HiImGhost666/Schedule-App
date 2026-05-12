@@ -54,6 +54,12 @@
   - **Fix**: Añadir `tokenVersion` en BD y verificar en auth middleware. Crear endpoint de logout.
   - **Fuente**: BusinessLogic.md (4.3 Bajas, 6.1 Backend)
 
+### Backend — schedule-types controller oculta errores reales detrás de 400
+- [ ] **Bug**: `createScheduleTypeHandler`, `updateScheduleTypeHandler` y `deleteScheduleTypeHandler` capturan cualquier error y lo devuelven como 400, sin distinguir `AppError` de errores inesperados.
+  - **Impacto**: Se pierden status reales (403/404/500) y se dificulta diagnosticar fallos del flujo de tipos de turno.
+  - **Fix**: Manejar `AppError` explícitamente con su status y dejar los errores inesperados en 500 o en el handler global.
+  - **Fuente**: Revisión reciente de `backend/src/modules/schedule-types/schedule-types.controller.ts` y `schedule-types.service.ts`
+
 ---
 
 ## 🟠 Prioridad Media — Errores de Código y Deuda Técnica
