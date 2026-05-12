@@ -68,9 +68,12 @@ export function BranchForm({ form, isEditing, isSaving, onChange, onSave, onCanc
             onChange={(e) => update('countryCode', e.target.value.toUpperCase())} />
         </label>
         <label className="space-y-1">
-          <span className="text-xs font-medium text-theme-muted">Timezone</span>
-          <input className="input-field text-sm" placeholder="Timezone" value={form.timezone}
-            onChange={(e) => update('timezone', e.target.value)} />
+          <span className="text-xs font-medium text-theme-muted">Zona horaria *</span>
+          <select className="input-field text-sm" value={form.timezone}
+            onChange={(e) => update('timezone', e.target.value)}>
+            <option value="Europe/Madrid">Europe/Madrid (UTC+1/+2)</option>
+            <option value="Atlantic/Canary">Atlantic/Canary (UTC+0/+1)</option>
+          </select>
         </label>
       </div>
 

@@ -177,6 +177,47 @@ describe('BranchesPage', () => {
     expect(await screen.findByRole('heading', { name: 'Madrid Centro' })).toBeInTheDocument();
   });
 
+  it('muestra el select de zona horaria con opciones predefinidas', async () => {
+    getMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          {
+            id: 'b-1',
+            name: 'Madrid',
+            code: 'MAD01',
+            countryCode: 'ES',
+            timezone: 'Europe/Madrid',
+            isActive: true,
+            createdAt: '',
+            updatedAt: '',
+          },
+        ],
+      },
+    });
+
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo' }));
+
+    const timezoneSelect = screen.getByLabelText('Zona horaria *');
+    expect(timezoneSelect).toBeInTheDocument();
+    expect(timezoneSelect.tagName).toBe('SELECT');
+
+    // Verificar que las opciones están disponibles
+    const options = screen.getAllByRole('option');
+    const optionValues = options.map((o) => (o as HTMLOptionElement).value);
+    expect(optionValues).toContain('Europe/Madrid');
+    expect(optionValues).toContain('Atlantic/Canary');
+
+    // Verificar que el valor por defecto es Europe/Madrid
+    expect((timezoneSelect as HTMLSelectElement).value).toBe('Europe/Madrid');
+
+    // Cambiar a Atlantic/Canary
+    await userEvent.selectOptions(timezoneSelect, 'Atlantic/Canary');
+    expect((timezoneSelect as HTMLSelectElement).value).toBe('Atlantic/Canary');
+  });
+
   it('permite activar una sucursal inactiva', async () => {
     getMock.mockResolvedValueOnce({
       data: {
