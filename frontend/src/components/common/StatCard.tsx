@@ -6,7 +6,7 @@ import { useUIStore } from '@/store/uiStore';
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   trend?: { value: number; label: string };
   color?: 'navy' | 'gold' | 'green' | 'purple';
   className?: string;
@@ -29,9 +29,11 @@ export function StatCard({ title, value, icon: Icon, trend, color = 'navy', clas
   return (
     <div className={cn('card p-4 md:p-7 flex items-center gap-3.5 md:gap-5 hover:shadow-md transition-shadow', className)}>
       {/* Icon — smaller on mobile */}
-      <div className={cn('p-2.5 md:p-4 rounded-xl flex-shrink-0', c.light)}>
-        <Icon className={cn('h-5 w-5 md:h-6 md:w-6', c.text)} />
-      </div>
+      {Icon ? (
+        <div className={cn('p-2.5 md:p-4 rounded-xl flex-shrink-0', c.light)}>
+          <Icon className={cn('h-5 w-5 md:h-6 md:w-6', c.text)} />
+        </div>
+      ) : null}
 
       {/* Text */}
       <div className="flex-1 min-w-0">

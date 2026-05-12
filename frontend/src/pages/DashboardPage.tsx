@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Calendar, Users, AlertTriangle, ExternalLink } from 'lucide-react';
 import { StatCard } from '@/components/common/StatCard';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { DashboardSkeleton } from '@/components/common/Skeleton';
@@ -177,7 +177,6 @@ export function DashboardPage() {
           <StatCard
             title="Mis turnos"
             value={loadingSchedules ? '—' : mySchedules.length}
-            icon={Shield}
             color="gold"
             className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
           />
