@@ -6,6 +6,7 @@ export type PlanningActor = {
   branchId: string | null;
   departmentId: string | null;
   permissions: PermissionName[] | string[];
+  visibleBranchIds?: string[];
 };
 
 export type PlanningRangeFilters = {
@@ -13,6 +14,10 @@ export type PlanningRangeFilters = {
   to: Date;
   branchId?: string;
   departmentId?: string;
+};
+
+export type ScopedPlanningRangeFilters = PlanningRangeFilters & {
+  branchIds?: string[];
 };
 
 export type CoverageRiskSeverity = 'high' | 'medium' | 'low';

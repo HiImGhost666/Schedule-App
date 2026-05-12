@@ -15,7 +15,8 @@ export class PlanningService {
     filters: PlanningRangeFilters,
     actor: PlanningActor,
   ): Promise<CoverageRiskItem[]> {
-    return planningManager.listCoverageRisks(filters, actor);
+    const scopedFilters = await planningManager.resolveScopedFilters(filters, actor);
+    return planningManager.listCoverageRisks(scopedFilters, actor);
   }
 
   /**
@@ -25,7 +26,8 @@ export class PlanningService {
     filters: PlanningRangeFilters,
     actor: PlanningActor,
   ): Promise<AvailabilityItem[]> {
-    return planningManager.listAvailability(filters, actor);
+    const scopedFilters = await planningManager.resolveScopedFilters(filters, actor);
+    return planningManager.listAvailability(scopedFilters, actor);
   }
 
   /**
@@ -35,7 +37,8 @@ export class PlanningService {
     filters: PlanningRangeFilters,
     actor: PlanningActor,
   ): Promise<AvailabilityMatrix> {
-    return planningManager.getAvailabilityMatrix(filters, actor);
+    const scopedFilters = await planningManager.resolveScopedFilters(filters, actor);
+    return planningManager.getAvailabilityMatrix(scopedFilters, actor);
   }
 }
 

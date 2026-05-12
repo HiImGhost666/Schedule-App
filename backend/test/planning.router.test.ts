@@ -32,6 +32,7 @@ jest.mock('../src/middleware/auth.middleware', () => {
 });
 
 import planningRouter from '../src/modules/planning/planning.router';
+import { planningManager } from '../src/modules/planning/planning.manager';
 import { planningService } from '../src/modules/planning/planning.service';
 
 const app = express();
@@ -131,5 +132,60 @@ describe('planning.router', () => {
       }),
       expect.objectContaining({ id: 'test-user', roleName: 'admin' }),
     );
+  });
+
+  it('does not restrict admin when no branch filter is requested', async () => {
+    const spy = jest.spyOn(planningManager, 'listCoverageRisks').mockResolvedValue([]);
+
+    const response = await request(app)
+      .get(`/api/planning/coverage-risks?${range}`)
+      .set('x-test-role', 'admin');
+
+    expect(response.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ branchIds: undefined }),
+      expect.objectContaining({ roleName: 'admin' }),
+    );
+  });
+
+  it('limits non-admin planning queries to the actor branch when no branch is requested', async () => {
+    const spy = jest.spyOn(planningManager, 'listAvailability').mockResolvedValue([]);
+
+    const response = await request(app)
+      .get(`/api/planning/availability?${range}`)
+      .set('x-test-role', 'general_manager');
+
+    expect(response.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ branchIds: ['branch-1'] }),
+      expect.objectContaining({ roleName: 'general_manager' }),
+    );
+  });
+
+  it('allows non-admin planning queries for their own branch', async () => {
+    const spy = jest.spyOn(planningManager, 'getAvailabilityMatrix').mockResolvedValue({ days: [], rows: [] });
+
+    const response = await request(app)
+      .get(`/api/planning/availability-matrix?${range}&branchId=branch-1`)
+      .set('x-test-role', 'department_manager');
+
+    expect(response.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ branchId: 'branch-1', branchIds: ['branch-1'] }),
+      expect.objectContaining({ roleName: 'department_manager' }),
+    );
+  });
+
+  it('rejects non-admin planning queries outside their branch scope', async () => {
+    const spy = jest.spyOn(planningManager, 'listCoverageRisks').mockResolvedValue([]);
+
+    const response = await request(app)
+      .get(`/api/planning/coverage-risks?${range}&branchId=other-branch`)
+      .set('x-test-role', 'general_manager');
+
+    expect(response.status).toBe(403);
+    expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe('FORBIDDEN');
+    expect(spy).not.toHaveBeenCalled();
   });
 });
