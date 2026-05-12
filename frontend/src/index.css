@@ -227,9 +227,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .input-field.with-icon { padding-left: 2rem; }
 .input-field.pr-10 { padding-right: 2rem; }
 
-.badge-role-admin { background-color: var(--theme-badge-admin-bg); color: var(--theme-badge-admin-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-manager { background-color: var(--theme-badge-manager-bg); color: var(--theme-badge-manager-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.badge-role-viewer { background-color: var(--theme-badge-viewer-bg); color: var(--theme-badge-viewer-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-role-admin,
+.badge-role-manager,
+.badge-role-viewer,
+.badge-role-employee {
+  display: inline;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.7;
+  padding: 2px 8px;
+  border-radius: 999px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+.badge-role-admin { background-color: var(--theme-badge-admin-bg); color: var(--theme-badge-admin-text); }
+.badge-role-manager { background-color: var(--theme-badge-manager-bg); color: var(--theme-badge-manager-text); }
+.badge-role-viewer,
+.badge-role-employee { background-color: var(--theme-badge-viewer-bg); color: var(--theme-badge-viewer-text); }
 
 .badge-status-active { background-color: var(--theme-badge-active-bg); color: var(--theme-badge-active-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .badge-status-disabled { background-color: var(--theme-badge-disabled-bg); color: var(--theme-badge-disabled-text); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }

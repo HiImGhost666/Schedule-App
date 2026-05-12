@@ -63,17 +63,25 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
   });
   const departments = useMemo(() => departmentsData?.data ?? [], [departmentsData?.data]);
 
+  const { data: userDetailData } = useQuery<User>({
+    queryKey: ['user-detail', user?.id],
+    queryFn: () => api.get<{ data: User }>(`/users/${user!.id}`).then((r) => r.data.data),
+    enabled: open && isEdit && Boolean(user?.id),
+    retry: false,
+  });
+  const selectedUser = userDetailData ?? user;
+
   useEffect(() => {
-    if (user) {
-      const currentDepartment = user.department;
+    if (selectedUser) {
+      const currentDepartmentId = selectedUser.departmentId ?? selectedUser.department?.id ?? '';
       reset({
-        name: user.name,
-        email: user.email,
-        role: (user.role?.name ?? 'employee') as FormData['role'],
-        departmentId: currentDepartment?.id ?? '',
-        companyPhone: user.companyPhone || '',
-        auxiliaryPhone: user.auxiliaryPhone || '',
-        branchId: user.branchId || '',
+        name: selectedUser.name,
+        email: selectedUser.email,
+        role: (selectedUser.role?.name ?? 'employee') as FormData['role'],
+        departmentId: currentDepartmentId,
+        companyPhone: selectedUser.companyPhone || '',
+        auxiliaryPhone: selectedUser.auxiliaryPhone || '',
+        branchId: selectedUser.branchId || '',
       });
       return;
     }
@@ -88,19 +96,20 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
       auxiliaryPhone: '',
       branchId: '',
     });
-  }, [user, reset]);
+  }, [selectedUser, reset]);
 
   useEffect(() => {
     if (!selectedBranchId) {
       setValue('departmentId', '', { shouldDirty: true });
       return;
     }
+    if (departmentsLoading) return;
     const currentDepartmentId = watch('departmentId');
     if (!currentDepartmentId) return;
     if (!departments.some((department) => department.id === currentDepartmentId)) {
       setValue('departmentId', '', { shouldDirty: true });
     }
-  }, [selectedBranchId, departments, setValue, watch]);
+  }, [selectedBranchId, departments, departmentsLoading, setValue, watch]);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
