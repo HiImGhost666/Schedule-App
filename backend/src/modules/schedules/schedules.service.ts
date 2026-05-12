@@ -241,14 +241,12 @@ export function listSchedulesForActor(
     return findSchedules(where);
   }
 
-  // Employee: solo ve schedules de su sucursal (trabajo grupal)
+  // Employee: ve el calendario de su sucursal como los managers.
   if (actor.roleName === 'employee') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
     where.branchId = actor.branchId;
-    // Employee ve todos los turnos de su branch para trabajo grupal
-    // Si pasa userId explícitamente, filtra por ese usuario
     if (params.userId) {
       where.assignments = { some: { userId: params.userId } };
     }
@@ -345,13 +343,11 @@ export async function listWeekSchedulesForActor(
     return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
   }
 
-  // Employee: solo ve su sucursal (trabajo grupal)
+  // Employee: ve el calendario de su sucursal como los managers.
   if (actor.roleName === 'employee') {
     if (!actor.branchId) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    // Employee ve todos los turnos de su branch para trabajo grupal
-    // Si pasa userId explícitamente, filtra por ese usuario
     return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
   }
 
