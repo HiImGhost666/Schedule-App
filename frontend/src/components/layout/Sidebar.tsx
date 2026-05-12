@@ -21,7 +21,7 @@ const navItems = [
 
 const adminItems = [
   { to: '/admin/users', icon: Users, label: 'Usuarios' },
-  { to: '/admin/event-types', icon: CalendarDays, label: 'Tipos de Evento' },
+  { to: '/admin/schedule-types', icon: CalendarDays, label: 'Tipos de Turno' },
   { to: '/admin/branches', icon: Building2, label: 'Sucursales' },
   { to: '/admin/departments', icon: Layers, label: 'Departamentos' },
   { to: '/admin/holidays', icon: CalendarDays, label: 'Festivos' },
@@ -136,7 +136,7 @@ export function Sidebar() {
             )}
             {(isAdmin 
               ? adminItems 
-              : adminItems.filter((i) => ['/admin/users', '/admin/event-types', '/admin/holidays', '/admin/notifications'].includes(i.to))
+              : adminItems.filter((i) => ['/admin/users', '/admin/schedule-types', '/admin/holidays', '/admin/notifications'].includes(i.to))
             ).map(({ to, icon: Icon, label }) => (
                 <NavLink
                   key={to}
