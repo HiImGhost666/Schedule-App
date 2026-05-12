@@ -4,6 +4,7 @@ import { executeInTransaction } from '../../common/transactions/transaction.util
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { notifyVacationChange } from '../notifications/notifications.service';
 import { createInAppNotification } from '../in-app-notifications/in-app.service';
+import { recalculateWeeklySummariesForVacation } from '../schedules/weekly-summary.service';
 import { VACATION_PERMISSIONS } from './vacations.constants';
 import {
   findVacationRequests,
@@ -320,6 +321,12 @@ export async function approveVacationEntry(id: string, input: ApproveVacationInp
     metadata: { vacationId: id, approvedBy: actor.id },
   }).catch(() => {});
 
+  recalculateWeeklySummariesForVacation(
+    vacation.employeeId,
+    vacation.startDate,
+    vacation.endDate,
+  ).catch(() => {});
+
   return updated;
 }
 
@@ -483,6 +490,14 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
       link: '/vacations',
       metadata: { vacationId: id, cancelledBy: actor.id },
     }).catch(() => {});
+  }
+
+  if (vacation.status === 'approved') {
+    recalculateWeeklySummariesForVacation(
+      vacation.employeeId,
+      vacation.startDate,
+      vacation.endDate,
+    ).catch(() => {});
   }
 
   return updated;

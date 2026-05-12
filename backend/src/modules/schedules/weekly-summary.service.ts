@@ -3,6 +3,71 @@ import { findSchedules } from './schedules.repository';
 import { computeWeeklySummary, getWeekInfo } from './domain/schedule.rules';
 import type { WeeklyWorkSummary } from '@prisma/client';
 
+const STANDARD_WORK_DAYS_PER_WEEK = 5;
+const DEFAULT_BASE_HOURS = 40;
+const DEFAULT_VACATION_HOURS_PER_DAY = DEFAULT_BASE_HOURS / STANDARD_WORK_DAYS_PER_WEEK;
+
+function getIsoWeekRange(year: number, week: number): { weekStart: Date; weekEnd: Date } {
+  const jan4 = new Date(year, 0, 4);
+  const weekStart = new Date(jan4);
+  weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  return { weekStart, weekEnd };
+}
+
+function isWeekday(date: Date): boolean {
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
+}
+
+function countWeekdaysInRange(startDate: Date, endDate: Date): number {
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+
+  let count = 0;
+  while (current <= end) {
+    if (isWeekday(current)) count += 1;
+    current.setDate(current.getDate() + 1);
+  }
+
+  return count;
+}
+
+async function calculateApprovedVacationHours(
+  userId: string,
+  weekStart: Date,
+  weekEnd: Date,
+): Promise<number> {
+  const approvedVacations = await prisma.vacationRequest.findMany({
+    where: {
+      employeeId: userId,
+      status: 'approved',
+      startDate: { lte: weekEnd },
+      endDate: { gte: weekStart },
+    },
+    select: {
+      startDate: true,
+      endDate: true,
+    },
+  });
+
+  const vacationDays = approvedVacations.reduce((total, vacation) => {
+    const overlapStart = vacation.startDate > weekStart ? vacation.startDate : weekStart;
+    const overlapEnd = vacation.endDate < weekEnd ? vacation.endDate : weekEnd;
+    return total + countWeekdaysInRange(overlapStart, overlapEnd);
+  }, 0);
+
+  return Math.min(DEFAULT_BASE_HOURS, vacationDays * DEFAULT_VACATION_HOURS_PER_DAY);
+}
+
 /**
  * Recalcula el resumen semanal de horas para un usuario en una semana ISO específica.
  *
@@ -17,14 +82,7 @@ export async function recalculateWeeklySummary(
   year: number,
   week: number,
 ): Promise<WeeklyWorkSummary> {
-  // Calcular inicio y fin de la semana ISO
-  const jan4 = new Date(year, 0, 4);
-  const weekStart = new Date(jan4);
-  weekStart.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
+  const { weekStart, weekEnd } = getIsoWeekRange(year, week);
 
   // Obtener todos los schedules del usuario en esa semana
   const schedules = await findSchedules({
@@ -35,6 +93,9 @@ export async function recalculateWeeklySummary(
     ],
   });
 
+  const vacationHours = await calculateApprovedVacationHours(userId, weekStart, weekEnd);
+  const baseHours = Math.max(0, DEFAULT_BASE_HOURS - vacationHours);
+
   // Calcular horas totales y extra
   const summary = computeWeeklySummary(
     schedules.map((s) => ({
@@ -42,6 +103,7 @@ export async function recalculateWeeklySummary(
       endDatetime: s.endDatetime,
       hoursPerDay: s.hoursPerDay,
     })),
+    baseHours,
   );
 
   // Guardar/actualizar en BD
@@ -99,6 +161,17 @@ export async function recalculateWeeklySummariesForAssignees(
   }
 
   await Promise.all(promises);
+}
+
+/**
+ * Recalcula resúmenes cuando una solicitud de vacaciones cambia el cupo semanal.
+ */
+export async function recalculateWeeklySummariesForVacation(
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<void> {
+  await recalculateWeeklySummariesForAssignees([userId], startDate, endDate);
 }
 
 /**
