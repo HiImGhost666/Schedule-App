@@ -67,6 +67,13 @@
 - [ ] **Feature**: Actualmente solo webhook, no hay notificación al empleado cuando se le asigna un turno
   - **Prioridad**: Baja (BusinessLogic.md 3.3)
 
+### Frontend + Backend — Filtrar webhooks en envíos manuales de notificaciones
+- [ ] **Feature**: `NotificationsPage` debe permitir filtrar los webhooks disponibles antes de enviar resúmenes/anuncios manuales, igual que al crear un webhook.
+  - **Caso actual**: Hay envío a todos, por sucursal, por departamento y por webhook específico, pero el selector de webhook específico no queda filtrado por sucursal/departamento y el departamento no se limita por sucursal.
+  - **Fix**: Añadir filtro por sucursal + departamento, filtrar departamentos por sucursal usando la misma regla de `WebhooksPage`, limpiar selects dependientes al cambiar alcance/sucursal y enviar solo los `webhookConfigIds` resultantes.
+  - **Tests**: Cubrir que el selector de departamentos se filtra por sucursal, que el selector de webhook específico se reduce por alcance, y que `/notifications/friday-summary`, `/notifications/vacation-summary` y `/notifications/announce` reciben los IDs esperados.
+  - **Prioridad**: Baja
+
 ### Backend — Endpoint de health check
 - [ ] **Feature**: Añadir endpoint `GET /health` para monitoreo
   - **Fuente**: BusinessLogic.md (6.1 Backend)
@@ -114,5 +121,9 @@
 
 - **VUL-5**: ❌ Pendiente (validación ownership webhooks — baja prioridad, solo si multi-tenant)
 - **VUL-7**: ❌ Pendiente (verificación de rol en servicio de vacaciones)
-- **VUL-9**: ❌ Pendiente (tokenVersion + logout)
+- **VUL-9**: ✅ Completado (tokenVersion + logout + rate-limit login)
 - **VUL-10**: ❌ Pendiente (límite de sesiones concurrentes — baja prioridad)
+- **FEAT**: ✅ Completado — Gestión de múltiples managers por departamento (backend + frontend)
+  - Backend: `removeDepartmentManager` acepta `userId` opcional
+  - Frontend: `DepartmentDetail` muestra managers, `DepartmentMembersModal` permite asignar/remover managers
+  - Tests: 37 suites, 488 passed

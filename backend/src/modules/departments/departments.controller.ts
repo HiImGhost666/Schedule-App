@@ -7,6 +7,7 @@ import {
   createDepartmentBodySchema,
   departmentIdParamsSchema,
   listDepartmentsQuerySchema,
+  removeDepartmentManagerBodySchema,
   updateDepartmentBodySchema,
 } from './departments.http.schemas';
 import {
@@ -156,8 +157,13 @@ export async function removeDepartmentManagerController(req: AuthRequest, res: R
     return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
+  const parsedBody = removeDepartmentManagerBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return sendError(res, 'Datos invalidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  }
+
   try {
-    const updated = await removeDepartmentManager(parsedParams.data.departmentId, {
+    const updated = await removeDepartmentManager(parsedParams.data.departmentId, parsedBody.data.userId, {
       id: req.user!.id,
       ipAddress: req.ip,
     });

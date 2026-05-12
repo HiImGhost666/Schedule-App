@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, UserCog, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import type { Department, User } from '@/types';
 
@@ -12,6 +12,8 @@ interface DepartmentMembersModalProps {
   isLoading?: boolean;
   onAssignUser: (userId: string) => void;
   onMoveUser: (userId: string, departmentId: string) => void;
+  onAssignManager: (userId: string) => void;
+  onRemoveManager: (userId: string) => void;
   onCancel: () => void;
 }
 
@@ -25,12 +27,16 @@ export function DepartmentMembersModal({
   isLoading,
   onAssignUser,
   onMoveUser,
+  onAssignManager,
+  onRemoveManager,
   onCancel,
 }: DepartmentMembersModalProps) {
   if (!open) return null;
 
   const currentMemberIds = new Set(departmentUsers.map((user) => user.id));
   const availableUsers = branchUsers.filter((user) => !currentMemberIds.has(user.id));
+  const managers = department.managers ?? [];
+  const managerIds = new Set(managers.map((m) => m.user.id));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
@@ -46,6 +52,40 @@ export function DepartmentMembersModal({
         </div>
 
         <div className="p-6 overflow-y-auto space-y-6">
+          {/* ── Managers ── */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-theme-primary flex items-center gap-1.5">
+                <UserCog className="h-4 w-4" /> Managers
+              </h3>
+              <span className="text-xs text-theme-muted">{managers.length} managers</span>
+            </div>
+
+            {managers.length ? (
+              <div className="space-y-2">
+                {managers.map((m) => (
+                  <div key={m.user.id} className="rounded-xl border border-theme-color bg-theme-surface p-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-theme-primary">{m.user.name}</p>
+                      <p className="text-xs text-theme-muted">{m.user.email}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveManager(m.user.id)}
+                      disabled={isLoading}
+                      className="btn-ghost text-sm text-red-500 disabled:opacity-60 inline-flex items-center gap-1"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Remover manager
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-theme-muted">Sin managers asignados.</p>
+            )}
+          </section>
+
+          {/* ── Integrantes actuales ── */}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-theme-primary">Integrantes actuales</h3>
@@ -54,40 +94,55 @@ export function DepartmentMembersModal({
 
             {departmentUsers.length ? (
               <div className="space-y-2">
-                {departmentUsers.map((user) => (
-                  <div key={user.id} className="rounded-xl border border-theme-color bg-theme-surface p-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-theme-primary">{user.name}</p>
-                      <p className="text-xs text-theme-muted">{user.email}</p>
+                {departmentUsers.map((user) => {
+                  const isManager = managerIds.has(user.id);
+                  return (
+                    <div key={user.id} className="rounded-xl border border-theme-color bg-theme-surface p-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-theme-primary">{user.name}</p>
+                        <p className="text-xs text-theme-muted">{user.email}</p>
+                        {isManager && <span className="text-[11px] text-amber-600 font-medium">Manager</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!isManager ? (
+                          <button
+                            type="button"
+                            onClick={() => onAssignManager(user.id)}
+                            disabled={isLoading}
+                            className="btn-ghost text-sm disabled:opacity-60 inline-flex items-center gap-1"
+                          >
+                            <UserCog className="h-3.5 w-3.5" /> Promover a manager
+                          </button>
+                        ) : null}
+                        <select
+                          className="input-field text-sm min-w-[220px]"
+                          defaultValue=""
+                          onChange={(event) => {
+                            const nextDepartmentId = event.target.value;
+                            if (!nextDepartmentId) return;
+                            onMoveUser(user.id, nextDepartmentId);
+                            event.target.value = '';
+                          }}
+                          disabled={isLoading || departments.length === 0}
+                        >
+                          <option value="">Mover a otro departamento</option>
+                          {departments.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name} ({item.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        className="input-field text-sm min-w-[220px]"
-                        defaultValue=""
-                        onChange={(event) => {
-                          const nextDepartmentId = event.target.value;
-                          if (!nextDepartmentId) return;
-                          onMoveUser(user.id, nextDepartmentId);
-                          event.target.value = '';
-                        }}
-                        disabled={isLoading || departments.length === 0}
-                      >
-                        <option value="">Mover a otro departamento</option>
-                        {departments.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name} ({item.code})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-theme-muted">Sin integrantes en este departamento.</p>
             )}
           </section>
 
+          {/* ── Usuarios disponibles ── */}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-theme-primary">Usuarios del branch disponibles</h3>

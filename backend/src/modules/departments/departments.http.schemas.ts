@@ -33,3 +33,7 @@ export const updateDepartmentBodySchema = z.object({
 export const assignDepartmentManagerBodySchema = z.object({
   userId: z.string().min(1, 'El ID del usuario es requerido'),
 });
+
+export const removeDepartmentManagerBodySchema = z.object({
+  userId: z.string().min(1, 'El ID del usuario es requerido').optional(),
+});

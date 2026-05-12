@@ -1,4 +1,4 @@
-import { Pencil } from 'lucide-react';
+import { Pencil, UserCog } from 'lucide-react';
 import type { Department } from '@/types';
 
 interface DepartmentDetailProps {
@@ -7,6 +7,7 @@ interface DepartmentDetailProps {
   usersLoading: boolean;
   onEdit: () => void;
   onManageMembers?: () => void;
+  onManageManagers?: () => void;
   onDisable: () => void;
   onActivate: () => void;
   onHardDelete: () => void;
@@ -21,6 +22,7 @@ export function DepartmentDetail({
   usersLoading,
   onEdit,
   onManageMembers,
+  onManageManagers,
   onDisable,
   onActivate,
   onHardDelete,
@@ -28,6 +30,7 @@ export function DepartmentDetail({
   isActivating,
   isDeleting,
 }: DepartmentDetailProps) {
+  const managers = department.managers ?? [];
   return (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -70,6 +73,20 @@ export function DepartmentDetail({
         </div>
       ) : null}
 
+      {managers.length > 0 ? (
+        <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
+          <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Managers del departamento</p>
+          <div className="space-y-1">
+            {managers.map((m) => (
+              <div key={m.user.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-theme-primary truncate">{m.user.name}</span>
+                <span className="text-theme-muted text-xs truncate">{m.user.email}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-xl border border-theme-color bg-theme-surface-muted/30 p-3 space-y-2">
         <p className="text-[11px] uppercase tracking-wide text-theme-muted font-semibold">Usuarios asignados</p>
         {usersLoading ? (
@@ -92,6 +109,11 @@ export function DepartmentDetail({
         {onManageMembers ? (
           <button type="button" onClick={onManageMembers} className="btn-ghost text-sm inline-flex items-center gap-1.5">
             Gestionar integrantes
+          </button>
+        ) : null}
+        {onManageManagers ? (
+          <button type="button" onClick={onManageManagers} className="btn-ghost text-sm inline-flex items-center gap-1.5">
+            <UserCog className="h-4 w-4" />Gestionar managers
           </button>
         ) : null}
         {department.isActive ? (
