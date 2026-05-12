@@ -241,7 +241,7 @@ export function NotificationsPage() {
       {/* Quick actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Vacation summary */}
-        <div className="card p-7">
+        <div className="card p-7 flex flex-col">
           <div className="flex items-center gap-3 mb-4">
             <div className={cn('p-2 rounded-lg', isDark ? 'bg-theme-surface-muted' : 'bg-green-50')}>
               <Umbrella className={cn('h-4 w-4', isDark ? 'text-theme-primary' : 'text-green-600')} />
@@ -275,7 +275,7 @@ export function NotificationsPage() {
         </div>
 
         {/* Friday summary */}
-        <div className="card p-7">
+        <div className="card p-7 flex flex-col">
           <div className="flex items-center gap-3 mb-4">
             <div className={cn('p-2 rounded-lg', isDark ? 'bg-theme-surface-muted' : 'bg-gold-50')}>
               <Calendar className={cn('h-4 w-4', isDark ? 'text-theme-primary' : 'text-gold-600')} />
@@ -309,7 +309,7 @@ export function NotificationsPage() {
         </div>
 
         {/* Manual announcement */}
-        <div className="card p-7">
+        <div className="card p-7 flex flex-col">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-theme-surface-muted rounded-lg">
               <Send className={cn('h-4 w-4', isDark ? 'text-theme-primary' : 'text-theme-secondary')} />
