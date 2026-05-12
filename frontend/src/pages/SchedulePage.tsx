@@ -825,6 +825,7 @@ export function SchedulePage() {
                 initialView={navState?.initialView || 'dayGridMonth'}
                 initialDate={navState?.initialDate ? new Date(navState.initialDate) : undefined}
                 locale={esLocale}
+                timeZone={effectiveActiveBranchId ? branchTimezoneById[effectiveActiveBranchId] : 'UTC'}
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
@@ -894,6 +895,18 @@ export function SchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* Pie informativo para admin en vista "Todas las sucursales" */}
+      {canViewAllBranches && !effectiveActiveBranchId && (
+        <p className="text-xs text-theme-muted text-center mt-2">
+          Los turnos se muestran en UTC. Cada sucursal tiene su propia franja horaria:{' '}
+          {availableBranches
+            .filter((b) => b.timezone)
+            .map((b) => `${b.name} (${b.timezone})`)
+            .join(', ')}.
+          Al seleccionar una sucursal en el panel lateral, el calendario se ajusta a su zona horaria.
+        </p>
+      )}
 
       <ShiftModal
         open={modalOpen}

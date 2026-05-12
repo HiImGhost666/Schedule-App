@@ -124,6 +124,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     enabled: open && canEdit,
   });
 
+  const branchTimezoneById = useMemo(() => {
+    if (!branches) return {} as Record<string, string>;
+    return Object.fromEntries(
+      (branches as Array<{ id: string; timezone: string }>).map((b) => [b.id, b.timezone]),
+    );
+  }, [branches]);
+
   const { data: shiftPresets = [] } = useQuery<ShiftPreset[]>({
     queryKey: ['shift-presets', 'modal'],
     queryFn: async () => {
@@ -461,6 +468,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   }, []);
 
   const buildPayloads = (data: ShiftForm) => {
+    const branchTimezone = branchTimezoneById[data.branchId];
     const chunks = buildScheduleChunks(sortedSelectedDates, effectiveDayShiftOverrides, defaultShiftPresetId);
     const items = chunks.map((chunk) => {
       if (chunk.presetId.startsWith('custom:')) {
@@ -469,8 +477,8 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         if (!startTime || !endTime) {
           throw new Error('Horario personalizado inválido');
         }
-        const start = buildDateTime(chunk.startDate, startTime);
-        let end = buildDateTime(chunk.endDate, endTime);
+        const start = buildDateTime(chunk.startDate, startTime, branchTimezone);
+        let end = buildDateTime(chunk.endDate, endTime, branchTimezone);
         if (end.getTime() <= start.getTime()) {
           end = new Date(end.getTime());
           end.setDate(end.getDate() + 1);
