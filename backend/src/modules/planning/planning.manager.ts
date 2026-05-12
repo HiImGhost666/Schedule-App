@@ -7,9 +7,52 @@ import type {
   ScopedPlanningRangeFilters,
 } from './planning.types';
 import { createAppError } from '../../common/errors/error-catalog';
+import { prisma } from '../../config/database';
+import type { Prisma } from '@prisma/client';
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function overlapWhere(from: Date, to: Date): Prisma.ScheduleWhereInput {
+  return {
+    AND: [
+      { startDatetime: { lte: to } },
+      { endDatetime: { gte: from } },
+    ],
+  };
+}
+
+const coverageScheduleSelect = {
+  id: true,
+  title: true,
+  startDatetime: true,
+  endDatetime: true,
+  branch: { select: { id: true, name: true } },
+  assignments: { select: { userId: true } },
+} satisfies Prisma.ScheduleSelect;
+
+type CoverageSchedule = Prisma.ScheduleGetPayload<{ select: typeof coverageScheduleSelect }>;
+
+function toCoverageRisk(schedule: CoverageSchedule): CoverageRiskItem | null {
+  const assignedCount = schedule.assignments.length;
+  if (assignedCount >= 2) return null;
+
+  return {
+    severity: assignedCount === 0 ? 'high' : 'medium',
+    reasons: [
+      assignedCount === 0
+        ? 'Turno descubierto'
+        : 'Turno con una sola persona asignada',
+    ],
+    schedule: {
+      id: schedule.id,
+      title: schedule.title,
+      startDatetime: schedule.startDatetime.toISOString(),
+      endDatetime: schedule.endDatetime.toISOString(),
+      branch: schedule.branch,
+    },
+  };
 }
 
 export class PlanningManager {
@@ -52,10 +95,21 @@ export class PlanningManager {
    * List coverage risks in the requested planning range.
    */
   async listCoverageRisks(
-    _filters: ScopedPlanningRangeFilters,
+    filters: ScopedPlanningRangeFilters,
     _actor: PlanningActor,
   ): Promise<CoverageRiskItem[]> {
-    return [];
+    const schedules = await prisma.schedule.findMany({
+      where: {
+        ...overlapWhere(filters.from, filters.to),
+        ...(filters.branchIds ? { branchId: { in: filters.branchIds } } : {}),
+      },
+      select: coverageScheduleSelect,
+      orderBy: { startDatetime: 'asc' },
+    });
+
+    return schedules
+      .map(toCoverageRisk)
+      .filter((risk): risk is CoverageRiskItem => risk !== null);
   }
 
   /**

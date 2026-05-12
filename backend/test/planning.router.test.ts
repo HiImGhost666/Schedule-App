@@ -34,6 +34,7 @@ jest.mock('../src/middleware/auth.middleware', () => {
 import planningRouter from '../src/modules/planning/planning.router';
 import { planningManager } from '../src/modules/planning/planning.manager';
 import { planningService } from '../src/modules/planning/planning.service';
+import { prismaMock } from './singleton';
 
 const app = express();
 app.use(express.json());
@@ -44,6 +45,7 @@ const range = 'from=2026-05-12T00:00:00.000Z&to=2026-05-18T23:59:59.999Z';
 describe('planning.router', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+    prismaMock.schedule.findMany.mockResolvedValue([]);
   });
 
   it('returns empty coverage risks scaffold for users with schedule view permission', async () => {
