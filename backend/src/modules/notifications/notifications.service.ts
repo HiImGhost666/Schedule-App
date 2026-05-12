@@ -12,6 +12,7 @@ interface ScheduleChangeParams {
     endDatetime: Date;
     location?: string | null;
     assignments: Array<{ user: { name: string } }>;
+    branch?: { timezone?: string | null } | null;
   };
   actor: { name: string; id?: string };
   reason: string;
@@ -29,6 +30,7 @@ interface VacationChangeParams {
     rejectionReason?: string | null;
     branchId: string;
     departmentId: string;
+    branch?: { timezone?: string | null } | null;
   };
   actor: { name: string; id?: string };
 }
@@ -44,6 +46,7 @@ export async function notifyVacationChange(params: VacationChangeParams) {
     note: params.vacation.note,
     actor: params.actor.name,
     rejectionReason: params.vacation.rejectionReason,
+    branchTimezone: params.vacation.branch?.timezone ?? undefined,
   });
 
   const webhooks = await prisma.webhookConfig.findMany({
@@ -81,6 +84,7 @@ export async function notifyScheduleChange(params: ScheduleChangeParams) {
     reason: params.reason,
     actor: params.actor.name,
     isLastMinute: params.isLastMinute,
+    branchTimezone: params.schedule.branch?.timezone ?? undefined,
   });
 
   const webhooks = await prisma.webhookConfig.findMany({
