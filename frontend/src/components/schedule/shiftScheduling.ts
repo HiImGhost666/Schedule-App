@@ -1,6 +1,6 @@
 export type ShiftPreset = {
   id: string;
-  label: string;
+  name: string;
   startTime: string;
   endTime: string;
 };

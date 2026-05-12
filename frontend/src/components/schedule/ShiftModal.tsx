@@ -49,19 +49,6 @@ const HOLIDAY_TYPE_LABELS: Record<BranchHoliday['type'], string> = {
   company: 'Empresa',
 };
 
-const SHIFT_PRESETS: ShiftPreset[] = [
-  { id: 'morning', label: 'Turno manana', startTime: '08:00', endTime: '16:00' },
-  { id: 'evening', label: 'Turno tarde', startTime: '16:00', endTime: '23:00' },
-  { id: 'night', label: 'Turno noche', startTime: '00:00', endTime: '08:00' },
-];
-
-const DEFAULT_SHIFT_PRESET_ID = SHIFT_PRESETS[0].id;
-
-function findPresetByTimes(start: Date, end: Date) {
-  const startTime = format(start, 'HH:mm');
-  const endTime = format(end, 'HH:mm');
-  return SHIFT_PRESETS.find((preset) => preset.startTime === startTime && preset.endTime === endTime);
-}
 
 const shiftSchema = z.object({
   title: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -109,7 +96,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const [asideDeptFilter, setAsideDeptFilter] = useState(''); // Corregido: Inicializado como string vacío
   const [asideSearchFilter, setAsideSearchFilter] = useState('');
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [defaultShiftPresetId, setDefaultShiftPresetId] = useState(DEFAULT_SHIFT_PRESET_ID);
+  const [defaultShiftPresetId, setDefaultShiftPresetId] = useState('');
   const [dayShiftOverrides, setDayShiftOverrides] = useState<Record<string, string>>({});
   const [customShiftTimes, setCustomShiftTimes] = useState<Record<string, { startTime: string; endTime: string }>>({});
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -130,6 +117,15 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     queryKey: ['branches', 'shift-modal'],
     queryFn: () => api.get('/branches').then((r) => r.data?.data ?? []),
     enabled: open && canEdit,
+  });
+
+  const { data: shiftPresets = [] } = useQuery<ShiftPreset[]>({
+    queryKey: ['shift-presets', 'modal'],
+    queryFn: async () => {
+      const { data } = await api.get('/shift-presets');
+      return data.data ?? [];
+    },
+    enabled: open,
   });
 
   const toIsoFromLocalInput = (value: Date) => value.toISOString();
@@ -172,7 +168,9 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     const rangeEnd = schedule ? new Date(schedule.endDatetime) : defaultEnd;
     if (rangeStart && rangeEnd) {
       setSelectedDates(buildDateRange(rangeStart, rangeEnd));
-      const matchedPreset = findPresetByTimes(rangeStart, rangeEnd);
+      const startTime = format(rangeStart, 'HH:mm');
+      const endTime = format(rangeEnd, 'HH:mm');
+      const matchedPreset = shiftPresets.find((preset) => preset.startTime === startTime && preset.endTime === endTime);
       if (matchedPreset) {
         setDefaultShiftPresetId(matchedPreset.id);
         setDayShiftOverrides({});
@@ -186,30 +184,30 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
             endTime: format(rangeEnd, 'HH:mm'),
           }]),
         );
-        setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+        setDefaultShiftPresetId(shiftPresets[0]?.id ?? '');
         setDayShiftOverrides(overrides);
         setCustomShiftTimes(customTimes);
       } else {
-        setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+        setDefaultShiftPresetId(shiftPresets[0]?.id ?? '');
         setDayShiftOverrides({});
         setCustomShiftTimes({});
       }
     } else {
       setSelectedDates([]);
-      setDefaultShiftPresetId(DEFAULT_SHIFT_PRESET_ID);
+      setDefaultShiftPresetId(shiftPresets[0]?.id ?? '');
       setDayShiftOverrides({});
       setCustomShiftTimes({});
     }
-    setCalendarOpen(false);
-        setShiftAnchorDate(null);
-  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
 
+    setCalendarOpen(false);
+    setShiftAnchorDate(null);
+  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
   const isAllBranchesMode = !schedule && !defaultBranchId;
   const presetById = useMemo(
-    () => Object.fromEntries(SHIFT_PRESETS.map((preset) => [preset.id, preset])),
-    [],
+    () => Object.fromEntries(shiftPresets.map((preset) => [preset.id, preset])),
+    [shiftPresets],
   );
 
   const sortedSelectedDates = useMemo(
@@ -408,7 +406,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         return acc + Math.round((durationMinutes / 60) * 10) / 10;
       }
 
-      const preset = presetById[presetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
+      const preset = presetById[presetId] ?? presetById[shiftPresets[0]?.id ?? ''];
       return acc + (preset ? getPresetDurationHours(preset) : 0);
     }, 0);
 
@@ -487,7 +485,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         } satisfies ShiftPayload;
       }
 
-      const preset = presetById[chunk.presetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
+      const preset = presetById[chunk.presetId] ?? presetById[shiftPresets[0]?.id ?? ''];
       if (!preset) {
         throw new Error('Preset de turno inválido');
       }
@@ -788,9 +786,9 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                   disabled={!canEdit}
                   className="input-field text-sm"
                 >
-                  {SHIFT_PRESETS.map((preset) => (
+                  {shiftPresets.map((preset) => (
                     <option key={preset.id} value={preset.id}>
-                      {preset.label} ({preset.startTime} - {preset.endTime})
+                      {preset.name} ({preset.startTime} - {preset.endTime})
                     </option>
                   ))}
                 </select>
@@ -827,7 +825,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                                 return next;
                               }
                               if (prev[key]) return prev;
-                              const basePreset = presetById[defaultShiftPresetId] ?? presetById[DEFAULT_SHIFT_PRESET_ID];
+                              const basePreset = presetById[defaultShiftPresetId] ?? presetById[shiftPresets[0]?.id ?? ''];
                               return {
                                 ...prev,
                                 [key]: {
@@ -842,9 +840,9 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
                         >
                           <option value="">Usar turno base</option>
                           <option value="custom">Turno personalizado</option>
-                          {SHIFT_PRESETS.map((preset) => (
+                          {shiftPresets.map((preset) => (
                             <option key={preset.id} value={preset.id}>
-                              {preset.label} ({preset.startTime} - {preset.endTime})
+                              {preset.name} ({preset.startTime} - {preset.endTime})
                             </option>
                           ))}
                         </select>

@@ -386,6 +386,27 @@ async function main() {
     console.log(`[SCHEDULE_TYPE] Synced ${typeData.label}`);
   }
 
+  // --- BLOQUE 2.1.4: SHIFT PRESETS ---
+  console.log('BLOQUE: SHIFT PRESETS');
+
+  const shiftPresetsData = [
+    { name: 'Turno mañana', startTime: '08:00', endTime: '16:00' },
+    { name: 'Turno tarde', startTime: '16:00', endTime: '23:00' },
+    { name: 'Turno noche', startTime: '00:00', endTime: '08:00' },
+  ];
+
+  for (const presetData of shiftPresetsData) {
+    const existing = await prisma.shiftPreset.findFirst({
+      where: { name: presetData.name },
+    });
+    if (!existing) {
+      await prisma.shiftPreset.create({ data: presetData });
+      console.log(`[SHIFT_PRESET] Created ${presetData.name}`);
+    } else {
+      console.log(`[SHIFT_PRESET] ${presetData.name} already exists`);
+    }
+  }
+
   // --- BLOQUE 2.2: USUARIOS ---
   console.log('BLOQUE: USUARIOS');
   const adminEmail = env.SEED_ADMIN_EMAIL || 'admin@company.com';
@@ -473,7 +494,7 @@ async function main() {
       reviewedAt?: Date;
       rejectionReason?: string;
       branchId: string;
-      departmentId?: string | null;
+      departmentId: string;
     }) {
       const existing = await prisma.vacationRequest.findFirst({
         where: { employeeId: data.employeeId, startDate: data.startDate },
@@ -497,7 +518,7 @@ async function main() {
       reviewedBy: adminUser.id,
       reviewedAt: new Date(),
       branchId: mainBranch.id,
-      departmentId: carlosInfo.departmentId,
+      departmentId: carlosInfo.departmentId!,
     });
 
     // Ana: Solicitud pendiente (semana siguiente)
@@ -508,7 +529,7 @@ async function main() {
       endDate: addDays(monday, 11), // lunes a viernes de la semana siguiente
       note: 'Solicito días libres la semana que viene',
       branchId: mainBranch.id,
-      departmentId: anaInfo.departmentId,
+      departmentId: anaInfo.departmentId!,
     });
 
     // Pedro: Vacaciones rechazadas (semana actual, martes-miércoles)
@@ -522,7 +543,7 @@ async function main() {
       reviewedAt: new Date(),
       rejectionReason: 'No hay cobertura suficiente esa semana en mantenimiento',
       branchId: secondBranch.id,
-      departmentId: pedroInfo.departmentId,
+      departmentId: pedroInfo.departmentId!,
     });
 
     // Laura: Vacaciones aprobadas (semana actual, jueves-viernes)
@@ -535,7 +556,7 @@ async function main() {
       reviewedBy: adminUser.id,
       reviewedAt: new Date(),
       branchId: secondBranch.id,
-      departmentId: lauraInfo.departmentId,
+      departmentId: lauraInfo.departmentId!,
     });
 
     // Ana: Guardia Normal

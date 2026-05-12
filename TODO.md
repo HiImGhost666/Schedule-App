@@ -1,6 +1,6 @@
 # TODO — Pendientes
 
-> **Última actualización:** 11 mayo 2026
+> **Última actualización:** 12 mayo 2026
 > Basado en `BusinessLogic.md`, `PERMISOS.md`, `DESIGN.md`, análisis de código fuente y lista de features pendientes.
 
 ---
@@ -46,13 +46,6 @@
 
 ## 🟡 PRIORIDAD 2 — Mejoras UX / Features parcialmente implementadas
 
-#### 9. Selección de días específicos al crear turnos
-- **Descripción**: Permitir seleccionar días específicos (ej. lunes, miércoles, viernes) sin crear múltiples turnos manualmente.
-- **Cómo hacerlo**:
-  1. Añadir componente de checkboxes (L M X J V S D) en el modal de creación
-  2. Al seleccionar varios días, crear un schedule por cada día con misma hora inicio/fin
-  3. Usar `createScheduleBatch` del backend si existe, o llamar `createSchedule` por cada día
-
 #### 10-11. Calendario tipo "reserva de vuelos" en EventModal y Vacaciones
 - **Descripción**: Reemplazar inputs de fecha por un mini calendario donde se puedan seleccionar días manualmente.
 - **Cómo hacerlo**:
@@ -61,66 +54,11 @@
   3. Reemplazar en `EventModal.tsx` y `VacationRequestModal.tsx`
   4. Soportar: clic simple (seleccionar día), clic+arrastre (rango), clic en día seleccionado (deseleccionar)
 
-#### 12. Mensaje cuando employee no tiene sucursal asignada
-- **Descripción**: SchedulePage vacía sin mensaje informativo para employee sin branchId.
-- **Cómo hacerlo**:
-  1. En `SchedulePage.tsx`, detectar si `user.branchId` es null/undefined
-  2. Mostrar `<EmptyState>` con mensaje "No tienes una sucursal asignada. Contacta con tu administrador."
-
-#### 13. Skeleton loaders consistentes
-- **Descripción**: Algunas páginas pueden no tener skeleton loaders.
-- **Cómo hacerlo**:
-  1. Revisar todas las páginas que cargan datos asíncronos
-  2. Añadir `<Skeleton>` o `<DashboardSkeleton>` / `<TableSkeleton>` según corresponda
-  3. Usar los componentes ya existentes en `components/common/Skeleton.tsx`
-
-#### 14. Error 403 con mensaje descriptivo
-- **Descripción**: El componente `ForbiddenPage` debe mostrar contexto según la acción denegada.
-- **Cómo hacerlo**:
-  1. Modificar `ForbiddenPage.tsx` para aceptar prop `context?: string`
-  2. Pasar contexto desde los guards de las páginas
-  3. Ej: "No tienes permiso para crear turnos en otra sucursal"
-
-#### 15. Confirmación antes de crear schedule en día festivo
-- **Descripción**: El backend ya detecta solapamiento con festivos (`ensureNoHolidayOverlap`), pero el frontend debe mostrar confirmación.
-- **Cómo hacerlo**:
-  1. Verificar si el backend ya devuelve información de festivos en la respuesta
-  2. Si no, añadir flag en la respuesta de creación
-  3. En frontend, mostrar `<ConfirmDialog>` antes de crear si hay festivo
-
-#### 16. Notificaciones push para vacaciones
-- **Descripción**: Al aprobar/rechazar vacaciones, notificar al empleado (in-app + webhook).
-- **Cómo hacerlo**:
-  1. Verificar que `notifyVacationChange` se llama en `approveVacationEntry` y `rejectVacationEntry`
-  2. Añadir notificación in-app al empleado cuando su solicitud cambia de estado
-  3. Usar `createInAppNotification` para notificar al empleado
-
 ---
 
 ## 🔵 PRIORIDAD 3 — Features nuevas
 
-#### 17. Filtro "Mis turnos" en SchedulePage
-- **Cómo hacerlo**:
-  1. Añadir toggle/checkbox "Mostrar solo mis turnos" en SchedulePage
-  2. Cuando está activo, pasar `userId` a `/schedules/week/...` y `/schedules`
-  3. Solo visible para employee (admin/GM/DM ya ven todo)
-
-#### 18. Filtro por usuario en SchedulePage
-- **Cómo hacerlo**:
-  1. Añadir selector de usuario (solo para admin/GM/DM)
-  2. Pasar `userId` seleccionado a las queries de schedules
-  3. Cargar lista de usuarios del scope correspondiente
-
-#### 19. Perfil desde header (TopBar)
-- **Cómo hacerlo**:
-  1. En `TopBar.tsx`, envolver el nombre de usuario con `<Link to="/profile">`
-  2. Mantener el menú desplegable si existe
-
-#### 20. Días en español en calendario EventModal
-- **Cómo hacerlo**:
-  1. Localizar el calendario interno del EventModal
-  2. Usar `date-fns/locale/es` para los nombres de días
-  3. Cambiar initiales: mo→lu, tu→ma, we→mi, th→ju, fr→vi, sa→sá, su→do
+*(Completadas: Items #9, #12-16, #17-20)*
 
 ---
 

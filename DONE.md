@@ -1,7 +1,63 @@
 # DONE — Cambios Realizados
 
 > Registro de cambios aplicados durante el desarrollo.
-> **Última actualización:** 11 mayo 2026
+> **Última actualización:** 12 mayo 2026
+
+---
+
+## ✅ COMPLETADO — Items #9, #12-16 (12 mayo 2026)
+
+### Item #9: Selección de días específicos al crear turnos
+- [x] Verificado: ya funciona con el DayPicker multi-select en ShiftModal.tsx
+
+### Item #12: Mensaje cuando employee no tiene sucursal asignada
+- [x] Añadido `<EmptyState>` en SchedulePage.tsx con mensaje "No tienes una sucursal asignada. Contacta con tu administrador."
+
+### Item #13: Skeleton loaders consistentes
+- [x] Verificadas todas las páginas admin — todas tienen skeletons (DashboardSkeleton, TableSkeleton, etc.)
+
+### Item #14: Error 403 con mensaje descriptivo
+- [x] Mejorado `ProtectedRoute.tsx` (RoleGuard) con nombre de sección y roles requeridos en el mensaje
+- [x] `ForbiddenPage.tsx` ya acepta contexto descriptivo
+
+### Item #15: Confirmación antes de crear schedule en día festivo
+- [x] Verificado: ya funciona con el diálogo de conflictos (holiday overlap detection)
+
+### Item #16: Notificaciones push para vacaciones
+- [x] Verificado: `notifyVacationChange` ya se llama en `approveVacationEntry` y `rejectVacationEntry`
+- [x] Notificación in-app al empleado cuando su solicitud cambia de estado
+
+### Fix: ShiftModal.tsx — Presets desde API
+- [x] ShiftModal ahora consulta `GET /shift-presets` desde la API en lugar de tener presets hardcodeados
+- [x] Tipo `ShiftPreset` usa `name` en lugar de `label` para coincidir con la API
+
+### Fix: seed.ts — Añadido bloque SHIFT PRESETS
+- [x] Nuevo bloque `BLOQUE 2.1.4: SHIFT PRESETS` que crea los 3 presets base (mañana 08-16, tarde 16-23, noche 00-08)
+- [x] Corregido error TS en `ensureVacationRequest` (departmentId requerido)
+- [x] Restaurado `adminUser` que se había perdido durante ediciones anteriores
+
+---
+
+## ✅ COMPLETADO — Items #17-20 (11 mayo 2026)
+
+### Item #17: Filtro "Mis turnos" en SchedulePage
+- [x] Añadido checkbox "Mostrar solo mis turnos" en ScheduleSidebar
+- [x] Solo visible para rol employee
+- [x] Al activarlo, pasa `userId` a las queries de schedules (resuelve 'me' → user.id real)
+
+### Item #18: Filtro por usuario en SchedulePage
+- [x] Añadido selector de usuarios en ScheduleSidebar (solo admin/GM/DM)
+- [x] Carga usuarios del scope (branch/departamento) activo
+- [x] Incluye campo de búsqueda si hay más de 10 usuarios
+- [x] Pasa `userId` seleccionado a las queries de schedules
+
+### Item #19: Perfil desde header (TopBar)
+- [x] Envuelto nombre de usuario con `<Link to="/profile">` en TopBar
+- [x] Añadido hover opacity para indicar interactividad
+
+### Item #20: Días en español en calendario EventModal
+- [x] Añadido locale `es` de date-fns al DayPicker en ShiftModal
+- [x] Localizado formato `EEE` (día de semana) con locale español
 
 ---
 

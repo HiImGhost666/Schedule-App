@@ -7,7 +7,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import type { EventClickArg, DateSelectArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
-import { Plus } from 'lucide-react';
+import { Plus, Building2 } from 'lucide-react';
 import { ScheduleSidebar } from '@/components/schedule/ScheduleSidebar';
 import { EventContent } from '@/components/schedule/CalendarEventContent';
 import toast from 'react-hot-toast';
@@ -24,6 +24,7 @@ import { HolidayEditModal } from '@/components/schedule/HolidayEditModal';
 import { UserProfileModal } from '@/components/common/UserProfileModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal';
 import { ScheduleSkeleton } from '@/components/common/Skeleton';
+import { EmptyState } from '@/components/common/EmptyState';
 import api from '@/config/api';
 import type {
   Branch,
@@ -767,7 +768,17 @@ export function SchedulePage() {
         </div>
       </div>
 
-      {/* Calendar card */}
+      {/* Employee sin sucursal asignada */}
+      {isEmployee && !user?.branchId ? (
+        <div className="card p-6">
+          <EmptyState
+            icon={Building2}
+            title="Sin sucursal asignada"
+            description="No tienes una sucursal asignada. Contacta con tu administrador para que te asigne a una sucursal."
+          />
+        </div>
+      ) : (
+      <>
       <div className="card relative overflow-hidden">
         {isLoading && !schedules && (
           <div className="p-6">
@@ -937,6 +948,8 @@ export function SchedulePage() {
           setSelectedProfileUser(null);
         }}
       />
+      </>
+      )}
     </div>
   );
 }
