@@ -13,6 +13,35 @@
   - **Fix**: Pasar `branchTimezone` al servicio de notificaciones y usar `toLocaleDateString('es-ES', { timeZone: branchTimezone })`
   - **Fuente**: REPORTE-BACKEND.md (#1, Prioridad 🔴 Alta)
 
+### Backend + Frontend — Timezone consistente por sucursal (turnos y calendario)
+- [ ] **Estado actual (confirmado)**
+  - En BD ya existe `Branch.timezone` con default `Europe/Madrid` en `backend/prisma/schema.prisma`.
+  - Los turnos se guardan como `DateTime` en `Schedule.startDatetime` y `Schedule.endDatetime` en `backend/prisma/schema.prisma`.
+  - En frontend existen helpers para zonas horarias en `frontend/src/lib/timezone.ts`.
+  - En calendario se carga `branch.timezone` y se pasa como `branchTimezone` en `frontend/src/pages/SchedulePage.tsx`.
+  - El texto del evento se pinta con `formatTimeInTimezone` en `frontend/src/components/schedule/CalendarEventContent.tsx`.
+- [ ] **Problema**
+  - FullCalendar posiciona bloques en zona del navegador cuando recibe ISO directo, mientras el texto puede estar en zona de sucursal.
+  - Se genera incoherencia visual: el bloque cae en una franja y el texto interno muestra otra hora.
+  - La creación de turnos no interpreta fecha/hora en zona de sucursal: `buildDateTime` usa `setUTCHours` en `frontend/src/components/schedule/shiftScheduling.ts`.
+  - `ShiftModal` envía `toISOString()` y convierte "08:00" como UTC, no como hora local de Tenerife o Madrid en `frontend/src/components/schedule/ShiftModal.tsx`.
+- [ ] **Cómo debe quedar (regla funcional)**
+  - Cada sucursal usa zona IANA (`Europe/Madrid` península, `Atlantic/Canary` canarias).
+  - Persistencia siempre en UTC en BD (instante absoluto).
+  - Crear/editar turno: interpretar fecha+hora de entrada en la zona de la sucursal del turno.
+  - Mostrar turnos: formatear y posicionar según zona efectiva de sucursal.
+  - Vistas personales de empleado: usar `user.branch.timezone` como zona efectiva.
+- [ ] **Cambios recomendados**
+  - Sustituir `setUTCHours + toISOString()` por conversión "hora local de sucursal -> UTC" en `ShiftModal` y `shiftScheduling`.
+  - Reutilizar `timezoneToUtc` (o reescribirlo correctamente) para que realmente se use en creación/edición.
+  - Revisar pantallas fuera del calendario que siguen usando `formatDateTime`, `formatDate`, etc. con zona del navegador.
+  - Usar `formatDateTimeInTz(date, user.branch.timezone)` o `schedule.branch.timezone` en perfil, detalle de usuario y widgets semanales.
+  - Definir estrategia FullCalendar:
+    - Vista filtrada por sucursal: renderizar/posicionar en timezone de esa sucursal.
+    - Vista "todas las sucursales": no mezclar posiciones horarias como si fueran misma zona; mostrar zona explícita por turno.
+  - Añadir tests E2E y unitarios para Madrid/Canarias y cambios de DST.
+  - Criterio de aceptación: no puede existir diferencia entre hora del bloque y hora del texto en un mismo evento.
+
 ### Backend — Rate limiting en login (VUL-4)
 - [ ] **VUL-4**: No hay rate limiting en login
   - **Impacto**: **Alto** — ataque de fuerza bruta
