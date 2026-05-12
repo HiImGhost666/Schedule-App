@@ -31,6 +31,29 @@ jest.mock('../src/middleware/auth.middleware', () => {
 
 jest.mock('../src/modules/audit/audit.service', () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),
+  logAuditOrThrow: jest.fn().mockResolvedValue(undefined),
+  sanitizeSnapshot: jest.fn((value) => value),
+}));
+
+type MockPrisma = {
+  $transaction: jest.Mock;
+  themeSettings: {
+    findUnique: jest.Mock;
+    upsert: jest.Mock;
+  };
+};
+
+const mockPrisma: MockPrisma = {
+  $transaction: jest.fn(),
+  themeSettings: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
+};
+mockPrisma.$transaction.mockImplementation(async (fn: (tx: MockPrisma) => Promise<unknown>) => fn(mockPrisma));
+
+jest.mock('../src/config/database', () => ({
+  prisma: mockPrisma,
 }));
 
 jest.mock('../src/modules/settings/theme.accessibility', () => ({
@@ -127,6 +150,9 @@ const validThemePayload = {
 describe('settings.router', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma));
+    mockPrisma.themeSettings.findUnique.mockResolvedValue(null);
+    mockPrisma.themeSettings.upsert.mockResolvedValue({});
     (themeService.getThemeSettings as jest.Mock).mockResolvedValue({ preset: 'corporate' });
     (themeService.publishThemeSettings as jest.Mock).mockResolvedValue({ before: { preset: 'corporate' }, after: { preset: 'custom' } });
   });
@@ -193,5 +219,25 @@ describe('settings.router', () => {
 
     expect(response.status).toBe(403);
     expect(response.body.success).toBe(false);
+  });
+
+  it('updates site settings through PUT /site', async () => {
+    mockPrisma.themeSettings.findUnique.mockImplementation(({ where }: any) => {
+      if (where.key === 'site_title') return Promise.resolve({ tokensJson: 'Gestión de Turnos' });
+      if (where.key === 'site_favicon_url') return Promise.resolve({ tokensJson: '/uploads/old.ico' });
+      return Promise.resolve(null);
+    });
+
+    const response = await request(app)
+      .put('/api/settings/site')
+      .set('x-test-role', 'admin')
+      .send({ faviconUrl: '/uploads/new.ico' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      success: true,
+      data: { faviconUrl: '/uploads/new.ico' },
+      message: 'Configuración del sitio actualizada',
+    });
   });
 });
