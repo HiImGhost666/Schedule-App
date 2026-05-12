@@ -18,6 +18,7 @@ import vacationsRouter from './modules/vacations/vacations.router';
 import shiftPresetsRouter from './modules/shift-presets/shift-presets.router';
 import inAppNotificationsRouter from './modules/in-app-notifications/in-app.router';
 import { sendSuccess } from './utils/response';
+import { openApiDocument } from './docs/openapi';
 import path from 'path';
 
 const app = express();
@@ -47,8 +48,14 @@ app.use(cors({
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/health', (_req, res) => {
+function healthHandler(_req: express.Request, res: express.Response) {
   return sendSuccess(res, { status: 'ok', timestamp: new Date().toISOString() });
+}
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
+app.get('/api/docs/openapi.json', (_req, res) => {
+  return res.json(openApiDocument);
 });
 
 app.use('/api/auth', authRouter);
