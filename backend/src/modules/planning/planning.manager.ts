@@ -14,6 +14,20 @@ function unique(values: string[]): string[] {
   return [...new Set(values)];
 }
 
+function getDaysInRange(from: Date, to: Date): Date[] {
+  const days: Date[] = [];
+  const current = new Date(from);
+  current.setUTCHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setUTCHours(0, 0, 0, 0);
+
+  while (current <= end) {
+    days.push(new Date(current));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return days;
+}
+
 function overlapWhere(from: Date, to: Date): Prisma.ScheduleWhereInput {
   return {
     AND: [
@@ -173,20 +187,222 @@ export class PlanningManager {
    * List employee availability in the requested planning range.
    */
   async listAvailability(
-    _filters: ScopedPlanningRangeFilters,
+    filters: ScopedPlanningRangeFilters,
     _actor: PlanningActor,
   ): Promise<AvailabilityItem[]> {
-    return [];
+    const users = await prisma.user.findMany({
+      where: {
+        status: 'active',
+        ...(filters.branchIds ? { branchId: { in: filters.branchIds } } : {}),
+        ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        branch: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const userIds = users.map((u) => u.id);
+
+    const schedules = await prisma.schedule.findMany({
+      where: {
+        ...overlapWhere(filters.from, filters.to),
+        assignments: { some: { userId: { in: userIds } } },
+      },
+      select: {
+        id: true,
+        startDatetime: true,
+        endDatetime: true,
+        assignments: { select: { userId: true } },
+      },
+    });
+
+    const vacations = await prisma.vacationRequest.findMany({
+      where: {
+        employeeId: { in: userIds },
+        status: 'approved',
+        ...vacationOverlapWhere(filters.from, filters.to),
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+
+    const days = getDaysInRange(filters.from, filters.to);
+
+    // Agrupamos datos por usuario para evitar búsquedas costosas en el bucle anidado
+    const schedulesByUserId = new Map<string, typeof schedules>();
+    schedules.forEach((s) => {
+      s.assignments.forEach((a) => {
+        const current = schedulesByUserId.get(a.userId) ?? [];
+        current.push(s);
+        schedulesByUserId.set(a.userId, current);
+      });
+    });
+
+    const vacationsByUserId = new Map<string, typeof vacations>();
+    vacations.forEach((v) => {
+      const current = vacationsByUserId.get(v.employeeId) ?? [];
+      current.push(v);
+      vacationsByUserId.set(v.employeeId, current);
+    });
+
+    return users.map((user) => {
+      const userSchedules = schedulesByUserId.get(user.id) ?? [];
+      const userVacations = vacationsByUserId.get(user.id) ?? [];
+
+      const availabilityDays = days.map((day) => {
+        const dayStart = new Date(day);
+        const dayEnd = new Date(day);
+        dayEnd.setUTCHours(23, 59, 59, 999);
+
+        // Prioridad: vacaciones > ocupado > disponible
+        const isVacation = userVacations.some(
+          (v) => v.startDate <= dayEnd && v.endDate >= dayStart,
+        );
+        if (isVacation) return { date: day.toISOString(), status: 'vacation' as const };
+
+        const isBusy = userSchedules.some(
+          (s) => s.startDatetime <= dayEnd && s.endDatetime >= dayStart,
+        );
+        if (isBusy) return { date: day.toISOString(), status: 'busy' as const };
+
+        return { date: day.toISOString(), status: 'available' as const };
+      });
+
+      return {
+        userId: user.id,
+        userName: user.name || `${user.firstName} ${user.lastName}`.trim(),
+        branch: user.branch,
+        department: user.department,
+        days: availabilityDays,
+      };
+    });
   }
 
   /**
    * Build the daily availability matrix in the requested planning range.
    */
   async getAvailabilityMatrix(
-    _filters: ScopedPlanningRangeFilters,
+    filters: ScopedPlanningRangeFilters,
     _actor: PlanningActor,
   ): Promise<AvailabilityMatrix> {
-    return { days: [], rows: [] };
+    const users = await prisma.user.findMany({
+      where: {
+        status: 'active',
+        ...(filters.branchIds ? { branchId: { in: filters.branchIds } } : {}),
+        ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        branch: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const userIds = users.map((u) => u.id);
+
+    const schedules = await prisma.schedule.findMany({
+      where: {
+        ...overlapWhere(filters.from, filters.to),
+        assignments: { some: { userId: { in: userIds } } },
+      },
+      select: {
+        id: true,
+        title: true,
+        startDatetime: true,
+        endDatetime: true,
+        assignments: { select: { userId: true } },
+      },
+    });
+
+    const vacations = await prisma.vacationRequest.findMany({
+      where: {
+        employeeId: { in: userIds },
+        status: 'approved',
+        ...vacationOverlapWhere(filters.from, filters.to),
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+
+    const days = getDaysInRange(filters.from, filters.to);
+
+    // Agrupamos datos por usuario para evitar búsquedas costosas en el bucle anidado
+    const schedulesByUserId = new Map<string, typeof schedules>();
+    schedules.forEach((s) => {
+      s.assignments.forEach((a) => {
+        const current = schedulesByUserId.get(a.userId) ?? [];
+        current.push(s);
+        schedulesByUserId.set(a.userId, current);
+      });
+    });
+
+    const vacationsByUserId = new Map<string, typeof vacations>();
+    vacations.forEach((v) => {
+      const current = vacationsByUserId.get(v.employeeId) ?? [];
+      current.push(v);
+      vacationsByUserId.set(v.employeeId, current);
+    });
+
+    const rows = users.map((user) => {
+      const userSchedules = schedulesByUserId.get(user.id) ?? [];
+      const userVacations = vacationsByUserId.get(user.id) ?? [];
+
+      const availabilityDays = days.map((day) => {
+        const dayStart = new Date(day);
+        const dayEnd = new Date(day);
+        dayEnd.setUTCHours(23, 59, 59, 999);
+
+        // Prioridad: vacaciones > ocupado > disponible
+        const isVacation = userVacations.some(
+          (v) => v.startDate <= dayEnd && v.endDate >= dayStart,
+        );
+        if (isVacation) return { date: day.toISOString(), status: 'vacation' as const, schedules: [] };
+
+        const busySchedules = userSchedules.filter(
+          (s) => s.startDatetime <= dayEnd && s.endDatetime >= dayStart,
+        );
+        if (busySchedules.length > 0) {
+          return {
+            date: day.toISOString(),
+            status: 'busy' as const,
+            schedules: busySchedules.map(s => ({ id: s.id, title: s.title })),
+          };
+        }
+
+        return { date: day.toISOString(), status: 'available' as const, schedules: [] };
+      });
+
+      return {
+        id: user.id,
+        name: user.name || `${user.firstName} ${user.lastName}`.trim(),
+        branch: user.branch,
+        department: user.department,
+        days: availabilityDays,
+      };
+    });
+
+    return {
+      days: days.map(day => day.toISOString()),
+      rows: rows,
+    };
   }
 }
 

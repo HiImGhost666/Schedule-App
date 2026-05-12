@@ -43,12 +43,14 @@ export type CoverageRiskItem = {
 export type AvailabilityStatus = 'available' | 'busy' | 'vacation';
 
 export type AvailabilityItem = {
-  id: string;
-  name: string;
-  email: string;
-  status: AvailabilityStatus;
+  userId: string;
+  userName: string;
   branch: { id: string; name: string } | null;
   department: { id: string; name: string } | null;
+  days: Array<{
+    date: string;
+    status: AvailabilityStatus;
+  }>;
 };
 
 export type AvailabilityMatrix = {
