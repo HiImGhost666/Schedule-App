@@ -47,6 +47,14 @@ model User {
   notificationsSent    NotificationLog[]    @relation("NotificationSender")
   managedBranches      Branch[]             @relation("BranchManager")
   managedDepartments   DepartmentManager[]
+  skills               UserSkill[]          @relation("UserSkills")
+  assignedSkills       UserSkill[]          @relation("SkillAssigner")
+  notificationPreference UserNotificationPreference?
+  supportRequestsMade  SupportRequest[]     @relation("SupportRequestRequester")
+  supportRequestsTargeted SupportRequest[]  @relation("SupportRequestTarget")
+  supportRequestsReviewed SupportRequest[]  @relation("SupportRequestReviewer")
+  entityComments       EntityComment[]
+  visibleBranches      UserVisibleBranch[]
 
   // -- ÍNDICES --
   // branchId: para JOIN con Branch y filtros por sede
@@ -85,6 +93,103 @@ model Permission {
   @@map("permissions")
 }
 
+model Skill {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String?
+  color       String   @default("#1d4ed8")
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users UserSkill[]
+
+  @@index([isActive])
+  @@index([category])
+  @@map("skills")
+}
+
+model UserSkill {
+  userId       String   @map("user_id")
+  skillId      String   @map("skill_id")
+  assignedById String?  @map("assigned_by")
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+  level        String?
+  expiresAt    DateTime? @map("expires_at")
+  notes        String?  @db.Text
+  user         User     @relation("UserSkills", fields: [userId], references: [id], onDelete: Cascade)
+  skill        Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  assignedBy   User?    @relation("SkillAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, skillId])
+  @@index([skillId])
+  @@index([assignedById])
+  @@map("user_skills")
+}
+
+model UserNotificationPreference {
+  userId                     String   @id @map("user_id")
+  user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduleChanges            Boolean  @default(true) @map("schedule_changes")
+  vacationUpdates            Boolean  @default(true) @map("vacation_updates")
+  departmentVacationRequests Boolean  @default(true) @map("department_vacation_requests")
+  dailySummary               Boolean  @default(false) @map("daily_summary")
+  weeklySummary              Boolean  @default(true) @map("weekly_summary")
+  criticalAlertsOnly         Boolean  @default(false) @map("critical_alerts_only")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  @@map("user_notification_preferences")
+}
+
+enum SupportRequestStatus {
+  pending
+  accepted
+  rejected
+  cancelled
+}
+
+model SupportRequest {
+  id           String               @id @default(cuid())
+  requesterId  String               @map("requester_id")
+  requester    User                 @relation("SupportRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  targetUserId String               @map("target_user_id")
+  targetUser   User                 @relation("SupportRequestTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  branchId     String               @map("branch_id")
+  branch       Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  departmentId String?              @map("department_id")
+  department   Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  startDate    DateTime             @map("start_date")
+  endDate      DateTime             @map("end_date")
+  reason       String?              @db.Text
+  status       SupportRequestStatus @default(pending)
+  reviewedBy   String?              @map("reviewed_by")
+  reviewer     User?                @relation("SupportRequestReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?            @map("reviewed_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  @@index([requesterId])
+  @@index([targetUserId])
+  @@index([branchId, status])
+  @@index([startDate, endDate])
+  @@map("support_requests")
+}
+
+model EntityComment {
+  id         String   @id @default(cuid())
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  authorId   String   @map("author_id")
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body       String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([authorId])
+  @@map("entity_comments")
+}
+
 model EmployeeIdSequence {
   id         String   @id
   lastNumber Int      @default(0) @map("last_number")
@@ -115,6 +220,8 @@ model Branch {
   webhooks           WebhookConfig[]
   departmentBranches  DepartmentBranch[]
   vacationRequests   VacationRequest[] @relation("BranchVacationRequests")
+  visibleUsers       UserVisibleBranch[]
+  supportRequests    SupportRequest[]
 
   // -- ÍNDICES --
   // isActive: listBranches filtra por activas constantemente
@@ -138,6 +245,7 @@ model Department {
   branches         DepartmentBranch[]
   users            User[]
   vacationRequests VacationRequest[] @relation("DepartmentVacationRequests")
+  supportRequests  SupportRequest[]
 
   @@index([isActive])
   @@index([code])
@@ -167,6 +275,18 @@ model DepartmentManager {
   @@id([departmentId, userId])
   @@index([userId])
   @@map("department_managers")
+}
+
+model UserVisibleBranch {
+  userId     String   @map("user_id")
+  branchId   String   @map("branch_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@id([userId, branchId])
+  @@index([branchId])
+  @@map("user_visible_branches")
 }
 
 enum HolidayType {
