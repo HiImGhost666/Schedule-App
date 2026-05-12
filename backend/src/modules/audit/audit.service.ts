@@ -45,6 +45,28 @@ function isIrreversibleAction(action: string): action is (typeof IRREVERSIBLE_AC
   return (IRREVERSIBLE_ACTIONS as readonly string[]).includes(action);
 }
 
+function optionalDate(value: unknown): Date | null {
+  if (!value) return null;
+  return new Date(value as string);
+}
+
+function restoreTimestampedScalarSnapshot(snapshot: Record<string, unknown>) {
+  const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...data } = snapshot;
+  return data;
+}
+
+function extractPermissionNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((permission) => {
+      if (typeof permission === 'string') return permission;
+      if (isObjectRecord(permission) && typeof permission.name === 'string') return permission.name;
+      return null;
+    })
+    .filter((name): name is string => Boolean(name));
+}
+
 /** Desinfecta los payloads de auditoría eliminando campos comprometedores (passwords, tokens) mediante recorrido recursivo. */
 export function sanitizeSnapshot<T>(data: T): T {
   if (!data) return data;
@@ -405,6 +427,160 @@ export async function rollbackAudit(logId: string, actorId: string, ipAddress?: 
             data: branchIds.map((branchId) => ({ departmentId: entityId, branchId })),
           });
         }
+      }
+    } else if (entityType === 'VacationRequest') {
+      if (action === 'CREATE_VACATION_REQUEST') {
+        rollbackResult = await tx.vacationRequest.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        rollbackResult = await tx.vacationRequest.upsert({
+          where: { id: entityId },
+          create: {
+            id: entityId,
+            employeeId: beforeState.employeeId as string,
+            status: beforeState.status as any,
+            startDate: new Date(beforeState.startDate as string),
+            endDate: new Date(beforeState.endDate as string),
+            note: beforeState.note as string | null,
+            reviewedBy: beforeState.reviewedBy as string | null,
+            reviewedAt: optionalDate(beforeState.reviewedAt),
+            rejectionReason: beforeState.rejectionReason as string | null,
+            branchId: beforeState.branchId as string,
+            departmentId: beforeState.departmentId as string,
+          },
+          update: {
+            employeeId: beforeState.employeeId as string,
+            status: beforeState.status as any,
+            startDate: new Date(beforeState.startDate as string),
+            endDate: new Date(beforeState.endDate as string),
+            note: beforeState.note as string | null,
+            reviewedBy: beforeState.reviewedBy as string | null,
+            reviewedAt: optionalDate(beforeState.reviewedAt),
+            rejectionReason: beforeState.rejectionReason as string | null,
+            branchId: beforeState.branchId as string,
+            departmentId: beforeState.departmentId as string,
+          },
+        });
+      }
+    } else if (entityType === 'ShiftPreset') {
+      if (action === 'CREATE_SHIFT_PRESET') {
+        rollbackResult = await tx.shiftPreset.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        const data = restoreTimestampedScalarSnapshot(beforeState);
+        rollbackResult = await tx.shiftPreset.upsert({
+          where: { id: entityId },
+          create: { ...data, id: entityId } as any,
+          update: data as any,
+        });
+      }
+    } else if (entityType === 'ScheduleType') {
+      if (action === 'CREATE_SCHEDULE_TYPE') {
+        rollbackResult = await tx.scheduleType.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        const data = restoreTimestampedScalarSnapshot(beforeState);
+        rollbackResult = await tx.scheduleType.upsert({
+          where: { id: entityId },
+          create: { ...data, id: entityId } as any,
+          update: data as any,
+        });
+      }
+    } else if (entityType === 'Role') {
+      if (action === 'CREATE_ROLE') {
+        rollbackResult = await tx.role.delete({ where: { id: entityId } });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        const permissionNames = extractPermissionNames(beforeState.permissions);
+        rollbackResult = await tx.role.upsert({
+          where: { id: entityId },
+          create: {
+            id: entityId,
+            name: beforeState.name as string,
+            description: beforeState.description as string | null,
+            isSystem: Boolean(beforeState.isSystem),
+            permissions: { connect: permissionNames.map((name) => ({ name })) },
+          },
+          update: {
+            name: beforeState.name as string,
+            description: beforeState.description as string | null,
+            isSystem: Boolean(beforeState.isSystem),
+            permissions: { set: permissionNames.map((name) => ({ name })) },
+          },
+        });
+      }
+    } else if (entityType === 'ThemeSettings') {
+      if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        rollbackResult = await tx.themeSettings.upsert({
+          where: { key: (beforeState.key as string | undefined) ?? 'global' },
+          create: {
+            id: (beforeState.id as string | undefined) ?? undefined,
+            key: (beforeState.key as string | undefined) ?? 'global',
+            preset: beforeState.preset as string,
+            tokensJson: beforeState.tokensJson as string,
+            overridesJson: beforeState.overridesJson as string,
+            updatedByUserId: beforeState.updatedByUserId as string | null,
+          },
+          update: {
+            preset: beforeState.preset as string,
+            tokensJson: beforeState.tokensJson as string,
+            overridesJson: beforeState.overridesJson as string,
+            updatedByUserId: beforeState.updatedByUserId as string | null,
+          },
+        });
+      }
+    } else if (entityType === 'ThemePreset') {
+      if (action === 'CREATE_CUSTOM_PRESET') {
+        rollbackResult = await tx.themeSettings.deleteMany({
+          where: { preset: entityId, key: { startsWith: 'preset_' } },
+        });
+      } else if (details?.before) {
+        const beforeState = details.before as Record<string, unknown>;
+        rollbackResult = await tx.themeSettings.upsert({
+          where: { id: (beforeState.id as string | undefined) ?? entityId },
+          create: {
+            id: (beforeState.id as string | undefined) ?? undefined,
+            key: beforeState.key as string,
+            preset: beforeState.preset as string,
+            tokensJson: beforeState.tokensJson as string,
+            overridesJson: beforeState.overridesJson as string,
+            updatedByUserId: beforeState.updatedByUserId as string | null,
+          },
+          update: {
+            key: beforeState.key as string,
+            preset: beforeState.preset as string,
+            tokensJson: beforeState.tokensJson as string,
+            overridesJson: beforeState.overridesJson as string,
+            updatedByUserId: beforeState.updatedByUserId as string | null,
+          },
+        });
+      }
+    } else if (entityType === 'SiteSettings') {
+      if (details?.before && isObjectRecord(details.before)) {
+        const beforeState = details.before as Record<string, unknown>;
+        const entries = Object.entries(beforeState).filter(([, value]) => typeof value === 'string');
+
+        if (entries.length === 0) {
+          throw new AppError('BAD_REQUEST', 400, 'Snapshot de SiteSettings sin valores restaurables');
+        }
+
+        rollbackResult = await Promise.all(
+          entries.map(([key, value]) => tx.themeSettings.upsert({
+            where: { key },
+            create: {
+              key,
+              preset: 'site_setting',
+              tokensJson: value as string,
+              overridesJson: '{}',
+              updatedByUserId: actorId,
+            },
+            update: {
+              tokensJson: value as string,
+              updatedByUserId: actorId,
+            },
+          }))
+        );
       }
     } else {
       throw new AppError('BAD_REQUEST', 400, `Rollback no implementado para la entidad: ${entityType}`);
