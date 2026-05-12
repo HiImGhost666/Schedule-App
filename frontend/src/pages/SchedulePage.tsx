@@ -600,11 +600,15 @@ export function SchedulePage() {
       setDetailAnchor(null);
       setSelectedSchedule(null);
       setDefaultStart(info.start);
-      setDefaultEnd(info.end);
+      // FullCalendar's end is exclusive (day after selection), so subtract one day
+      const adjustedEnd = new Date(info.end);
+      adjustedEnd.setDate(adjustedEnd.getDate() - 1);
+      setDefaultEnd(adjustedEnd);
       setModalOpen(true);
       if (scheduleId) navigate('/schedule', { replace: true });
     },
     [canEdit, navigate, scheduleId, branchHolidays],
+
   );
 
   const handleConfirmHolidaySchedule = useCallback(() => {
@@ -614,11 +618,15 @@ export function SchedulePage() {
     setDetailAnchor(null);
     setSelectedSchedule(null);
     setDefaultStart(pendingDateSelect.start);
-    setDefaultEnd(pendingDateSelect.end);
+    // FullCalendar's end is exclusive (day after selection), so subtract one day
+    const adjustedEnd = new Date(pendingDateSelect.end);
+    adjustedEnd.setDate(adjustedEnd.getDate() - 1);
+    setDefaultEnd(adjustedEnd);
     setModalOpen(true);
     setPendingDateSelect(null);
     if (scheduleId) navigate('/schedule', { replace: true });
   }, [pendingDateSelect, navigate, scheduleId]);
+
 
   const handleCancelHolidaySchedule = useCallback(() => {
     setHolidayWarningOpen(false);

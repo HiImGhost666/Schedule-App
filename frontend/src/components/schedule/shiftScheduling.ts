@@ -56,7 +56,7 @@ export function buildDateRange(start: Date, end: Date): Date[] {
 
   while (cursor.getTime() <= endDay.getTime()) {
     dates.push(new Date(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   return dates;
@@ -64,7 +64,7 @@ export function buildDateRange(start: Date, end: Date): Date[] {
 
 function isNextDay(prev: Date, next: Date): boolean {
   const nextExpected = normalizeDate(prev);
-  nextExpected.setDate(nextExpected.getDate() + 1);
+  nextExpected.setUTCDate(nextExpected.getUTCDate() + 1);
   return nextExpected.getTime() === normalizeDate(next).getTime();
 }
 
@@ -102,7 +102,7 @@ export function buildChunkRange(chunk: ShiftChunk, preset: ShiftPreset) {
 
   if (end.getTime() <= start.getTime()) {
     end = new Date(end.getTime());
-    end.setDate(end.getDate() + 1);
+    end.setUTCDate(end.getUTCDate() + 1);
   }
 
   return {

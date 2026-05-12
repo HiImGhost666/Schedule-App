@@ -7,6 +7,11 @@
 
 ## ✅ COMPLETADO — Items #9, #12-16 (12 mayo 2026)
 
+### Item #5: Evento desde Dashboard abre popup en SchedulePage
+- [x] Verificado: `WeekSchedulesWidget` navega a `/schedule/${s.id}` (ruta `schedule/:scheduleId`)
+- [x] `SchedulePage` usa `useParams` para leer `scheduleId` y carga el detalle con `GET /schedules/:id`
+- [x] `useEffect` busca el elemento del calendario y abre el popup automáticamente
+
 ### Item #9: Selección de días específicos al crear turnos
 - [x] Verificado: ya funciona con el DayPicker multi-select en ShiftModal.tsx
 
