@@ -1,3 +1,5 @@
+import { timezoneToUtc } from '../../lib/timezone';
+
 export type ShiftPreset = {
   id: string;
   name: string;
@@ -32,8 +34,19 @@ export function parseTimeToMinutes(time: string): number {
   return (hours || 0) * 60 + (minutes || 0);
 }
 
-export function buildDateTime(day: Date, time: string): Date {
+export function buildDateTime(day: Date, time: string, branchTimezone?: string): Date {
   const [hours, minutes] = time.split(':').map(Number);
+  if (branchTimezone) {
+    // Usar timezoneToUtc para convertir hora local de la sucursal a UTC
+    return timezoneToUtc(
+      day.getFullYear(),
+      day.getMonth() + 1,
+      day.getDate(),
+      hours || 0,
+      minutes || 0,
+      branchTimezone,
+    );
+  }
   const date = normalizeDate(day);
   date.setUTCHours(hours || 0, minutes || 0, 0, 0);
   return date;
@@ -96,9 +109,9 @@ export function buildScheduleChunks(
   return chunks;
 }
 
-export function buildChunkRange(chunk: ShiftChunk, preset: ShiftPreset) {
-  const start = buildDateTime(chunk.startDate, preset.startTime);
-  let end = buildDateTime(chunk.endDate, preset.endTime);
+export function buildChunkRange(chunk: ShiftChunk, preset: ShiftPreset, branchTimezone?: string) {
+  const start = buildDateTime(chunk.startDate, preset.startTime, branchTimezone);
+  let end = buildDateTime(chunk.endDate, preset.endTime, branchTimezone);
 
   if (end.getTime() <= start.getTime()) {
     end = new Date(end.getTime());
