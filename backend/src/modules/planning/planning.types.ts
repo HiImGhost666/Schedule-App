@@ -42,11 +42,23 @@ export type CoverageRiskItem = {
 
 export type AvailabilityStatus = 'available' | 'busy' | 'vacation';
 
+export type PlanningSkill = {
+  id: string;
+  name: string;
+  category: string | null;
+  color: string;
+};
+
 export type AvailabilityItem = {
   userId: string;
   userName: string;
+  email?: string;
   branch: { id: string; name: string } | null;
   department: { id: string; name: string } | null;
+  skills?: PlanningSkill[];
+  status?: AvailabilityStatus;
+  schedulesCount?: number;
+  vacationsCount?: number;
   days: Array<{
     date: string;
     status: AvailabilityStatus;
@@ -60,10 +72,76 @@ export type AvailabilityMatrix = {
     name: string;
     branch: { id: string; name: string } | null;
     department: { id: string; name: string } | null;
+    skills: PlanningSkill[];
     days: Array<{
       date: string;
       status: AvailabilityStatus;
       schedules: Array<{ id: string; title: string }>;
+      vacationIds?: string[];
     }>;
   }>;
+};
+
+export type SubstituteSuggestion = {
+  id: string;
+  name: string;
+  email: string;
+  branch: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
+  skills: PlanningSkill[];
+  matchedSkills: PlanningSkill[];
+  score: number;
+  equity: {
+    hours: number;
+    weekends: number;
+    urgent: number;
+  };
+  reasons: string[];
+};
+
+export type EquityItem = {
+  id: string;
+  name: string;
+  branch: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
+  totalHours: number;
+  overtimeEstimate: number;
+  weekendShifts: number;
+  urgentShifts: number;
+  approvedVacations: number;
+  rejectedVacations: number;
+};
+
+export type TimelineItem = {
+  type: 'holiday' | 'vacation' | 'schedule';
+  at: string;
+  title: string;
+  severity: 'info' | 'normal' | 'medium' | 'high';
+  branch?: { id: string; name: string } | null;
+  branchId?: string | null;
+  assignees?: Array<{ id: string; name: string }>;
+};
+
+export type CrisisModeSummary = {
+  highRisks: CoverageRiskItem[];
+  mediumRisks: CoverageRiskItem[];
+  overloaded: EquityItem[];
+  today: TimelineItem[];
+};
+
+export type TemplatePreviewCandidate = {
+  id: string;
+  name: string;
+  branch: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
+  matchedSkills: PlanningSkill[];
+  score: number;
+};
+
+export type TemplatePreviewDay = {
+  date: string;
+  minCoverage: number;
+  recommended: TemplatePreviewCandidate[];
+  backups: TemplatePreviewCandidate[];
+  status: 'covered' | 'partial' | 'uncovered';
 };

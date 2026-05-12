@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
     roleId: string | null;
     roleName?: RoleName | string;
     permissions?: PermissionName[] | string[];
+    visibleBranchIds?: string[];
     name: string;
     status: string;
     branchId: string | null;
@@ -50,6 +51,9 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
         branchId: true,
         departmentId: true,
         tokenVersion: true,
+        visibleBranches: {
+          select: { branchId: true },
+        },
       },
     });
 
@@ -72,6 +76,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       roleId: user.roleId,
       roleName: user.role?.name,
       permissions: user.role?.permissions.map((p) => p.name) || [],
+      visibleBranchIds: user.visibleBranches.map((item) => item.branchId),
       name: user.name,
       status: user.status,
       branchId: user.branchId,
