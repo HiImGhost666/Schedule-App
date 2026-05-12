@@ -34,10 +34,6 @@ function getDaysInRange(from: Date, to: Date): Date[] {
   return days;
 }
 
-function dayKey(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
 function hoursBetween(start: Date, end: Date): number {
   return Math.max(0, (end.getTime() - start.getTime()) / 36e5);
 }

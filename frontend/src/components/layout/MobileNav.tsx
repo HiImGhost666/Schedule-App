@@ -7,6 +7,7 @@ import {
   Webhook,
   Bell,
   ClipboardList,
+  CalendarClock,
   MoreHorizontal,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -53,21 +54,38 @@ export function MobileNav() {
             </p>
 
             {isAdminOrManager && (
-              <NavLink
-                to="/admin/users"
-                onClick={() => setMenuOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors",
-                    isActive
-                      ? "text-gold-500 bg-navy-50/50"
-                      : "text-theme-primary",
-                  )
-                }
-              >
-                <Users className="h-4 w-4" />
-                Gestión de Usuarios
-              </NavLink>
+              <>
+                <NavLink
+                  to="/admin/users"
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors",
+                      isActive
+                        ? "text-gold-500 bg-navy-50/50"
+                        : "text-theme-primary",
+                    )
+                  }
+                >
+                  <Users className="h-4 w-4" />
+                  Gestión de Usuarios
+                </NavLink>
+                <NavLink
+                  to="/admin/planning"
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors",
+                      isActive
+                        ? "text-gold-500 bg-navy-50/50"
+                        : "text-theme-primary",
+                    )
+                  }
+                >
+                  <CalendarClock className="h-4 w-4" />
+                  Planificación
+                </NavLink>
+              </>
             )}
 
             {isAdmin &&

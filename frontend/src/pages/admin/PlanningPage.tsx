@@ -1,30 +1,100 @@
-import React, { useState } from 'react';
-import { useAvailabilityMatrix, type PlanningFilters } from '@/hooks/usePlanning';
-import { format, addDays, startOfDay } from 'date-fns';
-import { 
-  Calendar as CalendarIcon, 
-  MapPin, 
-  Users, 
-  Loader2,
-  AlertCircle
-} from 'lucide-react';
+import { useState } from 'react';
+import { addDays, startOfDay } from 'date-fns';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PlanningFilters } from '@/components/planning/PlanningFilters';
+import { PlanningMatrix } from '@/components/planning/PlanningMatrix';
+import { PlanningSidePanels } from '@/components/planning/PlanningSidePanels';
+import { PlanningSummaryCards } from '@/components/planning/PlanningSummaryCards';
+import { getApiErrorMessage } from '@/lib/apiError';
+import {
+  useAvailability,
+  useAvailabilityMatrix,
+  useCoverageRisks,
+  useCreateSupportRequest,
+  useCrisisMode,
+  useEquity,
+  useNotificationPreferences,
+  usePlanningLookups,
+  useReviewSupportRequest,
+  useSubstitutes,
+  useSupportRequests,
+  useTemplatePreview,
+  useTimeline,
+  useUpdateNotificationPreferences,
+  type NotificationPreferences,
+  type PlanningFilters as PlanningFiltersValue,
+  type SupportRequest,
+} from '@/hooks/usePlanning';
 
-// Definimos una interfaz local para asegurar que from/to no sean null en el estado de la página
-interface LocalPlanningFilters extends Required<PlanningFilters> {}
-
-const PlanningPage: React.FC = () => {
-  const [filters, setFilters] = useState<LocalPlanningFilters>({
+export function PlanningPage() {
+  const [filters, setFilters] = useState<PlanningFiltersValue>({
     from: startOfDay(new Date()),
     to: addDays(startOfDay(new Date()), 14),
-    branchId: '',
-    departmentId: '',
   });
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [supportReason, setSupportReason] = useState('');
 
-  const { data: matrix, isLoading, isError } = useAvailabilityMatrix(filters);
+  const lookups = usePlanningLookups(filters.branchId);
+  const risks = useCoverageRisks(filters);
+  const availability = useAvailability(filters);
+  const substitutes = useSubstitutes(filters, selectedSkillIds);
+  const matrix = useAvailabilityMatrix(filters);
+  const equity = useEquity(filters);
+  const timeline = useTimeline(filters);
+  const crisis = useCrisisMode(filters);
+  const templatePreview = useTemplatePreview(filters, selectedSkillIds);
+  const supportRequests = useSupportRequests(filters);
+  const preferences = useNotificationPreferences();
+  const createSupport = useCreateSupportRequest();
+  const reviewSupport = useReviewSupportRequest();
+  const updatePreferences = useUpdateNotificationPreferences();
 
-  const handleDateChange = (field: 'from' | 'to', value: string) => {
-    const date = value ? new Date(value) : new Date();
-    setFilters((prev) => ({ ...prev, [field]: date }));
+  const isLoading = lookups.isLoading || matrix.isLoading;
+  const isError = matrix.isError || risks.isError || availability.isError;
+
+  const toggleSkill = (skillId: string) => {
+    setSelectedSkillIds((current) =>
+      current.includes(skillId)
+        ? current.filter((id) => id !== skillId)
+        : [...current, skillId],
+    );
+  };
+
+  const handleCreateSupport = (targetUserId: string) => {
+    const branchId = filters.branchId || substitutes.data?.find((user) => user.id === targetUserId)?.branch?.id;
+    if (!branchId) {
+      toast.error('Selecciona una sede para crear la solicitud de apoyo.');
+      return;
+    }
+
+    createSupport.mutate({
+      targetUserId,
+      branchId,
+      departmentId: filters.departmentId ?? null,
+      startDate: filters.from.toISOString(),
+      endDate: filters.to.toISOString(),
+      reason: supportReason.trim() || undefined,
+    }, {
+      onSuccess: () => {
+        setSupportReason('');
+        toast.success('Solicitud de apoyo creada');
+      },
+      onError: (error) => toast.error(getApiErrorMessage(error, 'No se pudo crear la solicitud de apoyo')),
+    });
+  };
+
+  const handleReviewSupport = (id: string, status: SupportRequest['status']) => {
+    reviewSupport.mutate({ id, status }, {
+      onSuccess: () => toast.success('Solicitud actualizada'),
+      onError: (error) => toast.error(getApiErrorMessage(error, 'No se pudo actualizar la solicitud')),
+    });
+  };
+
+  const handleTogglePreference = (patch: Partial<NotificationPreferences>) => {
+    updatePreferences.mutate(patch, {
+      onError: (error) => toast.error(getApiErrorMessage(error, 'No se pudieron guardar las preferencias')),
+    });
   };
 
   return (
@@ -32,77 +102,61 @@ const PlanningPage: React.FC = () => {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Planificación Operativa</h1>
-          <p className="text-slate-500 text-sm font-medium">Análisis de cobertura y disponibilidad de personal.</p>
+          <p className="text-slate-500 text-sm font-medium">
+            Cobertura, sustituciones, equidad, solicitudes de apoyo y preferencias.
+          </p>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg">
-            <CalendarIcon className="w-4 h-4 text-slate-400" />
-            <input 
-              type="date" 
-              className="bg-transparent text-sm border-none focus:ring-0 p-0 font-semibold text-slate-700"
-              value={format(filters.from, 'yyyy-MM-dd')}
-              onChange={(e) => handleDateChange('from', e.target.value)}
-            />
-            <span className="text-slate-300 mx-1">→</span>
-            <input 
-              type="date" 
-              className="bg-transparent text-sm border-none focus:ring-0 p-0 font-semibold text-slate-700"
-              value={format(filters.to, 'yyyy-MM-dd')}
-              onChange={(e) => handleDateChange('to', e.target.value)}
-            />
-          </div>
 
-          <div className="h-8 w-px bg-slate-200" />
-
-          <div className="flex items-center gap-2 px-3">
-            <MapPin className="w-4 h-4 text-slate-400" />
-            <select 
-              className="text-sm border-none focus:ring-0 p-0 bg-transparent font-medium text-slate-700 cursor-pointer"
-              value={filters.branchId}
-              onChange={(e) => setFilters(prev => ({ ...prev, branchId: e.target.value }))}
-            >
-              <option value="">Todas las sedes</option>
-              {/* Los catálogos se cargarán en la siguiente tarea */}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 px-3">
-            <Users className="w-4 h-4 text-slate-400" />
-            <select 
-              className="text-sm border-none focus:ring-0 p-0 bg-transparent font-medium text-slate-700 cursor-pointer"
-              value={filters.departmentId}
-              onChange={(e) => setFilters(prev => ({ ...prev, departmentId: e.target.value }))}
-            >
-              <option value="">Todos los departamentos</option>
-            </select>
-          </div>
-        </div>
+        <PlanningFilters
+          filters={filters}
+          branches={lookups.data?.branches ?? []}
+          departments={lookups.data?.departments ?? []}
+          onChange={setFilters}
+        />
       </header>
 
-      <main className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
-        {isLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
-            <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-          </div>
-        ) : isError ? (
-          <div className="h-[400px] flex flex-col items-center justify-center text-slate-500 gap-3">
-            <AlertCircle className="w-12 h-12 text-red-500 opacity-20" />
-            <p className="font-medium italic">No se pudo cargar la matriz de planificación</p>
-          </div>
-        ) : matrix ? (
-          <div className="overflow-auto max-h-[calc(100vh-300px)]">
-            <div className="p-12 text-center text-slate-400">
-              <p className="text-lg font-medium text-slate-600 mb-2">Matriz de disponibilidad lista</p>
-              <p className="text-sm opacity-70">
-                Visualizando {matrix.rows.length} empleados durante {matrix.days.length} días.
-              </p>
+      <PlanningSummaryCards
+        risks={risks.data}
+        equity={equity.data}
+        timeline={timeline.data}
+        highRiskCount={crisis.data?.highRisks.length}
+      />
+
+      <main className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-5">
+        <section className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+          {isLoading ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
             </div>
-          </div>
-        ) : null}
+          ) : isError ? (
+            <div className="h-[400px] flex flex-col items-center justify-center text-slate-500 gap-3">
+              <AlertCircle className="w-12 h-12 text-red-500 opacity-20" />
+              <p className="font-medium italic">No se pudo cargar la planificación</p>
+            </div>
+          ) : (
+            <PlanningMatrix matrix={matrix.data} />
+          )}
+        </section>
+
+        <PlanningSidePanels
+          risks={risks.data}
+          substitutes={substitutes.data}
+          timeline={timeline.data}
+          templatePreview={templatePreview.data}
+          supportRequests={supportRequests.data}
+          preferences={preferences.data}
+          selectedSkillIds={selectedSkillIds}
+          skills={lookups.data?.skills ?? []}
+          supportReason={supportReason}
+          onSupportReasonChange={setSupportReason}
+          onToggleSkill={toggleSkill}
+          onCreateSupport={handleCreateSupport}
+          onReviewSupport={handleReviewSupport}
+          onTogglePreference={handleTogglePreference}
+        />
       </main>
     </div>
   );
-};
+}
 
 export default PlanningPage;
