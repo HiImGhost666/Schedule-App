@@ -7,6 +7,7 @@ type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'UNPROCESSABLE_ENTITY'
+  | 'TOO_MANY_REQUESTS'
   | 'INTERNAL_ERROR';
 
 function statusToCode(statusCode: number): ErrorCode {
@@ -23,6 +24,8 @@ function statusToCode(statusCode: number): ErrorCode {
       return 'CONFLICT';
     case 422:
       return 'UNPROCESSABLE_ENTITY';
+    case 429:
+      return 'TOO_MANY_REQUESTS';
     default:
       return 'INTERNAL_ERROR';
   }
