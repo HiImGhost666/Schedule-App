@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { sendError, sendSuccess } from '../../utils/response';
+import type { AuthRequest } from '../../middleware/auth.middleware';
 import {
   getScheduleTypes,
   getScheduleTypeById,
@@ -30,37 +31,37 @@ export async function getScheduleType(_req: Request, res: Response) {
   }
 }
 
-export async function createScheduleTypeHandler(req: Request, res: Response) {
+export async function createScheduleTypeHandler(req: AuthRequest, res: Response) {
   const parsed = createScheduleTypeSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
-    const scheduleType = await createScheduleType(parsed.data);
+    const scheduleType = await createScheduleType(parsed.data, { id: req.user!.id, ipAddress: req.ip });
     sendSuccess(res, scheduleType, undefined, 201);
   } catch (error: any) {
     sendError(res, error.message || 'Error al crear tipo de turno', 400);
   }
 }
 
-export async function updateScheduleTypeHandler(req: Request, res: Response) {
+export async function updateScheduleTypeHandler(req: AuthRequest, res: Response) {
   const parsed = updateScheduleTypeSchema.safeParse(req.body);
   if (!parsed.success) {
     return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
-    const scheduleType = await updateScheduleType(req.params.id as string, parsed.data);
+    const scheduleType = await updateScheduleType(req.params.id as string, parsed.data, { id: req.user!.id, ipAddress: req.ip });
     sendSuccess(res, scheduleType);
   } catch (error: any) {
     sendError(res, error.message || 'Error al actualizar tipo de turno', 400);
   }
 }
 
-export async function deleteScheduleTypeHandler(req: Request, res: Response) {
+export async function deleteScheduleTypeHandler(req: AuthRequest, res: Response) {
   try {
-    await deleteScheduleType(req.params.id as string);
+    await deleteScheduleType(req.params.id as string, { id: req.user!.id, ipAddress: req.ip });
     sendSuccess(res, { message: 'Schedule type deleted successfully' });
   } catch (error: any) {
     sendError(res, error.message || 'Error al eliminar tipo de turno', 400);
