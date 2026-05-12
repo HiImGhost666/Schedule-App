@@ -57,9 +57,9 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
   const selectedBranchId = watch('branchId');
 
   const { data: departmentsData, isLoading: departmentsLoading } = useQuery<{ data: Department[] }>({
-    queryKey: ['departments', 'user-form', selectedBranchId],
-    queryFn: () => api.get('/departments', { params: { branchId: selectedBranchId, includeInactive: false } }).then((r) => r.data),
-    enabled: open && Boolean(selectedBranchId),
+    queryKey: ['departments', 'user-form', selectedBranchId || (isEdit ? user?.branchId : '')],
+    queryFn: () => api.get('/departments', { params: { branchId: selectedBranchId || user?.branchId, includeInactive: false } }).then((r) => r.data),
+    enabled: open && Boolean(selectedBranchId || (isEdit && user?.branchId)),
   });
   const departments = useMemo(() => departmentsData?.data ?? [], [departmentsData?.data]);
 
@@ -185,6 +185,20 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
             {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal *</label>
+            <select {...register('branchId')} className="input-field" disabled={branchesLoading || isDepartmentManager}>
+              <option value="" disabled>Selecciona una sucursal</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name} ({branch.code}){branch.isActive ? '' : ' · inactiva'}
+                </option>
+              ))}
+            </select>
+            {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
+            {isDepartmentManager && <p className="text-[10px] text-theme-muted mt-0.5">No puedes cambiar la sucursal</p>}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-theme-muted mb-1">Rol *</label>
@@ -207,21 +221,8 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
                 ))}
               </select>
               {errors.departmentId && <p className="text-xs text-red-500 mt-1">{errors.departmentId.message}</p>}
+              {!selectedBranchId && <p className="text-xs text-theme-muted mt-1">Primero selecciona una sucursal para ver los departamentos disponibles.</p>}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-theme-muted mb-1">Sucursal *</label>
-            <select {...register('branchId')} className="input-field" disabled={branchesLoading || isDepartmentManager}>
-              <option value="" disabled>Selecciona una sucursal</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name} ({branch.code}){branch.isActive ? '' : ' · inactiva'}
-                </option>
-              ))}
-            </select>
-            {errors.branchId && <p className="text-xs text-red-500 mt-1">{errors.branchId.message}</p>}
-            {isDepartmentManager && <p className="text-[10px] text-theme-muted mt-0.5">No puedes cambiar la sucursal</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
