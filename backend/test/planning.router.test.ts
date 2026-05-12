@@ -32,6 +32,7 @@ jest.mock('../src/middleware/auth.middleware', () => {
 });
 
 import planningRouter from '../src/modules/planning/planning.router';
+import { planningService } from '../src/modules/planning/planning.service';
 
 const app = express();
 app.use(express.json());
@@ -40,6 +41,10 @@ app.use('/api/planning', planningRouter);
 const range = 'from=2026-05-12T00:00:00.000Z&to=2026-05-18T23:59:59.999Z';
 
 describe('planning.router', () => {
+  beforeEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('returns empty coverage risks scaffold for users with schedule view permission', async () => {
     const response = await request(app)
       .get(`/api/planning/coverage-risks?${range}`)
@@ -82,5 +87,49 @@ describe('planning.router', () => {
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(response.body.code).toBe('BAD_REQUEST');
+  });
+
+  it('rejects ranges where from is after to', async () => {
+    const response = await request(app)
+      .get('/api/planning/coverage-risks?from=2026-05-18&to=2026-05-12')
+      .set('x-test-role', 'admin');
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe('BAD_REQUEST');
+    expect(response.body.errors.fieldErrors.from).toContain(
+      'La fecha de inicio no puede ser posterior a la fecha de fin',
+    );
+  });
+
+  it('requires from and to query parameters', async () => {
+    const response = await request(app)
+      .get('/api/planning/coverage-risks')
+      .set('x-test-role', 'admin');
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.code).toBe('BAD_REQUEST');
+    expect(response.body.errors.fieldErrors.from).toBeDefined();
+    expect(response.body.errors.fieldErrors.to).toBeDefined();
+  });
+
+  it('normalizes optional empty scope filters before calling the service', async () => {
+    const spy = jest.spyOn(planningService, 'getCoverageRisks').mockResolvedValue([]);
+
+    const response = await request(app)
+      .get(`/api/planning/coverage-risks?${range}&branchId=&departmentId=`)
+      .set('x-test-role', 'admin');
+
+    expect(response.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: expect.any(Date),
+        to: expect.any(Date),
+        branchId: undefined,
+        departmentId: undefined,
+      }),
+      expect.objectContaining({ id: 'test-user', roleName: 'admin' }),
+    );
   });
 });
