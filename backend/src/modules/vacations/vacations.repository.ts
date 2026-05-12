@@ -22,7 +22,7 @@ const vacationInclude = {
     },
   },
   branch: {
-    select: { id: true, name: true, code: true },
+    select: { id: true, name: true, code: true, timezone: true },
   },
   department: {
     select: { id: true, name: true, code: true },

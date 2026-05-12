@@ -20,7 +20,7 @@ const assigneeInclude = {
   },
   scheduleType: true,
   createdBy: { select: { id: true, name: true } },
-  branch: { select: { id: true, name: true, code: true, isActive: true } },
+  branch: { select: { id: true, name: true, code: true, isActive: true, timezone: true } },
 } as const;
 
 export type ScheduleWhere = Prisma.Args<typeof prisma.schedule, 'findMany'>['where'];

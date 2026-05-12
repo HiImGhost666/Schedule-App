@@ -222,11 +222,22 @@ export async function createVacationEntry(input: CreateVacationRequestInput, act
   }).catch(() => {});
 
   // Notificación in-app al empleado
+  const branchTimezone = vacation.branch?.timezone;
+  const formatDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return dt.toLocaleDateString();
+  };
+
   createInAppNotification({
     userId: actor.id,
     type: 'vacation_requested',
     title: 'Solicitud de vacaciones enviada',
-    message: `Has solicitado vacaciones del ${startDate.toLocaleDateString()} al ${endDate.toLocaleDateString()}.`,
+    message: `Has solicitado vacaciones del ${formatDt(startDate)} al ${formatDt(endDate)}.`,
     link: '/vacations',
     metadata: { vacationId: vacation.id },
   }).catch(() => {});
@@ -289,11 +300,22 @@ export async function approveVacationEntry(id: string, input: ApproveVacationInp
   }).catch(() => {});
 
   // Notificación in-app al empleado
+  const branchTimezone = vacation.branch?.timezone;
+  const formatDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return dt.toLocaleDateString();
+  };
+
   createInAppNotification({
     userId: vacation.employeeId,
     type: 'vacation_approved',
     title: 'Vacaciones aprobadas',
-    message: `Tus vacaciones del ${vacation.startDate.toLocaleDateString()} al ${vacation.endDate.toLocaleDateString()} han sido aprobadas por ${actor.name}.`,
+    message: `Tus vacaciones del ${formatDt(vacation.startDate)} al ${formatDt(vacation.endDate)} han sido aprobadas por ${actor.name}.`,
     link: '/vacations',
     metadata: { vacationId: id, approvedBy: actor.id },
   }).catch(() => {});
@@ -356,6 +378,17 @@ export async function rejectVacationEntry(id: string, input: RejectVacationInput
   }).catch(() => {});
 
   // Notificación in-app al empleado
+  const branchTimezone = vacation.branch?.timezone;
+  const formatDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return dt.toLocaleDateString();
+  };
+
   const rejectionMsg = input.rejectionReason
     ? `Motivo: ${input.rejectionReason}`
     : 'No se especificó motivo.';
@@ -363,7 +396,7 @@ export async function rejectVacationEntry(id: string, input: RejectVacationInput
     userId: vacation.employeeId,
     type: 'vacation_rejected',
     title: 'Vacaciones rechazadas',
-    message: `Tus vacaciones del ${vacation.startDate.toLocaleDateString()} al ${vacation.endDate.toLocaleDateString()} han sido rechazadas por ${actor.name}. ${rejectionMsg}`,
+    message: `Tus vacaciones del ${formatDt(vacation.startDate)} al ${formatDt(vacation.endDate)} han sido rechazadas por ${actor.name}. ${rejectionMsg}`,
     link: '/vacations',
     metadata: { vacationId: id, rejectedBy: actor.id, rejectionReason: input.rejectionReason },
   }).catch(() => {});
@@ -431,11 +464,22 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
 
   // Notificación in-app al empleado (si quien cancela no es el empleado, notificarle)
   if (vacation.employeeId !== actor.id) {
+    const branchTimezone = vacation.branch?.timezone;
+    const formatDt = (dt: Date) => {
+      if (branchTimezone) {
+        return new Intl.DateTimeFormat('es-ES', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          timeZone: branchTimezone,
+        }).format(dt);
+      }
+      return dt.toLocaleDateString();
+    };
+
     createInAppNotification({
       userId: vacation.employeeId,
       type: 'vacation_cancelled',
       title: 'Vacaciones canceladas',
-      message: `Tus vacaciones del ${vacation.startDate.toLocaleDateString()} al ${vacation.endDate.toLocaleDateString()} han sido canceladas por ${actor.name}.`,
+      message: `Tus vacaciones del ${formatDt(vacation.startDate)} al ${formatDt(vacation.endDate)} han sido canceladas por ${actor.name}.`,
       link: '/vacations',
       metadata: { vacationId: id, cancelledBy: actor.id },
     }).catch(() => {});

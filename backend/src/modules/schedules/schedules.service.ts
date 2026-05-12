@@ -493,6 +493,8 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     new Date(parsed.data.endDatetime),
   ).catch(() => {});
 
+  const branchTimezone = result.schedule.branch?.timezone;
+
   notifyScheduleChange({
     type: 'schedule_created',
     schedule: result.schedule,
@@ -502,12 +504,23 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   }).catch(() => {});
 
   // Notificación in-app a los asignados
+  const formatInAppDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   createInAppNotificationBatch(
     parsed.data.assigneeIds.map(userId => ({
       userId,
       type: 'schedule_assigned',
       title: 'Nuevo turno asignado',
-      message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${result.schedule.startDatetime.toLocaleDateString()} de ${result.schedule.startDatetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} a ${result.schedule.endDatetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Asignado por ${actor.name}.`,
+      message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${formatInAppDt(result.schedule.startDatetime)} a ${formatInAppDt(result.schedule.endDatetime)}. Asignado por ${actor.name}.`,
       link: '/schedule',
       metadata: { scheduleId: result.schedule.id, assignedBy: actor.id },
     })),
@@ -719,12 +732,24 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
 
   // Notificación in-app a los asignados sobre cambios
   const finalAssigneeIds = assigneeIds || existing.assignments.map((a: { userId: string }) => a.userId);
+  const branchTimezone = schedule.branch?.timezone;
+  const formatInAppDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   createInAppNotificationBatch(
     finalAssigneeIds.map(userId => ({
       userId,
       type: 'schedule_modified',
       title: 'Turno modificado',
-      message: `El turno "${schedule.title}" del ${schedule.startDatetime.toLocaleDateString()} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+      message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
       link: '/schedule',
       metadata: { scheduleId: schedule.id, updatedBy: actor.id },
     })),
@@ -868,12 +893,24 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
   }).catch(() => {});
 
   // Notificación in-app a los asignados sobre eliminación
+  const branchTimezone = schedule.branch?.timezone;
+  const formatInAppDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   createInAppNotificationBatch(
     schedule.assignments.map((a: { userId: string }) => ({
       userId: a.userId,
       type: 'schedule_deleted',
       title: 'Turno eliminado',
-      message: `El turno "${schedule.title}" del ${schedule.startDatetime.toLocaleDateString()} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+      message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
       link: '/schedule',
       metadata: { scheduleId: schedule.id, deletedBy: actor.id },
     })),
