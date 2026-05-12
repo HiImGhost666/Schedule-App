@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { sendError, sendSuccess } from '../../utils/response';
 import type { AuthRequest } from '../../middleware/auth.middleware';
+import { isAppError } from '../../common/errors/app-error';
 import {
   getScheduleTypes,
   getScheduleTypeById,
@@ -13,21 +14,29 @@ import {
   updateScheduleTypeSchema,
 } from './schedule-types.http.schemas';
 
+function sendScheduleTypeError(res: Response, error: unknown, fallbackMessage: string) {
+  if (isAppError(error)) {
+    return sendError(res, error.message, error.statusCode, error.details, error.code);
+  }
+
+  return sendError(res, fallbackMessage, 500, undefined, 'INTERNAL_ERROR');
+}
+
 export async function listScheduleTypes(_req: Request, res: Response) {
   try {
     const scheduleTypes = await getScheduleTypes();
-    sendSuccess(res, scheduleTypes);
-  } catch {
-    sendError(res, 'Error al obtener tipos de turno', 500);
+    return sendSuccess(res, scheduleTypes);
+  } catch (error: unknown) {
+    return sendScheduleTypeError(res, error, 'Error al obtener tipos de turno');
   }
 }
 
 export async function getScheduleType(_req: Request, res: Response) {
   try {
     const scheduleType = await getScheduleTypeById(_req.params.id as string);
-    sendSuccess(res, scheduleType);
-  } catch {
-    sendError(res, 'Tipo de turno no encontrado', 404);
+    return sendSuccess(res, scheduleType);
+  } catch (error: unknown) {
+    return sendScheduleTypeError(res, error, 'Error al obtener tipo de turno');
   }
 }
 
@@ -39,9 +48,9 @@ export async function createScheduleTypeHandler(req: AuthRequest, res: Response)
 
   try {
     const scheduleType = await createScheduleType(parsed.data, { id: req.user!.id, ipAddress: req.ip });
-    sendSuccess(res, scheduleType, undefined, 201);
-  } catch (error: any) {
-    sendError(res, error.message || 'Error al crear tipo de turno', 400);
+    return sendSuccess(res, scheduleType, undefined, 201);
+  } catch (error: unknown) {
+    return sendScheduleTypeError(res, error, 'Error al crear tipo de turno');
   }
 }
 
@@ -53,17 +62,17 @@ export async function updateScheduleTypeHandler(req: AuthRequest, res: Response)
 
   try {
     const scheduleType = await updateScheduleType(req.params.id as string, parsed.data, { id: req.user!.id, ipAddress: req.ip });
-    sendSuccess(res, scheduleType);
-  } catch (error: any) {
-    sendError(res, error.message || 'Error al actualizar tipo de turno', 400);
+    return sendSuccess(res, scheduleType);
+  } catch (error: unknown) {
+    return sendScheduleTypeError(res, error, 'Error al actualizar tipo de turno');
   }
 }
 
 export async function deleteScheduleTypeHandler(req: AuthRequest, res: Response) {
   try {
     await deleteScheduleType(req.params.id as string, { id: req.user!.id, ipAddress: req.ip });
-    sendSuccess(res, { message: 'Schedule type deleted successfully' });
-  } catch (error: any) {
-    sendError(res, error.message || 'Error al eliminar tipo de turno', 400);
+    return sendSuccess(res, { message: 'Schedule type deleted successfully' });
+  } catch (error: unknown) {
+    return sendScheduleTypeError(res, error, 'Error al eliminar tipo de turno');
   }
 }

@@ -52,6 +52,7 @@ jest.mock('../src/modules/users/users.service', () => ({
 
 import usersRouter from '../src/modules/users/users.router';
 import * as usersService from '../src/modules/users/users.service';
+import { createAppError } from '../src/common/errors/error-catalog';
 
 const mockService = usersService as jest.Mocked<typeof usersService>;
 
@@ -98,6 +99,21 @@ describe('users.router', () => {
 
       expect(response.status).toBe(401);
       expect(mockService.getUsersList).not.toHaveBeenCalled();
+    });
+
+    it('preserves AppError status from service', async () => {
+      mockService.getUsersList.mockRejectedValueOnce(createAppError('FORBIDDEN', 'No puedes listar estos usuarios'));
+
+      const response = await request(app)
+        .get('/api/users')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(403);
+      expect(response.body).toMatchObject({
+        success: false,
+        error: 'No puedes listar estos usuarios',
+        code: 'FORBIDDEN',
+      });
     });
   });
 

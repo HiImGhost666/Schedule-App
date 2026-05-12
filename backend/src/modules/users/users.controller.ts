@@ -35,8 +35,13 @@ export async function listUsersController(req: AuthRequest, res: Response) {
   const parsedQuery = listUsersQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
 
-  const { users, total } = await getUsersList(parsedQuery.data, { id: req.user!.id, ipAddress: req.ip });
-  return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
+  try {
+    const { users, total } = await getUsersList(parsedQuery.data, { id: req.user!.id, ipAddress: req.ip });
+    return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
 }
 
 /**

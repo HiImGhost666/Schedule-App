@@ -24,7 +24,7 @@ import {
 export async function listDepartmentsController(req: AuthRequest, res: Response) {
   const parsed = listDepartmentsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -39,7 +39,7 @@ export async function listDepartmentsController(req: AuthRequest, res: Response)
 export async function createDepartmentController(req: AuthRequest, res: Response) {
   const parsedBody = createDepartmentBodySchema.safeParse(req.body);
   if (!parsedBody.success) {
-    return sendError(res, 'Datos invalidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -57,12 +57,12 @@ export async function createDepartmentController(req: AuthRequest, res: Response
 export async function updateDepartmentController(req: AuthRequest, res: Response) {
   const parsedParams = departmentIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
   const parsedBody = updateDepartmentBodySchema.safeParse(req.body);
   if (!parsedBody.success) {
-    return sendError(res, 'Datos invalidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -80,7 +80,7 @@ export async function updateDepartmentController(req: AuthRequest, res: Response
 export async function deleteDepartmentController(req: AuthRequest, res: Response) {
   const parsedParams = departmentIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -98,7 +98,7 @@ export async function deleteDepartmentController(req: AuthRequest, res: Response
 export async function hardDeleteDepartmentController(req: AuthRequest, res: Response) {
   const parsedParams = departmentIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -116,7 +116,7 @@ export async function hardDeleteDepartmentController(req: AuthRequest, res: Resp
 export async function listDepartmentBranchesController(req: AuthRequest, res: Response) {
   const parsedParams = departmentIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -131,12 +131,12 @@ export async function listDepartmentBranchesController(req: AuthRequest, res: Re
 export async function assignDepartmentManagerController(req: AuthRequest, res: Response) {
   const parsedParams = departmentIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
   const parsedBody = assignDepartmentManagerBodySchema.safeParse(req.body);
   if (!parsedBody.success) {
-    return sendError(res, 'Datos invalidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
@@ -154,12 +154,12 @@ export async function assignDepartmentManagerController(req: AuthRequest, res: R
 export async function removeDepartmentManagerController(req: AuthRequest, res: Response) {
   const parsedParams = departmentIdParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
   }
 
   const parsedBody = removeDepartmentManagerBodySchema.safeParse(req.body);
   if (!parsedBody.success) {
-    return sendError(res, 'Datos invalidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+    return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
   }
 
   try {
