@@ -34,7 +34,6 @@ const STATUS_LABELS: Record<string, string> = {
   locked: 'Bloqueado',
 };
 
-
 type CsvHeader = (typeof CSV_HEADERS)[number];
 type UserCsvRow = Record<CsvHeader, string>;
 type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
@@ -433,7 +432,6 @@ export function UsersPage() {
     };
     return <span className={cls[role] || 'badge-role-employee'}>{ROLE_LABELS[role] || role}</span>;
   };
-
 
   const statusBadge = (status: string) => {
     const cls = { active: 'badge-status-active', disabled: 'badge-status-disabled', locked: 'badge-status-locked' };

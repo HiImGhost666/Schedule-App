@@ -139,6 +139,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     },
     enabled: open,
   });
+  const firstShiftPresetId = shiftPresets[0]?.id ?? '';
 
   const toIsoFromLocalInput = (value: Date) => value.toISOString();
 
@@ -196,24 +197,24 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
             endTime: format(rangeEnd, 'HH:mm'),
           }]),
         );
-        setDefaultShiftPresetId(shiftPresets[0]?.id ?? '');
+        setDefaultShiftPresetId(firstShiftPresetId);
         setDayShiftOverrides(overrides);
         setCustomShiftTimes(customTimes);
       } else {
-        setDefaultShiftPresetId(shiftPresets[0]?.id ?? '');
+        setDefaultShiftPresetId(firstShiftPresetId);
         setDayShiftOverrides({});
         setCustomShiftTimes({});
       }
     } else {
       setSelectedDates([]);
-      setDefaultShiftPresetId(shiftPresets[0]?.id ?? '');
+      setDefaultShiftPresetId(firstShiftPresetId);
       setDayShiftOverrides({});
       setCustomShiftTimes({});
     }
 
     setCalendarOpen(false);
     setShiftAnchorDate(null);
-  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
+  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes, shiftPresets, firstShiftPresetId]);
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
   const isAllBranchesMode = !schedule && !defaultBranchId;
@@ -418,7 +419,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         return acc + Math.round((durationMinutes / 60) * 10) / 10;
       }
 
-      const preset = presetById[presetId] ?? presetById[shiftPresets[0]?.id ?? ''];
+      const preset = presetById[presetId] ?? presetById[firstShiftPresetId];
       return acc + (preset ? getPresetDurationHours(preset) : 0);
     }, 0);
 
@@ -429,7 +430,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       totalHours: Math.round(totalHours * 10) / 10,
       holidayHits,
     };
-  }, [selectedDateKeys, effectiveDayShiftOverrides, defaultShiftPresetId, presetById, holidayDates]);
+  }, [selectedDateKeys, effectiveDayShiftOverrides, defaultShiftPresetId, presetById, firstShiftPresetId, holidayDates]);
 
   const createBulkMutation = useMutation({
     mutationFn: (payload: ShiftBulkPayload) => api.post('/schedules/bulk', payload),

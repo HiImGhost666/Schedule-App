@@ -26,7 +26,9 @@ interface DataTableProps<T> {
   emptyDescription?: string;
   rowKey: (item: T) => string;
   onRowClick?: (item: T) => void;
+  getRowClassName?: (item: T) => string;
   actionColspan?: number;
+  actionsLabel?: string;
   /** Render prop for extra content after each row (e.g. action buttons) */
   renderActions?: (item: T) => React.ReactNode;
 }
@@ -43,7 +45,9 @@ export function DataTable<T>({
   emptyDescription,
   rowKey,
   onRowClick,
+  getRowClassName,
   actionColspan,
+  actionsLabel = 'Acciones',
   renderActions,
 }: DataTableProps<T>) {
   const renderSortLabel = (field: string, label: string) => {
@@ -93,7 +97,7 @@ export function DataTable<T>({
             })}
             {renderActions && (
               <th className="text-right px-4 py-3 font-semibold text-theme-primary">
-                Acciones
+                {actionsLabel}
               </th>
             )}
           </tr>
@@ -122,7 +126,7 @@ export function DataTable<T>({
                 onClick={() => onRowClick?.(item)}
                 className={`border-b border-theme-color hover:bg-theme-surface-muted/30 transition-colors ${
                   onRowClick ? 'cursor-pointer' : ''
-                }`}
+                } ${getRowClassName?.(item) ?? ''}`}
               >
                 {columns.map((col) => {
                   const hideClass = col.hide === 'md' ? 'hidden md:table-cell'

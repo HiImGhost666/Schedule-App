@@ -1,22 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
-import { ShieldCheck, RefreshCw, Lock, Download } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Lock, Download, ClipboardList, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/config/api';
-import type { AuditLog, Branch, Department } from '@/types';
+import type { AuditLog, Branch, Department, PaginatedResponse } from '@/types';
 import { FilterTable, type FilterFieldConfig } from '@/components/common/FilterTable';
-import { AuditTable } from '@/components/audit/AuditTable';
+import { DataTable } from '@/components/common/DataTable';
 import type { AuditSortBy, SortOrder } from '@/types';
+import type { Column } from '@/components/common/DataTable';
 import { AuditTabs, type TabType } from '@/components/audit/AuditTabs';
 import { AuditDetailPanel } from '@/components/audit/AuditDetailPanel';
 import { AuditExportModal } from '@/components/audit/AuditExportModal';
 import { ListPageSkeleton } from '@/components/common/Skeleton';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { formatDateTime } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
 type AuditFilterKey = 'action' | 'entityType' | 'userDepartment' | 'userId' | 'from' | 'to' | 'branchId';
 type AuditDetails = { before?: unknown; after?: unknown };
+type AuditListResponse = PaginatedResponse<AuditLog>;
+
+const ACTION_COLORS: Record<string, string> = {
+  LOGIN: 'bg-green-100 text-green-700',
+  LOGOUT: 'bg-gray-100 text-gray-600',
+  CREATE_USER: 'bg-blue-100 text-blue-700',
+  UPDATE_USER: 'bg-amber-100 text-amber-700',
+  DELETE_USER: 'bg-red-100 text-red-700',
+  USER_STATUS_CHANGE: 'bg-purple-100 text-purple-700',
+  USER_ROLE_CHANGE: 'bg-indigo-100 text-indigo-700',
+  RESET_PASSWORD: 'bg-orange-100 text-orange-700',
+  CREATE_SCHEDULE: 'bg-blue-100 text-blue-700',
+  UPDATE_SCHEDULE: 'bg-amber-100 text-amber-700',
+  DELETE_SCHEDULE: 'bg-red-100 text-red-700',
+  CREATE_WEBHOOK: 'bg-teal-100 text-teal-700',
+  CHANGE_PASSWORD: 'bg-cyan-100 text-cyan-700',
+  FAILED_LOGIN_ATTEMPT: 'bg-red-100 text-red-700',
+  ROLLBACK_PERFORMED: 'bg-indigo-100 text-indigo-700',
+};
 
 const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
   { key: 'action', type: 'text', label: 'Acción', id: 'audit-search', placeholder: 'Filtrar por acción...', className: 'min-w-56' },
@@ -46,6 +67,22 @@ function parseAuditDetails(value: unknown): AuditDetails {
   }
   if (typeof value === 'object') return value as AuditDetails;
   return {};
+}
+
+function getLogDisplayName(log: AuditLog): string {
+  const details = (log.detailsJson ?? {}) as Record<string, unknown>;
+  const after = (details.after ?? {}) as Record<string, unknown>;
+  const before = (details.before ?? {}) as Record<string, unknown>;
+  const candidate = after.title ?? after.name ?? details.title ?? details.name ?? before.title ?? before.name;
+  return typeof candidate === 'string' && candidate.trim() ? candidate : '-';
+}
+
+function getLogType(log: AuditLog): string {
+  const details = (log.detailsJson ?? {}) as Record<string, unknown>;
+  const after = (details.after ?? {}) as Record<string, unknown>;
+  const before = (details.before ?? {}) as Record<string, unknown>;
+  const candidate = after.type ?? details.type ?? before.type;
+  return typeof candidate === 'string' && candidate.trim() ? candidate : '-';
 }
 
 export function AuditLogPage() {
@@ -162,6 +199,100 @@ export function AuditLogPage() {
 
   const isInitialLoading = loadingRev && !dataRev && loadingIrr && !dataIrr;
 
+  const auditColumns: Column<AuditLog>[] = [
+    {
+      key: 'action',
+      label: 'Acción',
+      sortable: true,
+      render: (log) => (
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ACTION_COLORS[log.action] || 'bg-navy-100 text-navy-600'}`}>
+          {log.action.replace(/_/g, ' ')}
+          {log.rolledBackAt && <span className="ml-1 opacity-70">(ROLLBACK)</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'userName',
+      label: 'Usuario',
+      sortable: true,
+      hide: 'md',
+      render: (log) => <span className="text-sm text-theme-secondary">{log.user?.name || 'Sistema'}</span>,
+    },
+    {
+      key: 'userDepartment',
+      label: 'Departamento',
+      sortable: true,
+      hide: 'lg',
+      render: (log) => (
+        log.user?.department?.name
+          ? <span className="text-xs text-theme-muted">{log.user.department.name}</span>
+          : <span className="text-xs text-theme-muted/70">-</span>
+      ),
+    },
+    {
+      key: 'resource',
+      label: 'Recurso',
+      hide: 'lg',
+      render: (log) => <span className="text-xs text-theme-muted">{getLogDisplayName(log)}</span>,
+    },
+    {
+      key: 'entityType',
+      label: 'Tipo',
+      sortable: true,
+      hide: 'xl',
+      render: (log) => <span className="text-xs text-theme-muted">{getLogType(log)}</span>,
+    },
+    {
+      key: 'createdAt',
+      label: 'Fecha',
+      sortable: true,
+      render: (log) => <span className="text-xs text-theme-muted">{formatDateTime(log.createdAt)}</span>,
+    },
+  ];
+
+  const renderAuditLogList = (
+    tableData: AuditListResponse | undefined,
+    isLoading: boolean,
+    page: number,
+    onPageChange: (page: number) => void,
+    emptyDescription: string,
+  ) => {
+    const pagination = tableData?.pagination;
+
+    return (
+      <>
+        <DataTable<AuditLog>
+          data={tableData?.data ?? []}
+          columns={auditColumns}
+          rowKey={(log) => log.id}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={(field) => handleSortChange(field as AuditSortBy)}
+          onRowClick={(log) => handleSelectLog(log.id)}
+          getRowClassName={(log) => (selectedLogId === log.id ? 'bg-theme-surface-muted' : '')}
+          isLoading={isLoading}
+          emptyIcon={ClipboardList}
+          emptyTitle="Sin registros"
+          emptyDescription={emptyDescription}
+          actionsLabel=""
+          renderActions={() => <ChevronRight className="h-3.5 w-3.5 text-theme-muted" />}
+        />
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-4 border-t border-theme-color">
+            <p className="text-xs text-theme-muted">Página {page} de {pagination.totalPages} · {pagination.total} registros</p>
+            <div className="flex gap-2">
+              <button onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1}
+                className="px-3 py-1 text-xs font-medium rounded border border-theme-color text-theme-primary hover:bg-theme-surface-muted disabled:opacity-40">Anterior</button>
+              <button onClick={() => onPageChange(page + 1)} disabled={page >= pagination.totalPages}
+                className="px-3 py-1 text-xs font-medium rounded border border-theme-color text-theme-primary hover:bg-theme-surface-muted disabled:opacity-40">Siguiente</button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   if (isInitialLoading) {
     return <ListPageSkeleton />;
   }
@@ -205,16 +336,10 @@ export function AuditLogPage() {
       <div className="flex gap-4">
         <div className={`card overflow-hidden ${selectedLogId ? 'flex-1' : 'w-full'}`}>
           {activeTab === 'reversible' && (
-            <AuditTable data={dataRev} isLoading={loadingRev} page={pageRev} onPageChange={setPageRev}
-              sortBy={sortBy} sortOrder={sortOrder} onSortChange={handleSortChange}
-              selectedLogId={selectedLogId} onSelectLog={handleSelectLog}
-              emptyDescription="No se encontraron acciones de datos con los filtros actuales." />
+            renderAuditLogList(dataRev, loadingRev, pageRev, setPageRev, 'No se encontraron acciones de datos con los filtros actuales.')
           )}
           {activeTab === 'irreversible' && (
-            <AuditTable data={dataIrr} isLoading={loadingIrr} page={pageIrr} onPageChange={setPageIrr}
-              sortBy={sortBy} sortOrder={sortOrder} onSortChange={handleSortChange}
-              selectedLogId={selectedLogId} onSelectLog={handleSelectLog}
-              emptyDescription="No se encontraron eventos de seguridad con los filtros actuales." />
+            renderAuditLogList(dataIrr, loadingIrr, pageIrr, setPageIrr, 'No se encontraron eventos de seguridad con los filtros actuales.')
           )}
         </div>
 
