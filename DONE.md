@@ -5,7 +5,20 @@
 
 ---
 
+## ✅ COMPLETADO — Bugs #6 y #7: Fechas incorrectas en ShiftModal (12 mayo 2026)
+
+### Bug #6: Rango de fechas incorrecto en shift+clic
+- [x] **Causa raíz**: `buildDateRange` usaba `cursor.setDate(cursor.getDate() + 1)` sobre fechas UTC. `setDate()` opera en zona horaria local (Atlantic/Canary = UTC+1), provocando que el cursor se desplazara a las 23:00 UTC del día anterior en lugar de 00:00 UTC del día siguiente. Esto causaba duplicación del primer día y omisión del último.
+- [x] **Fix**: Cambiados a `setUTCDate`/`getUTCDate` en `buildDateRange`, `isNextDay` y `buildChunkRange` en `shiftScheduling.ts` para mantener consistencia UTC.
+
+### Bug #7: Fecha fin incorrecta al crear turno desde el calendario
+- [x] **Causa raíz**: FullCalendar proporciona `DateSelectArg.end` como fecha **exclusiva** (el día después de la selección). Al seleccionar un solo día (ej. 20 de mayo), `info.end = 21 de mayo`. Este valor se pasaba directamente a `buildDateRange`, que incluía ambos extremos, resultando en 2 días en lugar de 1.
+- [x] **Fix**: En `SchedulePage.tsx`, tanto en `handleDateSelect` como en `handleConfirmHolidaySchedule`, se resta un día a `info.end` antes de pasarlo como `defaultEnd` al modal.
+
+---
+
 ## ✅ COMPLETADO — Items #9, #12-16 (12 mayo 2026)
+
 
 ### Item #5: Evento desde Dashboard abre popup en SchedulePage
 - [x] Verificado: `WeekSchedulesWidget` navega a `/schedule/${s.id}` (ruta `schedule/:scheduleId`)

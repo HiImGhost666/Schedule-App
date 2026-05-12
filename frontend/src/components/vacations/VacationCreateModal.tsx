@@ -4,17 +4,17 @@ import { useCreateVacation, useApproveVacation } from '@/hooks/useVacations';
 import api from '@/config/api';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
-import { X } from 'lucide-react';
-import type { User } from '@/types';
+import { X, Building2, Layers } from 'lucide-react';
+import type { Branch, Department, User } from '@/types';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  branchId?: string;
-  departmentId?: string;
 }
 
-export function VacationCreateModal({ open, onClose, branchId, departmentId }: Props) {
+export function VacationCreateModal({ open, onClose }: Props) {
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -23,13 +23,28 @@ export function VacationCreateModal({ open, onClose, branchId, departmentId }: P
   const createMutation = useCreateVacation();
   const approveMutation = useApproveVacation();
 
+  const { data: branchesData } = useQuery<{ data: Branch[] }>({
+    queryKey: ['branches', 'vacation-create'],
+    queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
+    enabled: open,
+  });
+
+  const { data: departmentsData } = useQuery<{ data: Department[] }>({
+    queryKey: ['departments', 'vacation-create'],
+    queryFn: () => api.get('/departments', { params: { includeInactive: true } }).then((r) => r.data),
+    enabled: open,
+  });
+
+  const branches = branchesData?.data ?? [];
+  const departments = departmentsData?.data ?? [];
+
   const { data: usersData } = useQuery<{ data: User[] }>({
-    queryKey: ['users', 'vacation-create', branchId, departmentId],
+    queryKey: ['users', 'vacation-create', selectedBranchId, selectedDepartmentId],
     queryFn: () =>
       api.get('/users', {
         params: {
-          ...(branchId ? { branchId } : {}),
-          ...(departmentId ? { departmentId } : {}),
+          ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+          ...(selectedDepartmentId ? { departmentId: selectedDepartmentId } : {}),
           status: 'active',
         },
       }).then((r) => r.data),
@@ -103,6 +118,46 @@ export function VacationCreateModal({ open, onClose, branchId, departmentId }: P
         </div>
 
         <div className="space-y-4">
+          {/* Filtros independientes de sucursal y departamento */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-theme-primary mb-1">
+                <Building2 className="inline h-3.5 w-3.5 mr-1" />Sucursal
+              </label>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => {
+                  setSelectedBranchId(e.target.value);
+                  setSelectedUserId('');
+                }}
+                className="input-field w-full"
+              >
+                <option value="">Todas las sucursales</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-theme-primary mb-1">
+                <Layers className="inline h-3.5 w-3.5 mr-1" />Departamento
+              </label>
+              <select
+                value={selectedDepartmentId}
+                onChange={(e) => {
+                  setSelectedDepartmentId(e.target.value);
+                  setSelectedUserId('');
+                }}
+                className="input-field w-full"
+              >
+                <option value="">Todos los departamentos</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>{dept.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-theme-primary mb-1">
               Empleado *

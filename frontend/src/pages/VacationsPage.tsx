@@ -226,8 +226,6 @@ export function VacationsPage() {
       <VacationCreateModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        branchId={isAdmin ? selectedBranchId || undefined : userBranchId || undefined}
-        departmentId={isAdmin ? selectedDepartmentId || undefined : userDepartmentId || undefined}
       />
     </div>
   );

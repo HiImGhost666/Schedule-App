@@ -36,12 +36,31 @@ Ubicación: `frontend/src/components/schedule/ShiftModal.tsx`
 Ubicación: `frontend/src/components/schedule/shiftScheduling.ts`
 
 Helpers principales:
-- `normalizeDate`: limpia la hora a medianoche para comparar fechas.
+- `normalizeDate`: limpia la hora a medianoche UTC para comparar fechas.
 - `buildScheduleChunks`: agrupa días consecutivos por preset.
 - `buildChunkRange`: genera start/end Date para un bloque y un preset.
 - `getPresetDurationHours`: calcula horas para el resumen y `hoursPerDay`.
 
+### ⚠️ Importante: Manejo de zona horaria
+Todas las funciones en `shiftScheduling.ts` trabajan con fechas **UTC midnight** (normalizadas con `normalizeDate`). Es crítico usar **setters/getters UTC** (`setUTCDate`, `getUTCDate`, `setUTCHours`) en lugar de los locales (`setDate`, `getDate`) para evitar desviaciones por zona horaria.
+
+**Problema conocido**: `cursor.setDate(cursor.getDate() + 1)` sobre una fecha UTC en zona horaria UTC+1 provoca que el cursor se desplace a las 23:00 UTC del día anterior en lugar de 00:00 UTC del día siguiente. Esto causa:
+- Duplicación del primer día en rangos
+- Omisión del último día del rango
+
+**Fix**: Usar `cursor.setUTCDate(cursor.getUTCDate() + 1)` en su lugar.
+
+### FullCalendar: Fecha fin exclusiva
+FullCalendar proporciona `DateSelectArg.end` como fecha **exclusiva** (el día después de la selección). Al recibir este valor en `SchedulePage.tsx`, se debe restar un día antes de pasarlo al modal:
+
+```typescript
+const adjustedEnd = new Date(info.end);
+adjustedEnd.setDate(adjustedEnd.getDate() - 1);
+setDefaultEnd(adjustedEnd);
+```
+
 Esto mantiene la lógica de la vista pequeña y fácil de testear.
+
 
 ## Flujo en backend (creación bulk)
 Ubicaciones:

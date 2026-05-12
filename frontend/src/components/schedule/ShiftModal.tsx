@@ -88,8 +88,13 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
   const canEdit = user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager';
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSplit, setConfirmSplit] = useState(false);
   const [holidayConflicts, setHolidayConflicts] = useState<BranchHoliday[]>([]);
   const [pendingPayload, setPendingPayload] = useState<ShiftBulkPayload | null>(null);
+  const [pendingSplitPayload, setPendingSplitPayload] = useState<{
+    items: ShiftPayload[];
+    reason?: string;
+  } | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
   const [asideBranchFilter, setAsideBranchFilter] = useState('');
@@ -538,8 +543,11 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       toast.error(getApiErrorMessage(error, 'No se pudo preparar los turnos'));
       return;
     }
+    // Si es edición y hay múltiples chunks, es una división de turno
     if (schedule && payloadData.chunks.length > 1) {
-      toast.error('Para editar un turno se requiere un rango continuo');
+      const reason = data.reason || 'División de turno';
+      setPendingSplitPayload({ items: payloadData.items, reason });
+      setConfirmSplit(true);
       return;
     }
 
@@ -565,6 +573,28 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
     setPendingPayload(null);
   };
 
+
+  const confirmSplitHandler = async () => {
+    if (!pendingSplitPayload || !schedule) return;
+    try {
+      const reason = pendingSplitPayload.reason || 'División de turno';
+      await deleteMutation.mutateAsync(reason);
+      await createBulkMutation.mutateAsync({ items: pendingSplitPayload.items });
+      qc.invalidateQueries({ queryKey: ['schedules'] });
+      toast.success(`Turno dividido en ${pendingSplitPayload.items.length} turnos`);
+      onClose();
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Error al dividir el turno'));
+    } finally {
+      setConfirmSplit(false);
+      setPendingSplitPayload(null);
+    }
+  };
+
+  const cancelSplitDialog = () => {
+    setConfirmSplit(false);
+    setPendingSplitPayload(null);
+  };
 
   const cancelConflictDialog = () => {
     setHolidayConflicts([]);
@@ -1030,6 +1060,16 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
         loading={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate('Eliminada por el administrador')}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmSplit}
+        title="Dividir Turno"
+        description={`Se va a dividir el turno "${schedule?.title}" en ${pendingSplitPayload?.items.length ?? 0} turnos independientes. Los asignados recibirán notificaciones de los cambios.`}
+        confirmLabel="Dividir"
+        loading={deleteMutation.isPending || createBulkMutation.isPending}
+        onConfirm={confirmSplitHandler}
+        onCancel={cancelSplitDialog}
       />
 
       {holidayConflicts.length > 0 && (
