@@ -16,10 +16,10 @@
 - [x] Añadir tests de autorización según la política final acordada.
 
 ### 2) Corregir bug en cancelación de vacaciones para employee
-- [ ] Ajustar `cancelVacationEntry()` para distinguir correctamente `cancel-own` vs `cancel-all-in-scope`.
-- [ ] Mantener regla: employee solo cancela solicitudes propias en `pending`/`colindante`.
-- [ ] Añadir tests de regresión.
-- **Riesgo actual:** empleados pueden quedar bloqueados al cancelar sus propias solicitudes.
+- [x] Ajustar `cancelVacationEntry()` para distinguir correctamente `cancel-own` vs `cancel-all-in-scope`.
+- [x] Mantener regla: employee solo cancela solicitudes propias en `pending`/`colindante`.
+- [x] Añadir tests de regresión.
+- **Estado:** corregido con tests de regresión para `pending` y `colindante`.
 
 ### 3) Cerrar merge/validación de rama y evitar regresiones
 - [ ] Ejecutar validación completa antes de próximo push estable:
@@ -36,27 +36,29 @@
 - [x] Confirmar y documentar permisos de rutas `alerts`, `:id`, `weekly-summary/me`.
 
 ### 5) Notificaciones: recuperar paridad UX con `schedule-app`
-- [ ] Evaluar e implementar (si aplica al producto final):
-  - delete de notificación en bandeja,
-  - realtime para contador/lista,
-  - respeto de preferencias de notificación para eventos de planning/support.
-- [ ] Añadir pruebas de integración frontend/backend para estos flujos.
+- [x] Evaluar e implementar (si aplica al producto final):
+  - [x] delete de notificación en bandeja,
+  - [x] realtime para contador/lista,
+  - [x] respeto de preferencias de notificación para eventos de planning/support.
+- [x] Añadir pruebas de integración frontend/backend para estos flujos:
+  - Backend: `test/in-app-notifications.router.test.ts` (HTTP sobre todas las rutas).
+  - Frontend: `useInAppNotifications.test.tsx`, `NotificationPanel.test.tsx`, `TopBar.test.tsx` (refresh + wiring con hook).
 
 ### 6) Vacations: completar gaps de alcance y UX
-- [ ] Revisar soporte completo de `visibleBranchIds` en vistas/consultas para employee.
-- [ ] Añadir búsqueda (`search`) en listado de vacaciones.
+- [x] Revisar soporte completo de `visibleBranchIds` en vistas/consultas para employee.
+- [x] Añadir búsqueda (`search`) en listado de vacaciones.
 - [ ] Definir si managers/admin pueden crear ausencias para terceros (paridad deseada o decisión explícita de producto).
 - [ ] Estandarizar tratamiento de estado `colindante` en toda la UI y API.
 
 #### 6.1) `visibleBranchIds` — lógica objetivo (scope multi-sucursal)
 - [ ] Definir regla base: `visibleBranchIds` amplía visibilidad de datos, no permisos de acción.
-- [ ] Implementar helper backend único (`getActorVisibleBranchIds`) y reutilizarlo en:
+- [x] Implementar helper backend único (`getActorVisibleBranchIds`) y reutilizarlo en:
   - schedules (`listSchedulesForActor`, `listWeekSchedulesForActor`, `getScheduleByIdForActor`),
   - vacations (`buildVacationScope`, calendario),
   - users (filtros de listado cuando aplique intranet + scope operativo).
 - [ ] Mantener excepción explícita: `admin` ve todo; otros roles ven `branchId` propio + `visibleBranchIds`.
-- [ ] Asegurar coherencia con la política de schedules/vacations/planning: mismo cálculo de scope para lectura en todos los módulos.
-- [ ] Validar en mutaciones: no permitir operar sobre branches fuera de ese conjunto visible.
+- [x] Asegurar coherencia con la política de schedules/vacations/planning: mismo cálculo de scope para lectura en todos los módulos.
+- [x] Validar en mutaciones: no permitir operar sobre branches fuera de ese conjunto visible.
 - [ ] Añadir tests de regresión:
   - GM/DM/employee con `visibleBranchIds` múltiples,
   - actor sin `visibleBranchIds`,
@@ -73,8 +75,8 @@
 - [ ] Añadir tests frontend (smoke/form submit) cubriendo payload con `visibleBranchIds`.
 
 ### 7) Navegación y accesibilidad de Planning
-- [ ] Verificar rutas/menús para que Planning esté disponible para roles previstos por negocio.
-- [ ] Confirmar decisión de tener Planning solo en admin o también en menú operativo para managers/empleados.
+- [x] Verificar rutas/menús: en `Sidebar.tsx`, **Planificación** (`/admin/planning`) aparece en administración para `admin` (ítems completos) y para **GM/DM** junto con usuarios, skills, tipos de turno, festivos y notificaciones (subconjunto); **employee** no ve bloque admin.
+- [ ] Confirmar decisión de producto si GM/DM deben seguir viendo Planning en admin o moverlo / restringirlo de otro modo.
 
 ---
 

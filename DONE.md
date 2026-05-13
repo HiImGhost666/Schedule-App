@@ -5,6 +5,70 @@
 
 ---
 
+## ✅ COMPLETADO — Tests integración notificaciones + verificación Planning en Sidebar (13 mayo 2026)
+
+### Frontend
+- [x] `useInAppNotifications`: lectura de lista alineada con `sendPaginated` (`data` + `pagination`), corrige bandeja vacía frente al backend real.
+
+### Tests
+- [x] Backend: `test/in-app-notifications.router.test.ts` — rutas GET/PATCH/POST/DELETE con auth mock.
+- [x] Frontend: `TopBar.test.tsx` — mock completo del hook + click en **Actualizar** llama `refreshNotifications`.
+
+### Planning (documentación en TODO)
+- [x] Comportamiento actual del menú verificado en código: GM/DM ven Planificación en bloque administración (subconjunto); admin ve todos los ítems.
+
+---
+
+## ✅ COMPLETADO — Notificaciones in-app: delete + realtime (13 mayo 2026)
+
+### Backend — In-App Notifications
+- [x] Añadido endpoint `DELETE /api/in-app-notifications/:id` para eliminar notificaciones propias.
+- [x] Añadida función `deleteNotification()` en servicio con borrado scopeado por `userId`.
+- [x] Publicación de evento realtime `notification.changed` en create/read/delete de notificaciones in-app.
+- [x] Extendido contrato realtime (`events.ts`) para soportar entidad `notification`.
+
+### Frontend — Bandeja de notificaciones
+- [x] Añadido botón de eliminar por notificación en `NotificationPanel`.
+- [x] Añadidos controles de paridad UX (como referencia `schedule-app`): `Borrar todo` + `Actualizar`.
+- [x] `useInAppNotifications` ahora soporta `deleteNotification()`.
+- [x] `useInAppNotifications` ahora soporta `deleteAllNotifications()` y `refreshNotifications()`.
+- [x] `useInAppNotifications` escucha `notification.changed` y refresca contador/lista en tiempo real para el usuario afectado.
+- [x] `TopBar` cableado para exponer acción de delete desde la UI.
+
+### Preferencias Planning/Support
+- [x] Las notificaciones de solicitudes de apoyo (crear/revisar) ahora respetan `scheduleChanges` y `criticalAlertsOnly`.
+- [x] Las notificaciones in-app de cambios en turnos (create/update/delete) ahora respetan preferencias del usuario (`scheduleChanges`, `criticalAlertsOnly`).
+
+### Tests
+- [x] Backend: actualizado `in-app-notifications.service.test.ts` para cubrir eliminación.
+- [x] Backend: actualizado `realtime/socket.test.ts` para validar `notification.changed`.
+- [x] Frontend: actualizado `useInAppNotifications.test.tsx` para cubrir `deleteNotification`.
+
+---
+
+## ✅ COMPLETADO — Vacations scope + búsqueda + cancelación employee (13 mayo 2026)
+
+### Backend — Vacaciones
+- [x] Corregida cancelación de employee para permitir estados `pending` y `colindante`.
+- [x] Mantenida separación de permisos:
+  - sin `vacations:approve`: solo cancelar propias;
+  - con `vacations:approve`: cancelar en su scope de gestión.
+- [x] Añadido soporte de `visibleBranchIds` en consultas de vacaciones:
+  - `listVacations` (scope de lectura por sucursales visibles),
+  - `getVacationCalendar` (scope por sucursal visible e invalidación de branch fuera de scope).
+- [x] Añadido filtro `search` en backend para listado de vacaciones (`name`, `email`, `employeeId`).
+
+### Frontend — Vacaciones
+- [x] Corregido `useVacationsList` para enviar `search` correctamente (antes se enviaba como `employeeId`).
+
+### Tests
+- [x] Añadidos/ajustados tests:
+  - `vacations.service.cancel.test.ts` (incluye caso `colindante`),
+  - `vacations.service.scope.test.ts` (scope visible + branch fuera de scope + search),
+  - `vacations.http.schemas.test.ts` (acepta `search`).
+
+---
+
 ## ✅ COMPLETADO — Scope multi-branch + permisos + validación integral (13 mayo 2026)
 
 ### Backend — Scope y permisos
