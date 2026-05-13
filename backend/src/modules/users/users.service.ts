@@ -162,6 +162,12 @@ type CreateUserOptions = {
 };
 
 type ActorContext = { id: string; ipAddress?: string };
+type UserReadActor = {
+  id: string;
+  roleName?: string | null;
+  branchId?: string | null;
+  visibleBranchIds?: string[];
+};
 
 /** Normaliza el identificador logístico a formato case-insensitive limpio. */
 function normalizeLoginIdentifier(identifier: string): string {
@@ -583,7 +589,16 @@ export async function getUserById(userId: string) {
   if (!user) {
     throw createAppError('NOT_FOUND', 'Usuario no encontrado');
   }
-  return user;
+  const {
+    tokenVersion: _tokenVersion,
+    failedAttempts: _failedAttempts,
+    forcePasswordChange: _forcePasswordChange,
+    passwordChangePolicy: _passwordChangePolicy,
+    passwordChangeWarnedAt: _passwordChangeWarnedAt,
+    passwordChangeDeadlineAt: _passwordChangeDeadlineAt,
+    ...safeUser
+  } = user;
+  return safeUser;
 }
 
 /** Modifica datos estructurales o de contacto del usuario tras verificar que no invada/colisione identidades. */
@@ -927,10 +942,20 @@ export async function deleteUser(userId: string, actor: ActorContext) {
  * @description Recupera en lista turnos y ausencias (Schedules) de este usuario enclavado a dos parámetros cronológicos opcionales.
  * @param userId @param from @param to
  */
-export async function getUserSchedules(userId: string, from?: string, to?: string) {
+export async function getUserSchedules(userId: string, actor: UserReadActor, from?: string, to?: string) {
   const user = await findUserById(userId);
   if (!user) {
     throw createAppError('NOT_FOUND', 'Usuario no encontrado');
+  }
+
+  if (actor.roleName !== 'admin') {
+    const visibleBranchIds = [...new Set([actor.branchId, ...(actor.visibleBranchIds ?? [])].filter(Boolean) as string[])];
+    if (visibleBranchIds.length === 0) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (!user.branchId || !visibleBranchIds.includes(user.branchId)) {
+      throw createAppError('FORBIDDEN', 'No tienes permiso para consultar horarios de esa sucursal');
+    }
   }
 
   let fromDate: Date | undefined;

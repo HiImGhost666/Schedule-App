@@ -422,7 +422,7 @@ export async function cancelVacationEntry(id: string, actor: Actor) {
     throw createAppError('NOT_FOUND', 'Solicitud de vacaciones no encontrada');
   }
 
-  const hasCancelAll = actor.permissions?.includes(VACATION_PERMISSIONS.CANCEL) ?? false;
+  const hasCancelAll = actor.permissions?.includes(VACATION_PERMISSIONS.APPROVE) ?? false;
 
   if (!hasCancelAll) {
     // Sin permiso de cancel: solo puede cancelar sus propias solicitudes

@@ -146,6 +146,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'skills:view',
   ],
   employee: [
+    'users:view',
     'schedules:view',
     'schedule_types:read',
     'branches:view',

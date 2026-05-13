@@ -44,6 +44,7 @@ export async function listSchedulesController(req: AuthRequest, res: Response) {
       id: req.user!.id,
       roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
+      visibleBranchIds: req.user!.visibleBranchIds,
     });
     return sendSuccess(res, schedules);
   } catch (error) {
@@ -72,6 +73,7 @@ export async function listWeekSchedulesController(req: AuthRequest, res: Respons
       id: req.user!.id,
       roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
+      visibleBranchIds: req.user!.visibleBranchIds,
     });
     return sendSuccess(res, result);
 
@@ -95,6 +97,7 @@ export async function getScheduleController(req: AuthRequest, res: Response) {
     const schedule = await getScheduleByIdForActor(parsed.data.id, {
       roleName: req.user!.roleName!,
       branchId: req.user!.branchId,
+      visibleBranchIds: req.user!.visibleBranchIds,
     });
     return sendSuccess(res, schedule);
   } catch (error) {
