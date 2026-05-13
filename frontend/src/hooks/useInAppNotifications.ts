@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '@/config/api';
+import { useAuthStore } from '@/store/authStore';
+import { getRealtimeSocket, REALTIME_EVENTS } from '@/realtime/socketClient';
 
 export interface InAppNotification {
   id: string;
@@ -13,20 +15,26 @@ export interface InAppNotification {
   createdAt: string;
 }
 
-interface PaginatedResult {
-  items: InAppNotification[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
+/** Cuerpo estándar de listados paginados del backend (`sendPaginated`) */
+interface NotificationsListBody {
+  success?: boolean;
+  data?: InAppNotification[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export function useInAppNotifications() {
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pageRef = useRef(1);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -43,13 +51,16 @@ export function useInAppNotifications() {
       const res = await api.get('/api/in-app-notifications', {
         params: { page, pageSize },
       });
-      const data = res.data as PaginatedResult;
-      setNotifications(data.items ?? []);
+      const body = res.data as NotificationsListBody;
+      const items = body.data ?? [];
+      const p = body.pagination;
+      setNotifications(items);
       setPagination({
-        page: data.page ?? 1,
-        total: data.total ?? 0,
-        totalPages: data.totalPages ?? 0,
+        page: p?.page ?? 1,
+        total: p?.total ?? 0,
+        totalPages: p?.totalPages ?? 0,
       });
+      pageRef.current = p?.page ?? 1;
     } catch {
       // Silently fail
     } finally {
@@ -81,6 +92,31 @@ export function useInAppNotifications() {
     }
   }, []);
 
+  const deleteNotification = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/api/in-app-notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      await fetchUnreadCount();
+    } catch {
+      // Silently fail
+    }
+  }, [fetchUnreadCount]);
+
+  const deleteAllNotifications = useCallback(async () => {
+    try {
+      await api.delete('/api/in-app-notifications');
+      setNotifications([]);
+      setUnreadCount(0);
+      setPagination((prev) => ({ ...prev, total: 0, totalPages: 0 }));
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  const refreshNotifications = useCallback(async () => {
+    await Promise.all([fetchUnreadCount(), fetchNotifications(pageRef.current)]);
+  }, [fetchNotifications, fetchUnreadCount]);
+
   // Polling cada 30 segundos para el contador de no leídas
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -93,6 +129,22 @@ export function useInAppNotifications() {
     };
   }, [fetchUnreadCount]);
 
+  useEffect(() => {
+    const socket = getRealtimeSocket();
+    if (!socket || !userId) return;
+
+    const handler = (payload: { meta?: { userId?: string } }) => {
+      if (payload.meta?.userId !== userId) return;
+      void fetchUnreadCount();
+      void fetchNotifications(pageRef.current);
+    };
+
+    socket.on(REALTIME_EVENTS.NOTIFICATION_CHANGED, handler);
+    return () => {
+      socket.off(REALTIME_EVENTS.NOTIFICATION_CHANGED, handler);
+    };
+  }, [fetchNotifications, fetchUnreadCount, userId]);
+
   return {
     unreadCount,
     notifications,
@@ -102,5 +154,8 @@ export function useInAppNotifications() {
     fetchUnreadCount,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
+    refreshNotifications,
   };
 }
