@@ -1,92 +1,53 @@
-import { prisma } from '../src/config/database';
+import { prismaMock } from './singleton';
 import { planningService } from '../src/modules/planning/planning.service';
 
 describe('Planning Availability', () => {
-  let admin: any;
-  let branch: any;
-  let department: any;
-  let employee: any;
+  const admin = { id: 'admin-1', branchId: 'branch-1' };
+  const employee = { id: 'emp-1' };
+  const department = { id: 'dept-1' };
 
-  beforeAll(async () => {
-    branch = await prisma.branch.create({
-      data: { name: 'Test Branch', code: 'TAVAIL' },
-    });
-    department = await prisma.department.create({
-      data: { name: 'Test Dept', code: 'TDEPT', branches: { create: { branchId: branch.id } } },
-    });
-
-    const adminRole = await prisma.role.findFirst({ where: { name: 'admin' } });
-    const employeeRole = await prisma.role.findFirst({ where: { name: 'employee' } });
-
-    if (!adminRole || !employeeRole) {
-      throw new Error('Roles not found in database. Ensure roles are seeded.');
-    }
-
-    admin = await prisma.user.create({
-      data: {
-        email: 'admin.avail@test.com',
-        passwordHash: 'hashed',
-        // Usar 'name' en lugar de 'firstName' y 'lastName' para la creación de usuarios
-        name: 'Admin Planning',
-        derivedUsername: 'admin.avail', // Añadir campo requerido
-        role: { connect: { id: adminRole.id } },
-        branchId: branch.id,
-      },
-    });
-    employee = await prisma.user.create({
-      data: {
-        email: 'emp.avail@test.com',
-        passwordHash: 'hashed',
-        // Usar 'name' en lugar de 'firstName' y 'lastName' para la creación de usuarios
+  beforeEach(() => {
+    prismaMock.user.findMany.mockResolvedValue([
+      {
+        id: employee.id,
         name: 'Employee One',
-        derivedUsername: 'emp.avail', // Añadir campo requerido
-        role: { connect: { id: employeeRole.id } },
-        branchId: branch.id,
+        email: 'emp.avail@test.com',
+        branchId: admin.branchId,
         departmentId: department.id,
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.scheduleAssignment.deleteMany();
-    await prisma.schedule.deleteMany();
-    await prisma.vacationRequest.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.department.deleteMany();
-    await prisma.branch.deleteMany();
+        branch: { id: admin.branchId, name: 'Test Branch' },
+        department: { id: department.id, name: 'Test Dept' },
+        skills: [],
+      } as any,
+    ]);
   });
 
   it('should return availability status for an employee across multiple days', async () => {
     const from = new Date('2026-05-10T00:00:00Z');
     const to = new Date('2026-05-12T23:59:59Z');
 
-    // 11 de Mayo: Ocupado (Turno asignado)
-    await prisma.schedule.create({
-      data: {
+    prismaMock.schedule.findMany.mockResolvedValue([
+      {
+        id: 'sch-1',
         title: 'Busy Shift',
         startDatetime: new Date('2026-05-11T08:00:00Z'),
         endDatetime: new Date('2026-05-11T16:00:00Z'),
-        branchId: branch.id,
-        createdBy: admin.id,
-        assignments: { create: { userId: employee.id } },
+        assignments: [{ userId: employee.id }],
       },
-    });
+    ] as any);
 
-    // 12 de Mayo: Vacaciones (Aprobadas)
-    await prisma.vacationRequest.create({
-      data: {
+    prismaMock.vacationRequest.findMany.mockResolvedValue([
+      {
+        id: 'vac-1',
         employeeId: employee.id,
         startDate: new Date('2026-05-12T00:00:00Z'),
         endDate: new Date('2026-05-12T23:59:59Z'),
-        branchId: branch.id, // Añadir branchId
-        departmentId: department.id, // Añadir departmentId
         status: 'approved',
       },
-    });
+    ] as any);
 
     const result = await planningService.getAvailability(
-      { from, to, branchId: branch.id },
-      { id: admin.id, roleName: 'admin', branchId: branch.id, departmentId: null, permissions: ['schedules:view'] }
+      { from, to, branchId: admin.branchId },
+      { id: admin.id, roleName: 'admin', branchId: admin.branchId, departmentId: null, permissions: ['schedules:view'] }
     );
 
     const empResult = result.find((r: any) => r.userId === employee.id);

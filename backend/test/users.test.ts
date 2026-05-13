@@ -15,7 +15,16 @@ jest.mock('../src/utils/bcrypt', () => ({
   comparePassword: jest.fn(),
 }));
 jest.mock('../src/common/transactions/transaction.utils', () => ({
-  executeInTransaction: jest.fn((fn: any) => fn({})),
+  executeInTransaction: jest.fn((fn: any) => fn({
+    userVisibleBranch: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+    userSkill: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+  })),
 }));
 
 import * as usersRepo from '../src/modules/users/users.repository'; // Keep this import

@@ -1,69 +1,36 @@
-import { prisma } from '../src/config/database';
+import { prismaMock } from './singleton';
 import { planningService } from '../src/modules/planning/planning.service';
 
 describe('Planning Availability Matrix', () => {
-  let admin: any;
-  let branch: any;
-  let department: any;
-  let employee1: any;
-  let employee2: any;
+  const admin = { id: 'admin-1', branchId: 'branch-1' };
+  const branch = { id: 'branch-1', name: 'Test Branch Matrix' };
+  const department = { id: 'dept-1', name: 'Test Dept Matrix' };
+  const employee1 = { id: 'emp-1', name: 'Employee One Matrix' };
+  const employee2 = { id: 'emp-2', name: 'Employee Two Matrix' };
 
-  beforeAll(async () => {
-    branch = await prisma.branch.create({
-      data: { name: 'Test Branch Matrix', code: 'TMAT' },
-    });
-    department = await prisma.department.create({
-      data: { name: 'Test Dept Matrix', code: 'TDMAT', branches: { create: { branchId: branch.id } } },
-    });
-
-    const adminRole = await prisma.role.findFirst({ where: { name: 'admin' } });
-    const employeeRole = await prisma.role.findFirst({ where: { name: 'employee' } });
-
-    if (!adminRole || !employeeRole) {
-      throw new Error('Roles not found in database. Ensure roles are seeded.');
-    }
-
-    admin = await prisma.user.create({
-      data: {
-        email: 'admin.matrix@test.com',
-        passwordHash: 'hashed',
-        name: 'Admin Matrix',
-        derivedUsername: 'admin.matrix',
-        role: { connect: { id: adminRole.id } },
-        branch: { connect: { id: branch.id } },
-      },
-    });
-    employee1 = await prisma.user.create({
-      data: {
+  beforeEach(() => {
+    prismaMock.user.findMany.mockResolvedValue([
+      {
+        id: employee1.id,
+        name: employee1.name,
         email: 'emp1.matrix@test.com',
-        passwordHash: 'hashed',
-        name: 'Employee One Matrix',
-        derivedUsername: 'emp1.matrix',
-        role: { connect: { id: employeeRole.id } },
-        branch: { connect: { id: branch.id } },
-        department: { connect: { id: department.id } },
+        branchId: branch.id,
+        departmentId: department.id,
+        branch,
+        department,
+        skills: [],
       },
-    });
-    employee2 = await prisma.user.create({
-      data: {
+      {
+        id: employee2.id,
+        name: employee2.name,
         email: 'emp2.matrix@test.com',
-        passwordHash: 'hashed',
-        name: 'Employee Two Matrix',
-        derivedUsername: 'emp2.matrix',
-        role: { connect: { id: employeeRole.id } },
-        branch: { connect: { id: branch.id } },
-        department: { connect: { id: department.id } },
+        branchId: branch.id,
+        departmentId: department.id,
+        branch,
+        department,
+        skills: [],
       },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.scheduleAssignment.deleteMany();
-    await prisma.schedule.deleteMany();
-    await prisma.vacationRequest.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.department.deleteMany();
-    await prisma.branch.deleteMany();
+    ] as any);
   });
 
   it('should return availability matrix for multiple employees across multiple days with correct statuses and schedules', async () => {
@@ -74,51 +41,59 @@ describe('Planning Availability Matrix', () => {
     // June 1: Available
     // June 2: Busy (Shift 1)
     // June 3: Vacation
-    const shift1 = await prisma.schedule.create({
-      data: {
-        title: 'Shift 1 for Emp1',
+    const shift1 = {
+      id: 'sch-1',
+      title: 'Shift 1 for Emp1',
+      startDatetime: new Date('2026-06-02T08:00:00Z'),
+      endDatetime: new Date('2026-06-02T16:00:00Z'),
+      assignments: [{ userId: employee1.id }],
+    };
+    const shift2 = {
+      id: 'sch-2',
+      title: 'Shift 2 for Emp2',
+      startDatetime: new Date('2026-06-01T10:00:00Z'),
+      endDatetime: new Date('2026-06-01T18:00:00Z'),
+      assignments: [{ userId: employee2.id }],
+    };
+    const shift3 = {
+      id: 'sch-3',
+      title: 'Shift 3 for Emp2',
+      startDatetime: new Date('2026-06-03T09:00:00Z'),
+      endDatetime: new Date('2026-06-03T17:00:00Z'),
+      assignments: [{ userId: employee2.id }],
+    };
+    prismaMock.schedule.findMany.mockResolvedValue([
+      {
+        id: shift1.id,
+        title: shift1.title,
         startDatetime: new Date('2026-06-02T08:00:00Z'),
         endDatetime: new Date('2026-06-02T16:00:00Z'),
-        branchId: branch.id,
-        createdBy: admin.id,
-        assignments: { create: { userId: employee1.id } },
+        assignments: [{ userId: employee1.id }],
       },
-    });
-    await prisma.vacationRequest.create({
-      data: {
+      {
+        id: shift2.id,
+        title: shift2.title,
+        startDatetime: new Date('2026-06-01T10:00:00Z'),
+        endDatetime: new Date('2026-06-01T18:00:00Z'),
+        assignments: [{ userId: employee2.id }],
+      },
+      {
+        id: shift3.id,
+        title: shift3.title,
+        startDatetime: new Date('2026-06-03T09:00:00Z'),
+        endDatetime: new Date('2026-06-03T17:00:00Z'),
+        assignments: [{ userId: employee2.id }],
+      },
+    ] as any);
+    prismaMock.vacationRequest.findMany.mockResolvedValue([
+      {
+        id: 'vac-1',
         employeeId: employee1.id,
         startDate: new Date('2026-06-03T00:00:00Z'),
         endDate: new Date('2026-06-03T23:59:59Z'),
-        branchId: branch.id,
-        departmentId: department.id,
         status: 'approved',
       },
-    });
-
-    // Employee 2:
-    // June 1: Busy (Shift 2)
-    // June 2: Available
-    // June 3: Busy (Shift 3)
-    const shift2 = await prisma.schedule.create({
-      data: {
-        title: 'Shift 2 for Emp2',
-        startDatetime: new Date('2026-06-01T10:00:00Z'),
-        endDatetime: new Date('2026-06-01T18:00:00Z'),
-        branchId: branch.id,
-        createdBy: admin.id,
-        assignments: { create: { userId: employee2.id } },
-      },
-    });
-    const shift3 = await prisma.schedule.create({
-      data: {
-        title: 'Shift 3 for Emp2',
-        startDatetime: new Date('2026-06-03T09:00:00Z'),
-        endDatetime: new Date('2026-06-03T17:00:00Z'),
-        branchId: branch.id,
-        createdBy: admin.id,
-        assignments: { create: { userId: employee2.id } },
-      },
-    });
+    ] as any);
 
     const result = await planningService.getAvailabilityMatrix(
       { from, to, branchId: branch.id },
@@ -177,20 +152,30 @@ describe('Planning Availability Matrix', () => {
     const from = new Date('2026-06-01T00:00:00Z');
     const to = new Date('2026-06-01T23:59:59Z');
 
-    const otherDepartment = await prisma.department.create({
-      data: { name: 'Other Dept Matrix', code: 'ODMAT', branches: { create: { branchId: branch.id } } },
-    });
-    await prisma.user.create({
-      data: {
-        email: 'emp3.matrix@test.com',
-        passwordHash: 'hashed',
-        name: 'Employee Three Matrix',
-        derivedUsername: 'emp3.matrix',
-        role: { connect: { id: (await prisma.role.findFirst({ where: { name: 'employee' } }))!.id } },
-        branch: { connect: { id: branch.id } },
-        department: { connect: { id: otherDepartment.id } },
+    prismaMock.user.findMany.mockResolvedValue([
+      {
+        id: employee1.id,
+        name: employee1.name,
+        email: 'emp1.matrix@test.com',
+        branchId: branch.id,
+        departmentId: department.id,
+        branch,
+        department,
+        skills: [],
       },
-    });
+      {
+        id: employee2.id,
+        name: employee2.name,
+        email: 'emp2.matrix@test.com',
+        branchId: branch.id,
+        departmentId: department.id,
+        branch,
+        department,
+        skills: [],
+      },
+    ] as any);
+    prismaMock.schedule.findMany.mockResolvedValue([]);
+    prismaMock.vacationRequest.findMany.mockResolvedValue([]);
 
     const result = await planningService.getAvailabilityMatrix(
       { from, to, branchId: branch.id, departmentId: department.id },
@@ -207,23 +192,22 @@ describe('Planning Availability Matrix', () => {
     const from = new Date('2026-06-01T00:00:00Z');
     const to = new Date('2026-06-01T23:59:59Z');
 
-    const otherBranch = await prisma.branch.create({
-      data: { name: 'Other Branch Matrix', code: 'OBMAT' },
-    });
-    const otherBranchDepartment = await prisma.department.create({
-      data: { name: 'Other Branch Dept Matrix', code: 'OBDMAT', branches: { create: { branchId: otherBranch.id } } },
-    });
-    await prisma.user.create({
-      data: {
-        email: 'emp4.matrix@test.com',
-        passwordHash: 'hashed',
+    const otherBranch = { id: 'branch-2', name: 'Other Branch Matrix' };
+    const otherDepartment = { id: 'dept-2', name: 'Other Branch Dept Matrix' };
+    prismaMock.user.findMany.mockResolvedValue([
+      {
+        id: 'emp-4',
         name: 'Employee Four Matrix',
-        derivedUsername: 'emp4.matrix',
-        role: { connect: { id: (await prisma.role.findFirst({ where: { name: 'employee' } }))!.id } },
-        branch: { connect: { id: otherBranch.id } },
-        department: { connect: { id: otherBranchDepartment.id } },
+        email: 'emp4.matrix@test.com',
+        branchId: otherBranch.id,
+        departmentId: otherDepartment.id,
+        branch: otherBranch,
+        department: otherDepartment,
+        skills: [],
       },
-    });
+    ] as any);
+    prismaMock.schedule.findMany.mockResolvedValue([]);
+    prismaMock.vacationRequest.findMany.mockResolvedValue([]);
 
     const result = await planningService.getAvailabilityMatrix(
       { from, to, branchId: otherBranch.id },

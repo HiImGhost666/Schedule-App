@@ -45,7 +45,9 @@ const range = 'from=2026-05-12T00:00:00.000Z&to=2026-05-18T23:59:59.999Z';
 describe('planning.router', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+    prismaMock.user.findMany.mockResolvedValue([]);
     prismaMock.schedule.findMany.mockResolvedValue([]);
+    prismaMock.vacationRequest.findMany.mockResolvedValue([]);
   });
 
   it('returns empty coverage risks scaffold for users with schedule view permission', async () => {
@@ -72,7 +74,9 @@ describe('planning.router', () => {
       .set('x-test-role', 'department_manager');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ success: true, data: { days: [], rows: [] } });
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.rows).toEqual([]);
+    expect(response.body.data.days).toHaveLength(7);
   });
 
   it('returns 401 when authentication is missing', async () => {
@@ -189,5 +193,54 @@ describe('planning.router', () => {
     expect(response.body.success).toBe(false);
     expect(response.body.code).toBe('FORBIDDEN');
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('returns vacation impact payload when query is valid', async () => {
+    const spy = jest.spyOn(planningService, 'getVacationImpact').mockResolvedValue({
+      employee: { id: 'u1', name: 'Ana', branch: null, department: null },
+      overlappingVacations: [],
+      assignedSchedules: [],
+      holidays: [],
+      likelihood: 'high',
+      summary: 'ok',
+    });
+
+    const response = await request(app)
+      .get('/api/planning/vacation-impact?startDate=2026-05-12&endDate=2026-05-18&employeeId=u1')
+      .set('x-test-role', 'admin');
+
+    expect(response.status).toBe(200);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('lists comments for planning entities', async () => {
+    const spy = jest.spyOn(planningService, 'listComments').mockResolvedValue([]);
+
+    const response = await request(app)
+      .get('/api/planning/comments?entityType=schedule&entityId=sc-1')
+      .set('x-test-role', 'admin');
+
+    expect(response.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith({ entityType: 'schedule', entityId: 'sc-1' });
+  });
+
+  it('creates comments for planning entities', async () => {
+    const spy = jest.spyOn(planningService, 'addComment').mockResolvedValue({
+      id: 'c1',
+      entityType: 'schedule',
+      entityId: 'sc-1',
+      authorId: 'test-user',
+      body: 'ok',
+      createdAt: new Date().toISOString(),
+      author: { id: 'test-user', name: 'Test User' },
+    });
+
+    const response = await request(app)
+      .post('/api/planning/comments')
+      .set('x-test-role', 'admin')
+      .send({ entityType: 'schedule', entityId: 'sc-1', body: 'ok' });
+
+    expect(response.status).toBe(201);
+    expect(spy).toHaveBeenCalled();
   });
 });
