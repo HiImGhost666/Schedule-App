@@ -5,6 +5,33 @@
 
 ---
 
+## ✅ COMPLETADO — TODO 6.2: `UserFormModal` + alcance GM/DM (13 mayo 2026)
+
+### Frontend — Usuarios
+- [x] `UserFormModal`: helpers para sucursales visibles extra (sin duplicar sucursal base); copy admin vs GM; multiselect deshabilitado hasta elegir sucursal base; opciones extra filtradas por alcance del GM (`branchId` + `visibleBranches` del actor); DM solo lectura con listado desde el usuario; `PATCH` sin `visibleBranchIds` para DM.
+- [x] `UsersPage`: modal de usuario para GM; botón **Nuevo Usuario** para admin y GM (CSV solo admin).
+- [x] `UserActionMenu`: **Editar** también para `general_manager`.
+
+### Tests
+- [x] `test/pages/admin/UserFormModal.test.tsx`: DM guarda sin enviar `visibleBranchIds` y muestra sucursales extra en solo lectura.
+
+---
+
+## ✅ COMPLETADO — TODO 6 / 6.1: visibleBranchIds, scope tests y colindante UX (13 mayo 2026)
+
+### Documentación
+- [x] `PERMISOS.md`: sección `visibleBranchIds` (visibilidad vs mutación), excepción admin/GM, y política de creación de vacaciones solo para el actor autenticado. Ajuste texto de cancelación employee (`pending` / `colindante`).
+
+### Tests backend
+- [x] `vacations.service.scope.test.ts`: GM sin `visibleBranchIds` extra, DM con branch fuera de alcance, employee sin `read-all` solo `employeeId`.
+
+### Frontend
+- [x] `VacationStatusBadge`: `title` en estado `colindante`.
+- [x] `VacationsPage`: etiqueta de filtro alineada con el significado de negocio.
+- [x] `VacationRequestModal`: textos y toasts alineados con la definición de `colindante`.
+
+---
+
 ## ✅ COMPLETADO — Tests integración notificaciones + verificación Planning en Sidebar (13 mayo 2026)
 
 ### Frontend

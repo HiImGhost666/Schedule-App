@@ -47,32 +47,32 @@
 ### 6) Vacations: completar gaps de alcance y UX
 - [x] Revisar soporte completo de `visibleBranchIds` en vistas/consultas para employee.
 - [x] Añadir búsqueda (`search`) en listado de vacaciones.
-- [ ] Definir si managers/admin pueden crear ausencias para terceros (paridad deseada o decisión explícita de producto).
-- [ ] Estandarizar tratamiento de estado `colindante` en toda la UI y API.
+- [x] Política actual documentada en `PERMISOS.md`: la API solo crea solicitudes para el usuario autenticado (sin `employeeId` en body); no hay creación en nombre de terceros salvo evolución futura con contrato dedicado.
+- [x] Estandarizar tratamiento de estado `colindante` en UI: badge con `title` explicativo, filtro en `VacationsPage` y copia en `VacationRequestModal`.
 
 #### 6.1) `visibleBranchIds` — lógica objetivo (scope multi-sucursal)
-- [ ] Definir regla base: `visibleBranchIds` amplía visibilidad de datos, no permisos de acción.
+- [x] Definir regla base: `visibleBranchIds` amplía visibilidad de datos, no permisos de acción (documentado en `PERMISOS.md`).
 - [x] Implementar helper backend único (`getActorVisibleBranchIds`) y reutilizarlo en:
   - schedules (`listSchedulesForActor`, `listWeekSchedulesForActor`, `getScheduleByIdForActor`),
   - vacations (`buildVacationScope`, calendario),
   - users (filtros de listado cuando aplique intranet + scope operativo).
-- [ ] Mantener excepción explícita: `admin` ve todo; otros roles ven `branchId` propio + `visibleBranchIds`.
+- [x] Mantener excepción explícita: `admin` ve todo; otros roles ven `branchId` propio + `visibleBranchIds`.
 - [x] Asegurar coherencia con la política de schedules/vacations/planning: mismo cálculo de scope para lectura en todos los módulos.
 - [x] Validar en mutaciones: no permitir operar sobre branches fuera de ese conjunto visible.
-- [ ] Añadir tests de regresión:
+- [x] Añadir tests de regresión:
   - GM/DM/employee con `visibleBranchIds` múltiples,
   - actor sin `visibleBranchIds`,
   - intento de acceso fuera de scope visible.
 
 #### 6.2) Edición frontend de `visibleBranchIds`
-- [ ] Confirmar UX actual de `UserFormModal` (multiselect de sucursales visibles) para create/update.
-- [ ] Añadir feedback visual de alcance efectivo:
+- [x] Confirmar UX actual de `UserFormModal` (multiselect de sucursales visibles) para create/update.
+- [x] Añadir feedback visual de alcance efectivo:
   - “Sucursal base” vs “Sucursales visibles adicionales”.
-- [ ] Restringir edición según rol (ejemplo recomendado):
+- [x] Restringir edición según rol (ejemplo recomendado):
   - admin: puede editar libremente,
   - GM: solo branches dentro de su alcance,
   - DM/employee: sin edición de `visibleBranchIds`.
-- [ ] Añadir tests frontend (smoke/form submit) cubriendo payload con `visibleBranchIds`.
+- [x] Añadir tests frontend (smoke/form submit) cubriendo payload con `visibleBranchIds`.
 
 ### 7) Navegación y accesibilidad de Planning
 - [x] Verificar rutas/menús: en `Sidebar.tsx`, **Planificación** (`/admin/planning`) aparece en administración para `admin` (ítems completos) y para **GM/DM** junto con usuarios, skills, tipos de turno, festivos y notificaciones (subconjunto); **employee** no ve bloque admin.

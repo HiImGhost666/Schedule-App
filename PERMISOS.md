@@ -125,11 +125,24 @@
 ### `employee`
 - Puede ver perfiles de usuarios (`users:view`) en intranet interna (sin datos sensibles).
 - Solo ve turnos, tipos de turno y sucursales.
-- Vacaciones: puede crear solicitudes, ver las suyas propias, cancelar las suyas propias (solo si están en estado `pending`).
+- Vacaciones: puede crear solicitudes, ver las suyas propias, cancelar las suyas propias si están en estado `pending` o `colindante`.
 - Resumen semanal: usa endpoints de schedules con `schedules:view` limitado por scope.
 
 ### `admin`
 - Control total sobre todos los recursos.
+
+---
+
+## `visibleBranchIds`: visibilidad de datos vs permisos de acción
+
+- `visibleBranchIds` **amplía la visibilidad** de datos en listados y vistas multi-sucursal: el usuario ve información de esas sucursales **además** de su `branchId` base (unión `branchId` ∪ `visibleBranchIds`).
+- **No** sustituye ni amplía automáticamente los permisos de **mutación** (crear/editar/borrar): cada módulo valida que el recurso pertenezca al alcance operativo del rol (sucursal, departamento, etc.).
+- **admin**: lectura sin límite por sucursal salvo filtros explícitos en la petición.
+- **general_manager** (y consultas que usen el mismo helper en otros módulos): alcance de lectura en sucursales = `branchId` propio ∪ `visibleBranchIds`.
+
+### Creación de solicitudes de vacaciones
+
+- El cuerpo de `POST /api/vacations` **no** incluye `employeeId`: la solicitud es siempre para el **usuario autenticado**. No hay creación “en nombre de” un tercero por esta API; un flujo distinto requeriría contrato y permiso dedicados.
 
 ---
 
