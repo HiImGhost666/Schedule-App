@@ -7,6 +7,8 @@ import {
   markAsRead,
   markAllAsRead,
   countUnread,
+  deleteNotification,
+  deleteAllNotifications,
 } from './in-app.service';
 
 const router = Router();
@@ -43,8 +45,23 @@ router.patch('/:id/read', authMiddleware, async (req: AuthRequest, res: Response
 
 // POST /api/in-app-notifications/read-all - Marcar todas como leídas
 router.post('/read-all', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const count = await markAllAsRead(req.user!.id);
-  return sendSuccess(res, { count }, 'Todas las notificaciones marcadas como leídas');
+  const result = await markAllAsRead(req.user!.id);
+  return sendSuccess(res, { count: result.count }, 'Todas las notificaciones marcadas como leídas');
+});
+
+// DELETE /api/in-app-notifications - Eliminar todas las notificaciones propias
+router.delete('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await deleteAllNotifications(req.user!.id);
+  return sendSuccess(res, { count: result.count }, 'Todas las notificaciones eliminadas');
+});
+
+// DELETE /api/in-app-notifications/:id - Eliminar notificación propia
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  if (!id) return sendError(res, 'ID de notificación inválido', 400);
+
+  await deleteNotification(id, req.user!.id);
+  return sendSuccess(res, null, 'Notificación eliminada');
 });
 
 export default router;
