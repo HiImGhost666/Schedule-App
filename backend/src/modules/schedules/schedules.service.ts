@@ -113,6 +113,24 @@ async function ensureActiveBranch(branchId: string) {
   if (!branch.isActive) throw createAppError('BAD_REQUEST', 'La sucursal está desactivada');
 }
 
+async function filterRecipientsByScheduleNotificationPreference(userIds: string[]): Promise<string[]> {
+  const uniqueIds = [...new Set(userIds)];
+  if (uniqueIds.length === 0) return [];
+  const preferences = await prisma.userNotificationPreference.findMany({
+    where: { userId: { in: uniqueIds } },
+    select: { userId: true, scheduleChanges: true, criticalAlertsOnly: true },
+  });
+  const preferenceByUser = new Map(preferences.map((p) => [p.userId, p]));
+
+  return uniqueIds.filter((userId) => {
+    const pref = preferenceByUser.get(userId);
+    // Default: recibir notificaciones si no hay preferencias persistidas.
+    if (!pref) return true;
+    if (pref.criticalAlertsOnly) return false;
+    return pref.scheduleChanges !== false;
+  });
+}
+
 function ensureNoBatchOverlaps(items: ScheduleCreateInput[]) {
   const overlaps: string[] = [];
   const assignedRanges = new Map<string, { start: Date; end: Date; index: number }[]>();
@@ -483,16 +501,21 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  createInAppNotificationBatch(
-    parsed.data.assigneeIds.map(userId => ({
-      userId,
-      type: 'schedule_assigned',
-      title: 'Nuevo turno asignado',
-      message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${formatInAppDt(result.schedule.startDatetime)} a ${formatInAppDt(result.schedule.endDatetime)}. Asignado por ${actor.name}.`,
-      link: '/schedule',
-      metadata: { scheduleId: result.schedule.id, assignedBy: actor.id },
-    })),
-  ).catch(() => {});
+  filterRecipientsByScheduleNotificationPreference(parsed.data.assigneeIds)
+    .then((recipientIds) => {
+      if (recipientIds.length === 0) return;
+      return createInAppNotificationBatch(
+        recipientIds.map((userId) => ({
+          userId,
+          type: 'schedule_assigned',
+          title: 'Nuevo turno asignado',
+          message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${formatInAppDt(result.schedule.startDatetime)} a ${formatInAppDt(result.schedule.endDatetime)}. Asignado por ${actor.name}.`,
+          link: '/schedule',
+          metadata: { scheduleId: result.schedule.id, assignedBy: actor.id },
+        })),
+      );
+    })
+    .catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_CREATED, {
     entity: 'schedule',
@@ -712,16 +735,21 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
     return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  createInAppNotificationBatch(
-    finalAssigneeIds.map(userId => ({
-      userId,
-      type: 'schedule_modified',
-      title: 'Turno modificado',
-      message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
-      link: '/schedule',
-      metadata: { scheduleId: schedule.id, updatedBy: actor.id },
-    })),
-  ).catch(() => {});
+  filterRecipientsByScheduleNotificationPreference(finalAssigneeIds)
+    .then((recipientIds) => {
+      if (recipientIds.length === 0) return;
+      return createInAppNotificationBatch(
+        recipientIds.map((userId) => ({
+          userId,
+          type: 'schedule_modified',
+          title: 'Turno modificado',
+          message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+          link: '/schedule',
+          metadata: { scheduleId: schedule.id, updatedBy: actor.id },
+        })),
+      );
+    })
+    .catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_UPDATED, {
     entity: 'schedule',
@@ -873,16 +901,21 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
     return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  createInAppNotificationBatch(
-    schedule.assignments.map((a: { userId: string }) => ({
-      userId: a.userId,
-      type: 'schedule_deleted',
-      title: 'Turno eliminado',
-      message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
-      link: '/schedule',
-      metadata: { scheduleId: schedule.id, deletedBy: actor.id },
-    })),
-  ).catch(() => {});
+  filterRecipientsByScheduleNotificationPreference(schedule.assignments.map((a: { userId: string }) => a.userId))
+    .then((recipientIds) => {
+      if (recipientIds.length === 0) return;
+      return createInAppNotificationBatch(
+        recipientIds.map((userId) => ({
+          userId,
+          type: 'schedule_deleted',
+          title: 'Turno eliminado',
+          message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+          link: '/schedule',
+          metadata: { scheduleId: schedule.id, deletedBy: actor.id },
+        })),
+      );
+    })
+    .catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_DELETED, {
     entity: 'schedule',
