@@ -71,6 +71,21 @@ export function MobileNav() {
                   Gestión de Usuarios
                 </NavLink>
                 <NavLink
+                  to="/admin/skills"
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium border-b border-navy-50 transition-colors",
+                      isActive
+                        ? "text-gold-500 bg-navy-50/50"
+                        : "text-theme-primary",
+                    )
+                  }
+                >
+                  <CalendarClock className="h-4 w-4" />
+                  Skills
+                </NavLink>
+                <NavLink
                   to="/admin/planning"
                   onClick={() => setMenuOpen(false)}
                   className={({ isActive }) =>

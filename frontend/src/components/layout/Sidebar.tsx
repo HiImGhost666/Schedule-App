@@ -22,6 +22,7 @@ const navItems = [
 const adminItems = [
   { to: '/admin/users', icon: Users, label: 'Usuarios' },
   { to: '/admin/planning', icon: CalendarClock, label: 'Planificación' },
+  { to: '/admin/skills', icon: CalendarClock, label: 'Skills' },
   { to: '/admin/schedule-types', icon: CalendarDays, label: 'Tipos de Turno' },
   { to: '/admin/branches', icon: Building2, label: 'Sucursales' },
   { to: '/admin/departments', icon: Layers, label: 'Departamentos' },
@@ -137,7 +138,7 @@ export function Sidebar() {
             )}
             {(isAdmin 
               ? adminItems 
-              : adminItems.filter((i) => ['/admin/users', '/admin/planning', '/admin/schedule-types', '/admin/holidays', '/admin/notifications'].includes(i.to))
+              : adminItems.filter((i) => ['/admin/users', '/admin/planning', '/admin/skills', '/admin/schedule-types', '/admin/holidays', '/admin/notifications'].includes(i.to))
             ).map(({ to, icon: Icon, label }) => (
                 <NavLink
                   key={to}
