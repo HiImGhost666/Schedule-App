@@ -7,6 +7,7 @@ import { VacationCalendar } from '@/components/vacations/VacationCalendar';
 import { VacationStatusBadge } from '@/components/vacations/VacationStatusBadge';
 import { VacationRequestModal } from '@/components/vacations/VacationRequestModal';
 import { VacationCreateModal } from '@/components/vacations/VacationCreateModal';
+import { VacationDetailModal } from '@/components/vacations/VacationDetailModal';
 import { VacationsSkeleton } from '@/components/common/Skeleton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DataTable } from '@/components/common/DataTable';
@@ -32,6 +33,7 @@ export function VacationsPage() {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [rejectModal, setRejectModal] = useState<{ id: string; employeeName: string } | null>(null);
+  const [detailVacation, setDetailVacation] = useState<VacationRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<{ id: string; employeeName: string } | null>(null);
 
@@ -129,6 +131,7 @@ export function VacationsPage() {
     try {
       await approveMutation.mutateAsync({ id });
       toast.success('Vacaciones aprobadas');
+      setDetailVacation(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'No se pudieron aprobar las vacaciones'));
     }
@@ -147,6 +150,7 @@ export function VacationsPage() {
     try {
       await cancelMutation.mutateAsync(id);
       toast.success('Solicitud cancelada');
+      setDetailVacation(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'No se pudo cancelar la solicitud'));
     }
@@ -314,6 +318,7 @@ export function VacationsPage() {
           onDepartmentChange={setSelectedDepartmentId}
           isAdmin={isAdmin}
           userBranchId={userBranchId}
+          onVacationClick={setDetailVacation}
         />
       </section>
 
@@ -509,6 +514,28 @@ export function VacationsPage() {
       <VacationCreateModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
+      />
+
+      <VacationDetailModal
+        open={!!detailVacation}
+        onClose={() => setDetailVacation(null)}
+        vacation={detailVacation}
+        onApprove={(id) => handleApprove(id)}
+        onReject={(id) => {
+          if (detailVacation) {
+            setRejectModal({ id, employeeName: detailVacation.employee.name });
+            setDetailVacation(null);
+          }
+        }}
+        onCancel={(id) => {
+          if (detailVacation) {
+            setCancelTarget({ id, employeeName: detailVacation.employee.name });
+            setDetailVacation(null);
+          }
+        }}
+        canApprove={detailVacation ? canApprove(detailVacation) : false}
+        canCancel={detailVacation ? canCancel(detailVacation) : false}
+        isActionPending={approveMutation.isPending || cancelMutation.isPending}
       />
     </div>
   );

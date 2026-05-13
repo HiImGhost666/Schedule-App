@@ -3,13 +3,13 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import type { EventContentArg } from '@fullcalendar/core';
+import type { EventContentArg, EventClickArg } from '@fullcalendar/core';
 import esLocale from '@fullcalendar/core/locales/es';
 import { useVacationCalendarRange } from '@/hooks/useVacations';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { CalendarDays } from 'lucide-react';
-import type { Branch, Department } from '@/types';
+import type { Branch, Department, VacationRequest } from '@/types';
 
 const DEPARTMENT_PALETTE = [
   '#1d4ed8', '#0f766e', '#b45309', '#7c3aed', '#be185d',
@@ -74,6 +74,7 @@ interface Props {
   onDepartmentChange: (departmentId: string) => void;
   isAdmin: boolean;
   userBranchId?: string | null;
+  onVacationClick?: (vacation: VacationRequest) => void;
 }
 
 export function VacationCalendar({
@@ -85,6 +86,7 @@ export function VacationCalendar({
   onDepartmentChange,
   isAdmin,
   userBranchId,
+  onVacationClick,
 }: Props) {
   const calendarRef = useRef<FullCalendar>(null);
   const calendarContainerRef = useRef<HTMLDivElement>(null);
@@ -168,10 +170,30 @@ export function VacationCalendar({
           isVacation: true,
           departmentLabel,
           departmentColor,
+          vacation: {
+            ...item,
+            status: 'approved',
+            employee: {
+              id: item.employeeId,
+              name: item.employeeName,
+              email: item.employeeEmail,
+              department: item.employeeDepartment,
+              branch: item.employeeBranch,
+            },
+            branch: item.employeeBranch,
+            department: item.employeeDepartment,
+          } as unknown as VacationRequest,
         },
       };
     });
   }, [vacationItems, departmentColors]);
+
+  const handleEventClick = useCallback((info: EventClickArg) => {
+    const vacation = info.event.extendedProps.vacation;
+    if (vacation && onVacationClick) {
+      onVacationClick(vacation);
+    }
+  }, [onVacationClick]);
 
   const reflowCalendar = useCallback(() => {
     const api = calendarRef.current?.getApi();
@@ -311,6 +333,7 @@ export function VacationCalendar({
             displayEventTime={false}
             height="auto"
             expandRows
+            eventClick={handleEventClick}
             datesSet={(info) => {
               setDateRange({ from: info.start, to: info.end });
             }}
