@@ -122,14 +122,14 @@ export function PlanningPage() {
         highRiskCount={crisis.data?.highRisks.length}
       />
 
-      <main className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-5">
-        <section className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+      <main className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-5 items-start">
+        <section className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
+            <div className="flex items-center justify-center py-32 bg-white/50 backdrop-blur-sm">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
             </div>
           ) : isError ? (
-            <div className="h-[400px] flex flex-col items-center justify-center text-slate-500 gap-3">
+            <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
               <AlertCircle className="w-12 h-12 text-red-500 opacity-20" />
               <p className="font-medium italic">No se pudo cargar la planificación</p>
             </div>
