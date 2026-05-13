@@ -39,11 +39,42 @@ export const USER_RESPONSE_SELECT: Prisma.UserSelect = {
       isActive: true,
     },
   },
+  visibleBranches: {
+    select: {
+      branch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          isActive: true,
+        },
+      },
+      assignedAt: true,
+    },
+  },
   department: {
     select: {
       id: true,
       name: true,
       code: true,
+    },
+  },
+  skills: {
+    select: {
+      level: true,
+      expiresAt: true,
+      notes: true,
+      assignedAt: true,
+      skill: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          color: true,
+          description: true,
+          isActive: true,
+        },
+      },
     },
   },
 } as const;
@@ -87,11 +118,42 @@ export const USER_SAFE_SELECT: Prisma.UserSelect = {
       isActive: true,
     },
   },
+  visibleBranches: {
+    select: {
+      branch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          isActive: true,
+        },
+      },
+      assignedAt: true,
+    },
+  },
   department: {
     select: {
       id: true,
       name: true,
       code: true,
+    },
+  },
+  skills: {
+    select: {
+      level: true,
+      expiresAt: true,
+      notes: true,
+      assignedAt: true,
+      skill: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          color: true,
+          description: true,
+          isActive: true,
+        },
+      },
     },
   },
 } as const;
