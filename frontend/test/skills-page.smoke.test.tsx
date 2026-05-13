@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SkillsPage } from '@/pages/admin/SkillsPage';
 import { useAuthStore } from '@/store/authStore';
+import type { User } from '@/types';
 
 const apiGet = vi.fn();
 const apiPost = vi.fn();
@@ -25,8 +26,16 @@ describe('SkillsPage smoke', () => {
         data: [{ id: 's1', name: 'Soporte', category: 'Operación', color: '#1d4ed8', isActive: true }],
       },
     });
+    const adminUser: User = {
+      id: 'u1',
+      name: 'Admin',
+      email: 'admin@test.com',
+      role: { name: 'admin', permissions: [] },
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
     useAuthStore.setState({
-      user: { id: 'u1', name: 'Admin', email: 'admin@test.com', role: { name: 'admin', permissions: [] } } as any,
+      user: adminUser,
       isAuthenticated: true,
     });
   });

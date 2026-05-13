@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserFormModal } from '@/pages/admin/UserFormModal';
+import type { User } from '@/types';
 
 const apiGet = vi.fn();
 const apiPost = vi.fn();
@@ -37,22 +38,36 @@ describe('UserFormModal smoke', () => {
   it('renders skills and visible branches selectors', async () => {
     const queryClient = new QueryClient();
 
+    const employeeUser: User = {
+      id: 'u1',
+      name: 'Ana',
+      email: 'ana@test.com',
+      role: { name: 'employee', permissions: [] },
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      branchId: 'b1',
+      departmentId: 'd1',
+      skills: [
+        {
+          assignedAt: new Date().toISOString(),
+          skill: { id: 's1', name: 'Soporte L1', color: '#1d4ed8', isActive: true },
+        },
+      ],
+      visibleBranches: [
+        {
+          assignedAt: new Date().toISOString(),
+          branch: { id: 'b1', name: 'Norte', code: 'NRT', isActive: true },
+        },
+      ],
+    };
+
     render(
       <QueryClientProvider client={queryClient}>
         <UserFormModal
           open
           roleName="admin"
           onClose={() => undefined}
-          user={{
-            id: 'u1',
-            name: 'Ana',
-            email: 'ana@test.com',
-            role: { name: 'employee', permissions: [] } as any,
-            branchId: 'b1',
-            departmentId: 'd1',
-            skills: [{ assignedAt: new Date().toISOString(), skill: { id: 's1', name: 'Soporte L1', color: '#1d4ed8', isActive: true } }],
-            visibleBranches: [{ assignedAt: new Date().toISOString(), branch: { id: 'b1', name: 'Norte', code: 'NRT', isActive: true } }],
-          } as any}
+          user={employeeUser}
         />
       </QueryClientProvider>,
     );

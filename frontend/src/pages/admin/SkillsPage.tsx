@@ -38,15 +38,15 @@ export function SkillsPage() {
         .then((response) => response.data),
   });
 
-  const skills = data?.data ?? [];
   const grouped = useMemo(() => {
+    const skills = data?.data ?? [];
     const map = new Map<string, Skill[]>();
     skills.forEach((skill) => {
       const key = skill.category || 'Sin categoría';
       map.set(key, [...(map.get(key) ?? []), skill]);
     });
     return [...map.entries()];
-  }, [skills]);
+  }, [data?.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
