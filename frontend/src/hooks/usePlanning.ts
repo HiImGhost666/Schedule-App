@@ -120,6 +120,37 @@ export type NotificationPreferences = {
   criticalAlertsOnly: boolean;
 };
 
+export type VacationImpact = {
+  employee: {
+    id: string;
+    name: string;
+    branch: { id: string; name: string } | null;
+    department: { id: string; name: string } | null;
+  };
+  overlappingVacations: Array<{
+    id: string;
+    status: string;
+    employeeId: string;
+    startDate: string;
+    endDate: string;
+    employee: { id: string; name: string };
+  }>;
+  assignedSchedules: Array<{ id: string; title: string; startDatetime: string; endDatetime: string }>;
+  holidays: Array<{ id: string; name: string; date: string }>;
+  likelihood: 'high' | 'medium' | 'low';
+  summary: string;
+};
+
+export type PlanningComment = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; name: string };
+};
+
 export const planningKeys = {
   all: ['planning'] as const,
   list: (name: string, filters: Record<string, unknown>) => [...planningKeys.all, name, filters] as const,
@@ -186,6 +217,30 @@ export function useTemplatePreview(filters: PlanningFilters, skillIds: string[],
   return usePlanningQuery<TemplatePreviewDay[]>('template-preview', '/planning/template-preview', filters, {
     skillIds: skillIds.join(','),
     minCoverage,
+  });
+}
+
+export function useVacationImpact(params: { employeeId?: string; startDate: string; endDate: string }) {
+  return useQuery<VacationImpact>({
+    queryKey: [...planningKeys.all, 'vacation-impact', params],
+    queryFn: async () => {
+      const response = await api.get<{ data: VacationImpact }>('/planning/vacation-impact', { params });
+      return response.data.data;
+    },
+    enabled: Boolean(params.startDate && params.endDate),
+  });
+}
+
+export function usePlanningComments(entityType?: string, entityId?: string) {
+  return useQuery<PlanningComment[]>({
+    queryKey: [...planningKeys.all, 'comments', entityType, entityId],
+    queryFn: async () => {
+      const response = await api.get<{ data: PlanningComment[] }>('/planning/comments', {
+        params: { entityType, entityId },
+      });
+      return response.data.data;
+    },
+    enabled: Boolean(entityType && entityId),
   });
 }
 
@@ -267,6 +322,22 @@ export function useUpdateNotificationPreferences() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planningKeys.preferences() });
+    },
+  });
+}
+
+export function useAddPlanningComment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { entityType: string; entityId: string; body: string }) => {
+      const response = await api.post<{ data: PlanningComment }>('/planning/comments', input);
+      return response.data.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [...planningKeys.all, 'comments', variables.entityType, variables.entityId],
+      });
     },
   });
 }
