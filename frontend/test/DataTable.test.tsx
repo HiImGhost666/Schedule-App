@@ -153,6 +153,35 @@ describe('DataTable', () => {
     expect(onRowClick).toHaveBeenCalledWith(data[0]);
   });
 
+  it('aplica clase por fila cuando se proporciona getRowClassName', () => {
+    const { container } = render(
+      <DataTable
+        data={data}
+        columns={columns}
+        rowKey={(item) => item.id}
+        getRowClassName={(item) => (item.id === '1' ? 'bg-selected' : '')}
+      />,
+    );
+
+    const firstRow = container.querySelector('tbody tr');
+    expect(firstRow?.className).toContain('bg-selected');
+  });
+
+  it('permite personalizar la cabecera de acciones', () => {
+    render(
+      <DataTable
+        data={data}
+        columns={columns}
+        rowKey={(item) => item.id}
+        actionsLabel=""
+        renderActions={(item) => <button>Ver {item.name}</button>}
+      />,
+    );
+
+    expect(screen.queryByText('Acciones')).not.toBeInTheDocument();
+    expect(screen.getByText('Ver Juan')).toBeInTheDocument();
+  });
+
   it('aplica clase hide en columnas según configuración', () => {
     const colsWithHide: Column<TestItem>[] = [
       { key: 'name', label: 'Nombre', render: (item) => item.name },

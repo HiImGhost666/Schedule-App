@@ -1,6 +1,6 @@
 /**
  * @file security-schedules.test.ts
- * Tests de seguridad: employee no puede ver schedules de otros empleados,
+ * Tests de seguridad: employee ve calendario de su sucursal,
  * GM no puede ver schedules de otra branch, DM no puede aprobar vacaciones de otro departamento.
  */
 
@@ -43,51 +43,52 @@ const buildSchedule = (overrides: Record<string, any> = {}) => ({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-describe('Seguridad: Employee no puede ver schedules de otros empleados', () => {
+describe('Seguridad: Employee ve calendario de su sucursal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRepo.findSchedules.mockResolvedValue([buildSchedule() as any]);
   });
 
-  it('employee ve todos los schedules de su branch (trabajo grupal)', async () => {
+  it('employee ve todos los schedules de su branch como calendario grupal', async () => {
     const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
 
-    // employee ve todos los turnos de su branch
     await listSchedulesForActor({}, actor);
 
     const callArgs = mockRepo.findSchedules.mock.calls[0]?.[0];
     expect(callArgs).toBeDefined();
-    expect(callArgs).toMatchObject({ branchId: 'branch-1' });
-    // Sin userId, employee ve todos los turnos de su branch (sin filtro de assignments)
+    expect(callArgs).toMatchObject({ branchId: { in: ['branch-1'] } });
     expect((callArgs as any).assignments).toBeUndefined();
   });
 
-  it('employee puede filtrar por userId si se pasa explicitamente', async () => {
+  it('employee puede filtrar por usuario dentro del calendario de su branch', async () => {
     const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
 
-    // employee pasa userId explicitamente
     await listSchedulesForActor({ userId: 'emp-2' }, actor);
 
     const callArgs = mockRepo.findSchedules.mock.calls[0][0];
-    expect(callArgs).toMatchObject({ branchId: 'branch-1' });
-    // employee con userId explícito filtra por ese userId
+    expect(callArgs).toMatchObject({ branchId: { in: ['branch-1'] } });
     expect(callArgs).toMatchObject({ assignments: { some: { userId: 'emp-2' } } });
   });
 
-  it('employee ve todos los schedules de su branch via listWeekSchedulesForActor', async () => {
+  it('employee puede filtrar el calendario semanal por usuario dentro de su branch', async () => {
     const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
 
-    // listWeekSchedulesForActor(year, week, branchId, departmentId, userId, actor)
     await listWeekSchedulesForActor(2026, 23, undefined, undefined, 'emp-2', actor);
 
-    // Employee ve todos los turnos de su branch, respeta userId si se pasa
     const callArgs: any = mockRepo.findSchedules.mock.calls[0][0];
     expect(callArgs.AND).toBeDefined();
     const branchFilter = callArgs.AND.find((f: any) => f.branchId);
     expect(branchFilter?.branchId).toBe('branch-1');
     const userFilter = callArgs.AND.find((f: any) => f.assignments);
-    // Respeta el userId pasado (emp-2), no lo fuerza a actor.id
     expect(userFilter?.assignments?.some?.userId).toBe('emp-2');
+  });
+
+  it('employee no puede cambiar la branch visible aunque envie branchId de otra sucursal', async () => {
+    const actor = { id: 'emp-1', roleName: 'employee', branchId: 'branch-1' };
+
+    expect(() => listSchedulesForActor({ branchId: 'branch-2' }, actor)).toThrow(
+      'No tienes permiso para consultar esa sucursal',
+    );
   });
 });
 
@@ -101,23 +102,17 @@ describe('Seguridad: GM no puede ver schedules de otra branch', () => {
   it('general_manager solo ve schedules de su branch asignada', async () => {
     const actor = { id: 'gm-1', roleName: 'general_manager', branchId: 'branch-1' };
 
-    // GM intenta ver schedules de otra branch
-    await listSchedulesForActor({ branchId: 'branch-2' }, actor);
-
-    const callArgs = mockRepo.findSchedules.mock.calls[0][0];
-    // Debe filtrar por branch-1 (su branch), no branch-2
-    expect(callArgs).toMatchObject({ branchId: 'branch-1' });
-    expect(callArgs).not.toMatchObject({ branchId: 'branch-2' });
+    expect(() => listSchedulesForActor({ branchId: 'branch-2' }, actor)).toThrow(
+      'No tienes permiso para consultar esa sucursal',
+    );
   });
 
   it('general_manager en listWeekSchedulesForActor solo ve su branch', async () => {
     const actor = { id: 'gm-1', roleName: 'general_manager', branchId: 'branch-1' };
 
-    await listWeekSchedulesForActor(2026, 23, 'branch-2', undefined, undefined, actor);
-
-    const callArgs: any = mockRepo.findSchedules.mock.calls[0][0];
-    const branchFilter = callArgs.AND.find((f: any) => f.branchId);
-    expect(branchFilter?.branchId).toBe('branch-1');
+    await expect(
+      listWeekSchedulesForActor(2026, 23, 'branch-2', undefined, undefined, actor),
+    ).rejects.toThrow('No tienes permiso para consultar esa sucursal');
   });
 });
 

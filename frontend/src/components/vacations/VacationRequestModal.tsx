@@ -64,7 +64,7 @@ export function VacationRequestModal({ open, onClose }: Props) {
           vacationId: result.id,
           employees: result.overlappingEmployees,
         });
-        toast.success('Solicitud creada con advertencia de solapamiento');
+        toast.success('Solicitud creada (colindante: solapa con el equipo)');
       } else {
         toast.success('Solicitud de vacaciones creada');
         resetForm();
@@ -77,7 +77,7 @@ export function VacationRequestModal({ open, onClose }: Props) {
 
   const handleOverlapConfirm = async () => {
     // The vacation is already created with status 'colindante'
-    toast.success('Solicitud de vacaciones creada (colindante)');
+    toast.success('Solicitud creada (colindante: solapa con el equipo)');
     resetForm();
     onClose();
   };
@@ -127,8 +127,8 @@ export function VacationRequestModal({ open, onClose }: Props) {
               ))}
             </ul>
             <p className="mt-2 text-amber-700">
-              La solicitud se ha creado con estado <strong>colindante</strong>.
-              ¿Aún así deseas continuar?
+              La solicitud quedó en estado <strong>colindante</strong> (solapa con compañeros del mismo departamento; se gestiona como pendiente para aprobar o cancelar).
+              ¿Deseas mantenerla?
             </p>
           </div>
 

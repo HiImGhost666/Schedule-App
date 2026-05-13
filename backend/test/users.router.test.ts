@@ -52,6 +52,7 @@ jest.mock('../src/modules/users/users.service', () => ({
 
 import usersRouter from '../src/modules/users/users.router';
 import * as usersService from '../src/modules/users/users.service';
+import { createAppError } from '../src/common/errors/error-catalog';
 
 const mockService = usersService as jest.Mocked<typeof usersService>;
 
@@ -83,13 +84,15 @@ describe('users.router', () => {
       expect(mockService.getUsersList).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 403 for employee (requires users:view)', async () => {
+    it('returns 200 for employee (has users:view)', async () => {
+      mockService.getUsersList.mockResolvedValue({ users: [], total: 0 });
+
       const response = await request(app)
         .get('/api/users')
         .set('x-test-role', 'employee');
 
-      expect(response.status).toBe(403);
-      expect(mockService.getUsersList).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(mockService.getUsersList).toHaveBeenCalledTimes(1);
     });
 
     it('returns 401 when not authenticated', async () => {
@@ -98,6 +101,21 @@ describe('users.router', () => {
 
       expect(response.status).toBe(401);
       expect(mockService.getUsersList).not.toHaveBeenCalled();
+    });
+
+    it('preserves AppError status from service', async () => {
+      mockService.getUsersList.mockRejectedValueOnce(createAppError('FORBIDDEN', 'No puedes listar estos usuarios'));
+
+      const response = await request(app)
+        .get('/api/users')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(403);
+      expect(response.body).toMatchObject({
+        success: false,
+        error: 'No puedes listar estos usuarios',
+        code: 'FORBIDDEN',
+      });
     });
   });
 
@@ -113,7 +131,7 @@ describe('users.router', () => {
       expect(mockService.getUserById).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 200 for employee (no permission check)', async () => {
+    it('returns 200 for employee con users:view', async () => {
       mockService.getUserById.mockResolvedValue({ id: 'user-1' } as any);
 
       const response = await request(app)
@@ -122,6 +140,15 @@ describe('users.router', () => {
 
       expect(response.status).toBe(200);
       expect(mockService.getUserById).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 403 when role has no users:view', async () => {
+      const response = await request(app)
+        .get('/api/users/user-1')
+        .set('x-test-role', 'unknown_role');
+
+      expect(response.status).toBe(403);
+      expect(mockService.getUserById).not.toHaveBeenCalled();
     });
 
     it('returns 401 when not authenticated', async () => {

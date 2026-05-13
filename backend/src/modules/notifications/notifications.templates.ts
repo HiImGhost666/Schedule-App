@@ -1,8 +1,25 @@
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-function formatDt(dt: Date | string) {
-  return format(new Date(dt), "EEEE dd/MM/yyyy 'a las' HH:mm", { locale: es });
+/**
+ * Formatea una fecha con timezone opcional.
+ * Si se proporciona timezone, usa Intl.DateTimeFormat (timezone-aware).
+ * Si no, usa date-fns con locale español (fallback).
+ */
+function formatDt(dt: Date | string, timezone?: string): string {
+  const d = new Date(dt);
+  if (timezone) {
+    return new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: timezone,
+    }).format(d);
+  }
+  return format(d, "EEEE dd/MM/yyyy 'a las' HH:mm", { locale: es });
 }
 
 export function buildScheduleCard(params: {
@@ -15,6 +32,7 @@ export function buildScheduleCard(params: {
   reason: string;
   actor: string;
   isLastMinute: boolean;
+  branchTimezone?: string;
 }) {
   const typeLabels: Record<string, string> = {
     schedule_created: '✅ NUEVA GUARDIA PROGRAMADA',
@@ -57,8 +75,8 @@ export function buildScheduleCard(params: {
               type: 'FactSet',
               facts: [
                 { title: '📋 Guardia:', value: params.title },
-                { title: '🕐 Inicio:', value: formatDt(params.startDatetime) },
-                { title: '🕕 Fin:', value: formatDt(params.endDatetime) },
+                { title: '🕐 Inicio:', value: formatDt(params.startDatetime, params.branchTimezone) },
+                { title: '🕕 Fin:', value: formatDt(params.endDatetime, params.branchTimezone) },
                 { title: '👥 Personal:', value: params.assignees.join(', ') || 'Sin asignar' },
                 ...(params.location ? [{ title: '📍 Ubicación:', value: params.location }] : []),
                 { title: '📝 Motivo:', value: params.reason },
@@ -242,6 +260,7 @@ export function buildVacationCard(params: {
   note?: string | null;
   actor: string;
   rejectionReason?: string | null;
+  branchTimezone?: string;
 }) {
   const typeLabels: Record<string, string> = {
     vacation_requested: '🏖️ NUEVA SOLICITUD DE VACACIONES',
@@ -255,8 +274,8 @@ export function buildVacationCard(params: {
 
   const facts: Array<{ title: string; value: string }> = [
     { title: '👤 Empleado:', value: params.employeeName },
-    { title: '📅 Desde:', value: formatDt(params.startDate) },
-    { title: '📅 Hasta:', value: formatDt(params.endDate) },
+    { title: '📅 Desde:', value: formatDt(params.startDate, params.branchTimezone) },
+    { title: '📅 Hasta:', value: formatDt(params.endDate, params.branchTimezone) },
     ...(params.note ? [{ title: '📝 Nota:', value: params.note }] : []),
     ...(params.rejectionReason ? [{ title: '❌ Motivo de rechazo:', value: params.rejectionReason }] : []),
     { title: '👤 Gestionado por:', value: params.actor },

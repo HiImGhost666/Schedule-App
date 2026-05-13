@@ -39,6 +39,7 @@ describe('Realtime Events', () => {
       expect(REALTIME_EVENTS.USER_ROLE_CHANGED).toBe('user.roleChanged');
       expect(REALTIME_EVENTS.USER_DELETED).toBe('user.deleted');
       expect(REALTIME_EVENTS.AUDIT_CREATED).toBe('audit.created');
+      expect(REALTIME_EVENTS.NOTIFICATION_CHANGED).toBe('notification.changed');
     });
   });
 });

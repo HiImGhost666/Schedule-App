@@ -20,6 +20,9 @@ const defaultProps = {
   loading: false,
   onMarkAsRead: vi.fn(),
   onMarkAllAsRead: vi.fn(),
+  onDelete: vi.fn(),
+  onDeleteAll: vi.fn(),
+  onRefresh: vi.fn(),
   onFetchMore: vi.fn(),
   pagination: { page: 1, total: 2, totalPages: 1 },
 };
@@ -104,6 +107,26 @@ describe('NotificationPanel', () => {
     await userEvent.click(screen.getByLabelText('Notificaciones (1 sin leer)'));
     await userEvent.click(screen.getByText('Ver más'));
     expect(onFetchMore).toHaveBeenCalledWith(2);
+  });
+
+  it('llama a onDelete al borrar una notificación', async () => {
+    const onDelete = vi.fn();
+    render(<NotificationPanel {...defaultProps} onDelete={onDelete} />);
+
+    await userEvent.click(screen.getByLabelText('Notificaciones (1 sin leer)'));
+    await userEvent.click(screen.getAllByLabelText('Eliminar notificación')[0]);
+
+    expect(onDelete).toHaveBeenCalledWith('n1');
+  });
+
+  it('llama a onDeleteAll al hacer click en "Borrar todo"', async () => {
+    const onDeleteAll = vi.fn();
+    render(<NotificationPanel {...defaultProps} onDeleteAll={onDeleteAll} />);
+
+    await userEvent.click(screen.getByLabelText('Notificaciones (1 sin leer)'));
+    await userEvent.click(screen.getByText('Borrar todo'));
+
+    expect(onDeleteAll).toHaveBeenCalled();
   });
 
   it('muestra total de notificaciones en footer', async () => {

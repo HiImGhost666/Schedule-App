@@ -1,13 +1,15 @@
 import type { VacationStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
-const statusConfig: Record<VacationStatus, { label: string; className: string }> = {
+const statusConfig: Record<VacationStatus, { label: string; className: string; title?: string }> = {
   pending: {
     label: 'Pendiente',
     className: 'bg-amber-100 text-amber-800 border-amber-200',
   },
   colindante: {
     label: 'Colindante',
+    title:
+      'Solapa en fechas con vacaciones de compañeros del mismo departamento. Equivale a pendiente para aprobar, rechazar o cancelar (si es tu solicitud).',
     className: 'bg-orange-100 text-orange-800 border-orange-200',
   },
   approved: {
@@ -39,6 +41,7 @@ export function VacationStatusBadge({ status, className }: Props) {
         config.className,
         className,
       )}
+      title={config.title}
     >
       {config.label}
     </span>

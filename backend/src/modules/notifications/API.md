@@ -1,5 +1,7 @@
 # Notifications API — Contrato Backend para Frontend
 
+> **Última actualización:** 13 mayo 2026
+
 ## Base URL
 
 ```
@@ -12,7 +14,7 @@
 
 **`GET /api/notifications/logs`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:view`
 
 ### Query Parameters
 
@@ -56,7 +58,7 @@
 
 **`POST /api/notifications/resend/:logId`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 ### Response (200)
 
@@ -74,7 +76,7 @@
 
 **`POST /api/notifications/friday-summary`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 > Envía un resumen de los turnos de la próxima semana a todos los webhooks habilitados.
 
@@ -94,7 +96,7 @@
 
 **`POST /api/notifications/vacation-summary`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 > Envía un resumen de las vacaciones aprobadas de la semana actual a todos los webhooks habilitados.
 
@@ -114,7 +116,7 @@
 
 **`POST /api/notifications/announce`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 ### Request Body
 

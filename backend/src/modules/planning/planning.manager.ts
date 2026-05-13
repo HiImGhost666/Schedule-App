@@ -876,16 +876,16 @@ export class PlanningManager {
     const [targetPref, requesterPref] = await Promise.all([
       prisma.userNotificationPreference.findUnique({
         where: { userId: created.targetUser.id },
-        select: { criticalAlertsOnly: true },
+        select: { scheduleChanges: true, criticalAlertsOnly: true },
       }),
       prisma.userNotificationPreference.findUnique({
         where: { userId: created.requester.id },
-        select: { criticalAlertsOnly: true },
+        select: { scheduleChanges: true, criticalAlertsOnly: true },
       }),
     ]);
 
     const notifications = [];
-    if (!targetPref?.criticalAlertsOnly) {
+    if (targetPref?.scheduleChanges !== false && !targetPref?.criticalAlertsOnly) {
       notifications.push({
         userId: created.targetUser.id,
         type: 'system' as const,
@@ -894,7 +894,7 @@ export class PlanningManager {
         metadata: { supportRequestId: created.id },
       });
     }
-    if (!requesterPref?.criticalAlertsOnly) {
+    if (requesterPref?.scheduleChanges !== false && !requesterPref?.criticalAlertsOnly) {
       notifications.push({
         userId: created.requester.id,
         type: 'system' as const,
@@ -954,17 +954,17 @@ export class PlanningManager {
     const [targetPref, requesterPref] = await Promise.all([
       prisma.userNotificationPreference.findUnique({
         where: { userId: updated.targetUser.id },
-        select: { criticalAlertsOnly: true },
+        select: { scheduleChanges: true, criticalAlertsOnly: true },
       }),
       prisma.userNotificationPreference.findUnique({
         where: { userId: updated.requester.id },
-        select: { criticalAlertsOnly: true },
+        select: { scheduleChanges: true, criticalAlertsOnly: true },
       }),
     ]);
 
     const statusLabel = status === 'accepted' ? 'aceptada' : status === 'rejected' ? 'rechazada' : 'cancelada';
     const notifications = [];
-    if (!requesterPref?.criticalAlertsOnly) {
+    if (requesterPref?.scheduleChanges !== false && !requesterPref?.criticalAlertsOnly) {
       notifications.push({
         userId: updated.requester.id,
         type: 'system' as const,
@@ -973,7 +973,7 @@ export class PlanningManager {
         metadata: { supportRequestId: updated.id, status },
       });
     }
-    if (!targetPref?.criticalAlertsOnly) {
+    if (targetPref?.scheduleChanges !== false && !targetPref?.criticalAlertsOnly) {
       notifications.push({
         userId: updated.targetUser.id,
         type: 'system' as const,

@@ -7,10 +7,11 @@ import {
   meController,
   refreshController,
 } from './auth.controller';
+import { loginRateLimiter } from './auth.rate-limit';
 
 const router = Router();
 
-router.post('/login', loginController);
+router.post('/login', loginRateLimiter, loginController);
 router.post('/refresh', refreshController);
 router.post('/logout', authMiddleware, (req: AuthRequest, res) => logoutController(req, res));
 router.get('/me', authMiddleware, (req: AuthRequest, res) => meController(req, res));

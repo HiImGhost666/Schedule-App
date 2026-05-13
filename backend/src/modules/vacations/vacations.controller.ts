@@ -27,6 +27,7 @@ function buildActor(req: AuthRequest) {
     email: req.user!.email,
     name: req.user!.name,
     branchId: req.user!.branchId,
+    visibleBranchIds: req.user!.visibleBranchIds ?? [],
     departmentId: req.user!.departmentId,
     ipAddress: req.ip,
     permissions: req.user!.permissions ?? [],

@@ -303,22 +303,35 @@ export async function assignDepartmentManager(
 
 /**
  * Remueve un manager de un departamento dentro de una transacción única.
+ * Si no se especifica userId, remueve el primer manager encontrado.
  * Si el usuario no es manager de otros departamentos, se le quita el rol 'employee'.
  * Genera auditoría atómica.
  */
 export async function removeDepartmentManager(
   departmentId: string,
+  userId: string | undefined,
   actor: DepartmentActor,
 ) {
   const department = await ensureDepartment(departmentId);
-  const firstManager = department.managers?.[0];
-  if (!firstManager) {
-    throw createAppError('BAD_REQUEST', 'Este departamento no tiene un manager asignado');
+
+  let managerId: string;
+  if (userId) {
+    managerId = userId;
+  } else {
+    const firstManager = department.managers?.[0];
+    if (!firstManager) {
+      throw createAppError('BAD_REQUEST', 'Este departamento no tiene un manager asignado');
+    }
+    managerId = firstManager.userId;
   }
 
-  const managerId = firstManager.userId;
   const manager = await findUserById(managerId);
   if (!manager) throw createAppError('NOT_FOUND', 'Manager no encontrado');
+
+  const isManager = department.managers?.some((m) => m.userId === managerId);
+  if (!isManager) {
+    throw createAppError('BAD_REQUEST', 'Este usuario no es manager de este departamento');
+  }
 
   return executeInTransaction(async (tx) => {
     // 1. Remover manager del departamento

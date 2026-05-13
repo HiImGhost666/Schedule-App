@@ -107,6 +107,7 @@ describe('vacations.http.schemas', () => {
       const result = listVacationsQuerySchema.safeParse({
         status: 'pending',
         branchId: 'b-1',
+        search: 'maria',
         page: '2',
         pageSize: '10',
       });

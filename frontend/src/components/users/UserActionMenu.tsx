@@ -29,7 +29,8 @@ export function UserActionMenu({
   onDelete,
 }: UserActionMenuProps) {
   const isDepartmentManager = roleName === 'department_manager';
-  const canEdit = isAdmin || isDepartmentManager;
+  const isGeneralManager = roleName === 'general_manager';
+  const canEdit = isAdmin || isGeneralManager || isDepartmentManager;
 
   return (
     <>

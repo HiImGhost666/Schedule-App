@@ -1,4 +1,6 @@
 import { prisma } from '../../config/database';
+import { REALTIME_EVENTS } from '../../realtime/events';
+import { publishRealtimeEvent } from '../../realtime/socket';
 
 export type InAppNotificationType =
   | 'vacation_approved'
@@ -22,13 +24,24 @@ interface CreateInAppNotificationParams {
   metadata?: Record<string, unknown>;
 }
 
+function emitNotificationChanged(action: 'created' | 'updated' | 'deleted', id: string, userId: string, actorId: string | null) {
+  publishRealtimeEvent(REALTIME_EVENTS.NOTIFICATION_CHANGED, {
+    entity: 'notification',
+    action,
+    id,
+    changedAt: new Date().toISOString(),
+    actorId,
+    meta: { userId },
+  });
+}
+
 /**
  * Crea una notificación in-app para un usuario específico.
  * Se almacena en la tabla `in_app_notifications` y puede ser consultada
  * desde el frontend para mostrar un badge de notificaciones no leídas.
  */
 export async function createInAppNotification(params: CreateInAppNotificationParams) {
-  return prisma.inAppNotification.create({
+  const notification = await prisma.inAppNotification.create({
     data: {
       userId: params.userId,
       type: params.type,
@@ -38,6 +51,8 @@ export async function createInAppNotification(params: CreateInAppNotificationPar
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
     },
   });
+  emitNotificationChanged('created', notification.id, notification.userId, null);
+  return notification;
 }
 
 /**
@@ -53,7 +68,7 @@ export async function createInAppNotificationBatch(
     metadata?: Record<string, unknown>;
   }>
 ) {
-  return prisma.inAppNotification.createMany({
+  const result = await prisma.inAppNotification.createMany({
     data: notifications.map((n) => ({
       userId: n.userId,
       type: n.type,
@@ -63,6 +78,11 @@ export async function createInAppNotificationBatch(
       metadata: n.metadata ? JSON.stringify(n.metadata) : null,
     })),
   });
+  const affectedUsers = Array.from(new Set(notifications.map((n) => n.userId)));
+  affectedUsers.forEach((userId) => {
+    emitNotificationChanged('created', `batch:${userId}`, userId, null);
+  });
+  return result;
 }
 
 /**
@@ -99,20 +119,48 @@ export async function getUserNotifications(userId: string, page = 1, pageSize = 
  * Marca una notificación como leída
  */
 export async function markAsRead(notificationId: string, userId: string) {
-  return prisma.inAppNotification.updateMany({
+  const result = await prisma.inAppNotification.updateMany({
     where: { id: notificationId, userId },
     data: { readAt: new Date() },
   });
+  if (result.count > 0) {
+    emitNotificationChanged('updated', notificationId, userId, userId);
+  }
+  return result;
 }
 
 /**
  * Marca todas las notificaciones de un usuario como leídas
  */
 export async function markAllAsRead(userId: string) {
-  return prisma.inAppNotification.updateMany({
+  const result = await prisma.inAppNotification.updateMany({
     where: { userId, readAt: null },
     data: { readAt: new Date() },
   });
+  if (result.count > 0) {
+    emitNotificationChanged('updated', `read-all:${userId}`, userId, userId);
+  }
+  return result;
+}
+
+export async function deleteNotification(notificationId: string, userId: string) {
+  const result = await prisma.inAppNotification.deleteMany({
+    where: { id: notificationId, userId },
+  });
+  if (result.count > 0) {
+    emitNotificationChanged('deleted', notificationId, userId, userId);
+  }
+  return result;
+}
+
+export async function deleteAllNotifications(userId: string) {
+  const result = await prisma.inAppNotification.deleteMany({
+    where: { userId },
+  });
+  if (result.count > 0) {
+    emitNotificationChanged('deleted', `delete-all:${userId}`, userId, userId);
+  }
+  return result;
 }
 
 /**

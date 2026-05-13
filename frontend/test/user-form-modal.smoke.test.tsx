@@ -73,7 +73,7 @@ describe('UserFormModal smoke', () => {
     );
 
     expect(await screen.findByText('Skills')).toBeInTheDocument();
-    expect(await screen.findByText('Sucursales visibles')).toBeInTheDocument();
+    expect(await screen.findByText('Sucursales visibles adicionales')).toBeInTheDocument();
     expect(await screen.findByText('Soporte L1')).toBeInTheDocument();
   });
 });

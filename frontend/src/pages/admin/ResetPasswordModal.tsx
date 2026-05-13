@@ -12,6 +12,11 @@ interface Props { open: boolean; user: User; onClose: () => void; }
 export function ResetPasswordModal({ open, user, onClose }: Props) {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const hasMinLength = password.length >= 8;
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const isStrongEnough = hasMinLength && hasLower && hasUpper && hasNumber;
 
   const mutation = useMutation({
     mutationFn: () => api.post(`/users/${user.id}/reset-password`, { newPassword: password }),
@@ -50,12 +55,20 @@ export function ResetPasswordModal({ open, user, onClose }: Props) {
                 {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+            <p className="mt-1 text-xs text-theme-muted">
+              Debe tener 8+ caracteres, mayúscula, minúscula y número.
+            </p>
+            {password.length > 0 && !isStrongEnough && (
+              <p className="mt-1 text-xs text-red-500">
+                La contraseña no cumple los requisitos mínimos.
+              </p>
+            )}
           </div>
           <div className="flex gap-3">
             <button onClick={onClose} className="flex-1 btn-ghost text-sm">Cancelar</button>
             <button
               onClick={() => mutation.mutate()}
-              disabled={password.length < 8 || mutation.isPending}
+              disabled={!isStrongEnough || mutation.isPending}
               className="flex-1 btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {mutation.isPending && <LoadingSpinner size="sm" className="border-white border-t-white/30" />}

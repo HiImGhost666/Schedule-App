@@ -155,8 +155,7 @@ export function SchedulePage() {
   const isGeneralManager = user?.role?.name === 'general_manager';
   const isDepartmentManager = user?.role?.name === 'department_manager';
   const isEmployee = !isAdmin && !isGeneralManager && !isDepartmentManager;
-  // Solo admin puede ver y seleccionar todas las sucursales.
-  // Los demás roles están restringidos a su sucursal asignada.
+  // Admin puede usar vista global; no-admin siempre ve una sucursal activa por calendario.
   const canViewAllBranches = isAdmin;
   const canEdit = isAdmin || isGeneralManager || isDepartmentManager;
 
@@ -204,10 +203,27 @@ export function SchedulePage() {
     queryFn: () => api.get('/branches', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
+  const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
+  const userVisibleBranchIds = useMemo(() => {
+    const ids = [
+      user?.branchId,
+      ...(user?.visibleBranches?.map((item) => item.branch.id) ?? []),
+    ].filter(Boolean) as string[];
+    return [...new Set(ids)];
+  }, [user?.branchId, user?.visibleBranches]);
+  const scopedBranches = useMemo(() => {
+    if (isAdmin) return availableBranches;
+    if (!userVisibleBranchIds.length) return [];
+    return availableBranches.filter((branch) => userVisibleBranchIds.includes(branch.id));
+  }, [isAdmin, availableBranches, userVisibleBranchIds]);
+  const canSelectBranches = isAdmin || scopedBranches.length > 1;
+  const defaultScopedBranchId = !isAdmin
+    ? (user?.branchId ?? scopedBranches[0]?.id ?? '')
+    : '';
   const effectiveActiveBranchId = getEffectiveBranchId({
-    branches: branches?.data,
-    selectedBranchId: canViewAllBranches ? activeBranchId : undefined,
-    assignedBranchId: canViewAllBranches ? undefined : (user?.branchId ?? undefined),
+    branches: scopedBranches,
+    selectedBranchId: canSelectBranches ? (activeBranchId || defaultScopedBranchId) : undefined,
+    assignedBranchId: canSelectBranches ? undefined : (user?.branchId ?? undefined),
     fallbackStrategy: 'none',
   });
 
@@ -221,7 +237,6 @@ export function SchedulePage() {
         .then((r) => r.data),
   });
 
-  const availableBranches = useMemo(() => branches?.data ?? [], [branches?.data]);
   const branchNameById = useMemo(
     () => Object.fromEntries(availableBranches.map((branch) => [branch.id, branch.name])),
     [availableBranches],
@@ -797,9 +812,10 @@ export function SchedulePage() {
         <div className={isLoading && !schedules ? 'hidden' : 'grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]'}>
           <div className="flex flex-col border-r border-theme-color bg-theme-surface/5">
             <ScheduleSidebar
-              branches={availableBranches}
+              branches={scopedBranches}
               activeBranchId={activeBranchId}
               effectiveActiveBranchId={effectiveActiveBranchId}
+              canSelectBranches={canSelectBranches}
               canViewAllBranches={canViewAllBranches}
               onBranchChange={handleBranchChange}
               departments={departments?.data}
@@ -825,6 +841,7 @@ export function SchedulePage() {
                 initialView={navState?.initialView || 'dayGridMonth'}
                 initialDate={navState?.initialDate ? new Date(navState.initialDate) : undefined}
                 locale={esLocale}
+                timeZone={effectiveActiveBranchId ? branchTimezoneById[effectiveActiveBranchId] : 'UTC'}
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
@@ -894,6 +911,18 @@ export function SchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* Pie informativo para admin en vista "Todas las sucursales" */}
+      {canViewAllBranches && !effectiveActiveBranchId && (
+        <p className="text-xs text-theme-muted text-center mt-2">
+          Los turnos se muestran en UTC. Cada sucursal tiene su propia franja horaria:{' '}
+          {availableBranches
+            .filter((b) => b.timezone)
+            .map((b) => `${b.name} (${b.timezone})`)
+            .join(', ')}.
+          Al seleccionar una sucursal en el panel lateral, el calendario se ajusta a su zona horaria.
+        </p>
+      )}
 
       <ShiftModal
         open={modalOpen}

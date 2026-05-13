@@ -204,7 +204,7 @@ describe('removeDepartmentManager', () => {
       assignedAt: new Date(),
     } as any);
 
-    await removeDepartmentManager('dept-1', actor);
+    await removeDepartmentManager('dept-1', undefined, actor);
 
     // Verificar que se removió el manager
     expect(mockDepartmentsRepo.deleteDepartmentManager).toHaveBeenCalledWith('dept-1', 'user-1', mockTx);
@@ -256,7 +256,7 @@ describe('removeDepartmentManager', () => {
       assignedAt: new Date(),
     } as any);
 
-    await removeDepartmentManager('dept-1', actor);
+    await removeDepartmentManager('dept-1', undefined, actor);
 
     // No debe hacer downgrade porque aún es manager de otros departamentos
     expect(mockUsersRepo.updateUserRecord).not.toHaveBeenCalled();

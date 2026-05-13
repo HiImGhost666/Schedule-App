@@ -1,5 +1,7 @@
 # Schedules API — Contrato Backend para Frontend
 
+> **Última actualización:** 13 mayo 2026
+
 ## Base URL
 
 ```
@@ -12,7 +14,7 @@
 
 **`GET /api/schedules`**
 
-- **Permiso:** Autenticación sola
+- **Permiso:** `schedules:view`
 - **Roles y alcance:**
   - `admin`: ve todas las sucursales (puede filtrar por `branchId`)
   - `general_manager`: solo ve su sucursal asignada
@@ -78,7 +80,7 @@
 
 **`GET /api/schedules/:id`**
 
-- **Permiso:** Autenticación sola
+- **Permiso:** `schedules:view`
 - **Roles y alcance:**
   - `admin`: puede ver cualquier turno
   - `general_manager`: solo turnos de su sucursal
@@ -100,7 +102,7 @@
 
 **`GET /api/schedules/week/:year/:week`**
 
-- **Permiso:** Autenticación sola
+- **Permiso:** `schedules:view`
 - **Roles y alcance:**
   - `admin`: ve todas las sucursales (puede filtrar por `branchId`)
   - `general_manager`: solo ve su sucursal asignada
@@ -163,7 +165,7 @@
 
 **`POST /api/schedules`**
 
-- **Permiso:** `schedules:manage`
+- **Permiso:** `schedules:create`
 
 ### Request Body
 
@@ -202,7 +204,7 @@
 
 **`PATCH /api/schedules/:id`**
 
-- **Permiso:** `schedules:manage`
+- **Permiso:** `schedules:update`
 
 ### Request Body (todos opcionales)
 
@@ -231,7 +233,7 @@
 
 **`DELETE /api/schedules/:id`**
 
-- **Permiso:** `schedules:manage`
+- **Permiso:** `schedules:delete`
 
 ### Request Body (opcional)
 
@@ -255,9 +257,9 @@
 
 ## 7. Resumen semanal de horas (propias)
 
-**`GET /api/schedules/weekly-summary/:year/:week`**
+**`GET /api/schedules/weekly-summary/me/:year/:week`**
 
-- **Permiso:** `weekly_summary:view`
+- **Permiso:** `schedules:view`
 - **Roles:** todos
 
 ### Response (200)
@@ -282,9 +284,9 @@
 
 ## 8. Resumen semanal del equipo
 
-**`GET /api/schedules/weekly-summary/team/:year/:week`**
+**`GET /api/schedules/team-weekly-summary/:year/:week`**
 
-- **Permiso:** `weekly_summary:view-all`
+- **Permiso:** `schedules:view`
 - **Roles:** admin, general_manager (scope: su branch), department_manager (scope: su depto)
 
 ### Query Parameters

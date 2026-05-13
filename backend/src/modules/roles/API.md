@@ -1,6 +1,6 @@
 # Roles API — Contrato Backend para Frontend
 
-> **Última actualización:** 9 mayo 2026
+> **Última actualización:** 13 mayo 2026
 
 ## Base URL
 
@@ -103,12 +103,17 @@
     "vacations:cancel",
     "vacations:delete",
     "webhooks:view",
-    "webhooks:create",
-    "webhooks:update",
-    "webhooks:delete",
+    "webhooks:manage",
     "notifications:view",
-    "weekly_summary:view",
-    "weekly_summary:view-all"
+    "shift_presets:read",
+    "shift_presets:create",
+    "shift_presets:update",
+    "shift_presets:delete",
+    "skills:view",
+    "skills:create",
+    "skills:update",
+    "skills:delete",
+    "skills:assign"
   ]
 }
 ```

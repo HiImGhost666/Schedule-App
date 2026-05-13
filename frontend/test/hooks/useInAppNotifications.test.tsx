@@ -10,12 +10,14 @@ import { useInAppNotifications } from '@/hooks/useInAppNotifications';
 const getMock = vi.fn();
 const patchMock = vi.fn();
 const postMock = vi.fn();
+const deleteMock = vi.fn();
 
 vi.mock('@/config/api', () => ({
   default: {
     get: (...args: unknown[]) => getMock(...args),
     patch: (...args: unknown[]) => patchMock(...args),
     post: (...args: unknown[]) => postMock(...args),
+    delete: (...args: unknown[]) => deleteMock(...args),
   },
 }));
 
@@ -23,6 +25,22 @@ const mockNotifications = [
   { id: 'n1', userId: 'u1', type: 'info', title: 'Notif 1', message: 'Mensaje 1', link: null, metadata: null, readAt: null, createdAt: '2026-05-10T10:00:00Z' },
   { id: 'n2', userId: 'u1', type: 'warning', title: 'Notif 2', message: 'Mensaje 2', link: '/schedules', metadata: null, readAt: '2026-05-10T12:00:00Z', createdAt: '2026-05-09T10:00:00Z' },
 ];
+
+/** Forma real del backend (`sendPaginated`) tras axios (`response.data`) */
+function mockListEnvelope(items: typeof mockNotifications) {
+  return {
+    data: {
+      success: true,
+      data: items,
+      pagination: {
+        total: items.length,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      },
+    },
+  };
+}
 
 describe('useInAppNotifications', () => {
   beforeEach(() => {
@@ -57,15 +75,7 @@ describe('useInAppNotifications', () => {
   });
 
   it('fetchNotifications obtiene la lista paginada', async () => {
-    getMock.mockResolvedValue({
-      data: {
-        items: mockNotifications,
-        total: 2,
-        page: 1,
-        pageSize: 20,
-        totalPages: 1,
-      },
-    });
+    getMock.mockResolvedValue(mockListEnvelope(mockNotifications));
 
     const { result } = renderHook(() => useInAppNotifications());
 
@@ -79,15 +89,7 @@ describe('useInAppNotifications', () => {
   });
 
   it('markAsRead marca una notificación como leída', async () => {
-    getMock.mockResolvedValue({
-      data: {
-        items: mockNotifications,
-        total: 2,
-        page: 1,
-        pageSize: 20,
-        totalPages: 1,
-      },
-    });
+    getMock.mockResolvedValue(mockListEnvelope(mockNotifications));
 
     patchMock.mockResolvedValue({ data: { success: true } });
 
@@ -107,15 +109,7 @@ describe('useInAppNotifications', () => {
   });
 
   it('markAllAsRead marca todas como leídas', async () => {
-    getMock.mockResolvedValue({
-      data: {
-        items: mockNotifications,
-        total: 2,
-        page: 1,
-        pageSize: 20,
-        totalPages: 1,
-      },
-    });
+    getMock.mockResolvedValue(mockListEnvelope(mockNotifications));
 
     postMock.mockResolvedValue({ data: { success: true } });
 
@@ -155,5 +149,42 @@ describe('useInAppNotifications', () => {
     });
 
     expect(result.current.loading).toBe(false);
+  });
+
+  it('deleteNotification elimina una notificación de la lista', async () => {
+    getMock.mockResolvedValue(mockListEnvelope(mockNotifications));
+    deleteMock.mockResolvedValue({ data: { success: true } });
+
+    const { result } = renderHook(() => useInAppNotifications());
+
+    await act(async () => {
+      await result.current.fetchNotifications();
+    });
+
+    await act(async () => {
+      await result.current.deleteNotification('n1');
+    });
+
+    expect(deleteMock).toHaveBeenCalledWith('/api/in-app-notifications/n1');
+    expect(result.current.notifications.find((n) => n.id === 'n1')).toBeUndefined();
+  });
+
+  it('deleteAllNotifications limpia toda la bandeja', async () => {
+    getMock.mockResolvedValue(mockListEnvelope(mockNotifications));
+    deleteMock.mockResolvedValue({ data: { success: true } });
+
+    const { result } = renderHook(() => useInAppNotifications());
+
+    await act(async () => {
+      await result.current.fetchNotifications();
+    });
+
+    await act(async () => {
+      await result.current.deleteAllNotifications();
+    });
+
+    expect(deleteMock).toHaveBeenCalledWith('/api/in-app-notifications');
+    expect(result.current.notifications).toEqual([]);
+    expect(result.current.unreadCount).toBe(0);
   });
 });

@@ -3,6 +3,7 @@ import { CreateRoleSchema, UpdateRoleSchema } from './roles.http.schemas';
 import { z } from 'zod';
 import { logAuditOrThrow, sanitizeSnapshot } from '../audit/audit.service';
 import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import { createAppError } from '../../common/errors/error-catalog';
 
 export async function listRoles() {
   return repo.findRoles();
@@ -10,7 +11,7 @@ export async function listRoles() {
 
 export async function getRole(id: string) {
   const role = await repo.findRoleById(id);
-  if (!role) throw new Error('Role no encontrado');
+  if (!role) throw createAppError('NOT_FOUND', 'Role no encontrado');
   return role;
 }
 
@@ -32,9 +33,9 @@ export async function createRole(payload: z.infer<typeof CreateRoleSchema>) {
 export async function updateRole(id: string, payload: z.infer<typeof UpdateRoleSchema>) {
   const data = UpdateRoleSchema.parse(payload);
   const role = await repo.findRoleById(id);
-  if (!role) throw new Error('Role no encontrado');
+  if (!role) throw createAppError('NOT_FOUND', 'Role no encontrado');
   if (role.isSystem && data.name && data.name !== role.name) {
-     throw new Error('No se puede cambiar el nombre de un rol de sistema');
+     throw createAppError('BAD_REQUEST', 'No se puede cambiar el nombre de un rol de sistema');
   }
   return executeInTransaction(async (tx) => {
     const updated = await repo.updateRole(id, data);
@@ -51,9 +52,9 @@ export async function updateRole(id: string, payload: z.infer<typeof UpdateRoleS
 
 export async function deleteRole(id: string) {
   const role = await repo.findRoleById(id);
-  if (!role) throw new Error('Role no encontrado');
+  if (!role) throw createAppError('NOT_FOUND', 'Role no encontrado');
   if (role.isSystem) {
-    throw new Error('No se pueden borrar roles de sistema');
+    throw createAppError('BAD_REQUEST', 'No se pueden borrar roles de sistema');
   }
   return executeInTransaction(async (tx) => {
     await repo.deleteRole(id);

@@ -53,10 +53,6 @@ vi.mock('@/components/vacations/VacationCreateModal', () => ({
     open ? <div data-testid="create-modal">Crear Vacaciones</div> : null,
 }));
 
-vi.mock('@/components/vacations/VacationTable', () => ({
-  VacationTable: () => <div data-testid="vacation-table">Tabla de solicitudes</div>,
-}));
-
 import { VacationsPage } from '@/pages/VacationsPage';
 
 function renderPage() {
@@ -187,7 +183,7 @@ describe('VacationsPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId('vacation-table')).toBeInTheDocument();
+      expect(screen.getByText('Solicitudes')).toBeInTheDocument();
     });
   });
 

@@ -25,7 +25,15 @@ import {
 } from './domain/schedule.rules';
 import { recalculateWeeklySummariesForAssignees } from './weekly-summary.service';
 
-type Actor = { id: string; roleName: string; email: string; name: string; branchId?: string | null; ipAddress?: string };
+type Actor = {
+  id: string;
+  roleName: string;
+  email: string;
+  name: string;
+  branchId?: string | null;
+  visibleBranchIds?: string[];
+  ipAddress?: string;
+};
 const scheduleCreateInputSchema = z.object({
   title: z.string().min(2),
   description: z.string().optional(),
@@ -57,6 +65,17 @@ async function getActorDepartmentId(actorId: string) {
     select: { departmentId: true },
   });
   return actor?.departmentId;
+}
+
+function getActorVisibleBranchIds(actor: Pick<Actor, 'branchId' | 'visibleBranchIds'>): string[] {
+  return [...new Set([actor.branchId, ...(actor.visibleBranchIds ?? [])].filter(Boolean) as string[])];
+}
+
+function ensureRequestedBranchInScope(visibleBranchIds: string[], requestedBranchId?: string) {
+  if (!requestedBranchId) return;
+  if (!visibleBranchIds.includes(requestedBranchId)) {
+    throw createAppError('FORBIDDEN', 'No tienes permiso para consultar esa sucursal');
+  }
 }
 
 async function ensureDepartmentManagerAssignees(actorId: string, assigneeIds: string[]) {
@@ -92,6 +111,24 @@ async function ensureActiveBranch(branchId: string) {
   });
   if (!branch) throw createAppError('NOT_FOUND', 'Sucursal no encontrada');
   if (!branch.isActive) throw createAppError('BAD_REQUEST', 'La sucursal está desactivada');
+}
+
+async function filterRecipientsByScheduleNotificationPreference(userIds: string[]): Promise<string[]> {
+  const uniqueIds = [...new Set(userIds)];
+  if (uniqueIds.length === 0) return [];
+  const preferences = await prisma.userNotificationPreference.findMany({
+    where: { userId: { in: uniqueIds } },
+    select: { userId: true, scheduleChanges: true, criticalAlertsOnly: true },
+  });
+  const preferenceByUser = new Map(preferences.map((p) => [p.userId, p]));
+
+  return uniqueIds.filter((userId) => {
+    const pref = preferenceByUser.get(userId);
+    // Default: recibir notificaciones si no hay preferencias persistidas.
+    if (!pref) return true;
+    if (pref.criticalAlertsOnly) return false;
+    return pref.scheduleChanges !== false;
+  });
 }
 
 function ensureNoBatchOverlaps(items: ScheduleCreateInput[]) {
@@ -207,7 +244,7 @@ async function createScheduleEntryInternal(
 
 export function listSchedulesForActor(
   params: { from?: string; to?: string; userId?: string; type?: string; branchId?: string },
-  actor: Pick<Actor, 'roleName' | 'branchId' | 'id'>,
+  actor: Pick<Actor, 'roleName' | 'branchId' | 'id' | 'visibleBranchIds'>,
 ) {
   const where: ScheduleWhere = {};
   const fromDate = parseOptionalDate(params.from);
@@ -223,32 +260,13 @@ export function listSchedulesForActor(
     return findSchedules(where);
   }
 
-  // General manager: solo ve su sucursal
-  if (actor.roleName === 'general_manager') {
-    if (!actor.branchId) {
+  if (actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee') {
+    const visibleBranchIds = getActorVisibleBranchIds(actor);
+    if (visibleBranchIds.length === 0) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    where.branchId = actor.branchId;
-    return findSchedules(where);
-  }
-
-  // Department manager: solo ve su sucursal (puede filtrar por departamento vía query params)
-  if (actor.roleName === 'department_manager') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    where.branchId = actor.branchId;
-    return findSchedules(where);
-  }
-
-  // Employee: solo ve schedules de su sucursal (trabajo grupal)
-  if (actor.roleName === 'employee') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    where.branchId = actor.branchId;
-    // Employee ve todos los turnos de su branch para trabajo grupal
-    // Si pasa userId explícitamente, filtra por ese usuario
+    ensureRequestedBranchInScope(visibleBranchIds, params.branchId);
+    where.branchId = params.branchId ?? { in: visibleBranchIds };
     if (params.userId) {
       where.assignments = { some: { userId: params.userId } };
     }
@@ -322,37 +340,24 @@ export async function listWeekSchedulesForActor(
   branchId: string | undefined,
   departmentId: string | undefined,
   userId: string | undefined,
-  actor: Pick<Actor, 'roleName' | 'branchId' | 'id'>,
+  actor: Pick<Actor, 'roleName' | 'branchId' | 'id' | 'visibleBranchIds'>,
 ) {
   // Admin: puede ver cualquier sucursal, o filtrar por branchId explícito
   if (actor.roleName === 'admin') {
     return listWeekSchedules(year, week, branchId, departmentId, userId);
   }
 
-  // General manager: solo ve su sucursal
-  if (actor.roleName === 'general_manager') {
-    if (!actor.branchId) {
+  if (actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee') {
+    const visibleBranchIds = getActorVisibleBranchIds(actor);
+    if (visibleBranchIds.length === 0) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
-  }
-
-  // Department manager: solo ve su sucursal
-  if (actor.roleName === 'department_manager') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
-  }
-
-  // Employee: solo ve su sucursal (trabajo grupal)
-  if (actor.roleName === 'employee') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    // Employee ve todos los turnos de su branch para trabajo grupal
-    // Si pasa userId explícitamente, filtra por ese usuario
-    return listWeekSchedules(year, week, actor.branchId, departmentId, userId);
+    ensureRequestedBranchInScope(visibleBranchIds, branchId);
+    // Calendario no-admin en una sola sucursal por vista:
+    // - si envía branchId y está en scope visible, usa esa
+    // - si no, usa la sucursal base del actor
+    const effectiveBranchId = branchId ?? actor.branchId ?? visibleBranchIds[0];
+    return listWeekSchedules(year, week, effectiveBranchId, departmentId, userId);
   }
 
   throw createAppError('FORBIDDEN', 'Rol no autorizado para consultar turnos');
@@ -430,7 +435,10 @@ export async function getScheduleById(scheduleId: string) {
   return schedule;
 }
 
-export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Actor, 'roleName' | 'branchId'>) {
+export async function getScheduleByIdForActor(
+  scheduleId: string,
+  actor: Pick<Actor, 'roleName' | 'branchId' | 'visibleBranchIds'>,
+) {
   const schedule = await getScheduleById(scheduleId);
 
   // Admin: puede ver cualquier schedule
@@ -438,34 +446,12 @@ export async function getScheduleByIdForActor(scheduleId: string, actor: Pick<Ac
     return schedule;
   }
 
-  // General manager: solo puede ver schedules de su sucursal
-  if (actor.roleName === 'general_manager') {
-    if (!actor.branchId) {
+  if (actor.roleName === 'general_manager' || actor.roleName === 'department_manager' || actor.roleName === 'employee') {
+    const visibleBranchIds = getActorVisibleBranchIds(actor);
+    if (visibleBranchIds.length === 0) {
       throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
     }
-    if (schedule.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No puedes ver guardias de otras sucursales');
-    }
-    return schedule;
-  }
-
-  // Department manager: solo puede ver schedules de su sucursal
-  if (actor.roleName === 'department_manager') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    if (schedule.branchId !== actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No puedes ver guardias de otras sucursales');
-    }
-    return schedule;
-  }
-
-  // Employee: solo puede ver schedules de su sucursal
-  if (actor.roleName === 'employee') {
-    if (!actor.branchId) {
-      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
-    }
-    if (schedule.branchId !== actor.branchId) {
+    if (!visibleBranchIds.includes(schedule.branchId ?? '')) {
       throw createAppError('FORBIDDEN', 'No puedes ver guardias de otras sucursales');
     }
     return schedule;
@@ -493,6 +479,8 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
     new Date(parsed.data.endDatetime),
   ).catch(() => {});
 
+  const branchTimezone = result.schedule.branch?.timezone;
+
   notifyScheduleChange({
     type: 'schedule_created',
     schedule: result.schedule,
@@ -502,16 +490,32 @@ export async function createScheduleEntry(input: ScheduleCreateInput, actor: Act
   }).catch(() => {});
 
   // Notificación in-app a los asignados
-  createInAppNotificationBatch(
-    parsed.data.assigneeIds.map(userId => ({
-      userId,
-      type: 'schedule_assigned',
-      title: 'Nuevo turno asignado',
-      message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${result.schedule.startDatetime.toLocaleDateString()} de ${result.schedule.startDatetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} a ${result.schedule.endDatetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Asignado por ${actor.name}.`,
-      link: '/schedule',
-      metadata: { scheduleId: result.schedule.id, assignedBy: actor.id },
-    })),
-  ).catch(() => {});
+  const formatInAppDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  filterRecipientsByScheduleNotificationPreference(parsed.data.assigneeIds)
+    .then((recipientIds) => {
+      if (recipientIds.length === 0) return;
+      return createInAppNotificationBatch(
+        recipientIds.map((userId) => ({
+          userId,
+          type: 'schedule_assigned',
+          title: 'Nuevo turno asignado',
+          message: `Se te ha asignado un nuevo turno: "${result.schedule.title}" el ${formatInAppDt(result.schedule.startDatetime)} a ${formatInAppDt(result.schedule.endDatetime)}. Asignado por ${actor.name}.`,
+          link: '/schedule',
+          metadata: { scheduleId: result.schedule.id, assignedBy: actor.id },
+        })),
+      );
+    })
+    .catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_CREATED, {
     entity: 'schedule',
@@ -719,16 +723,33 @@ export async function updateScheduleEntry(scheduleId: string, input: ScheduleUpd
 
   // Notificación in-app a los asignados sobre cambios
   const finalAssigneeIds = assigneeIds || existing.assignments.map((a: { userId: string }) => a.userId);
-  createInAppNotificationBatch(
-    finalAssigneeIds.map(userId => ({
-      userId,
-      type: 'schedule_modified',
-      title: 'Turno modificado',
-      message: `El turno "${schedule.title}" del ${schedule.startDatetime.toLocaleDateString()} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
-      link: '/schedule',
-      metadata: { scheduleId: schedule.id, updatedBy: actor.id },
-    })),
-  ).catch(() => {});
+  const branchTimezone = schedule.branch?.timezone;
+  const formatInAppDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  filterRecipientsByScheduleNotificationPreference(finalAssigneeIds)
+    .then((recipientIds) => {
+      if (recipientIds.length === 0) return;
+      return createInAppNotificationBatch(
+        recipientIds.map((userId) => ({
+          userId,
+          type: 'schedule_modified',
+          title: 'Turno modificado',
+          message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido modificado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+          link: '/schedule',
+          metadata: { scheduleId: schedule.id, updatedBy: actor.id },
+        })),
+      );
+    })
+    .catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_UPDATED, {
     entity: 'schedule',
@@ -868,16 +889,33 @@ export async function deleteScheduleEntry(scheduleId: string, reason: string | u
   }).catch(() => {});
 
   // Notificación in-app a los asignados sobre eliminación
-  createInAppNotificationBatch(
-    schedule.assignments.map((a: { userId: string }) => ({
-      userId: a.userId,
-      type: 'schedule_deleted',
-      title: 'Turno eliminado',
-      message: `El turno "${schedule.title}" del ${schedule.startDatetime.toLocaleDateString()} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
-      link: '/schedule',
-      metadata: { scheduleId: schedule.id, deletedBy: actor.id },
-    })),
-  ).catch(() => {});
+  const branchTimezone = schedule.branch?.timezone;
+  const formatInAppDt = (dt: Date) => {
+    if (branchTimezone) {
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
+      }).format(dt);
+    }
+    return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  filterRecipientsByScheduleNotificationPreference(schedule.assignments.map((a: { userId: string }) => a.userId))
+    .then((recipientIds) => {
+      if (recipientIds.length === 0) return;
+      return createInAppNotificationBatch(
+        recipientIds.map((userId) => ({
+          userId,
+          type: 'schedule_deleted',
+          title: 'Turno eliminado',
+          message: `El turno "${schedule.title}" del ${formatInAppDt(schedule.startDatetime)} ha sido eliminado por ${actor.name}.${reason ? ` Motivo: ${reason}` : ''}`,
+          link: '/schedule',
+          metadata: { scheduleId: schedule.id, deletedBy: actor.id },
+        })),
+      );
+    })
+    .catch(() => {});
 
   publishRealtimeEvent(REALTIME_EVENTS.SCHEDULE_DELETED, {
     entity: 'schedule',

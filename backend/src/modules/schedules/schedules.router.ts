@@ -22,10 +22,10 @@ const router = Router();
 router.get('/', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => listSchedulesController(req, res));
 
 // Get weekly schedules
-router.get('/week/:year/:week', authMiddleware, (req: AuthRequest, res: Response) => listWeekSchedulesController(req, res));
+router.get('/week/:year/:week', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => listWeekSchedulesController(req, res));
 
 // My weekly work summary (authenticated user)
-router.get('/weekly-summary/me/:year/:week', authMiddleware, (req: AuthRequest, res: Response) => getMyWeeklySummaryController(req, res));
+router.get('/weekly-summary/me/:year/:week', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => getMyWeeklySummaryController(req, res));
 
 // Weekly work summary (single week)
 router.get('/weekly-summary/:userId/:year/:week', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => getWeeklySummaryController(req, res));
@@ -37,10 +37,10 @@ router.get('/weekly-summary/:userId/:year', authMiddleware, requirePermission('s
 router.get('/team-weekly-summary/:year/:week', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => getTeamWeeklySummaryController(req, res));
 
 // Get schedule alerts (unassigned/solo)
-router.get('/alerts', authMiddleware, (req: AuthRequest, res: Response) => getScheduleAlertsController(req, res));
+router.get('/alerts', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => getScheduleAlertsController(req, res));
 
 // Get single schedule
-router.get('/:id', authMiddleware, (req: AuthRequest, res: Response) => getScheduleController(req, res));
+router.get('/:id', authMiddleware, requirePermission('schedules:view'), (req: AuthRequest, res: Response) => getScheduleController(req, res));
 
 // Create schedule
 router.post('/', authMiddleware, requirePermission('schedules:create'), (req: AuthRequest, res: Response) => createScheduleController(req, res));

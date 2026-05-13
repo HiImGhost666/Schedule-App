@@ -17,6 +17,9 @@ jest.mock('../src/modules/notifications/notifications.service', () => ({
 jest.mock('../src/modules/in-app-notifications/in-app.service', () => ({
   createInAppNotification: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../src/modules/schedules/weekly-summary.service', () => ({
+  recalculateWeeklySummariesForVacation: jest.fn().mockResolvedValue(undefined),
+}));
 
 import { prismaMock } from './singleton';
 import { approveVacationEntry } from '../src/modules/vacations/vacations.service';

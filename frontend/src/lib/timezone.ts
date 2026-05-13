@@ -92,12 +92,15 @@ export function timezoneToUtc(
   minute: number,
   timezone: string,
 ): Date {
-  // Construimos un string ISO "local" y lo parseamos con Intl
+  // Construimos un string ISO "local" (sin Z) para que JS lo interprete como hora local
   const localStr = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+
+  // Esto es la hora "local" tratada como UTC (punto de referencia)
   const utcDate = new Date(localStr + 'Z');
 
-  // Obtenemos el offset de la timezone en esa fecha
-  const tzDate = new Date(localStr + 'Z');
+  // Obtenemos qué hora "local" representa en la timezone destino.
+  // Al pasar localStr sin Z, JS lo interpreta como UTC (ISO string sin timezone = UTC).
+  // Luego Intl.DateTimeFormat con timeZone calcula la hora local en esa timezone.
   const parts = new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
     month: '2-digit',
@@ -106,7 +109,7 @@ export function timezoneToUtc(
     minute: '2-digit',
     timeZone: timezone,
     hour12: false,
-  }).formatToParts(tzDate);
+  }).formatToParts(new Date(localStr + 'Z'));
 
   const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? '0', 10);
   const tzLocal = new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));

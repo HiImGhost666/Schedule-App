@@ -11,6 +11,11 @@ const mockTransaction = {
   auditLog: { update: jest.fn() },
   department: { upsert: jest.fn(), delete: jest.fn() },
   departmentBranch: { deleteMany: jest.fn(), createMany: jest.fn() },
+  vacationRequest: { delete: jest.fn(), upsert: jest.fn() },
+  shiftPreset: { delete: jest.fn(), upsert: jest.fn() },
+  scheduleType: { delete: jest.fn(), upsert: jest.fn() },
+  role: { delete: jest.fn(), upsert: jest.fn() },
+  themeSettings: { deleteMany: jest.fn(), upsert: jest.fn() },
 };
 
 jest.mock('../src/modules/audit/audit.repository');
@@ -187,6 +192,112 @@ describe('rollbackAudit', () => {
         { departmentId: 'dept-1', branchId: 'branch-2' },
       ],
     });
+  });
+
+  it('restaura un ShiftPreset desde snapshot before', async () => {
+    mockAuditRepo.findAuditLogById.mockResolvedValue(
+      buildLog({
+        action: 'UPDATE_SHIFT_PRESET',
+        entityType: 'ShiftPreset',
+        entityId: 'preset-1',
+        detailsJson: JSON.stringify({
+          before: {
+            id: 'preset-1',
+            name: 'Mañana',
+            startTime: '08:00',
+            endTime: '16:00',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      }) as any,
+    );
+
+    await rollbackAudit('log-1', 'admin-id');
+
+    expect(mockTransaction.shiftPreset.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'preset-1' },
+      create: expect.objectContaining({
+        id: 'preset-1',
+        name: 'Mañana',
+        startTime: '08:00',
+        endTime: '16:00',
+      }),
+      update: expect.objectContaining({
+        name: 'Mañana',
+        startTime: '08:00',
+        endTime: '16:00',
+      }),
+    }));
+  });
+
+  it('restaura un VacationRequest aprobado desde snapshot before', async () => {
+    mockAuditRepo.findAuditLogById.mockResolvedValue(
+      buildLog({
+        action: 'APPROVE_VACATION',
+        entityType: 'VacationRequest',
+        entityId: 'vac-1',
+        detailsJson: JSON.stringify({
+          before: {
+            id: 'vac-1',
+            employeeId: 'employee-1',
+            status: 'pending',
+            startDate: '2026-05-12T00:00:00.000Z',
+            endDate: '2026-05-13T00:00:00.000Z',
+            note: 'Viaje',
+            reviewedBy: null,
+            reviewedAt: null,
+            rejectionReason: null,
+            branchId: 'branch-1',
+            departmentId: 'dept-1',
+          },
+        }),
+      }) as any,
+    );
+
+    await rollbackAudit('log-1', 'admin-id');
+
+    expect(mockTransaction.vacationRequest.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'vac-1' },
+      update: expect.objectContaining({
+        employeeId: 'employee-1',
+        status: 'pending',
+        branchId: 'branch-1',
+        departmentId: 'dept-1',
+      }),
+    }));
+  });
+
+  it('restaura permisos de Role desde snapshot before', async () => {
+    mockAuditRepo.findAuditLogById.mockResolvedValue(
+      buildLog({
+        action: 'UPDATE_ROLE',
+        entityType: 'Role',
+        entityId: 'role-1',
+        detailsJson: JSON.stringify({
+          before: {
+            id: 'role-1',
+            name: 'manager',
+            description: 'Manager',
+            isSystem: false,
+            permissions: [{ name: 'schedules:view' }, { name: 'users:view' }],
+          },
+        }),
+      }) as any,
+    );
+
+    await rollbackAudit('log-1', 'admin-id');
+
+    expect(mockTransaction.role.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'role-1' },
+      update: expect.objectContaining({
+        name: 'manager',
+        permissions: {
+          set: [{ name: 'schedules:view' }, { name: 'users:view' }],
+        },
+      }),
+    }));
   });
 });
 

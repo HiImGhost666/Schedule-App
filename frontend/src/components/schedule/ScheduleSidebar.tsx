@@ -11,6 +11,7 @@ interface ScheduleSidebarProps {
   branches: Branch[];
   activeBranchId: string;
   effectiveActiveBranchId: string;
+  canSelectBranches: boolean;
   canViewAllBranches: boolean;
   onBranchChange: (branchId: string) => void;
   departments?: Department[];
@@ -27,7 +28,7 @@ interface ScheduleSidebarProps {
 }
 
 export function ScheduleSidebar({
-  branches, activeBranchId, effectiveActiveBranchId, canViewAllBranches, onBranchChange,
+  branches, activeBranchId, effectiveActiveBranchId, canSelectBranches, canViewAllBranches, onBranchChange,
   departments, selectedDeptId, onDepartmentChange, hiddenTypes, onToggleType, typeCounts, holidayTypeCounts,
   scheduleTypes, isEmployee, filterUserId, onFilterUserChange,
 }: ScheduleSidebarProps) {
@@ -54,6 +55,7 @@ export function ScheduleSidebar({
         branches={branches}
         activeBranchId={activeBranchId}
         effectiveActiveBranchId={effectiveActiveBranchId}
+        canSelectBranches={canSelectBranches}
         canViewAllBranches={canViewAllBranches}
         onChange={onBranchChange}
         departments={departments}

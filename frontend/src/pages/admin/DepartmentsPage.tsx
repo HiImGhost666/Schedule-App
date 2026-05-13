@@ -177,6 +177,26 @@ export function DepartmentsPage() {
     onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo actualizar el integrante')),
   });
 
+  const assignManagerMutation = useMutation({
+    mutationFn: ({ departmentId, userId }: { departmentId: string; userId: string }) =>
+      api.patch(`/departments/${departmentId}/manager`, { userId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['departments'], exact: false });
+      toast.success('Manager asignado');
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo asignar el manager')),
+  });
+
+  const removeManagerMutation = useMutation({
+    mutationFn: ({ departmentId, userId }: { departmentId: string; userId: string }) =>
+      api.delete(`/departments/${departmentId}/manager`, { data: { userId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['departments'], exact: false });
+      toast.success('Manager removido');
+    },
+    onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'No se pudo remover el manager')),
+  });
+
   const departmentSaving = createDepartmentMutation.isPending || updateDepartmentMutation.isPending;
   const hasBranches = Boolean(branches?.data?.length);
   const hasDepartments = Boolean(departments?.data?.length);
@@ -245,6 +265,16 @@ export function DepartmentsPage() {
 
   const handleMoveUser = (userId: string, departmentId: string) => {
     updateDepartmentMemberMutation.mutate({ userId, departmentId });
+  };
+
+  const handleAssignManager = (userId: string) => {
+    if (!selectedDepartment) return;
+    assignManagerMutation.mutate({ departmentId: selectedDepartment.id, userId });
+  };
+
+  const handleRemoveManager = (userId: string) => {
+    if (!selectedDepartment) return;
+    removeManagerMutation.mutate({ departmentId: selectedDepartment.id, userId });
   };
 
   return (
@@ -339,6 +369,7 @@ export function DepartmentsPage() {
                   usersLoading={usersLoading}
                   onEdit={() => startEditDepartment(selectedDepartment)}
                   onManageMembers={() => setShowMembersModal(true)}
+                  onManageManagers={() => setShowMembersModal(true)}
                   onDisable={() => setDepartmentToDisable(selectedDepartment)}
                   onActivate={() => setDepartmentToActivate(selectedDepartment)}
                   onHardDelete={() => setDepartmentToHardDelete(selectedDepartment)}
@@ -362,9 +393,11 @@ export function DepartmentsPage() {
           branchUsers={branchUsers}
           departmentUsers={departmentUsersList}
           departments={otherDepartments}
-          isLoading={branchUsersLoading || updateDepartmentMemberMutation.isPending}
+          isLoading={branchUsersLoading || updateDepartmentMemberMutation.isPending || assignManagerMutation.isPending || removeManagerMutation.isPending}
           onAssignUser={handleAssignUser}
           onMoveUser={handleMoveUser}
+          onAssignManager={handleAssignManager}
+          onRemoveManager={handleRemoveManager}
           onCancel={() => setShowMembersModal(false)}
         />
       ) : null}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SchedulePage } from '@/pages/SchedulePage';
@@ -7,7 +7,12 @@ import { SchedulePage } from '@/pages/SchedulePage';
 const getMock = vi.fn();
 
 const authState: {
-  user: { id: string; role: { name: 'admin' | 'general_manager' | 'department_manager' | 'employee' }; branchId?: string } | null;
+  user: {
+    id: string;
+    role: { name: 'admin' | 'general_manager' | 'department_manager' | 'employee' };
+    branchId?: string;
+    visibleBranches?: Array<{ branch: { id: string; name: string; code: string; isActive: boolean } }>;
+  } | null;
 } = {
   user: { id: 'admin-1', role: { name: 'admin' } },
 };
@@ -201,6 +206,62 @@ describe('SchedulePage smoke', () => {
       '/branches/b-1/holidays',
       expect.any(Object),
     );
+  });
+
+  it('no-admin con múltiples sucursales visibles puede cambiar sucursal sin opción global', async () => {
+    authState.user = {
+      id: 'manager-1',
+      role: { name: 'general_manager' },
+      branchId: 'b-1',
+      visibleBranches: [{ branch: { id: 'b-2', name: 'Barcelona', code: 'BCN02', isActive: true } }],
+    };
+
+    getMock.mockImplementation((url: string) => {
+      if (url === '/branches') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              { id: 'b-1', name: 'Madrid', code: 'MAD01', countryCode: 'ES', timezone: 'Europe/Madrid', isActive: true, createdAt: '', updatedAt: '' },
+              { id: 'b-2', name: 'Barcelona', code: 'BCN02', countryCode: 'ES', timezone: 'Europe/Madrid', isActive: true, createdAt: '', updatedAt: '' },
+            ],
+          },
+        });
+      }
+      if (url === '/departments') {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      if (url === '/schedules') {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      if (url === '/branches/b-1/holidays' || url === '/branches/b-2/holidays') {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      return Promise.resolve({ data: { success: true, data: [] } });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith(
+        '/schedules',
+        expect.objectContaining({
+          params: expect.objectContaining({ branchId: 'b-1' }),
+        }),
+      );
+    });
+
+    expect(screen.queryByText('Todas las sucursales')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Barcelona' }));
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith(
+        '/schedules',
+        expect.objectContaining({
+          params: expect.objectContaining({ branchId: 'b-2' }),
+        }),
+      );
+    });
   });
 
   it('employee sin sucursal asignada y sin sucursales no consulta schedules', async () => {

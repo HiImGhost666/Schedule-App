@@ -35,8 +35,13 @@ export async function listUsersController(req: AuthRequest, res: Response) {
   const parsedQuery = listUsersQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
 
-  const { users, total } = await getUsersList(parsedQuery.data, { id: req.user!.id, ipAddress: req.ip });
-  return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
+  try {
+    const { users, total } = await getUsersList(parsedQuery.data, { id: req.user!.id, ipAddress: req.ip });
+    return sendPaginated(res, users, total, parsedQuery.data.page, parsedQuery.data.limit);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
 }
 
 /**
@@ -217,7 +222,17 @@ export async function listUserSchedulesController(req: AuthRequest, res: Respons
   if (!parsedQuery.success) return sendError(res, 'Parámetros inválidos', 400, parsedQuery.error.flatten(), 'BAD_REQUEST');
 
   try {
-    const schedules = await getUserSchedules(parsedParams.data.id, parsedQuery.data.from, parsedQuery.data.to);
+    const schedules = await getUserSchedules(
+      parsedParams.data.id,
+      {
+        id: req.user!.id,
+        roleName: req.user!.roleName,
+        branchId: req.user!.branchId,
+        visibleBranchIds: req.user!.visibleBranchIds,
+      },
+      parsedQuery.data.from,
+      parsedQuery.data.to,
+    );
     return sendSuccess(res, schedules);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, CheckCheck, X, Clock, CalendarCheck, CalendarX, UserMinus, UserPlus, ShieldAlert } from 'lucide-react';
+import { Bell, CheckCheck, X, Clock, CalendarCheck, CalendarX, UserMinus, UserPlus, ShieldAlert, RefreshCw, Trash2 } from 'lucide-react';
 import type { InAppNotification } from '@/hooks/useInAppNotifications';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -41,6 +41,9 @@ interface NotificationPanelProps {
   loading: boolean;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onDelete: (id: string) => void;
+  onDeleteAll: () => void;
+  onRefresh: () => void;
   onFetchMore: (page: number) => void;
   pagination: { page: number; total: number; totalPages: number };
 }
@@ -51,6 +54,9 @@ export function NotificationPanel({
   loading,
   onMarkAsRead,
   onMarkAllAsRead,
+  onDelete,
+  onDeleteAll,
+  onRefresh,
   onFetchMore,
   pagination,
 }: NotificationPanelProps) {
@@ -103,6 +109,26 @@ export function NotificationPanel({
                   Leer todas
                 </button>
               )}
+              {notifications.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onDeleteAll}
+                  className="text-xs text-gray-500 hover:text-red-600 flex items-center gap-1"
+                  title="Eliminar todas"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Borrar todo
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="p-1 rounded hover:bg-gray-100 text-gray-400"
+                aria-label="Actualizar notificaciones"
+                title="Actualizar"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -127,13 +153,9 @@ export function NotificationPanel({
             ) : (
               <>
                 {notifications.map((notif) => (
-                  <button
+                  <div
                     key={notif.id}
-                    type="button"
-                    onClick={() => {
-                      if (!notif.readAt) onMarkAsRead(notif.id);
-                    }}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
+                    className={`w-full px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
                       !notif.readAt ? 'bg-blue-50/40' : ''
                     }`}
                   >
@@ -141,7 +163,13 @@ export function NotificationPanel({
                       <div className="mt-0.5 flex-shrink-0">
                         {getTypeIcon(notif.type)}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!notif.readAt) onMarkAsRead(notif.id);
+                        }}
+                        className="flex-1 min-w-0 text-left"
+                      >
                         <p className="text-sm font-medium text-gray-800 truncate">
                           {notif.title}
                         </p>
@@ -151,12 +179,21 @@ export function NotificationPanel({
                         <p className="text-[10px] text-gray-400 mt-1">
                           {formatTimeAgo(notif.createdAt)}
                         </p>
-                      </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(notif.id)}
+                        className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-600"
+                        aria-label="Eliminar notificación"
+                        title="Eliminar notificación"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                       {!notif.readAt && (
                         <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
                       )}
                     </div>
-                  </button>
+                  </div>
                 ))}
 
                 {/* Paginación */}

@@ -10,6 +10,7 @@ jest.mock('../src/config/database', () => {
     findMany: jest.fn(),
     count: jest.fn(),
     updateMany: jest.fn(),
+    deleteMany: jest.fn(),
   };
   return {
     prisma: {
@@ -24,6 +25,10 @@ jest.mock('../src/config/database', () => {
   };
 });
 
+jest.mock('../src/realtime/socket', () => ({
+  publishRealtimeEvent: jest.fn(),
+}));
+
 import { prisma } from '../src/config/database';
 import {
   createInAppNotification,
@@ -33,7 +38,10 @@ import {
   markAsRead,
   markAllAsRead,
   countUnread,
+  deleteNotification,
+  deleteAllNotifications,
 } from '../src/modules/in-app-notifications/in-app.service';
+import { publishRealtimeEvent } from '../src/realtime/socket';
 
 const mockModel = prisma.inAppNotification as unknown as {
   create: jest.Mock;
@@ -41,6 +49,7 @@ const mockModel = prisma.inAppNotification as unknown as {
   findMany: jest.Mock;
   count: jest.Mock;
   updateMany: jest.Mock;
+  deleteMany: jest.Mock;
 };
 
 describe('in-app-notifications.service', () => {
@@ -215,6 +224,34 @@ describe('in-app-notifications.service', () => {
         where: { userId: 'user-1', readAt: null },
       });
       expect(result).toBe(5);
+    });
+  });
+
+  describe('deleteNotification', () => {
+    it('elimina notificación del usuario dueño', async () => {
+      mockModel.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await deleteNotification('notif-1', 'user-1');
+
+      expect(mockModel.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'notif-1', userId: 'user-1' },
+      });
+      expect(result.count).toBe(1);
+      expect(publishRealtimeEvent).toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteAllNotifications', () => {
+    it('elimina todas las notificaciones del usuario', async () => {
+      mockModel.deleteMany.mockResolvedValue({ count: 3 });
+
+      const result = await deleteAllNotifications('user-1');
+
+      expect(mockModel.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
+      expect(result.count).toBe(3);
+      expect(publishRealtimeEvent).toHaveBeenCalled();
     });
   });
 });

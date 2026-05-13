@@ -45,6 +45,7 @@ jest.mock('../src/modules/notifications/notifications.templates', () => ({
 
 import notificationsRouter from '../src/modules/notifications/notifications.router';
 import * as notificationsService from '../src/modules/notifications/notifications.service';
+import * as notificationsScheduler from '../src/modules/notifications/notifications.scheduler';
 import { prismaMock } from './singleton';
 
 const app = express();
@@ -143,5 +144,45 @@ describe('notifications.router', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.sent).toBe(2);
     expect(notificationsService.sendToWebhook).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes explicit webhook ids to friday summary', async () => {
+    (notificationsScheduler.sendFridaySummary as jest.Mock).mockResolvedValueOnce([{ success: true }]);
+
+    const response = await request(app)
+      .post('/api/notifications/friday-summary')
+      .set('x-test-role', 'admin')
+      .send({ webhookConfigIds: ['wh-1'] });
+
+    expect(response.status).toBe(200);
+    expect(notificationsScheduler.sendFridaySummary).toHaveBeenCalledWith('test-user', ['wh-1']);
+  });
+
+  it('passes explicit webhook ids to vacation summary', async () => {
+    (notificationsScheduler.sendMondayVacationSummary as jest.Mock).mockResolvedValueOnce([{ success: true }]);
+
+    const response = await request(app)
+      .post('/api/notifications/vacation-summary')
+      .set('x-test-role', 'admin')
+      .send({ webhookConfigIds: ['wh-2'] });
+
+    expect(response.status).toBe(200);
+    expect(notificationsScheduler.sendMondayVacationSummary).toHaveBeenCalledWith('test-user', ['wh-2']);
+  });
+
+  it('keeps an empty webhook id list scoped to zero announcement targets', async () => {
+    prismaMock.webhookConfig.findMany.mockResolvedValueOnce([] as any);
+
+    const response = await request(app)
+      .post('/api/notifications/announce')
+      .set('x-test-role', 'admin')
+      .send({ message: 'Sin destinatarios', webhookConfigIds: [] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.sent).toBe(0);
+    expect(prismaMock.webhookConfig.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [] }, enabled: true },
+    });
+    expect(notificationsService.sendToWebhook).not.toHaveBeenCalled();
   });
 });

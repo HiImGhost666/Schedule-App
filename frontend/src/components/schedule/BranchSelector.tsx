@@ -5,6 +5,7 @@ interface BranchSelectorProps {
   branches: Branch[];
   activeBranchId: string;
   effectiveActiveBranchId: string;
+  canSelectBranches: boolean;
   canViewAllBranches: boolean;
   onChange: (branchId: string) => void;
   departments?: Department[];
@@ -16,13 +17,15 @@ export function BranchSelector({
   branches,
   activeBranchId,
   effectiveActiveBranchId,
+  canSelectBranches,
   canViewAllBranches,
   onChange,
   departments = [],
   selectedDeptId,
   onDepartmentChange,
 }: BranchSelectorProps) {
-  const shouldUseBranchDropdown = canViewAllBranches && (branches.length + 1 > 3);
+  const extraOptions = canViewAllBranches ? 1 : 0;
+  const shouldUseBranchDropdown = canSelectBranches && (branches.length + extraOptions > 3);
   const departmentSelector = (
     <DepartmentSelector
       departments={departments}
@@ -38,12 +41,12 @@ export function BranchSelector({
         Sucursal y festivos
       </div>
       <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-medium">
-        {canViewAllBranches ? (
+        {canSelectBranches ? (
           shouldUseBranchDropdown ? (
             <div className="w-full space-y-1">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">Selección de sucursal</label>
               <select value={activeBranchId} onChange={(e) => onChange(e.target.value)} className="input-field text-sm w-full">
-                <option value="">Todas las sucursales</option>
+                {canViewAllBranches && <option value="">Todas las sucursales</option>}
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>{`${branch.name} (${branch.code})${branch.isActive ? '' : ' - Inactiva'}`}</option>
                 ))}
@@ -52,8 +55,12 @@ export function BranchSelector({
             </div>
           ) : (
             <>
-              <BranchButton label="Todas las sucursales" isActive={!effectiveActiveBranchId} onClick={() => onChange('')} />
-              {!effectiveActiveBranchId && departmentSelector}
+              {canViewAllBranches && (
+                <>
+                  <BranchButton label="Todas las sucursales" isActive={!effectiveActiveBranchId} onClick={() => onChange('')} />
+                  {!effectiveActiveBranchId && departmentSelector}
+                </>
+              )}
               {branches.map((branch) => (
                 <div key={branch.id} className="space-y-2">
                   <BranchButton
@@ -67,6 +74,16 @@ export function BranchSelector({
               ))}
             </>
           )
+        ) : effectiveActiveBranchId ? (
+          <div className="space-y-2">
+            <div className="rounded-lg border px-3 py-2 bg-theme-surface border-theme-color">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-theme-muted mb-1">Sucursal activa</p>
+              <p className="text-xs text-theme-primary">
+                {branches.find((branch) => branch.id === effectiveActiveBranchId)?.name ?? 'Sucursal asignada'}
+              </p>
+            </div>
+            {departmentSelector}
+          </div>
         ) : (
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
             No tienes una sucursal asignada. Contacta con un administrador.

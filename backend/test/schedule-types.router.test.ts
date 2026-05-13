@@ -40,6 +40,7 @@ jest.mock('../src/modules/schedule-types/schedule-types.service', () => ({
 
 import scheduleTypesRouter from '../src/modules/schedule-types/schedule-types.router';
 import * as scheduleTypesService from '../src/modules/schedule-types/schedule-types.service';
+import { createAppError } from '../src/common/errors/error-catalog';
 
 const mockService = scheduleTypesService as jest.Mocked<typeof scheduleTypesService>;
 
@@ -121,6 +122,38 @@ describe('schedule-types.router', () => {
       expect(response.status).toBe(400);
       expect(mockService.createScheduleType).not.toHaveBeenCalled();
     });
+
+    it('preserves AppError status and code', async () => {
+      mockService.createScheduleType.mockRejectedValueOnce(createAppError('CONFLICT', 'Tipo duplicado'));
+
+      const response = await request(app)
+        .post('/api/schedule-types')
+        .set('x-test-role', 'admin')
+        .send({ value: 'nuevo', label: 'Nuevo', color: '#ff0000' });
+
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({
+        success: false,
+        error: 'Tipo duplicado',
+        code: 'CONFLICT',
+      });
+    });
+
+    it('returns 500 for unexpected errors', async () => {
+      mockService.createScheduleType.mockRejectedValueOnce(new Error('database down'));
+
+      const response = await request(app)
+        .post('/api/schedule-types')
+        .set('x-test-role', 'admin')
+        .send({ value: 'nuevo', label: 'Nuevo', color: '#ff0000' });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toMatchObject({
+        success: false,
+        error: 'Error al crear tipo de turno',
+        code: 'INTERNAL_ERROR',
+      });
+    });
   });
 
   describe('PUT /:id', () => {
@@ -142,6 +175,22 @@ describe('schedule-types.router', () => {
         .send({ label: 'Actualizado' });
       expect(response.status).toBe(403);
       expect(mockService.updateScheduleType).not.toHaveBeenCalled();
+    });
+
+    it('preserves NOT_FOUND from service', async () => {
+      mockService.updateScheduleType.mockRejectedValueOnce(createAppError('NOT_FOUND', 'Schedule type not found'));
+
+      const response = await request(app)
+        .put('/api/schedule-types/st-1')
+        .set('x-test-role', 'admin')
+        .send({ label: 'Actualizado' });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toMatchObject({
+        success: false,
+        error: 'Schedule type not found',
+        code: 'NOT_FOUND',
+      });
     });
   });
 
@@ -170,6 +219,21 @@ describe('schedule-types.router', () => {
         .set('x-test-role', 'employee');
       expect(response.status).toBe(403);
       expect(mockService.deleteScheduleType).not.toHaveBeenCalled();
+    });
+
+    it('preserves BAD_REQUEST when the type is in use', async () => {
+      mockService.deleteScheduleType.mockRejectedValueOnce(createAppError('BAD_REQUEST', 'Cannot delete schedule type that is being used by existing schedules'));
+
+      const response = await request(app)
+        .delete('/api/schedule-types/st-1')
+        .set('x-test-role', 'admin');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({
+        success: false,
+        error: 'Cannot delete schedule type that is being used by existing schedules',
+        code: 'BAD_REQUEST',
+      });
     });
   });
 });
