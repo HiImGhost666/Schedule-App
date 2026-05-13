@@ -60,6 +60,89 @@ CREATE TABLE `permissions` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `skills` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `category` VARCHAR(191) NULL,
+    `color` VARCHAR(191) NOT NULL DEFAULT '#1d4ed8',
+    `description` TEXT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `skills_name_key`(`name`),
+    INDEX `skills_is_active_idx`(`is_active`),
+    INDEX `skills_category_idx`(`category`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `user_skills` (
+    `user_id` VARCHAR(191) NOT NULL,
+    `skill_id` VARCHAR(191) NOT NULL,
+    `assigned_by` VARCHAR(191) NULL,
+    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `level` VARCHAR(191) NULL,
+    `expires_at` DATETIME(3) NULL,
+    `notes` TEXT NULL,
+
+    INDEX `user_skills_skill_id_idx`(`skill_id`),
+    INDEX `user_skills_assigned_by_idx`(`assigned_by`),
+    PRIMARY KEY (`user_id`, `skill_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `user_notification_preferences` (
+    `user_id` VARCHAR(191) NOT NULL,
+    `schedule_changes` BOOLEAN NOT NULL DEFAULT true,
+    `vacation_updates` BOOLEAN NOT NULL DEFAULT true,
+    `department_vacation_requests` BOOLEAN NOT NULL DEFAULT true,
+    `daily_summary` BOOLEAN NOT NULL DEFAULT false,
+    `weekly_summary` BOOLEAN NOT NULL DEFAULT true,
+    `critical_alerts_only` BOOLEAN NOT NULL DEFAULT false,
+    `updated_at` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`user_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `support_requests` (
+    `id` VARCHAR(191) NOT NULL,
+    `requester_id` VARCHAR(191) NOT NULL,
+    `target_user_id` VARCHAR(191) NOT NULL,
+    `branch_id` VARCHAR(191) NOT NULL,
+    `department_id` VARCHAR(191) NULL,
+    `start_date` DATETIME(3) NOT NULL,
+    `end_date` DATETIME(3) NOT NULL,
+    `reason` TEXT NULL,
+    `status` ENUM('pending', 'accepted', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+    `reviewed_by` VARCHAR(191) NULL,
+    `reviewed_at` DATETIME(3) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `support_requests_requester_id_idx`(`requester_id`),
+    INDEX `support_requests_target_user_id_idx`(`target_user_id`),
+    INDEX `support_requests_branch_id_status_idx`(`branch_id`, `status`),
+    INDEX `support_requests_start_date_end_date_idx`(`start_date`, `end_date`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `entity_comments` (
+    `id` VARCHAR(191) NOT NULL,
+    `entity_type` VARCHAR(191) NOT NULL,
+    `entity_id` VARCHAR(191) NOT NULL,
+    `author_id` VARCHAR(191) NOT NULL,
+    `body` TEXT NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `entity_comments_entity_type_entity_id_idx`(`entity_type`, `entity_id`),
+    INDEX `entity_comments_author_id_idx`(`author_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `employee_id_sequences` (
     `id` VARCHAR(191) NOT NULL,
     `last_number` INTEGER NOT NULL DEFAULT 0,
@@ -124,6 +207,16 @@ CREATE TABLE `department_managers` (
 
     INDEX `department_managers_user_id_idx`(`user_id`),
     PRIMARY KEY (`department_id`, `user_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `user_visible_branches` (
+    `user_id` VARCHAR(191) NOT NULL,
+    `branch_id` VARCHAR(191) NOT NULL,
+    `assigned_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `user_visible_branches_branch_id_idx`(`branch_id`),
+    PRIMARY KEY (`user_id`, `branch_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -408,6 +501,42 @@ ALTER TABLE `department_managers` ADD CONSTRAINT `department_managers_department
 
 -- AddForeignKey
 ALTER TABLE `department_managers` ADD CONSTRAINT `department_managers_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `user_skills` ADD CONSTRAINT `user_skills_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `user_skills` ADD CONSTRAINT `user_skills_skill_id_fkey` FOREIGN KEY (`skill_id`) REFERENCES `skills`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `user_skills` ADD CONSTRAINT `user_skills_assigned_by_fkey` FOREIGN KEY (`assigned_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `user_notification_preferences` ADD CONSTRAINT `user_notification_preferences_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `support_requests` ADD CONSTRAINT `support_requests_requester_id_fkey` FOREIGN KEY (`requester_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `support_requests` ADD CONSTRAINT `support_requests_target_user_id_fkey` FOREIGN KEY (`target_user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `support_requests` ADD CONSTRAINT `support_requests_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `support_requests` ADD CONSTRAINT `support_requests_department_id_fkey` FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `support_requests` ADD CONSTRAINT `support_requests_reviewed_by_fkey` FOREIGN KEY (`reviewed_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `entity_comments` ADD CONSTRAINT `entity_comments_author_id_fkey` FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `user_visible_branches` ADD CONSTRAINT `user_visible_branches_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `user_visible_branches` ADD CONSTRAINT `user_visible_branches_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `branch_holidays` ADD CONSTRAINT `branch_holidays_branch_id_fkey` FOREIGN KEY (`branch_id`) REFERENCES `branches`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

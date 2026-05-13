@@ -22,6 +22,8 @@ export function ProtectedRoute() {
 
 const ROUTE_LABELS: Record<string, string> = {
   '/admin/users': 'gestión de usuarios',
+  '/admin/planning': 'planificación operativa',
+  '/admin/skills': 'gestión de skills',
   '/admin/schedule-types': 'gestión de tipos de turno',
   '/admin/holidays': 'gestión de festivos',
   '/admin/notifications': 'gestión de notificaciones',

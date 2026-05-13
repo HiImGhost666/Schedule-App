@@ -37,6 +37,8 @@ const BranchesPage = lazy(() => import('@/pages/admin/BranchesPage').then((m) =>
 const DepartmentsPage = lazy(() => import('@/pages/admin/DepartmentsPage').then((m) => ({ default: m.DepartmentsPage })));
 const HolidaysPage = lazy(() => import('@/pages/admin/HolidaysPage').then((m) => ({ default: m.HolidaysPage })));
 const ShiftPresetsPage = lazy(() => import('@/pages/admin/ShiftPresetsPage').then((m) => ({ default: m.default })));
+const PlanningPage = lazy(() => import('@/pages/admin/PlanningPage').then((m) => ({ default: m.PlanningPage })));
+const SkillsPage = lazy(() => import('@/pages/admin/SkillsPage').then((m) => ({ default: m.SkillsPage })));
 
 const THEME_MANAGER_PATH = '/admin/theme';
 
@@ -163,6 +165,8 @@ function App() {
                 <Route element={<RoleGuard roles={['admin', 'general_manager', 'department_manager']} />}>
                   <Route path="admin/users" element={<UsersPage />} />
                   <Route path="admin/schedule-types" element={<ScheduleTypesPage />} />
+                  <Route path="admin/planning" element={<PlanningPage />} />
+                  <Route path="admin/skills" element={<SkillsPage />} />
                 </Route>
                 <Route element={<RoleGuard roles={['admin', 'general_manager']} />}>
                   <Route path="admin/holidays" element={<HolidaysPage />} />

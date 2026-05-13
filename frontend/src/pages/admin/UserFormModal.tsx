@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/config/api';
-import type { Branch, Department, User } from '@/types';
+import type { Branch, Department, Skill, User } from '@/types';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { getApiErrorMessage } from '@/lib/apiError';
@@ -19,6 +19,8 @@ const schema = z.object({
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1, 'La sucursal es obligatoria'),
+  skillIds: z.array(z.string()).optional().default([]),
+  visibleBranchIds: z.array(z.string()).optional().default([]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -42,6 +44,13 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
     enabled: open,
   });
   const branches = branchesData?.data ?? [];
+
+  const { data: skillsData, isLoading: skillsLoading } = useQuery<{ data: Skill[] }>({
+    queryKey: ['skills', 'user-form'],
+    queryFn: () => api.get('/skills').then((r) => r.data),
+    enabled: open,
+  });
+  const skills = skillsData?.data ?? [];
 
   const {
     register,
@@ -82,6 +91,8 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
         companyPhone: selectedUser.companyPhone || '',
         auxiliaryPhone: selectedUser.auxiliaryPhone || '',
         branchId: selectedUser.branchId || '',
+        skillIds: selectedUser.skills?.map((item) => item.skill.id) ?? [],
+        visibleBranchIds: selectedUser.visibleBranches?.map((item) => item.branch.id) ?? [],
       });
       return;
     }
@@ -95,6 +106,8 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
       companyPhone: '',
       auxiliaryPhone: '',
       branchId: '',
+      skillIds: [],
+      visibleBranchIds: [],
     });
   }, [selectedUser, reset]);
 
@@ -117,6 +130,8 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
         ...data,
         departmentIds: data.departmentId ? [data.departmentId] : [],
         branchId: data.branchId,
+        skillIds: data.skillIds ?? [],
+        visibleBranchIds: data.visibleBranchIds ?? [],
       };
 
       if (!isEdit) {
@@ -231,6 +246,42 @@ export function UserFormModal({ open, user, roleName, onClose }: Props) {
               </select>
               {errors.departmentId && <p className="text-xs text-red-500 mt-1">{errors.departmentId.message}</p>}
               {!selectedBranchId && <p className="text-xs text-theme-muted mt-1">Primero selecciona una sucursal para ver los departamentos disponibles.</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-theme-muted mb-1">Skills</label>
+              <select
+                {...register('skillIds')}
+                multiple
+                className="input-field min-h-28"
+                disabled={skillsLoading}
+              >
+                {skills.map((skill) => (
+                  <option key={skill.id} value={skill.id}>
+                    {skill.name} {skill.category ? `(${skill.category})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-theme-muted mt-0.5">Mantén Ctrl/Cmd para selección múltiple.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-theme-muted mb-1">Sucursales visibles</label>
+              <select
+                {...register('visibleBranchIds')}
+                multiple
+                className="input-field min-h-24"
+                disabled={branchesLoading}
+              >
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name} ({branch.code})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-theme-muted mt-0.5">Sucursales adicionales que puede consultar este usuario.</p>
             </div>
           </div>
 

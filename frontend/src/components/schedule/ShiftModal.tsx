@@ -206,7 +206,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
 
     setCalendarOpen(false);
     setShiftAnchorDate(null);
-  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes]);
+  }, [open, schedule, defaultStart, defaultEnd, reset, defaultBranchId, user?.branchId, scheduleTypes, shiftPresets]);
   const selectedType = watch('type');
   const selectedBranchId = watch('branchId');
   const isAllBranchesMode = !schedule && !defaultBranchId;
@@ -422,7 +422,7 @@ export function ShiftModal({ open, onClose, schedule, defaultStart, defaultEnd, 
       totalHours: Math.round(totalHours * 10) / 10,
       holidayHits,
     };
-  }, [selectedDateKeys, effectiveDayShiftOverrides, defaultShiftPresetId, presetById, holidayDates]);
+  }, [selectedDateKeys, effectiveDayShiftOverrides, defaultShiftPresetId, presetById, holidayDates, shiftPresets]);
 
   const createBulkMutation = useMutation({
     mutationFn: (payload: ShiftBulkPayload) => api.post('/schedules/bulk', payload),

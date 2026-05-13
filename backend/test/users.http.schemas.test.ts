@@ -98,6 +98,8 @@ describe('users.http.schemas', () => {
         role: 'general_manager',
         status: 'active',
         employeeId: 'EMP-001',
+        skillIds: ['skill-1'],
+        visibleBranchIds: ['branch-1', 'branch-2'],
       });
       expect(result.success).toBe(true);
     });
@@ -111,6 +113,14 @@ describe('users.http.schemas', () => {
 
     it('accepts empty object (partial)', () => {
       const result = updateUserBodySchema.safeParse({});
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts skills and visible branches in partial updates', () => {
+      const result = updateUserBodySchema.safeParse({
+        skillIds: ['skill-1', 'skill-2'],
+        visibleBranchIds: ['branch-1'],
+      });
       expect(result.success).toBe(true);
     });
   });

@@ -46,6 +46,11 @@ export const PERMISSIONS = [
   'shift_presets:create',
   'shift_presets:update',
   'shift_presets:delete',
+  'skills:view',
+  'skills:create',
+  'skills:update',
+  'skills:delete',
+  'skills:assign',
 ] as const;
 export type PermissionName = typeof PERMISSIONS[number];
 
@@ -88,6 +93,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'shift_presets:create',
     'shift_presets:update',
     'shift_presets:delete',
+    'skills:view',
+    'skills:create',
+    'skills:update',
+    'skills:delete',
+    'skills:assign',
   ],
   general_manager: [
     // Nota: Aunque tiene permisos de gestión, la lógica de negocio en el servicio
@@ -113,6 +123,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'vacations:approve',
     'vacations:cancel',
     'shift_presets:read',
+    'skills:view',
+    'skills:assign',
   ],
   department_manager: [
     'users:view',
@@ -131,6 +143,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleName, PermissionName[]> = {
     'vacations:approve',
     'vacations:cancel',
     'shift_presets:read',
+    'skills:view',
   ],
   employee: [
     'schedules:view',

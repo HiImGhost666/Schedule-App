@@ -130,6 +130,8 @@ const createUserInputSchema = z.object({
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1),
+  visibleBranchIds: z.array(z.string().min(1)).optional(),
+  skillIds: z.array(z.string().min(1)).optional(),
   employeeId: z.string().optional().nullable(),
   forcePasswordChange: z.boolean().optional(),
   role: z.enum(ROLE_NAMES).optional(),
@@ -146,6 +148,8 @@ const updateUserInputSchema = z.object({
   companyPhone: z.string().optional(),
   auxiliaryPhone: z.string().optional(),
   branchId: z.string().min(1).nullable().optional(),
+  visibleBranchIds: z.array(z.string().min(1)).optional(),
+  skillIds: z.array(z.string().min(1)).optional(),
   employeeId: z.string().optional().nullable(),
   roleId: z.string().optional(),
   role: z.enum(ROLE_NAMES).optional(),
@@ -301,6 +305,47 @@ async function ensureBranchExists(branchId: string) {
   }
 }
 
+async function ensureBranchesExist(branchIds: string[]) {
+  const uniqueIds = [...new Set(branchIds)];
+  if (uniqueIds.length === 0) return;
+  const found = await prisma.branch.findMany({ where: { id: { in: uniqueIds } }, select: { id: true } });
+  if (found.length !== uniqueIds.length) {
+    throw createAppError('BAD_REQUEST', 'Una o varias sucursales visibles no existen');
+  }
+}
+
+async function ensureSkillsExist(skillIds: string[]) {
+  const uniqueIds = [...new Set(skillIds)];
+  if (uniqueIds.length === 0) return;
+  const found = await prisma.skill.findMany({
+    where: { id: { in: uniqueIds }, isActive: true },
+    select: { id: true },
+  });
+  if (found.length !== uniqueIds.length) {
+    throw createAppError('BAD_REQUEST', 'Una o varias skills no existen o están inactivas');
+  }
+}
+
+async function replaceVisibleBranches(userId: string, branchIds: string[], tx: TransactionClient) {
+  const uniqueIds = [...new Set(branchIds)];
+  await tx.userVisibleBranch.deleteMany({ where: { userId } });
+  if (uniqueIds.length === 0) return;
+  await tx.userVisibleBranch.createMany({
+    data: uniqueIds.map((branchId) => ({ userId, branchId })),
+    skipDuplicates: true,
+  });
+}
+
+async function replaceUserSkills(userId: string, skillIds: string[], actorId: string | undefined, tx: TransactionClient) {
+  const uniqueIds = [...new Set(skillIds)];
+  await tx.userSkill.deleteMany({ where: { userId } });
+  if (uniqueIds.length === 0) return;
+  await tx.userSkill.createMany({
+    data: uniqueIds.map((skillId) => ({ userId, skillId, assignedById: actorId })),
+    skipDuplicates: true,
+  });
+}
+
 async function ensureDepartmentExists(departmentId: string, branchId?: string | null) {
   const department = await findDepartmentById(departmentId);
   if (!department) {
@@ -333,14 +378,30 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
   const normalizedEmployeeId = normalizeEmployeeId(parsed.data.employeeId);
   const shouldUpsertExisting = options?.upsertExisting ?? false;
   const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds) ?? undefined;
+  const visibleBranchIds = parsed.data.visibleBranchIds ?? [];
+  const skillIds = parsed.data.skillIds ?? [];
   await ensureBranchExists(parsed.data.branchId);
+  await ensureBranchesExist(visibleBranchIds);
+  await ensureSkillsExist(skillIds);
   if (actor?.id) {
     await assertUserScope(actor.id, { branchId: parsed.data.branchId });
+    await Promise.all(visibleBranchIds.map((branchId) => assertUserScope(actor.id!, { branchId })));
   }
   if (selectedDepartmentId) {
     await ensureDepartmentExists(selectedDepartmentId, parsed.data.branchId);
   }
-  const { password: _password, branchId: createBranchId, departmentId: _departmentId, departmentIds: _departmentIds, forcePasswordChange, roleId, role, ...userData } = parsed.data;
+  const {
+    password: _password,
+    branchId: createBranchId,
+    departmentId: _departmentId,
+    departmentIds: _departmentIds,
+    visibleBranchIds: _visibleBranchIds,
+    skillIds: _skillIds,
+    forcePasswordChange,
+    roleId,
+    role,
+    ...userData
+  } = parsed.data;
 
   const result = await executeInTransaction(async (tx) => {
     const identity = shouldUpsertExisting
@@ -380,6 +441,9 @@ export async function createUser(input: CreateUserInput, actor?: ActorContext, o
           ...baseUserData,
           ...(selectedDepartmentId !== undefined ? { departmentId: selectedDepartmentId } : {}),
         }, tx);
+
+    await replaceVisibleBranches(user.id, visibleBranchIds, tx);
+    await replaceUserSkills(user.id, skillIds, actor?.id, tx);
 
     const finalUser = (await findUserDetailById(user.id, tx)) ?? user;
 
@@ -533,6 +597,8 @@ export async function updateUser(userId: string, data: {
   auxiliaryPhone?: string;
   branchId?: string | null;
   employeeId?: string | null;
+  visibleBranchIds?: string[];
+  skillIds?: string[];
 }, actor: ActorContext) {
   const parsed = updateUserInputSchema.safeParse(data);
   if (!parsed.success) {
@@ -558,10 +624,19 @@ export async function updateUser(userId: string, data: {
   if (parsed.data.branchId) {
     await ensureBranchExists(parsed.data.branchId);
   }
+  if (parsed.data.visibleBranchIds) {
+    await ensureBranchesExist(parsed.data.visibleBranchIds);
+  }
+  if (parsed.data.skillIds) {
+    await ensureSkillsExist(parsed.data.skillIds);
+  }
 
   const targetBranchId = parsed.data.branchId ?? (user as { branchId?: string | null }).branchId ?? null;
   const selectedDepartmentId = resolveDepartmentId(parsed.data.departmentId, parsed.data.departmentIds);
   await assertUserScope(actor.id, { branchId: targetBranchId, departmentId: selectedDepartmentId ?? undefined });
+  if (parsed.data.visibleBranchIds) {
+    await Promise.all(parsed.data.visibleBranchIds.map((branchId) => assertUserScope(actor.id, { branchId })));
+  }
 
   // Solo aplicar restricciones de DM si el actor es department_manager
   const actorUser = await prisma.user.findUnique({
@@ -594,7 +669,17 @@ export async function updateUser(userId: string, data: {
     const normalizedCompanyPhone = normalizePhone(parsed.data.companyPhone);
     const normalizedAuxiliaryPhone = normalizePhone(parsed.data.auxiliaryPhone);
 
-  const { branchId: updateBranchId, departmentId: _departmentId2, departmentIds: _departmentIds2, employeeId, roleId, role, ...updateData } = parsed.data;
+  const {
+    branchId: updateBranchId,
+    departmentId: _departmentId2,
+    departmentIds: _departmentIds2,
+    visibleBranchIds,
+    skillIds,
+    employeeId,
+    roleId,
+    role,
+    ...updateData
+  } = parsed.data;
 
     const updated = await updateUserRecord(
       userId,
@@ -625,6 +710,13 @@ export async function updateUser(userId: string, data: {
       await updateUserRecord(userId, { departmentId: selectedDepartmentId ?? null }, tx);
     } else if (updateBranchId !== undefined) {
       // No action needed for department when branch changes
+    }
+
+    if (visibleBranchIds !== undefined) {
+      await replaceVisibleBranches(userId, visibleBranchIds, tx);
+    }
+    if (skillIds !== undefined) {
+      await replaceUserSkills(userId, skillIds, actor.id, tx);
     }
 
     const finalUser = (await findUserDetailById(userId, tx)) ?? updated;
