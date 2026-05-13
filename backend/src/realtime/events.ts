@@ -8,12 +8,13 @@ export const REALTIME_EVENTS = {
   USER_ROLE_CHANGED: 'user.roleChanged',
   USER_DELETED: 'user.deleted',
   AUDIT_CREATED: 'audit.created',
+  NOTIFICATION_CHANGED: 'notification.changed',
 } as const;
 
 export type RealtimeEventName = (typeof REALTIME_EVENTS)[keyof typeof REALTIME_EVENTS];
 
 export interface RealtimeEventPayload {
-  entity: 'schedule' | 'user' | 'audit';
+  entity: 'schedule' | 'user' | 'audit' | 'notification';
   action: 'created' | 'updated' | 'deleted' | 'statusChanged' | 'roleChanged';
   id: string;
   changedAt: string;
