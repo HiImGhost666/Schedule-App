@@ -1,4 +1,6 @@
-e# Vacations API — Contrato Backend para Frontend
+# Vacations API — Contrato Backend para Frontend
+
+> **Última actualización:** 13 mayo 2026
 
 ## Base URL
 

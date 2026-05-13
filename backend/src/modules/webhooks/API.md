@@ -1,5 +1,7 @@
 # Webhooks API — Contrato Backend para Frontend
 
+> **Última actualización:** 13 mayo 2026
+
 ## Base URL
 
 ```
@@ -53,7 +55,7 @@
 
 **`POST /api/webhooks`**
 
-- **Permiso:** `webhooks:create`
+- **Permiso:** `webhooks:manage`
 
 ### Request Body
 
@@ -107,7 +109,7 @@
 
 **`PATCH /api/webhooks/:id`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 ### Request Body (todos opcionales)
 
@@ -134,7 +136,7 @@
 
 **`DELETE /api/webhooks/:id`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 ### Response (200)
 
@@ -152,7 +154,7 @@
 
 **`POST /api/webhooks/:id/test`**
 
-- **Permiso:** `settings:manage`
+- **Permiso:** `webhooks:manage`
 
 ### Response (200)
 

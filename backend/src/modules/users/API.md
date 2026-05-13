@@ -1,5 +1,7 @@
 # Users API — Contrato Backend para Frontend
 
+> **Última actualización:** 13 mayo 2026
+
 ## Base URL
 
 ```
@@ -75,7 +77,7 @@
 
 **`GET /api/users/:id`**
 
-- **Permiso:** Autenticación sola
+- **Permiso:** acceso autenticado (recomendado endurecer a `users:view`)
 
 ### Response (200)
 
@@ -109,7 +111,7 @@
 
 **`POST /api/users`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:create`
 
 ### Request Body
 
@@ -145,7 +147,7 @@
 
 **`POST /api/users/import`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:create`
 - **Content-Type:** `multipart/form-data`
 
 ### Request
@@ -177,7 +179,7 @@
 
 **`PATCH /api/users/:id`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:update`
 
 ### Request Body (todos opcionales)
 
@@ -209,7 +211,7 @@
 
 **`PATCH /api/users/:id/status`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:update`
 
 ### Request Body
 
@@ -237,7 +239,7 @@ Valores: `active`, `disabled`, `locked`
 
 **`PATCH /api/users/:id/role`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:update`
 
 ### Request Body
 
@@ -266,7 +268,7 @@ Valores: `active`, `disabled`, `locked`
 
 **`POST /api/users/:id/reset-password`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:update`
 
 ### Request Body
 
@@ -292,7 +294,7 @@ Valores: `active`, `disabled`, `locked`
 
 **`POST /api/users/:id/force-password-change`**
 
-- **Permiso:** `users:manage`
+- **Permiso:** `users:delete`
 
 ### Response (200)
 

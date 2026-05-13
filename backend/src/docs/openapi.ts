@@ -3,7 +3,7 @@ export const openApiDocument = {
   info: {
     title: 'Restaurar Schedule API',
     version: '1.0.0',
-    description: 'API REST para gestión de turnos, vacaciones, notificaciones y configuración.',
+    description: 'API REST para gestión de turnos, vacaciones, usuarios, skills, planning, notificaciones y configuración.',
   },
   servers: [
     { url: '/api', description: 'API base path' },
@@ -12,7 +12,10 @@ export const openApiDocument = {
     { name: 'Health' },
     { name: 'Auth' },
     { name: 'Schedules' },
+    { name: 'Users' },
     { name: 'Vacations' },
+    { name: 'Skills' },
+    { name: 'Planning' },
     { name: 'Webhooks' },
     { name: 'Notifications' },
     { name: 'Settings' },
@@ -82,7 +85,45 @@ export const openApiDocument = {
         responses: {
           '200': { description: 'Login correcto' },
           '400': { description: 'Credenciales inválidas' },
+          '429': { description: 'Demasiados intentos de login' },
         },
+      },
+    },
+    '/users': {
+      get: {
+        tags: ['Users'],
+        summary: 'Lista usuarios con filtros y paginación',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Listado de usuarios' } },
+      },
+      post: {
+        tags: ['Users'],
+        summary: 'Crea un usuario',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Usuario creado' } },
+      },
+    },
+    '/users/{id}': {
+      get: {
+        tags: ['Users'],
+        summary: 'Obtiene un usuario por id',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Usuario encontrado' } },
+      },
+      patch: {
+        tags: ['Users'],
+        summary: 'Actualiza un usuario',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Usuario actualizado' } },
+      },
+      delete: {
+        tags: ['Users'],
+        summary: 'Elimina un usuario (soft delete)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Usuario eliminado' } },
       },
     },
     '/schedules': {
@@ -150,6 +191,50 @@ export const openApiDocument = {
         summary: 'Envía manualmente el resumen de vacaciones',
         security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Resumen enviado' } },
+      },
+    },
+    '/skills': {
+      get: {
+        tags: ['Skills'],
+        summary: 'Lista skills',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Listado de skills' } },
+      },
+      post: {
+        tags: ['Skills'],
+        summary: 'Crea una skill',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Skill creada' } },
+      },
+    },
+    '/planning/coverage-risks': {
+      get: {
+        tags: ['Planning'],
+        summary: 'Obtiene riesgos de cobertura',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Riesgos calculados' } },
+      },
+    },
+    '/planning/vacation-impact': {
+      get: {
+        tags: ['Planning'],
+        summary: 'Obtiene impacto de vacaciones sobre cobertura',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Impacto calculado' } },
+      },
+    },
+    '/planning/comments': {
+      get: {
+        tags: ['Planning'],
+        summary: 'Lista comentarios de entidad en planning',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Comentarios listados' } },
+      },
+      post: {
+        tags: ['Planning'],
+        summary: 'Crea comentario en planning',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Comentario creado' } },
       },
     },
     '/settings/theme': {
