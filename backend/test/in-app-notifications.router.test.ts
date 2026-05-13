@@ -99,10 +99,11 @@ describe('in-app-notifications.router', () => {
   describe('GET /', () => {
     it('returns paginated notifications', async () => {
       mockService.getUserNotifications.mockResolvedValue({
-        items: [{ id: 'n1' }],
+        items: [{ id: 'n1' } as any],
         total: 5,
         page: 2,
         pageSize: 10,
+        totalPages: 1,
       });
 
       const response = await request(app)
@@ -124,7 +125,7 @@ describe('in-app-notifications.router', () => {
 
   describe('PATCH /:id/read', () => {
     it('marks notification as read', async () => {
-      mockService.markAsRead.mockResolvedValue(undefined);
+      mockService.markAsRead.mockResolvedValue({ count: 1 });
 
       const response = await request(app)
         .patch('/api/in-app-notifications/notif-1/read')
@@ -151,7 +152,7 @@ describe('in-app-notifications.router', () => {
 
   describe('DELETE /:id', () => {
     it('deletes single notification', async () => {
-      mockService.deleteNotification.mockResolvedValue(undefined);
+      mockService.deleteNotification.mockResolvedValue({ count: 1 });
 
       const response = await request(app)
         .delete('/api/in-app-notifications/notif-x')
