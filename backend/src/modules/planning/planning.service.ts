@@ -7,15 +7,20 @@ import type {
   EquityItem,
   PlanningActor,
   PlanningRangeFilters,
+  PlanningComment,
   SubstituteSuggestion,
   TemplatePreviewDay,
   TimelineItem,
+  VacationImpact,
 } from './planning.types';
 import type {
   NotificationPreferencesInput,
+  PlanningCommentInput,
+  PlanningCommentsQueryInput,
   PlanningSubstitutesQueryInput,
   PlanningTemplatePreviewQueryInput,
   SupportRequestInput,
+  VacationImpactQueryInput,
 } from './planning.validation';
 
 export class PlanningService {
@@ -80,6 +85,13 @@ export class PlanningService {
   }
 
   /**
+   * Estimate vacation approval impact for a user in a date range.
+   */
+  async getVacationImpact(filters: VacationImpactQueryInput, actor: PlanningActor): Promise<VacationImpact> {
+    return planningManager.getVacationImpact(filters, actor);
+  }
+
+  /**
    * Get a crisis-mode summary for the requested range.
    */
   async getCrisisMode(filters: PlanningRangeFilters, actor: PlanningActor): Promise<CrisisModeSummary> {
@@ -122,6 +134,20 @@ export class PlanningService {
    */
   async reviewSupportRequest(id: string, status: 'accepted' | 'rejected' | 'cancelled', actor: PlanningActor) {
     return planningManager.reviewSupportRequest(id, status, actor);
+  }
+
+  /**
+   * List comments for a planning entity.
+   */
+  async listComments(filters: PlanningCommentsQueryInput): Promise<PlanningComment[]> {
+    return planningManager.listComments(filters.entityType, filters.entityId);
+  }
+
+  /**
+   * Add a comment to a planning entity.
+   */
+  async addComment(input: PlanningCommentInput, actor: PlanningActor): Promise<PlanningComment> {
+    return planningManager.addComment(input, actor);
   }
 
   /**

@@ -145,3 +145,46 @@ export type TemplatePreviewDay = {
   backups: TemplatePreviewCandidate[];
   status: 'covered' | 'partial' | 'uncovered';
 };
+
+export type VacationImpact = {
+  employee: {
+    id: string;
+    name: string;
+    branch: { id: string; name: string } | null;
+    department: { id: string; name: string } | null;
+  };
+  overlappingVacations: Array<{
+    id: string;
+    status: string;
+    employeeId: string;
+    startDate: string;
+    endDate: string;
+    employee: { id: string; name: string };
+  }>;
+  assignedSchedules: Array<{
+    id: string;
+    title: string;
+    startDatetime: string;
+    endDatetime: string;
+  }>;
+  holidays: Array<{
+    id: string;
+    name: string;
+    date: string;
+  }>;
+  likelihood: 'high' | 'medium' | 'low';
+  summary: string;
+};
+
+export type PlanningComment = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  author: {
+    id: string;
+    name: string;
+  };
+};

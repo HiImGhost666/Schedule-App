@@ -6,12 +6,15 @@ import { planningService } from './planning.service';
 import type { PlanningActor } from './planning.types';
 import {
   notificationPreferencesBodySchema,
+  planningCommentBodySchema,
+  planningCommentsQuerySchema,
   planningRangeQuerySchema,
   planningSubstitutesQuerySchema,
   planningTemplatePreviewQuerySchema,
   supportRequestBodySchema,
   supportRequestParamsSchema,
   supportRequestReviewBodySchema,
+  vacationImpactQuerySchema,
 } from './planning.validation';
 
 function buildPlanningActor(req: AuthRequest): PlanningActor {
@@ -28,7 +31,7 @@ function buildPlanningActor(req: AuthRequest): PlanningActor {
 function parseRangeQuery(req: AuthRequest, res: Response) {
   const parsed = planningRangeQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    sendError(res, 'Parametros invalidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+    sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
     return null;
   }
   return parsed.data;
@@ -84,7 +87,7 @@ export async function getAvailabilityMatrixController(req: AuthRequest, res: Res
 
 export async function getSubstituteSuggestionsController(req: AuthRequest, res: Response) {
   const parsed = planningSubstitutesQuerySchema.safeParse(req.query);
-  if (!parsed.success) return sendError(res, 'Parametros invalidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  if (!parsed.success) return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {
     const suggestions = await planningService.getSubstituteSuggestions(parsed.data, buildPlanningActor(req));
@@ -136,7 +139,7 @@ export async function getCrisisModeController(req: AuthRequest, res: Response) {
 
 export async function getTemplatePreviewController(req: AuthRequest, res: Response) {
   const parsed = planningTemplatePreviewQuerySchema.safeParse(req.query);
-  if (!parsed.success) return sendError(res, 'Parametros invalidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  if (!parsed.success) return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {
     const preview = await planningService.getTemplatePreview(parsed.data, buildPlanningActor(req));
@@ -162,7 +165,7 @@ export async function listSupportRequestsController(req: AuthRequest, res: Respo
 
 export async function createSupportRequestController(req: AuthRequest, res: Response) {
   const parsed = supportRequestBodySchema.safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos invalidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {
     const request = await planningService.createSupportRequest(parsed.data, buildPlanningActor(req));
@@ -176,8 +179,8 @@ export async function createSupportRequestController(req: AuthRequest, res: Resp
 export async function reviewSupportRequestController(req: AuthRequest, res: Response) {
   const parsedParams = supportRequestParamsSchema.safeParse(req.params);
   const parsedBody = supportRequestReviewBodySchema.safeParse(req.body);
-  if (!parsedParams.success) return sendError(res, 'Parametros invalidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
-  if (!parsedBody.success) return sendError(res, 'Datos invalidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
+  if (!parsedParams.success) return sendError(res, 'Parámetros inválidos', 400, parsedParams.error.flatten(), 'BAD_REQUEST');
+  if (!parsedBody.success) return sendError(res, 'Datos inválidos', 400, parsedBody.error.flatten(), 'BAD_REQUEST');
 
   try {
     const request = await planningService.reviewSupportRequest(
@@ -204,11 +207,50 @@ export async function getNotificationPreferencesController(req: AuthRequest, res
 
 export async function updateNotificationPreferencesController(req: AuthRequest, res: Response) {
   const parsed = notificationPreferencesBodySchema.safeParse(req.body);
-  if (!parsed.success) return sendError(res, 'Datos invalidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
 
   try {
     const preferences = await planningService.updateNotificationPreferences(buildPlanningActor(req), parsed.data);
     return sendSuccess(res, preferences, 'Preferencias actualizadas');
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function getVacationImpactController(req: AuthRequest, res: Response) {
+  const parsed = vacationImpactQuerySchema.safeParse(req.query);
+  if (!parsed.success) return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const impact = await planningService.getVacationImpact(parsed.data, buildPlanningActor(req));
+    return sendSuccess(res, impact);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function listCommentsController(req: AuthRequest, res: Response) {
+  const parsed = planningCommentsQuerySchema.safeParse(req.query);
+  if (!parsed.success) return sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const comments = await planningService.listComments(parsed.data);
+    return sendSuccess(res, comments);
+  } catch (error) {
+    if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
+    throw error;
+  }
+}
+
+export async function addCommentController(req: AuthRequest, res: Response) {
+  const parsed = planningCommentBodySchema.safeParse(req.body);
+  if (!parsed.success) return sendError(res, 'Datos inválidos', 400, parsed.error.flatten(), 'BAD_REQUEST');
+
+  try {
+    const comment = await planningService.addComment(parsed.data, buildPlanningActor(req));
+    return sendSuccess(res, comment, 'Comentario agregado', 201);
   } catch (error) {
     if (isAppError(error)) return sendError(res, error.message, error.statusCode, error.details, error.code);
     throw error;

@@ -10,11 +10,15 @@ import type {
   ScopedPlanningRangeFilters,
   TemplatePreviewDay,
   TimelineItem,
+  VacationImpact,
 } from './planning.types';
 import { createAppError } from '../../common/errors/error-catalog';
 import { prisma } from '../../config/database';
 import type { Prisma } from '@prisma/client';
-import type { NotificationPreferencesInput, SupportRequestInput } from './planning.validation';
+import type { NotificationPreferencesInput, PlanningCommentInput, SupportRequestInput, VacationImpactQueryInput } from './planning.validation';
+import { executeInTransaction } from '../../common/transactions/transaction.utils';
+import { logAuditOrThrow } from '../audit/audit.service';
+import { createInAppNotificationBatch } from '../in-app-notifications/in-app.service';
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
@@ -626,6 +630,111 @@ export class PlanningManager {
   }
 
   /**
+   * Estimate vacation request impact and potential conflicts.
+   */
+  async getVacationImpact(filters: VacationImpactQueryInput, actor: PlanningActor): Promise<VacationImpact> {
+    const employeeId = filters.employeeId ?? actor.id;
+    const employee = await prisma.user.findUnique({
+      where: { id: employeeId },
+      select: {
+        id: true,
+        name: true,
+        branchId: true,
+        departmentId: true,
+        branch: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+      },
+    });
+    if (!employee) throw createAppError('NOT_FOUND', 'Empleado no encontrado');
+
+    const scoped = await this.resolveScopedFilters({
+      from: filters.startDate,
+      to: filters.endDate,
+      branchId: employee.branchId ?? undefined,
+      departmentId: employee.departmentId ?? undefined,
+    }, actor);
+
+    const [overlappingVacations, assignedSchedules, holidays] = await Promise.all([
+      prisma.vacationRequest.findMany({
+        where: {
+          employeeId: { not: employee.id },
+          branchId: employee.branchId ?? undefined,
+          departmentId: employee.departmentId ?? undefined,
+          status: { in: ['approved', 'pending'] },
+          ...vacationOverlapWhere(filters.startDate, filters.endDate),
+        },
+        select: {
+          id: true,
+          status: true,
+          employeeId: true,
+          startDate: true,
+          endDate: true,
+          employee: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.scheduleAssignment.findMany({
+        where: {
+          userId: employee.id,
+          schedule: {
+            ...overlapWhere(filters.startDate, filters.endDate),
+            ...(scoped.branchIds ? { branchId: { in: scoped.branchIds } } : {}),
+          },
+        },
+        select: {
+          schedule: {
+            select: {
+              id: true,
+              title: true,
+              startDatetime: true,
+              endDatetime: true,
+            },
+          },
+        },
+      }),
+      prisma.branchHoliday.findMany({
+        where: {
+          branchId: employee.branchId ?? undefined,
+          isActive: true,
+          date: { gte: filters.startDate, lte: filters.endDate },
+        },
+        select: { id: true, name: true, date: true },
+      }),
+    ]);
+
+    const hardConflicts =
+      assignedSchedules.length + overlappingVacations.filter((item) => item.status === 'approved').length;
+    const likelihood: VacationImpact['likelihood'] =
+      hardConflicts >= 2 ? 'low' : hardConflicts === 1 || overlappingVacations.length > 0 ? 'medium' : 'high';
+
+    return {
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        branch: employee.branch,
+        department: employee.department,
+      },
+      overlappingVacations: overlappingVacations.map((item) => ({
+        ...item,
+        startDate: item.startDate.toISOString(),
+        endDate: item.endDate.toISOString(),
+      })),
+      assignedSchedules: assignedSchedules.map((item) => ({
+        ...item.schedule,
+        startDatetime: item.schedule.startDatetime.toISOString(),
+        endDatetime: item.schedule.endDatetime.toISOString(),
+      })),
+      holidays: holidays.map((item) => ({ ...item, date: item.date.toISOString() })),
+      likelihood,
+      summary:
+        likelihood === 'high'
+          ? 'Parece viable con los datos actuales'
+          : likelihood === 'medium'
+            ? 'Requiere revisión por solapes o turnos asignados'
+            : 'Riesgo alto: hay varios conflictos antes de aprobar',
+    };
+  }
+
+  /**
    * Summarize high-risk planning signals for crisis mode.
    */
   async getCrisisSummary(filters: ScopedPlanningRangeFilters, actor: PlanningActor): Promise<CrisisModeSummary> {
@@ -725,23 +834,80 @@ export class PlanningManager {
     });
     if (!target) throw createAppError('NOT_FOUND', 'Empleado de apoyo no encontrado');
 
-    return prisma.supportRequest.create({
-      data: {
-        requesterId: actor.id,
-        targetUserId: input.targetUserId,
-        branchId: input.branchId,
-        departmentId: input.departmentId || null,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        reason: input.reason?.trim() || null,
-      },
-      include: {
-        requester: { select: { id: true, name: true } },
-        targetUser: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-      },
+    const created = await executeInTransaction(async (tx) => {
+      const request = await tx.supportRequest.create({
+        data: {
+          requesterId: actor.id,
+          targetUserId: input.targetUserId,
+          branchId: input.branchId,
+          departmentId: input.departmentId || null,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          reason: input.reason?.trim() || null,
+        },
+        include: {
+          requester: { select: { id: true, name: true } },
+          targetUser: { select: { id: true, name: true } },
+          branch: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } },
+        },
+      });
+
+      await logAuditOrThrow({
+        userId: actor.id,
+        action: 'CREATE_SUPPORT_REQUEST',
+        entityType: 'SupportRequest',
+        entityId: request.id,
+        detailsJson: {
+          after: {
+            id: request.id,
+            targetUserId: request.targetUser.id,
+            branchId: request.branch.id,
+            startDate: request.startDate.toISOString(),
+            endDate: request.endDate.toISOString(),
+            status: request.status,
+          },
+        },
+      }, tx);
+
+      return request;
     });
+
+    const [targetPref, requesterPref] = await Promise.all([
+      prisma.userNotificationPreference.findUnique({
+        where: { userId: created.targetUser.id },
+        select: { criticalAlertsOnly: true },
+      }),
+      prisma.userNotificationPreference.findUnique({
+        where: { userId: created.requester.id },
+        select: { criticalAlertsOnly: true },
+      }),
+    ]);
+
+    const notifications = [];
+    if (!targetPref?.criticalAlertsOnly) {
+      notifications.push({
+        userId: created.targetUser.id,
+        type: 'system' as const,
+        title: 'Nueva solicitud de apoyo',
+        message: `${created.requester.name} solicitó tu apoyo del ${created.startDate.toISOString().slice(0, 10)} al ${created.endDate.toISOString().slice(0, 10)}.`,
+        metadata: { supportRequestId: created.id },
+      });
+    }
+    if (!requesterPref?.criticalAlertsOnly) {
+      notifications.push({
+        userId: created.requester.id,
+        type: 'system' as const,
+        title: 'Solicitud enviada',
+        message: `Tu solicitud de apoyo para ${created.targetUser.name} se registró correctamente.`,
+        metadata: { supportRequestId: created.id },
+      });
+    }
+    if (notifications.length > 0) {
+      await createInAppNotificationBatch(notifications);
+    }
+
+    return created;
   }
 
   /**
@@ -758,17 +924,103 @@ export class PlanningManager {
       departmentId: existing.departmentId ?? undefined,
     }, actor);
 
-    return prisma.supportRequest.update({
-      where: { id },
-      data: { status, reviewedBy: actor.id, reviewedAt: new Date() },
-      include: {
-        requester: { select: { id: true, name: true } },
-        targetUser: { select: { id: true, name: true } },
-        reviewer: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-      },
+    const updated = await executeInTransaction(async (tx) => {
+      const request = await tx.supportRequest.update({
+        where: { id },
+        data: { status, reviewedBy: actor.id, reviewedAt: new Date() },
+        include: {
+          requester: { select: { id: true, name: true } },
+          targetUser: { select: { id: true, name: true } },
+          reviewer: { select: { id: true, name: true } },
+          branch: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } },
+        },
+      });
+
+      await logAuditOrThrow({
+        userId: actor.id,
+        action: 'REVIEW_SUPPORT_REQUEST',
+        entityType: 'SupportRequest',
+        entityId: request.id,
+        detailsJson: {
+          before: { status: existing.status },
+          after: { status: request.status, reviewedBy: request.reviewedBy, reviewedAt: request.reviewedAt?.toISOString() },
+        },
+      }, tx);
+
+      return request;
     });
+
+    const [targetPref, requesterPref] = await Promise.all([
+      prisma.userNotificationPreference.findUnique({
+        where: { userId: updated.targetUser.id },
+        select: { criticalAlertsOnly: true },
+      }),
+      prisma.userNotificationPreference.findUnique({
+        where: { userId: updated.requester.id },
+        select: { criticalAlertsOnly: true },
+      }),
+    ]);
+
+    const statusLabel = status === 'accepted' ? 'aceptada' : status === 'rejected' ? 'rechazada' : 'cancelada';
+    const notifications = [];
+    if (!requesterPref?.criticalAlertsOnly) {
+      notifications.push({
+        userId: updated.requester.id,
+        type: 'system' as const,
+        title: 'Solicitud revisada',
+        message: `Tu solicitud de apoyo fue ${statusLabel}.`,
+        metadata: { supportRequestId: updated.id, status },
+      });
+    }
+    if (!targetPref?.criticalAlertsOnly) {
+      notifications.push({
+        userId: updated.targetUser.id,
+        type: 'system' as const,
+        title: 'Estado de solicitud actualizado',
+        message: `La solicitud de apoyo en la que participas fue ${statusLabel}.`,
+        metadata: { supportRequestId: updated.id, status },
+      });
+    }
+    if (notifications.length > 0) {
+      await createInAppNotificationBatch(notifications);
+    }
+
+    return updated;
+  }
+
+  /**
+   * List comments for a planning entity.
+   */
+  async listComments(entityType: string, entityId: string) {
+    return prisma.entityComment.findMany({
+      where: { entityType, entityId },
+      include: { author: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'asc' },
+    }).then((rows) =>
+      rows.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    );
+  }
+
+  /**
+   * Add a comment to a planning entity.
+   */
+  async addComment(input: PlanningCommentInput, actor: PlanningActor) {
+    const body = input.body.trim();
+    if (!body) throw createAppError('BAD_REQUEST', 'El comentario no puede estar vacío');
+    const comment = await prisma.entityComment.create({
+      data: {
+        entityType: input.entityType,
+        entityId: input.entityId,
+        body,
+        authorId: actor.id,
+      },
+      include: { author: { select: { id: true, name: true } } },
+    });
+    return { ...comment, createdAt: comment.createdAt.toISOString() };
   }
 
   /**
@@ -789,10 +1041,24 @@ export class PlanningManager {
     actor: PlanningActor,
     data: NotificationPreferencesInput,
   ) {
-    return prisma.userNotificationPreference.upsert({
-      where: { userId: actor.id },
-      create: { userId: actor.id, ...data },
-      update: data,
+    return executeInTransaction(async (tx) => {
+      const previous = await tx.userNotificationPreference.findUnique({ where: { userId: actor.id } });
+      const updated = await tx.userNotificationPreference.upsert({
+        where: { userId: actor.id },
+        create: { userId: actor.id, ...data },
+        update: data,
+      });
+      await logAuditOrThrow({
+        userId: actor.id,
+        action: 'UPDATE_PLANNING_NOTIFICATION_PREFERENCES',
+        entityType: 'UserNotificationPreference',
+        entityId: actor.id,
+        detailsJson: {
+          before: previous,
+          after: updated,
+        },
+      }, tx);
+      return updated;
     });
   }
 }

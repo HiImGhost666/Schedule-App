@@ -2,15 +2,18 @@ import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/permission.middleware';
 import {
+  addCommentController,
   getAvailabilityController,
   getAvailabilityMatrixController,
   getCoverageRisksController,
   getCrisisModeController,
   getEquityController,
   getNotificationPreferencesController,
+  getVacationImpactController,
   getSubstituteSuggestionsController,
   getTemplatePreviewController,
   getTimelineController,
+  listCommentsController,
   listSupportRequestsController,
   createSupportRequestController,
   reviewSupportRequestController,
@@ -69,6 +72,13 @@ router.get(
 );
 
 router.get(
+  '/vacation-impact',
+  authMiddleware,
+  requirePermission('vacations:read'),
+  (req: AuthRequest, res: Response) => getVacationImpactController(req, res),
+);
+
+router.get(
   '/template-preview',
   authMiddleware,
   requirePermission('schedules:view'),
@@ -94,6 +104,20 @@ router.patch(
   authMiddleware,
   requirePermission('schedules:update'),
   (req: AuthRequest, res: Response) => reviewSupportRequestController(req, res),
+);
+
+router.get(
+  '/comments',
+  authMiddleware,
+  requirePermission('schedules:view'),
+  (req: AuthRequest, res: Response) => listCommentsController(req, res),
+);
+
+router.post(
+  '/comments',
+  authMiddleware,
+  requirePermission('schedules:view'),
+  (req: AuthRequest, res: Response) => addCommentController(req, res),
 );
 
 router.get(

@@ -50,6 +50,24 @@ export const planningTemplatePreviewQuerySchema = planningRangeQueryBaseSchema.e
   path: ['from'],
 });
 
+export const vacationImpactQuerySchema = z.object({
+  employeeId: planningIdSchema,
+  startDate: dateQuerySchema,
+  endDate: dateQuerySchema,
+}).refine((value) => value.startDate <= value.endDate, {
+  message: 'La fecha de inicio no puede ser posterior a la fecha de fin',
+  path: ['startDate'],
+});
+
+export const planningCommentsQuerySchema = z.object({
+  entityType: z.string().trim().min(2).max(80),
+  entityId: z.string().trim().min(1).max(100),
+});
+
+export const planningCommentBodySchema = planningCommentsQuerySchema.extend({
+  body: z.string().trim().min(1).max(2000),
+});
+
 export const supportRequestBodySchema = z
   .object({
     targetUserId: z.string().trim().min(1),
@@ -84,5 +102,8 @@ export const notificationPreferencesBodySchema = z.object({
 export type PlanningRangeQueryInput = z.infer<typeof planningRangeQuerySchema>;
 export type PlanningSubstitutesQueryInput = z.infer<typeof planningSubstitutesQuerySchema>;
 export type PlanningTemplatePreviewQueryInput = z.infer<typeof planningTemplatePreviewQuerySchema>;
+export type VacationImpactQueryInput = z.infer<typeof vacationImpactQuerySchema>;
+export type PlanningCommentsQueryInput = z.infer<typeof planningCommentsQuerySchema>;
+export type PlanningCommentInput = z.infer<typeof planningCommentBodySchema>;
 export type SupportRequestInput = z.infer<typeof supportRequestBodySchema>;
 export type NotificationPreferencesInput = z.infer<typeof notificationPreferencesBodySchema>;
