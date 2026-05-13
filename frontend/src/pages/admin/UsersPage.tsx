@@ -447,19 +447,23 @@ export function UsersPage() {
           <h1 className="text-2xl font-bold text-theme-primary">Gestión de Usuarios</h1>
           <p className="text-sm text-theme-muted mt-0.5">Administra cuentas. Sedes válidas: TFN (Tenerife), GC (Las Palmas)</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || isGeneralManager) && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvSelected} data-testid="csv-upload-input" />
-            <button onClick={handleImportClick} disabled={importCsvMutation.isPending} className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-60">
-              {importCsvMutation.isPending ? <LoadingSpinner size="sm" /> : <Upload className="h-4 w-4" />}Importar CSV
-            </button>
-            <button onClick={handleDownloadTemplate} className="btn-ghost text-sm flex items-center gap-2">
-              <Download className="h-4 w-4" />Descargar plantilla
-            </button>
-            <button onClick={() => exportCsvMutation.mutate()} disabled={exportCsvMutation.isPending} className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-60">
-              {exportCsvMutation.isPending ? <LoadingSpinner size="sm" /> : <Download className="h-4 w-4" />}Exportar CSV
-            </button>
-            <button onClick={() => setFormUser(null)} className="btn-primary text-sm flex items-center gap-2">
+            {isAdmin && (
+              <>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvSelected} data-testid="csv-upload-input" />
+                <button type="button" onClick={handleImportClick} disabled={importCsvMutation.isPending} className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-60">
+                  {importCsvMutation.isPending ? <LoadingSpinner size="sm" /> : <Upload className="h-4 w-4" />}Importar CSV
+                </button>
+                <button type="button" onClick={handleDownloadTemplate} className="btn-ghost text-sm flex items-center gap-2">
+                  <Download className="h-4 w-4" />Descargar plantilla
+                </button>
+                <button type="button" onClick={() => exportCsvMutation.mutate()} disabled={exportCsvMutation.isPending} className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-60">
+                  {exportCsvMutation.isPending ? <LoadingSpinner size="sm" /> : <Download className="h-4 w-4" />}Exportar CSV
+                </button>
+              </>
+            )}
+            <button type="button" onClick={() => setFormUser(null)} className="btn-primary text-sm flex items-center gap-2">
               <Plus className="h-4 w-4" />Nuevo Usuario
             </button>
           </div>
@@ -588,7 +592,7 @@ export function UsersPage() {
         />
       )}
 
-      {(isAdmin || isDepartmentManager) && formUser !== false && (
+      {(isAdmin || isGeneralManager || isDepartmentManager) && formUser !== false && (
         <UserFormModal open user={formUser} roleName={roleName} onClose={() => setFormUser(false)} />
       )}
       {isAdmin && resetUser && (

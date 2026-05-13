@@ -376,7 +376,7 @@ export function VacationsPage() {
               >
                 <option value="">Todos</option>
                 <option value="pending">Pendiente</option>
-                <option value="colindante">Colindante</option>
+                <option value="colindante">Colindante (solapa con equipo)</option>
                 <option value="approved">Aprobado</option>
                 <option value="rejected">Rechazado</option>
                 <option value="cancelled">Cancelado</option>
