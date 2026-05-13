@@ -43,6 +43,33 @@ export interface User {
     code: string;
     isActive: boolean;
   } | null;
+  visibleBranches?: Array<{
+    branch: {
+      id: string;
+      name: string;
+      code: string;
+      isActive: boolean;
+    };
+    assignedAt: string;
+  }>;
+  skills?: Array<{
+    level?: string | null;
+    expiresAt?: string | null;
+    notes?: string | null;
+    assignedAt: string;
+    skill: Skill;
+  }>;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  category?: string | null;
+  color: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Role {

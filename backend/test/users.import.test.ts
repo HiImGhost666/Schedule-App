@@ -36,6 +36,14 @@ jest.mock('../src/common/transactions/transaction.utils', () => ({
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       createMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
+    userVisibleBranch: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+    userSkill: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
   })),
 }));
 

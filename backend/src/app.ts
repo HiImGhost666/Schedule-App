@@ -17,6 +17,8 @@ import rolesRouter from './modules/roles/roles.router';
 import vacationsRouter from './modules/vacations/vacations.router';
 import shiftPresetsRouter from './modules/shift-presets/shift-presets.router';
 import inAppNotificationsRouter from './modules/in-app-notifications/in-app.router';
+import planningRouter from './modules/planning/planning.router';
+import skillsRouter from './modules/skills/skills.router';
 import { sendSuccess } from './utils/response';
 import { openApiDocument } from './docs/openapi';
 import path from 'path';
@@ -72,6 +74,8 @@ app.use('/api/roles', rolesRouter);
 app.use('/api/vacations', vacationsRouter);
 app.use('/api/shift-presets', shiftPresetsRouter);
 app.use('/api/in-app-notifications', inAppNotificationsRouter);
+app.use('/api/planning', planningRouter);
+app.use('/api/skills', skillsRouter);
 
 app.use(errorHandler);
 
