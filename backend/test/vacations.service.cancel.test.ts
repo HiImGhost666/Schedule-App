@@ -80,6 +80,35 @@ describe('vacations.service cancelVacationEntry', () => {
     expect(result).toMatchObject({ id: 'vac-1', status: 'cancelled' });
   });
 
+  it('permite a employee cancelar su propia solicitud colindante', async () => {
+    mockedFindVacationRequestById.mockResolvedValue({
+      id: 'vac-3',
+      employeeId: 'emp-1',
+      status: 'colindante',
+      branchId: 'b-1',
+      departmentId: 'dept-1',
+      startDate: new Date('2026-07-01T00:00:00.000Z'),
+      endDate: new Date('2026-07-03T00:00:00.000Z'),
+      branch: { timezone: 'Europe/Madrid' },
+    } as any);
+    mockedUpdateVacationRequest.mockResolvedValue({
+      id: 'vac-3',
+      status: 'cancelled',
+      employeeId: 'emp-1',
+    } as any);
+
+    const result = await cancelVacationEntry('vac-3', {
+      id: 'emp-1',
+      roleName: 'employee',
+      email: 'emp@example.com',
+      name: 'Employee',
+      permissions: ['vacations:cancel'],
+    });
+
+    expect(mockedEnsureCanCancel).toHaveBeenCalledWith('colindante');
+    expect(result).toMatchObject({ id: 'vac-3', status: 'cancelled' });
+  });
+
   it('rechaza cancelación de employee sobre solicitud de otra persona', async () => {
     mockedFindVacationRequestById.mockResolvedValue({
       id: 'vac-2',

@@ -63,11 +63,12 @@ export function ensureCanReview(
 }
 
 /**
- * Valida que el empleado pueda cancelar su solicitud (solo si está pending)
+ * Valida que el empleado pueda cancelar su solicitud
+ * (solo si está pending o colindante)
  */
 export function ensureCanCancel(status: string): void {
-  if (status !== 'pending') {
-    throw createAppError('BAD_REQUEST', 'Solo puedes cancelar solicitudes pendientes');
+  if (status !== 'pending' && status !== 'colindante') {
+    throw createAppError('BAD_REQUEST', 'Solo puedes cancelar solicitudes pendientes o colindantes');
   }
 }
 

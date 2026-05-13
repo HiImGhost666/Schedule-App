@@ -56,7 +56,7 @@ export function useVacationsList(filters: VacationListFilters) {
       if (filters.sortOrder) params.sortOrder = filters.sortOrder;
       if (filters.page) params.page = filters.page;
       if (filters.pageSize) params.pageSize = filters.pageSize;
-      if (filters.search) params.employeeId = filters.search;
+      if (filters.search) params.search = filters.search;
 
       const res = await api.get<{ data: PaginatedVacations }>('/vacations', { params });
       return res.data.data;

@@ -30,10 +30,15 @@ type Actor = {
   email: string;
   name: string;
   branchId?: string | null;
+  visibleBranchIds?: string[];
   departmentId?: string | null;
   ipAddress?: string;
   permissions?: string[];
 };
+
+function getActorVisibleBranchIds(actor: Pick<Actor, 'branchId' | 'visibleBranchIds'>): string[] {
+  return [...new Set([actor.branchId, ...(actor.visibleBranchIds ?? [])].filter(Boolean) as string[])];
+}
 
 /**
  * Determina el scope de visibilidad según los permisos del actor.
@@ -54,10 +59,27 @@ function buildVacationScope(actor: Actor, query: ListVacationsQuery): Record<str
   if (actor.roleName === 'department_manager') {
     // Department manager: base = su departamento, puede filtrar por branch
     where.departmentId = actor.departmentId;
-    if (query.branchId) where.branchId = query.branchId;
+    if (query.branchId) {
+      const visibleBranchIds = getActorVisibleBranchIds(actor);
+      if (!visibleBranchIds.includes(query.branchId)) {
+        throw createAppError('FORBIDDEN', 'No puedes consultar vacaciones de otra sucursal');
+      }
+      where.branchId = query.branchId;
+    }
   } else if (actor.roleName === 'general_manager') {
-    // General manager: base = su branch, puede filtrar por departamento
-    where.branchId = actor.branchId;
+    // General manager: base = su branch + sucursales visibles adicionales
+    const visibleBranchIds = getActorVisibleBranchIds(actor);
+    if (!visibleBranchIds.length) {
+      throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+    }
+    if (query.branchId) {
+      if (!visibleBranchIds.includes(query.branchId)) {
+        throw createAppError('FORBIDDEN', 'No puedes consultar vacaciones de otra sucursal');
+      }
+      where.branchId = query.branchId;
+    } else {
+      where.branchId = { in: visibleBranchIds };
+    }
     if (query.departmentId) where.departmentId = query.departmentId;
   }
   // admin: sin filtro base, ve todo (puede filtrar por branchId/departmentId explícitos)
@@ -80,6 +102,13 @@ export async function listVacations(query: ListVacationsQuery, actor: Actor) {
     if (query.from) dateFilter.gte = new Date(query.from);
     if (query.to) dateFilter.lte = new Date(query.to);
     where.startDate = dateFilter;
+  }
+  if (query.search) {
+    where.OR = [
+      { employee: { name: { contains: query.search, mode: 'insensitive' } } },
+      { employee: { email: { contains: query.search, mode: 'insensitive' } } },
+      { employee: { employeeId: { contains: query.search, mode: 'insensitive' } } },
+    ];
   }
 
   const skip = (query.page - 1) * query.pageSize;
@@ -560,11 +589,19 @@ export async function getVacationCalendar(
       // Admin: puede filtrar por branchId explícito, o ve todo
       if (branchId) where.branchId = branchId;
     } else {
-      // employee, department_manager, general_manager: scope base = su sede
-      where.branchId = actor.branchId;
-
-      // Si el actor pidió un branchId explícito y NO es admin, lo ignoramos
-      // (no puede ver otras sedes)
+      // No-admin: scope base = branchId + visibleBranchIds
+      const visibleBranchIds = getActorVisibleBranchIds(actor);
+      if (!visibleBranchIds.length) {
+        throw createAppError('FORBIDDEN', 'No tienes una sucursal asignada');
+      }
+      if (branchId) {
+        if (!visibleBranchIds.includes(branchId)) {
+          throw createAppError('FORBIDDEN', 'No puedes consultar vacaciones de otra sucursal');
+        }
+        where.branchId = branchId;
+      } else {
+        where.branchId = { in: visibleBranchIds };
+      }
     }
   } else {
     // Sin actor (llamada interna/sistema)

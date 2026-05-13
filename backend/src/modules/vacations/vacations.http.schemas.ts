@@ -41,6 +41,7 @@ export const vacationIdParamsSchema = z.object({
 export const listVacationsQuerySchema = z.object({
   status: z.string().optional(),
   employeeId: z.string().optional(),
+  search: z.string().optional(),
   branchId: z.string().optional(),
   departmentId: z.string().optional(),
   from: z.string().optional(),
