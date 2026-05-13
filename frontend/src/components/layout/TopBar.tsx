@@ -19,6 +19,9 @@ export function TopBar({ title }: TopBarProps) {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
+    refreshNotifications,
   } = useInAppNotifications();
 
   return (
@@ -38,6 +41,9 @@ export function TopBar({ title }: TopBarProps) {
           loading={loading}
           onMarkAsRead={markAsRead}
           onMarkAllAsRead={markAllAsRead}
+          onDelete={deleteNotification}
+          onDeleteAll={deleteAllNotifications}
+          onRefresh={refreshNotifications}
           onFetchMore={(page) => fetchNotifications(page)}
           pagination={pagination}
         />
