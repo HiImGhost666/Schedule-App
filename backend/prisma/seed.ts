@@ -203,7 +203,7 @@ async function main() {
   if (!mainBranch) {
     mainBranch = await prisma.branch.create({
       data: {
-        name: 'Lãberit Tenerife',
+        name: 'Schedule-App Tenerife',
         code: 'TFN',
         city: 'Santa Cruz de Tenerife',
         region: 'Tenerife',
@@ -217,7 +217,7 @@ async function main() {
   if (!secondBranch) {
     secondBranch = await prisma.branch.create({
       data: {
-        name: 'Lãberit Las Palmas',
+        name: 'Schedule-App Las Palmas',
         code: 'GC',
         city: 'Las Palmas de Gran Canaria',
         region: 'Gran Canaria',

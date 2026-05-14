@@ -54,8 +54,8 @@ Este sistema está diseñado para que un PC actúe como **Servidor** y el resto 
 
 | Código | Nombre | Ciudad |
 | :--- | :--- | :--- |
-| **TFN** | Lãberit Tenerife | Santa Cruz de Tenerife |
-| **GC** | Lãberit Las Palmas | Las Palmas de Gran Canaria |
+| **TFN** | Schedule-App Tenerife | Santa Cruz de Tenerife |
+| **GC** | Schedule-App Las Palmas | Las Palmas de Gran Canaria |
 
 ---
 

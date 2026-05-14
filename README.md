@@ -129,11 +129,11 @@ Al iniciar el sistema, se crean automáticamente usuarios de prueba para facilit
 | Email                  | Contraseña      | Rol           | Departamento     | Sede (branch)           |
 |------------------------|-----------------|---------------|------------------|-------------------------|
 | admin@company.com      | AdminPass123!   | Administrador | Administración   | Schedule-App Tenerife (TFN)  |
-| manager@company.com    | Manager123!     | Responsable   | Operaciones      | Lãberit Tenerife (TFN)  |
-| carlos@company.com     | User123!        | Usuario       | Seguridad        | Lãberit Tenerife (TFN)  |
-| ana@company.com        | User123!        | Usuario       | Seguridad        | Lãberit Tenerife (TFN)  |
-| pedro@company.com      | User123!        | Responsable   | Mantenimiento    | Lãberit Las Palmas (GC) |
-| laura@company.com      | User123!        | Usuario       | Seguridad        | Lãberit Las Palmas (GC) |
+| manager@company.com    | Manager123!     | Responsable   | Operaciones      | Schedule-App Tenerife (TFN)  |
+| carlos@company.com     | User123!        | Usuario       | Seguridad        | Schedule-App Tenerife (TFN)  |
+| ana@company.com        | User123!        | Usuario       | Seguridad        | Schedule-App Tenerife (TFN)  |
+| pedro@company.com      | User123!        | Responsable   | Mantenimiento    | Schedule-App Las Palmas (GC) |
+| laura@company.com      | User123!        | Usuario       | Seguridad        | Schedule-App Las Palmas (GC) |
 
 > **Nota:** El usuario `carlos@company.com` debe cambiar la contraseña al primer inicio de sesión.
 
