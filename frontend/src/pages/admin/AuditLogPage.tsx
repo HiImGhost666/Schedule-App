@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { ShieldCheck, RefreshCw, Lock, Download, ClipboardList, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -92,6 +92,17 @@ export function AuditLogPage() {
   const [filters, setFilters] = useState<Record<AuditFilterKey, string>>({
     action: '', userId: '', entityType: '', userDepartment: '', from: '', to: '', branchId: '',
   });
+
+  // Implementación de debounce para evitar re-peticiones constantes al escribir y parpadeos en la UI
+  const [debouncedAction, setDebouncedAction] = useState(filters.action);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAction(filters.action);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filters.action]);
+
   const [availableBranches, setAvailableBranches] = useState<Branch[]>([]);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string }>>([]);
   const { data: departmentsData } = useQuery<{ data: Department[] }>({
@@ -127,7 +138,7 @@ export function AuditLogPage() {
 
   const commonParams = {
     limit: 20,
-    action: filters.action || undefined,
+    action: debouncedAction || undefined,
     entityType: filters.entityType || undefined,
     userId: filters.userId || undefined,
     userDepartment: filters.userDepartment || undefined,
@@ -150,13 +161,15 @@ export function AuditLogPage() {
   };
 
   const { data: dataRev, isLoading: loadingRev } = useQuery({
-    queryKey: ['audit', 'reversible', pageRev, filters.action, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
+    queryKey: ['audit', 'reversible', pageRev, debouncedAction, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
     queryFn: () => api.get('/audit', { params: { ...commonParams, page: pageRev, reversible: 'true' } }).then((r) => r.data),
+    placeholderData: keepPreviousData,
   });
 
   const { data: dataIrr, isLoading: loadingIrr } = useQuery({
-    queryKey: ['audit', 'irreversible', pageIrr, filters.action, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
+    queryKey: ['audit', 'irreversible', pageIrr, debouncedAction, filters.entityType, filters.userId, filters.userDepartment, filters.branchId, filters.from, filters.to, sortBy, sortOrder],
     queryFn: () => api.get('/audit', { params: { ...commonParams, page: pageIrr, reversible: 'false' } }).then((r) => r.data),
+    placeholderData: keepPreviousData,
   });
 
   const { data: selectedLog, isLoading: loadingDetail } = useQuery({
@@ -196,7 +209,8 @@ export function AuditLogPage() {
     { key: 'irreversible', label: 'Eventos de Seguridad', icon: Lock, count: dataIrr?.pagination?.total, description: 'Inicios de sesión, cierres de sesión y cambios de contraseña. No revertibles.' },
   ];
 
-  const isInitialLoading = loadingRev && !dataRev && loadingIrr && !dataIrr;
+  // Solo mostramos el skeleton si realmente no hay datos en absoluto (primera carga)
+  const isInitialLoading = (loadingRev || loadingIrr) && !dataRev && !dataIrr;
 
   const auditColumns: Column<AuditLog>[] = [
     {
@@ -292,6 +306,28 @@ export function AuditLogPage() {
     );
   };
 
+  // Memoización de la configuración de campos para estabilizar la identidad de los inputs en FilterTable
+  const filterFields = useMemo(() => {
+    return AUDIT_FILTER_FIELDS_BASE.map((field) => {
+      if (field.key === 'branchId') {
+        return { ...field, options: [{ value: '', label: 'Todas las sucursales' }, ...availableBranches.map((b) => ({ value: b.id, label: b.name }))] };
+      }
+      if (field.key === 'userId') {
+        return { ...field, options: [
+          { value: '', label: filters.branchId || filters.userDepartment ? 'Todos los usuarios' : 'Selecciona sucursal o departamento' },
+          ...availableUsers.map((u) => ({ value: u.id, label: u.name })),
+        ] };
+      }
+      if (field.key === 'userDepartment') {
+        return { ...field, options: [
+          { value: '', label: filters.branchId ? 'Todos los departamentos' : 'Selecciona una sucursal' },
+          ...(departmentsData?.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
+        ] };
+      }
+      return field;
+    });
+  }, [availableBranches, availableUsers, departmentsData, filters.branchId, filters.userDepartment]);
+
   if (isInitialLoading) {
     return <ListPageSkeleton />;
   }
@@ -310,15 +346,7 @@ export function AuditLogPage() {
 
       <div className="card px-4 py-3">
         <FilterTable
-          fields={AUDIT_FILTER_FIELDS_BASE.map((field) => {
-            if (field.key === 'branchId') return { ...field, options: [{ value: '', label: 'Todas las sucursales' }, ...availableBranches.map((b) => ({ value: b.id, label: b.name }))] };
-            if (field.key === 'userId') return { ...field, options: [{ value: '', label: filters.branchId || filters.userDepartment ? 'Todos los usuarios' : 'Selecciona sucursal o departamento' }, ...availableUsers.map((u) => ({ value: u.id, label: u.name }))] };
-            if (field.key === 'userDepartment') return { ...field, options: [
-              { value: '', label: filters.branchId ? 'Todos los departamentos' : 'Selecciona una sucursal' },
-              ...(departmentsData?.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
-            ] };
-            return field;
-          })}
+          fields={filterFields}
           values={filters}
           onChange={handleFilterChange}
           className="!p-0 !gap-3 !border-0 !shadow-none"

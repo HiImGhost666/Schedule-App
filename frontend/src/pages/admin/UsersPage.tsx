@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState, useMemo, type ChangeEvent, type MouseEvent } from 'react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Plus, Upload, Download, Shield, MoreVertical } from 'lucide-react';
 import { formatRelative } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -138,6 +138,16 @@ export function UsersPage() {
     branchId: isGeneralManager && currentUser?.branchId ? currentUser.branchId : (isDepartmentManager && currentUser?.branchId ? currentUser.branchId : ''),
     lastLoginFrom: '', lastLoginTo: '', createdFrom: '', createdTo: '',
   });
+  // Implementación de debounce para evitar re-peticiones constantes al escribir y parpadeos en la UI
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
   const [sortBy, setSortBy] = useState<UsersSortBy>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [page, setPage] = useState(1);
@@ -165,22 +175,22 @@ export function UsersPage() {
     queryFn: () => api.get('/branches').then((r) => r.data),
   });
 
-  const branchOptions = [
+  const branchOptions = useMemo(() => [
     { value: '', label: 'Todas las sucursales' },
     ...(branchesData?.data ?? []).map((b) => ({ value: b.id, label: `${b.name} (${b.code})` })),
-  ];
+  ], [branchesData?.data]);
 
   const { data: departmentsData } = useQuery<{ data: Department[] }>({
     queryKey: ['departments', 'users-page-filter'],
     queryFn: () => api.get('/departments', { params: { includeInactive: true } }).then((r) => r.data),
   });
 
-  const departmentOptions = [
+  const departmentOptions = useMemo(() => [
     { value: '', label: 'Todos los departamentos' },
     ...(departmentsData?.data ?? []).map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
-  ];
+  ], [departmentsData?.data]);
 
-  const USERS_FILTER_FIELDS_DYNAMIC: Array<FilterFieldConfig<UsersFilterKey>> = [
+  const filterFields = useMemo((): Array<FilterFieldConfig<UsersFilterKey>> => [
     {
       key: 'search',
       type: 'text',
@@ -247,22 +257,29 @@ export function UsersPage() {
       label: 'Creado hasta',
       className: 'w-36',
     },
-  ];
+  ], [branchOptions, departmentOptions, isGeneralManager, isDepartmentManager]);
+
+  // Filtros estables para la query key (evita cambios por cada pulsación en búsqueda)
+  const stableFilters = useMemo(() => {
+    const { search: _, ...others } = filters;
+    return { ...others, search: debouncedSearch };
+  }, [filters.role, filters.status, filters.departmentId, filters.branchId, filters.employeeId, filters.lastLoginFrom, filters.lastLoginTo, filters.createdFrom, filters.createdTo, debouncedSearch]);
 
   const { data, isLoading } = useQuery<{ data: User[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>({
-    queryKey: ['users', page, limit, filters, sortBy, sortOrder],
+    queryKey: ['users', page, limit, stableFilters, sortBy, sortOrder],
     queryFn: () =>
       api.get('/users', {
         params: {
           page, limit,
-          search: filters.search || undefined, role: filters.role || undefined,
-          status: filters.status || undefined, departmentId: filters.departmentId || undefined,
-          employeeId: filters.employeeId || undefined, branchId: filters.branchId || undefined,
-          lastLoginFrom: filters.lastLoginFrom || undefined, lastLoginTo: filters.lastLoginTo || undefined,
+          search: stableFilters.search || undefined, role: stableFilters.role || undefined,
+          status: stableFilters.status || undefined, departmentId: stableFilters.departmentId || undefined,
+          employeeId: stableFilters.employeeId || undefined, branchId: stableFilters.branchId || undefined,
+          lastLoginFrom: stableFilters.lastLoginFrom || undefined, lastLoginTo: stableFilters.lastLoginTo || undefined,
           createdFrom: filters.createdFrom || undefined, createdTo: filters.createdTo || undefined,
           sortBy, sortOrder,
         },
       }).then((r) => r.data),
+    placeholderData: keepPreviousData,
   });
 
   const handleFilterChange = (key: UsersFilterKey, value: string) => {
@@ -470,7 +487,7 @@ export function UsersPage() {
         )}
       </div>
 
-      <FilterTable fields={USERS_FILTER_FIELDS_DYNAMIC} values={filters} onChange={handleFilterChange} />
+      <FilterTable fields={filterFields} values={filters} onChange={handleFilterChange} />
 
       <div className="card overflow-visible">
         {isLoading ? (
