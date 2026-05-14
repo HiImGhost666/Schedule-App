@@ -100,7 +100,7 @@ function ScopeSelector({
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 flex-wrap">
         {[
           { value: 'all' as ScopeFilter, icon: Globe, label: 'Todos' },
           { value: 'branch' as ScopeFilter, icon: Building2, label: 'Sucursal' },

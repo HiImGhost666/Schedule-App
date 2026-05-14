@@ -65,7 +65,7 @@ export function ManagerAssignmentModal({
           <button
             onClick={onAssign}
             disabled={!canAssign}
-            className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-lg bg-theme-color text-white transition-colors disabled:opacity-60"
+            className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-lg bg-black text-white hover:bg-gray-900 transition-colors disabled:opacity-60"
             type="button"
           >
             {isLoading ? <LoadingSpinner size="sm" /> : null}

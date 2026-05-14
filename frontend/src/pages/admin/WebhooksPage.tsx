@@ -94,18 +94,17 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-fade-in">
-      <div className="card rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-theme-color">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 animate-fade-in">
+      <div className="card rounded-2xl shadow-2xl w-full max-w-lg max-h-[95vh] flex flex-col animate-slide-up overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 sm:px-6 sm:py-5 border-b border-theme-color shrink-0">
           <h2 className="text-lg font-semibold text-theme-primary">{webhook ? 'Editar Webhook' : 'Nuevo Webhook'}</h2>
           <button onClick={onClose} className="p-1.5 text-theme-muted hover:text-theme-primary rounded-lg">✕</button>
         </div>
-        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-7 space-y-5">
-          <div>
+        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="flex flex-col overflow-hidden">
+          <div className="p-5 sm:p-7 space-y-5 overflow-y-auto">
             <label className="block text-sm font-medium text-theme-muted mb-1">Nombre *</label>
             <input {...register('name')} className="input-field" placeholder="Canal de Teams - Guardias" />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
-          </div>
           <div>
             <label className="block text-sm font-medium text-theme-muted mb-1">URL del Webhook *</label>
             <input
@@ -143,7 +142,7 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center gap-2">
               <input {...register('fridayReminderEnabled')} type="checkbox" id="fri" className="rounded border-theme-color text-theme-primary" />
               <label htmlFor="fri" className="text-sm text-theme-muted">Resumen viernes</label>
@@ -152,7 +151,7 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
               <input {...register('fridayReminderTime')} type="time" className="input-field text-sm" />
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
             {[
               { name: 'notifyModifications' as const, label: 'Notificar modificaciones de guardias' },
               { name: 'notifyLastMinute' as const, label: 'Notificar cambios de último momento (<24h)' },
@@ -165,7 +164,8 @@ function WebhookForm({ webhook, onClose }: { webhook?: WebhookConfig; onClose: (
               </div>
             ))}
           </div>
-          <div className="flex gap-3 pt-2">
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row gap-3 p-5 sm:p-7 pt-3 sm:pt-4 border-t border-theme-color bg-theme-surface shrink-0">
             <button type="button" onClick={onClose} className="flex-1 btn-ghost text-sm">Cancelar</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-60">
               {mutation.isPending && <LoadingSpinner size="sm" className="border-white border-t-white/30" />}

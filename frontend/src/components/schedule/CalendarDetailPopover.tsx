@@ -92,9 +92,10 @@ function getInitialStyle(anchor: PopoverAnchor | null, mobile: boolean): CSSProp
 
   return {
     position: 'absolute',
-    left: Math.max(gap, anchor.x + gap),
-    top: Math.max(16, anchor.y + gap),
+    left: anchor.x + gap,
+    top: anchor.y + gap,
     width: 340,
+    zIndex: 50,
   };
 }
 
@@ -157,15 +158,16 @@ export function CalendarDetailPopover({
   useEffect(() => {
     if (!open) return;
 
-    const handlePointerDownOutside = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (popoverRef.current?.contains(target)) return;
-      onClose();
+    const handleMouseDown = (event: MouseEvent) => {
+      // Solo cerramos si el clic fue específicamente en el overlay (fondo)
+      // Esto evita cierres accidentales al usar barras de scroll o clics imprecisos.
+      if (event.target instanceof HTMLElement && event.target.classList.contains('calendar-popover-overlay')) {
+        onClose();
+      }
     };
 
-    window.addEventListener('pointerdown', handlePointerDownOutside, true);
-    return () => window.removeEventListener('pointerdown', handlePointerDownOutside, true);
+    window.addEventListener('mousedown', handleMouseDown);
+    return () => window.removeEventListener('mousedown', handleMouseDown);
   }, [open, onClose]);
 
   const style = useMemo(() => getInitialStyle(anchor, mobile), [anchor, mobile]);

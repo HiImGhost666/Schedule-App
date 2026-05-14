@@ -43,8 +43,27 @@ export async function createScheduleType(input: CreateScheduleTypeInput, actor?:
     where: { value: input.value },
   });
 
-  if (existing) {
+  if (existing && existing.isActive) {
     throw createAppError('BAD_REQUEST', 'Schedule type with this value already exists');
+  }
+
+  if (existing && !existing.isActive) {
+    // Si el tipo de turno existe pero está inactivo, lo reactivamos con los nuevos datos
+    return executeInTransaction(async (tx) => {
+      const updated = await tx.scheduleType.update({
+        where: { id: existing.id },
+        data: { ...input, isActive: true },
+      });
+      await logAuditOrThrow({
+        userId: actor?.id,
+        action: 'UPDATE_SCHEDULE_TYPE',
+        entityType: 'ScheduleType',
+        entityId: existing.id,
+        ipAddress: actor?.ipAddress,
+        detailsJson: { before: sanitizeSnapshot(existing), after: sanitizeSnapshot(updated) },
+      }, tx);
+      return updated;
+    });
   }
 
   return executeInTransaction(async (tx) => {

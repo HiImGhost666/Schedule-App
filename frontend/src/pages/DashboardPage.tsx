@@ -180,15 +180,6 @@ export function DashboardPage() {
             color="gold"
             className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-navy-200"
           />
-          <button
-            type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/schedule', { state: { initialView: 'timeGridWeek', initialDate: now.toISOString() } }); }}
-            className={statCornerLinkClass}
-            title="Abrir calendario (Vista semanal)"
-            aria-label="Abrir calendario, vista semanal"
-          >
-            <ExternalLink className="h-4 w-4" aria-hidden />
-          </button>
         </div>
 
         {(user?.role?.name === 'admin' || user?.role?.name === 'general_manager' || user?.role?.name === 'department_manager') && (

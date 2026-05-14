@@ -6,7 +6,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import { DataTable } from '@/components/common/DataTable';
 import type { Column } from '@/components/common/DataTable';
-import type { CreateScheduleTypeInput, FullScheduleType } from '@/components/schedule/scheduleTypesApi';
+import type { FullScheduleType } from '@/components/schedule/scheduleTypesApi';
 
 export function ScheduleTypesPage() {
   const currentUser = useAuthStore((s) => s.user);
@@ -20,16 +20,34 @@ export function ScheduleTypesPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = {
-      label: formData.get('label') as string,
-      value: (formData.get('label') as string).toLowerCase().replace(/\s+/g, '_'),
-      color: formData.get('color') as string,
-    };
+    const labelValue = formData.get('label') as string;
+    const colorValue = formData.get('color') as string;
+    // Normalizar el nombre para eliminar tildes y otros diacríticos antes de crear el identificador
+    const normalizedLabel = labelValue.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const newValue = normalizedLabel.replace(/\s+/g, '_');
 
     if (editingType) {
-      updateMutation.mutate({ id: editingType.id, data }, { onSuccess: closeModal });
+      // Solo enviamos el 'value' si ha cambiado realmente respecto al original.
+      // Esto evita errores de "valor ya existente" en el backend cuando solo se edita el color.
+      const updateData: any = {
+        name: labelValue,
+        label: labelValue,
+        color: colorValue,
+      };
+
+      if (newValue !== editingType.value) {
+        updateData.value = newValue;
+      }
+
+      updateMutation.mutate({ id: editingType.id, data: updateData }, { onSuccess: closeModal });
     } else {
-      createMutation.mutate(data as CreateScheduleTypeInput, { onSuccess: closeModal });
+      const data = {
+        name: labelValue,
+        label: labelValue,
+        value: newValue,
+        color: colorValue,
+      };
+      createMutation.mutate(data as any, { onSuccess: closeModal });
     }
   };
 
@@ -49,7 +67,7 @@ export function ScheduleTypesPage() {
   const columns: Column<FullScheduleType>[] = [
     {
       key: 'label',
-      label: 'Etiqueta',
+      label: 'Nombre',
       render: (type) => <span className="font-medium text-theme-primary">{type.label}</span>,
     },
     {
@@ -120,7 +138,7 @@ export function ScheduleTypesPage() {
             <h2 className="text-xl font-bold text-theme-primary mb-4">{editingType ? 'Editar' : 'Nuevo'} Tipo de Turno</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-theme-muted mb-1">Nombre (Etiqueta)</label>
+                <label className="block text-sm font-medium text-theme-muted mb-1">Nombre</label>
                 <input 
                   name="label" 
                   defaultValue={editingType?.label} 

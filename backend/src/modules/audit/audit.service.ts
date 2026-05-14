@@ -194,7 +194,8 @@ export async function listAuditLogs(params: {
     actionFilter.notIn = [...IRREVERSIBLE_ACTIONS];
   } else if (params.reversible === 'false') {
     delete actionFilter.contains;
-    actionFilter.in = [...IRREVERSIBLE_ACTIONS];
+    // Excluir ROLLBACK_PERFORMED de los logs de seguridad ya que se visualiza en la acción original
+    actionFilter.in = IRREVERSIBLE_ACTIONS.filter(a => a !== 'ROLLBACK_PERFORMED');
   }
 
   if (Object.keys(actionFilter).length > 0) {
