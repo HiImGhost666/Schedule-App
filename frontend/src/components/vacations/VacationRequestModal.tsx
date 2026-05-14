@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useCreateVacation } from '@/hooks/useVacations';
 import { useCancelVacation } from '@/hooks/useVacations';
 import toast from 'react-hot-toast';
-import { getApiErrorMessage } from '@/lib/apiError';
-import { X } from 'lucide-react';
+import { getApiErrorMessage } from '@/lib/apiError'; // Keep this import
+import { X, CalendarDays } from 'lucide-react'; // Add CalendarDays
 
 interface Props {
   open: boolean;
@@ -171,26 +171,32 @@ export function VacationRequestModal({ open, onClose }: Props) {
             <label className="block text-sm font-medium text-theme-primary mb-1">
               Fecha de inicio *
             </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input-field w-full"
-              min={new Date().toISOString().split('T')[0]}
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="input-field w-full pr-9" // Added pr-9
+                min={new Date().toISOString().split('T')[0]}
+              />
+              <CalendarDays className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted pointer-events-none" />
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-theme-primary mb-1">
               Fecha de fin *
             </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input-field w-full"
-              min={startDate || new Date().toISOString().split('T')[0]}
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="input-field w-full pr-9" // Added pr-9
+                min={startDate || new Date().toISOString().split('T')[0]}
+              />
+              <CalendarDays className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted pointer-events-none" />
+            </div>
           </div>
 
           <div>
