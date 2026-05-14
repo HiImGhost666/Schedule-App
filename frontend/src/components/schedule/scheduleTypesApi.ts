@@ -3,6 +3,7 @@ import type { ScheduleType } from '@/types';
 
 // Extendemos el tipo para incluir campos de base de datos si no están en el global
 export interface FullScheduleType extends ScheduleType {
+  name: string;
   id: string;
   createdAt?: string;
   updatedAt?: string;
