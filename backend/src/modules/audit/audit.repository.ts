@@ -22,11 +22,15 @@ export async function findAuditLogs(
   sortBy: AuditSortBy = 'createdAt',
   sortOrder: SortOrder = 'desc'
 ) {
-  // Construir orderBy dinámicamente: los campos de relación usan sintaxis anidada
-  const relationSortFields: AuditSortBy[] = ['userName', 'userDepartment'];
-  const orderBy = relationSortFields.includes(sortBy)
-    ? { user: { [sortBy === 'userName' ? 'name' : 'department']: sortOrder } }
-    : { [sortBy]: sortOrder };
+  // Construir orderBy: los campos de relación requieren sintaxis anidada específica.
+  let orderBy: any;
+  if (sortBy === 'userName') {
+    orderBy = { user: { name: sortOrder } };
+  } else if (sortBy === 'userDepartment') {
+    orderBy = { user: { department: { name: sortOrder } } };
+  } else {
+    orderBy = { [sortBy]: sortOrder };
+  }
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({
