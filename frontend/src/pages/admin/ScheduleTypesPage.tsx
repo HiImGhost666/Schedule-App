@@ -22,7 +22,9 @@ export function ScheduleTypesPage() {
     const formData = new FormData(e.currentTarget);
     const labelValue = formData.get('label') as string;
     const colorValue = formData.get('color') as string;
-    const newValue = labelValue.toLowerCase().trim().replace(/\s+/g, '_');
+    // Normalizar el nombre para eliminar tildes y otros diacríticos antes de crear el identificador
+    const normalizedLabel = labelValue.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const newValue = normalizedLabel.replace(/\s+/g, '_');
 
     if (editingType) {
       // Solo enviamos el 'value' si ha cambiado realmente respecto al original.

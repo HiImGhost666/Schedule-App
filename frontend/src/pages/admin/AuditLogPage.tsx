@@ -36,7 +36,6 @@ const ACTION_COLORS: Record<string, string> = {
   CREATE_WEBHOOK: 'bg-teal-100 text-teal-700',
   CHANGE_PASSWORD: 'bg-cyan-100 text-cyan-700',
   FAILED_LOGIN_ATTEMPT: 'bg-red-100 text-red-700',
-  ROLLBACK_PERFORMED: 'bg-indigo-100 text-indigo-700',
 };
 
 const AUDIT_FILTER_FIELDS_BASE: Array<FilterFieldConfig<AuditFilterKey>> = [
