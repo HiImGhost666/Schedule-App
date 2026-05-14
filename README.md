@@ -1,10 +1,44 @@
-# 🗓️ Sistema de Guardias Corporativas
+<div align="center">
 
-Bienvenido/a a la plataforma integral para la gestión, visualización y auditoría de turnos de guardia corporativos. Este sistema está diseñado para ser **fácil de usar**, seguro y totalmente trazable, permitiendo la gestión eficiente de usuarios, horarios, auditoría y notificaciones en tiempo real.
+<picture>
+  <source 
+    media="(prefers-color-scheme: dark)" 
+    srcset="frontend/src/assets/Logo_Claro.webp"
+  >
+  <source 
+    media="(prefers-color-scheme: light)" 
+    srcset="frontend/src/assets/Logo_Oscuro.webp"
+  >
+  <img 
+    src="frontend/src/assets/Logo_Claro.webp" 
+    alt="Logo" 
+    width="300"
+  >
+</picture>
+
+# Sistema de Guardias Corporativas
+
+### Full Stack Enterprise Scheduling Platform
+
+Plataforma integral para la gestión, visualización y auditoría de turnos de guardia corporativos, diseñada para ser segura, escalable y totalmente sincronizada en tiempo real.
+
+<br>
+
+<img src="https://skillicons.dev/icons?i=nodejs,react,ts,docker,mysql,tailwind,vite"/>
+
+<br>
+
+![Status](https://img.shields.io/badge/status-active-success?style=for-the-badge)
+![Frontend](https://img.shields.io/badge/frontend-react%20%2B%20vite-61DAFB?style=for-the-badge&logo=react)
+![Backend](https://img.shields.io/badge/backend-nodejs%20%2B%20express-339933?style=for-the-badge&logo=node.js)
+![Realtime](https://img.shields.io/badge/realtime-socket.io-010101?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
+
+</div>
 
 ---
 
-## 🚀 ¿Qué puedes hacer con esta página?
+## ¿Qué puedes hacer con esta página?
 
 - Gestionar usuarios y sus roles (administrador, responsable, usuario)
 - Asignar y visualizar turnos de guardia y vacaciones
@@ -15,34 +49,33 @@ Bienvenido/a a la plataforma integral para la gestión, visualización y auditor
 
 ---
 
-## 🧩 Funcionalidades principales
+## Funcionalidades principales
 
 - **Gestión de usuarios**: Alta, edición, baja, importación/exportación CSV, control de roles y departamentos.
-- **Gestión de turnos**: Asignación de guardias, vacaciones, visualización en calendario, gestión de solapamientos, turnos multi-día.
-- **Gestión de vacaciones**: Solicitud, aprobación/rechazo, calendario de vacaciones, filtros por sucursal y departamento.
-- **Resumen semanal de horas**: Cálculo automático de horas totales, base y extra por semana con desglose diario.
-- **Dashboard con widgets**: Vista semanal de turnos, resumen personal y del equipo, actividad reciente.
-- **Auditoría y rollback**: Registro de todas las acciones críticas, con posibilidad de revertir cambios.
-- **Notificaciones**: Alertas automáticas por cambios de última hora y resúmenes semanales vía Teams.
-- **Sincronización en tiempo real**: Cambios reflejados instantáneamente en todos los dispositivos conectados.
-- **Gestión de sedes y festivos**: Soporte multi-sucursal, calendario de festivos nacional, regional y local.
-- **Webhooks con scope**: Configuración de webhooks por departamento y/o sucursal.
-- **Tipos de evento configurables**: Creación y personalización de tipos de turno con colores.
-- **Temas y personalización**: Temas corporativos con colores, logo y favicon configurables.
+- **Gestión de turnos**: Asignación de guardias, vacaciones, visualización en calendario, gestión de solapamientos y turnos multi-día.
+- **Gestión de vacaciones**: Solicitud, aprobación/rechazo, calendario de vacaciones y filtros avanzados.
+- **Resumen semanal de horas**: Cálculo automático de horas totales, base y extra con desglose diario.
+- **Dashboard interactivo**: Vista semanal de turnos, actividad reciente y métricas del equipo.
+- **Auditoría y rollback**: Registro de acciones críticas con posibilidad de revertir cambios.
+- **Notificaciones inteligentes**: Alertas automáticas e integración con Microsoft Teams.
+- **Sincronización en tiempo real**: Actualización instantánea en todos los dispositivos conectados.
+- **Gestión multi-sucursal**: Soporte para sedes, departamentos y festivos regionales.
+- **Webhooks configurables**: Integraciones segmentadas por departamento o sucursal.
+- **Tipos de evento personalizados**: Configuración de colores y categorías de turnos.
+- **Temas corporativos**: Personalización visual con logos, favicon y colores.
 
 ---
 
-## 🛠️ Tecnologías utilizadas
+## Tecnologías utilizadas
 
 - **Backend**: Node.js (Express), Prisma ORM, MySQL
 - **Frontend**: React (Vite), TailwindCSS, TanStack Query
 - **Comunicación**: WebSockets (Socket.io)
 - **Infraestructura**: Docker & Docker Compose
 - **Calidad**: Vitest (Frontend), Jest (Backend), ESLint & Prettier
-
 ---
 
-## 🏗️ Estructura del proyecto
+## Estructura del proyecto
 
 ```text
 schedule-app/
@@ -59,7 +92,7 @@ schedule-app/
 
 ---
 
-## 🏁 Cómo empezar (instalación y uso)
+## Cómo empezar (instalación y uso)
 
 ### Opción recomendada: Docker Compose
 
@@ -89,13 +122,13 @@ schedule-app/
 
 ---
 
-## 👤 Usuarios de ejemplo (seed)
+## Usuarios de ejemplo (seed)
 
 Al iniciar el sistema, se crean automáticamente usuarios de prueba para facilitar el acceso y las pruebas:
 
 | Email                  | Contraseña      | Rol           | Departamento     | Sede (branch)           |
 |------------------------|-----------------|---------------|------------------|-------------------------|
-| admin@company.com      | AdminPass123!   | Administrador | Administración   | Lãberit Tenerife (TFN)  |
+| admin@company.com      | AdminPass123!   | Administrador | Administración   | Schedule-App Tenerife (TFN)  |
 | manager@company.com    | Manager123!     | Responsable   | Operaciones      | Lãberit Tenerife (TFN)  |
 | carlos@company.com     | User123!        | Usuario       | Seguridad        | Lãberit Tenerife (TFN)  |
 | ana@company.com        | User123!        | Usuario       | Seguridad        | Lãberit Tenerife (TFN)  |
