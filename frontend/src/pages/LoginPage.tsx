@@ -151,7 +151,7 @@ export function LoginPage() {
               </div>
             </div>
 
-            <p className="mt-10 text-xs text-white/55">© {new Date().getFullYear()} Laberit | Sistema de Guardias</p>
+            <p className="mt-10 text-xs text-white/55">© {new Date().getFullYear()} Schedule-App | Sistema de Guardias</p>
           </section>
 
           <section className="border-t border-theme-color bg-theme-surface p-7 sm:p-9 lg:border-l lg:border-t-0">

@@ -89,7 +89,7 @@ export function Sidebar() {
           /* Expanded: show full logo */
           <img
             src={expandedLogo}
-            alt="Logo Laberit"
+            alt="Logo Schedule-App"
             width={420}
             height={141}
             fetchPriority="high"
